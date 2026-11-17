@@ -10918,8 +10918,8 @@ MonoBehaviour:
   sunsetSkyAmb: {r: 0.35173348, g: 0.3472394, b: 0.5, a: 1}
   sunsetHorizon: {r: 0.9, g: 0.5934105, b: 0.46444649, a: 1}
   sunsetFog: {r: 0.78, g: 0.5508569, b: 0.503507, a: 1}
-  ambMul: 1.9
-  exposureOff: -0.2
+  ambMul: 1.2
+  exposureOff: -0.1
   sunIntensity: 2.3
   splitShadows: {r: 0.45, g: 0.47, b: 0.57, a: 1}
   splitHighlights: {r: 0.7, g: 0.54, b: 0.4, a: 1}

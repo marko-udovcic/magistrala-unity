@@ -14,3 +14,11 @@ public static class Tune
         return $"amb {lp.ambMul} exp {lp.exposureOff} sun {lp.sunIntensity}";
     }
 }
+public static class TuneAmb
+{
+    public static string Set(float amb, float exp)
+    {
+        var lp = Object.FindFirstObjectByType<Magistrala.LightPreset>(); lp.ambMul = amb; lp.exposureOff = exp; lp.SetGolden(true);
+        return $"amb {amb} exp {exp}";
+    }
+}

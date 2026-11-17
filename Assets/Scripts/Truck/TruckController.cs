@@ -23,6 +23,8 @@ public sealed class TruckController : MonoBehaviour
     public float EngineRpm { get; private set; } = 600f;
     public int Grounded { get; private set; }
     public bool IsReady => ready;
+    /// 0..1 service-brake pressure (brake lights)
+    public float BrakeLevel => brakePressure;
     public Vector3 CabinEyeLocal { get; private set; } = new Vector3(-0.55f, 1.3f, 2.75f);
 
     // truckPhysics.ts firm_truck: 6300 kg already agrees with the real empty box + tail-lift mass.
