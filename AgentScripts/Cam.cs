@@ -62,3 +62,15 @@ public static class Tree
         return sb.ToString();
     }
 }
+public static class Front
+{
+    // camera 'dist' m in front of wiper_0 (along truck forward), slightly right and above, looking at the wiper
+    public static string View(float dist, float side, float up)
+    {
+        var cam = Camera.main; var truck = Object.FindFirstObjectByType<TruckController>(); var t = truck.transform;
+        var cc = cam.GetComponent<TruckChaseCamera>(); if (cc) cc.enabled = false;
+        var w = t.Find("Model/wiper_0").position; var f = t.forward; f.y = 0; f.Normalize();
+        cam.transform.position = w + f * dist + t.right * side + Vector3.up * up; cam.transform.LookAt(w + Vector3.up * .2f); cam.fieldOfView = 45;
+        return $"ok wiper {w} cam {cam.transform.position}";
+    }
+}
