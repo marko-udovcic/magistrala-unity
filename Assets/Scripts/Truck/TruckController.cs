@@ -28,7 +28,7 @@ public sealed class TruckController : MonoBehaviour
     // truckPhysics.ts firm_truck: 6300 kg already agrees with the real empty box + tail-lift mass.
     const float Mass = 6300f, Radius = 0.46f, FinalDrive = 4.4f;
     const float Idle = 600f, Redline = 2450f, ShiftTime = 0.6f;
-    const float Travel = 0.28f, Sag = 0.09f, SpringTarget = 0.25f;
+    const float Travel = 0.30f, Sag = 0.13f, SpringTarget = 0.3f; // (bench vs web: 0.09 m sag rolled only 1.6° at 0.4 g, web 2.5°)
     static readonly float[] Ratios = { 6.75f, 3.6f, 2.13f, 1.39f, 1f, 0.78f };
     static readonly float[] CurveRpm = { 500, 800, 1200, 1600, 1900, 2200, 2500 };
     static readonly float[] CurveTorque = { 0.42f, 0.68f, 1, 1, 0.95f, 0.87f, 0.3f };
@@ -420,7 +420,7 @@ public sealed class TruckController : MonoBehaviour
             loadShare[i] = (i < 2 ? frontShare : 1f - frontShare) * 0.5f;
             w.sprungMass = body.mass * loadShare[i];
             // progressive springs: loaded sag 0.12 m instead of the empty 0.09 m (no bottoming on the 0.28 m travel)
-            float sag = Mathf.Lerp(Sag, 0.12f, CargoKg / 6000f);
+            float sag = Mathf.Lerp(Sag, 0.16f, CargoKg / 6000f);
             float spring = w.sprungMass * 9.81f / sag;
             w.suspensionSpring = new JointSpring { spring = spring, damper = 2f * 0.65f * Mathf.Sqrt(spring * w.sprungMass), targetPosition = SpringTarget };
         }
@@ -429,7 +429,7 @@ public sealed class TruckController : MonoBehaviour
         body.WakeUp();
     }
     float antiRollScale = 1f;
-    public float AntiRollFront = 4000f, AntiRollRear = 3500f;
+    public float AntiRollFront = 2000f, AntiRollRear = 1500f;
     /// bench only: steer to the full lock at any speed (the web bench sets the wheel angle directly)
     public bool benchFullLock;
 
