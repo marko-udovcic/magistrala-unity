@@ -2,6 +2,7 @@
 
 ## CC0 (Poly Haven, https://polyhaven.com — licenca CC0, atribucija nije obavezna, ali je navodimo)
 - HDRI nebo: **Kloofendal 43d Clear (Pure Sky)** — Greg Zaal / Poly Haven — https://polyhaven.com/a/kloofendal_43d_clear_puresky (4k .hdr)
+- HDRI nebo za zalazak (G): **Belfast Sunset (Pure Sky)** — Poly Haven — https://polyhaven.com/a/belfast_sunset_puresky (4k .hdr)
 - Teren: **Aerial Grass Rock** — https://polyhaven.com/a/aerial_grass_rock — Rob Tuytel (suha trava s kamenjem)
 - Teren: **Dry Ground Rocks** — https://polyhaven.com/a/dry_ground_rocks — Rob Tuytel (oker tlo među maslinama)
 - Teren: **Red Dirt Mud 01** — https://polyhaven.com/a/red_dirt_mud_01 — Rob Tuytel (crvenica / terra rossa)

@@ -1334,7 +1334,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -1356,7 +1356,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 507b58b9c9dd2469dabb62874141a78d, type: 3}
 --- !u!1 &16066664
 GameObject:
   m_ObjectHideFlags: 0
@@ -10876,6 +10876,48 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 86b7af9f9fbd74270b3b625979eb8878, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Magistrala.LightPreset
+  sunsetSky: {fileID: 2100000, guid: 2f500a358249f4afba256511757dc1e5, type: 2}
+  probes:
+  - {fileID: 260772013}
+  - {fileID: 1880355049}
+  - {fileID: 1441481845}
+  - {fileID: 260866042}
+  - {fileID: 376254793}
+  - {fileID: 474428236}
+  - {fileID: 1833365375}
+  - {fileID: 1843299528}
+  - {fileID: 1647116710}
+  - {fileID: 1006195008}
+  - {fileID: 1491803760}
+  - {fileID: 475162068}
+  - {fileID: 412627633}
+  - {fileID: 811230570}
+  - {fileID: 1620352309}
+  - {fileID: 1293499126}
+  - {fileID: 16061417}
+  sunsetProbes:
+  - {fileID: 8900000, guid: f760f33957e524a74a6bc9b0a3d7b8bd, type: 3}
+  - {fileID: 8900000, guid: a0e21619b8cd34be2a0245c490bd3330, type: 3}
+  - {fileID: 8900000, guid: c3b3602b4a51f4ee3b59d7700cccf892, type: 3}
+  - {fileID: 8900000, guid: ae6cff689edf44f64a4b1706af5ae930, type: 3}
+  - {fileID: 8900000, guid: 4ac2e57b45a334411bd639e611d85b23, type: 3}
+  - {fileID: 8900000, guid: 4e9d5aa84a67e47c49fedb0238007727, type: 3}
+  - {fileID: 8900000, guid: 19345b2a402e84f38b172e5f5f932c9f, type: 3}
+  - {fileID: 8900000, guid: fbc6a30eef61242c19b196274bbe827d, type: 3}
+  - {fileID: 8900000, guid: 8019c93b4559f411d89b2d39b4af6f11, type: 3}
+  - {fileID: 8900000, guid: ad68ebb1437724e5c8b55ccfc92b4d3e, type: 3}
+  - {fileID: 8900000, guid: 5a46367edffe24ffcaac0b16919afd22, type: 3}
+  - {fileID: 8900000, guid: e2fc91b46668f4da0a28e53d3cf1fcde, type: 3}
+  - {fileID: 8900000, guid: 4f19fb25085e24e4a88fc3060257b629, type: 3}
+  - {fileID: 8900000, guid: 0d8929f5595d848e4bd98fb064849d94, type: 3}
+  - {fileID: 8900000, guid: 48d8d7a0102ba4d12b59a1ffa89044ec, type: 3}
+  - {fileID: 8900000, guid: f62e90a6d20c44e699cda896d316474d, type: 3}
+  - {fileID: 8900000, guid: 8acfd515a04f04ffa9e07e8ce0c904c4, type: 3}
+  sunElev: 3.5
+  sunYaw: 76
+  sunsetSkyAmb: {r: 0.35173348, g: 0.3472394, b: 0.5, a: 1}
+  sunsetHorizon: {r: 0.9, g: 0.5934105, b: 0.46444649, a: 1}
+  sunsetFog: {r: 0.78, g: 0.5508569, b: 0.503507, a: 1}
 --- !u!1 &122695060
 GameObject:
   m_ObjectHideFlags: 0
@@ -23475,7 +23517,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -23497,7 +23539,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 9a74e4ba81a96406f80c234ecdb3d110, type: 3}
 --- !u!1 &260866040
 GameObject:
   m_ObjectHideFlags: 0
@@ -23540,7 +23582,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -23562,7 +23604,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 9206a0ead31af4fb7bdff71c7f0092a0, type: 3}
 --- !u!1 &261290776
 GameObject:
   m_ObjectHideFlags: 0
@@ -34735,7 +34777,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -34757,7 +34799,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 1af0f02f3b570453ca074d70e69199ff, type: 3}
 --- !u!1 &376964603
 GameObject:
   m_ObjectHideFlags: 0
@@ -38223,7 +38265,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -38245,7 +38287,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: acdd306f17c1c4b8ba59413f463d4d6d, type: 3}
 --- !u!1 &413503998
 GameObject:
   m_ObjectHideFlags: 0
@@ -43747,7 +43789,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -43769,7 +43811,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 0e30646d968014488ba175830bbd755d, type: 3}
 --- !u!1 &475162066
 GameObject:
   m_ObjectHideFlags: 0
@@ -43812,7 +43854,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -43834,7 +43876,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 6e8062653c7bd46218775e2c34931b67, type: 3}
 --- !u!1 &476376479
 GameObject:
   m_ObjectHideFlags: 0
@@ -73070,7 +73112,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -73092,7 +73134,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 040c1d369d03e4b6aba9740d39ac6d0a, type: 3}
 --- !u!1 &811584156
 GameObject:
   m_ObjectHideFlags: 0
@@ -92371,7 +92413,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -92393,7 +92435,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 2deb2db5b294a43b5b30b050a575a78f, type: 3}
 --- !u!1 &1007502830
 GameObject:
   m_ObjectHideFlags: 0
@@ -118392,7 +118434,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -118414,7 +118456,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: b353d34e470184d899b34bc2d65c9b32, type: 3}
 --- !u!1 &1293543257
 GameObject:
   m_ObjectHideFlags: 0
@@ -132844,7 +132886,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -132866,7 +132908,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 1a776ead908644b5790b33050276e589, type: 3}
 --- !u!1 &1441603321
 GameObject:
   m_ObjectHideFlags: 0
@@ -137080,7 +137122,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -137102,7 +137144,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 90308eed3489949c0b9fac911dff8198, type: 3}
 --- !u!1 &1492850074
 GameObject:
   m_ObjectHideFlags: 0
@@ -147829,7 +147871,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -147851,7 +147893,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: dc3bc756954964f6cb3057d8666dd941, type: 3}
 --- !u!1 &1621110358
 GameObject:
   m_ObjectHideFlags: 0
@@ -149961,7 +150003,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -149983,7 +150025,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: cc5ad1ca647ee4644970f665212ac056, type: 3}
 --- !u!1 &1647120256
 GameObject:
   m_ObjectHideFlags: 0
@@ -168729,7 +168771,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -168751,7 +168793,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: afeba8a68f7bb479bb9509e14999a05e, type: 3}
 --- !u!1 &1834406804
 GameObject:
   m_ObjectHideFlags: 0
@@ -170067,7 +170109,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -170089,7 +170131,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 585fe37e4369e4a6bb0351d8e0c977aa, type: 3}
 --- !u!1 &1843592374
 GameObject:
   m_ObjectHideFlags: 0
@@ -173153,7 +173195,7 @@ ReflectionProbe:
   m_Enabled: 1
   serializedVersion: 2
   m_Type: 0
-  m_Mode: 0
+  m_Mode: 2
   m_RefreshMode: 0
   m_TimeSlicingMode: 0
   m_Resolution: 128
@@ -173175,7 +173217,7 @@ ReflectionProbe:
   m_RenderDynamicObjects: 0
   m_UseOcclusionCulling: 1
   m_Importance: 1
-  m_CustomBakedTexture: {fileID: 0}
+  m_CustomBakedTexture: {fileID: 8900000, guid: 689d3eaa823bf4f76b4ef637e4b627b4, type: 3}
 --- !u!1 &1881091357
 GameObject:
   m_ObjectHideFlags: 0
