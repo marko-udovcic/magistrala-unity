@@ -49,8 +49,9 @@ public sealed class TruckController : MonoBehaviour
         body.linearDamping = 0f;
         body.angularDamping = 0.5f;
         body.solverIterations = 12;
+        body.sleepThreshold = 0f; // WheelCollider torque does not wake a sleeping body
         body.solverVelocityIterations = 6;
-        body.isKinematic = true; // Hold the spawn pose while an asynchronous glTFast import completes.
+        body.isKinematic = false; // (WheelColliders created on a kinematic body never simulated: rpm 0, no ground force)
         Setup();
     }
 
@@ -348,6 +349,8 @@ public sealed class TruckController : MonoBehaviour
             w.motorTorque = i >= 2 ? force * Radius * 0.5f * (Gear < 0 ? -1 : 1) : 0;
             w.brakeTorque = brakePressure * Mass * 5.8f * Radius * loadShare[i] + (i >= 2 ? engineBrake : 0);
             if (handbrake && i >= 2) w.brakeTorque += Mass * 6f * Radius * 0.5f;
+            // PhysX locks a slow wheel under ANY brake torque: the asymptotic brakePressure lerp (1e-41 Nm) held the truck still
+            if (w.brakeTorque < 1f) w.brakeTorque = 0f;
         }
         AntiRoll(0, 1, 18000f);
         AntiRoll(2, 3, 14000f);

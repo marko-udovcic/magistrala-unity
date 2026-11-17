@@ -38,6 +38,7 @@ namespace Magistrala.EditorTools
         public List<double[]> hfix = new List<double[]>(); public bool tile;
         public List<List<double[]>> rails = new List<List<double[]>>();
         public ModelGrid grid;
+        public List<(List<double[]> p, double w, int n, int lvl)> roads = new List<(List<double[]>, double, int, int)>();
 
         public double HfixAt(double px, double pz)
         {
@@ -95,6 +96,13 @@ namespace Magistrala.EditorTools
                     if (MiniJson.G(j, "hfix") is List<object> hf) foreach (var p in hf) { var q = MiniJson.L(p); m.hfix.Add(new[] { MiniJson.D(q[0]), MiniJson.D(q[1]), MiniJson.D(q[2]) }); }
                     if (MiniJson.G(j, "rails") is List<object> rl)
                         foreach (var r in rl) { var pts = new List<double[]>(); foreach (var p in MiniJson.L(MiniJson.O(r)["p"])) { var q = MiniJson.L(p); pts.Add(new[] { MiniJson.D(q[0]), MiniJson.D(q[1]), MiniJson.D(q[2]), MiniJson.D(q[3]) }); } m.rails.Add(pts); }
+                    if (MiniJson.G(j, "roads") is List<object> rds)
+                        foreach (var r in rds)
+                        {
+                            var ro = MiniJson.O(r); var pts = new List<double[]>();
+                            foreach (var q in MiniJson.L(ro["p"])) { var qq = MiniJson.L(q); pts.Add(new[] { MiniJson.D(qq[0]), MiniJson.D(qq[1]) }); }
+                            m.roads.Add((pts, MiniJson.D(ro["w"]), (int)MiniJson.D(ro["n"]), ro.ContainsKey("lvl") ? (int)MiniJson.D(ro["lvl"]) : 0));
+                        }
                     var g = MiniJson.O(j["grid"]);
                     m.grid = new ModelGrid
                     {
@@ -112,20 +120,22 @@ namespace Magistrala.EditorTools
         /// port of modelJunctions.ts modelTerrain: ground under / around a model (reach = terrain cell span); null = untouched
         public static double? ModelTerrain(List<ModelJ> list, double x, double z, double reach, double ours, double under = 0.25)
         {
+            // (unlike the TS loop that returns the first model in reach: squares overlap at the tile seams, so first look for the
+            // asphalt under the point in ANY model, then blend towards the nearest one)
+            double lo = double.PositiveInfinity, r = reach, h2 = reach / 2;
+            double[,] off = { { 0, 0 }, { r, 0 }, { -r, 0 }, { 0, r }, { 0, -r }, { r, r }, { -r, r }, { r, -r }, { -r, -r }, { h2, 0 }, { -h2, 0 }, { 0, h2 }, { 0, -h2 } };
+            ModelJ best = null; double bestD = double.PositiveInfinity; int bestC = -1;
             foreach (var m in list)
             {
                 if (Math.Abs(x - m.x) > m.half + 12 || Math.Abs(z - m.z) > m.half + 12) continue;
-                double lo = double.PositiveInfinity, r = reach, h2 = reach / 2;
-                double[,] off = { { 0, 0 }, { r, 0 }, { -r, 0 }, { 0, r }, { 0, -r }, { r, r }, { -r, r }, { r, -r }, { -r, -r }, { h2, 0 }, { -h2, 0 }, { 0, h2 }, { 0, -h2 } };
                 for (int k = 0; k < 13; k++) { double h = m.Surface(x + off[k, 0], z + off[k, 1]); if (!double.IsNaN(h)) lo = Math.Min(lo, h); }
-                if (!double.IsInfinity(lo)) return lo - under;
-                int c = m.grid.Cell(x, z); if (c < 0) continue;
-                double d = m.grid.dist[c], hn = m.grid.near[c];
-                if (double.IsNaN(hn) || d > reach + 12) continue;
-                double w = 1 - Smooth((d - reach) / 12);
-                return ours + (m.y + hn - 0.18 - ours) * w;
+                int c = m.grid.Cell(x, z);
+                if (c >= 0 && !float.IsNaN(m.grid.near[c]) && m.grid.dist[c] < bestD) { bestD = m.grid.dist[c]; best = m; bestC = c; }
             }
-            return null;
+            if (!double.IsInfinity(lo)) return lo - under;
+            if (best == null || bestD > reach + 12) return null;
+            double w = 1 - Smooth((bestD - reach) / 12);
+            return ours + (best.y + best.grid.near[bestC] - 0.18 - ours) * w;
         }
 
         public static double FootDist(List<ModelJ> list, double x, double z)

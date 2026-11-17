@@ -51,7 +51,7 @@ namespace Magistrala.EditorTools
             var sky = AssetDatabase.LoadAssetAtPath<Material>(WorldBuilder.GEN + "/Materials/Sky.mat");
             if (sky == null) { sky = new Material(Shader.Find("Skybox/Procedural")); AssetDatabase.CreateAsset(sky, WorldBuilder.GEN + "/Materials/Sky.mat"); }
             sky.SetFloat("_SunDisk", 2); sky.SetFloat("_SunSize", .03f); sky.SetFloat("_SunSizeConvergence", 8);
-            sky.SetFloat("_AtmosphereThickness", .62f); sky.SetColor("_SkyTint", new Color(.36f, .5f, .74f));
+            sky.SetFloat("_AtmosphereThickness", .8f); sky.SetColor("_SkyTint", new Color(.42f, .54f, .72f));
             sky.SetColor("_GroundColor", new Color(.42f, .45f, .5f)); sky.SetFloat("_Exposure", 1.25f);
             RenderSettings.skybox = sky;
 
@@ -60,7 +60,7 @@ namespace Magistrala.EditorTools
             if (!sun) { sun = new GameObject("Sun").AddComponent<Light>(); sun.type = LightType.Directional; }
             sun.name = "Sun";
             sun.transform.rotation = Quaternion.Euler(52, 28, 0);
-            sun.color = new Color(1f, .955f, .88f); sun.intensity = 2.1f;
+            sun.color = new Color(1f, .955f, .88f); sun.intensity = 1.8f;
             sun.shadows = LightShadows.Soft; sun.shadowStrength = .92f;
             var lad = sun.GetComponent<UniversalAdditionalLightData>() ?? sun.gameObject.AddComponent<UniversalAdditionalLightData>();
             RenderSettings.sun = sun;
@@ -80,7 +80,7 @@ namespace Magistrala.EditorTools
             T Get<T>() where T : VolumeComponent { if (!prof.TryGet<T>(out var c)) { c = prof.Add<T>(true); AssetDatabase.AddObjectToAsset(c, prof); } c.active = true; return c; }
             var tm = Get<Tonemapping>(); tm.mode.Override(TonemappingMode.ACES);
             var bl = Get<Bloom>(); bl.threshold.Override(1.1f); bl.intensity.Override(.18f); bl.scatter.Override(.55f); bl.highQualityFiltering.Override(true);
-            var ca = Get<ColorAdjustments>(); ca.postExposure.Override(.15f); ca.contrast.Override(14f); ca.saturation.Override(16f);
+            var ca = Get<ColorAdjustments>(); ca.postExposure.Override(.15f); ca.contrast.Override(12f); ca.saturation.Override(6f);
             var wb = Get<WhiteBalance>(); wb.temperature.Override(-4f); wb.tint.Override(0f);
             var smh = Get<ShadowsMidtonesHighlights>(); smh.shadows.Override(new Vector4(.97f, .99f, 1.04f, 0)); smh.highlights.Override(new Vector4(1.02f, 1.0f, .97f, 0));
             var vg = Get<Vignette>(); vg.intensity.Override(.16f); vg.smoothness.Override(.4f);
@@ -105,6 +105,87 @@ namespace Magistrala.EditorTools
             var cam = Camera.main;
             cam.transform.position = W.U(gx, gy, gz);
             cam.transform.LookAt(W.U(tx, ty, tz));
+        }
+    }
+}
+
+namespace Magistrala.EditorTools
+{
+    public static class TruckSetup
+    {
+        /// the eastbound D8 lane path from Lukšić (model 01) on, chained from the models' road axes (right lane centre), game x, z
+        public static System.Collections.Generic.List<Vector2> EastboundPath(bool westbound = false)
+        {
+            var models = WorldData.Models();
+            var roads = new System.Collections.Generic.List<(System.Collections.Generic.List<double[]> p, double w, int n)>();
+            foreach (var m in models) foreach (var r in m.roads) if (r.n >= 2 && r.lvl == 0 && r.p.Count >= 2) roads.Add((r.p, r.w, r.n));
+            var m01 = models.Find(m => m.key == "krizanje-01");
+            var r0 = westbound ? m01.roads[2] : m01.roads[0]; (System.Collections.Generic.List<double[]> p, double w, int n) cur = (r0.p, r0.w, r0.n);
+            var outL = new System.Collections.Generic.List<Vector2>();
+            var used = new System.Collections.Generic.HashSet<object>();
+            for (int guard = 0; guard < 200; guard++)
+            {
+                used.Add(cur.p);
+                for (int i = 0; i < cur.p.Count - 1; i++)
+                {
+                    var a = cur.p[i]; var b = cur.p[i + 1]; double dx = b[0] - a[0], dz = b[1] - a[1], L = System.Math.Sqrt(dx * dx + dz * dz); if (L < .05) continue;
+                    double rx = -dz / L, rz = dx / L, off = cur.w / 4;
+                    outL.Add(new Vector2((float)(a[0] + rx * off), (float)(a[1] + rz * off)));
+                    if (i == cur.p.Count - 2) outL.Add(new Vector2((float)(b[0] + rx * off), (float)(b[1] + rz * off)));
+                }
+                var e = cur.p[cur.p.Count - 1]; var e0 = cur.p[cur.p.Count - 2];
+                double ddx = e[0] - e0[0], ddz = e[1] - e0[1], dl = System.Math.Sqrt(ddx * ddx + ddz * ddz);
+                (System.Collections.Generic.List<double[]> p, double w, int n) next = default; double best = 6; int from = 0;
+                foreach (var r in roads)
+                {
+                    if (used.Contains(r.p)) continue;
+                    for (int i = 0; i + 1 < r.p.Count; i++)
+                    {
+                        var s = r.p[i]; var s1 = r.p[i + 1];
+                        double qx = s1[0] - s[0], qz = s1[1] - s[1], ql2 = qx * qx + qz * qz; if (ql2 < 1e-4) continue;
+                        double t = System.Math.Max(0, System.Math.Min(1, ((e[0] - s[0]) * qx + (e[1] - s[1]) * qz) / ql2));
+                        double px = s[0] + qx * t - e[0], pz = s[1] + qz * t - e[1], d = System.Math.Sqrt(px * px + pz * pz);
+                        double cos = (qx * ddx + qz * ddz) / (System.Math.Sqrt(ql2) * dl + 1e-9);
+                        if (d < best && cos > .85) { best = d; next = r; from = i + 1; }
+                    }
+                }
+                if (next.p != null) { used.Add(next.p); var rest = next.p.GetRange(from, next.p.Count - from); rest.Insert(0, e); next = (rest, next.w, next.n); }
+                if (next.p != null && next.p.Count < 2) { used.Add(next.p); break; }
+                if (next.p == null) break;
+                cur = next;
+            }
+            return outL;
+        }
+
+        [MenuItem("Magistrala/Spawn truck")]
+        public static void Spawn()
+        {
+            var old = GameObject.Find("Truck"); if (old) Object.DestroyImmediate(old);
+            var path = EastboundPath();
+            var models = WorldData.Models();
+            var upath = new Vector3[path.Count];
+            for (int i = 0; i < path.Count; i++)
+            {
+                double y = double.NaN; foreach (var m in models) { y = m.Surface(path[i].x, path[i].y); if (!double.IsNaN(y)) break; }
+                upath[i] = W.U(path[i].x, double.IsNaN(y) ? 0 : y, path[i].y);
+            }
+            int si = 2;
+            var root = new GameObject("Truck");
+            var p0 = upath[si]; var dir = upath[si + 1] - upath[si]; dir.y = 0;
+            root.transform.position = p0 + Vector3.up * 1.0f;
+            root.transform.rotation = Quaternion.LookRotation(dir.normalized);
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Vehicles/firm_truck.glb");
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(src);
+            model.name = "Model"; model.transform.SetParent(root.transform, false);
+            root.AddComponent<Rigidbody>();
+            root.AddComponent<TruckController>();
+            var ap = root.AddComponent<Magistrala.Autopilot>(); ap.path = upath;
+            var cam = Camera.main;
+            var cc = cam.GetComponent<TruckChaseCamera>() ?? cam.gameObject.AddComponent<TruckChaseCamera>(); cc.target = root.GetComponent<TruckController>();
+            var hud = cam.GetComponent<TruckHud>() ?? cam.gameObject.AddComponent<TruckHud>(); hud.target = cc.target;
+            cam.transform.position = root.transform.TransformPoint(new Vector3(0, 4, -12)); cam.transform.LookAt(root.transform.position + Vector3.up * 2);
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log($"[Magistrala] truck at {p0}, path {upath.Length} pts, from game x {path[0].x:F0} to {path[path.Count - 1].x:F0}");
         }
     }
 }

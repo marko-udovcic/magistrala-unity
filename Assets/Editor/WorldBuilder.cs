@@ -82,8 +82,8 @@ namespace Magistrala.EditorTools
         {
             return new[]
             {
-                Lit("Asphalt", new Color(.36f, .36f, .37f), .28f, 0, "asphalt_d.jpg", "asphalt_n.jpg", .8f),
-                Lit("Paint", new Color(.86f, .86f, .83f), .35f, 0, "concrete_d.jpg"),
+                Lit("Asphalt", new Color(.52f, .52f, .53f), .22f, 0, "asphalt_d.jpg", "asphalt_n.jpg", .8f),
+                Lit("Paint", new Color(.95f, .95f, .92f), .3f, 0, "concrete_d.jpg"),
                 Lit("Steel", new Color(.62f, .65f, .67f), .55f, .65f),
                 Lit("Kerb", new Color(.66f, .65f, .61f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
                 Lit("Concrete", new Color(.62f, .62f, .6f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
@@ -199,7 +199,7 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ terrain
-        static Texture2D Tinted(string src, string dst, Color mul, Color add)
+        static Texture2D Tinted(string src, string dst, Color mul, Color add, float sat = 1)
         {
             string p = "Assets/Textures/" + dst;
             if (!File.Exists(p))
@@ -207,7 +207,7 @@ namespace Magistrala.EditorTools
                 var bytes = File.ReadAllBytes("Assets/Textures/" + src);
                 var t = new Texture2D(2, 2); t.LoadImage(bytes);
                 var px = t.GetPixels();
-                for (int i = 0; i < px.Length; i++) { var c = px[i]; px[i] = new Color(c.r * mul.r + add.r, c.g * mul.g + add.g, c.b * mul.b + add.b, 1); }
+                for (int i = 0; i < px.Length; i++) { var c = px[i]; float gy = c.r * .3f + c.g * .59f + c.b * .11f; c = Color.Lerp(new Color(gy, gy, gy), c, sat); px[i] = new Color(c.r * mul.r + add.r, c.g * mul.g + add.g, c.b * mul.b + add.b, 1); }
                 t.SetPixels(px); File.WriteAllBytes(p, t.EncodeToJPG(92));
                 AssetDatabase.ImportAsset(p);
             }
@@ -231,10 +231,10 @@ namespace Magistrala.EditorTools
             var root = Root("Terrain");
             var layers = new[]
             {
-                Layer("DryGrass", Tinted("karst_grass_d.jpg", "dry_grass_d.jpg", new Color(1.0f, .93f, .62f), new Color(.06f, .05f, .0f)), Tex("karst_grass_n.jpg", true), 5),
-                Layer("RedSoil", Tinted("gravel_d.jpg", "red_soil_d.jpg", new Color(1.05f, .7f, .5f), new Color(.04f, .0f, .0f)), Tex("gravel_n.jpg", true), 4),
+                Layer("DryGrass", Tinted("karst_grass_d.jpg", "dry_grass_d.jpg", new Color(.98f, .98f, .9f), new Color(.05f, .05f, .04f), .6f), Tex("karst_grass_n.jpg", true), 5),
+                Layer("RedSoil", Tinted("gravel_d.jpg", "red_soil_d.jpg", new Color(.95f, .8f, .68f), new Color(.03f, .01f, .0f), .8f), Tex("gravel_n.jpg", true), 4),
                 Layer("Rock", Tex("karst_stony_d.jpg"), Tex("karst_stony_n.jpg", true), 7),
-                Layer("Gravel", Tex("gravel_d.jpg"), Tex("gravel_n.jpg", true), 3),
+                Layer("Gravel", Tinted("gravel_d.jpg", "verge_d.jpg", new Color(1.1f, 1.08f, 1.02f), new Color(.08f, .08f, .07f), .7f), Tex("gravel_n.jpg", true), 3),
             };
             var terrMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat");
             Dir(GEN + "/Terrain");
@@ -296,14 +296,14 @@ namespace Magistrala.EditorTools
                                     case 0: w[0] += .72f * bw; w[1] += .12f * bw; w[2] += .16f * bw; break;
                                     case 1: w[2] += .7f * bw; w[0] += .3f * bw; break;
                                     case 2: w[0] += .55f * bw; w[1] += .45f * bw; break;
-                                    case 3: w[1] += .75f * bw; w[0] += .25f * bw; break;
+                                    case 3: w[1] += .45f * bw; w[0] += .55f * bw; break;
                                     case 4: w[3] += .45f * bw; w[0] += .35f * bw; w[1] += .2f * bw; break;
                                     case 5: w[3] += bw; break;
                                     default: w[3] += .6f * bw; w[1] += .4f * bw; break;
                                 }
                             }
                             float n1 = Perlin(gx, gz, .013f), n2 = Perlin(gx, gz, .07f);
-                            float soil = Mathf.Clamp01((n1 - .55f) * 3f) * .8f + Mathf.Clamp01((n2 - .7f) * 3f) * .3f;
+                            float soil = Mathf.Clamp01((n1 - .6f) * 3f) * .55f + Mathf.Clamp01((n2 - .72f) * 3f) * .25f;
                             w[1] += soil * (w[0] + .1f); w[0] *= 1 - soil * .7f;
                             float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) - .62f) * 4f) * .6f;
                             w[2] += rock * w[0]; w[0] *= 1 - rock * .5f;
@@ -314,7 +314,7 @@ namespace Magistrala.EditorTools
                             if (core && near.Count > 0)
                             {
                                 double sd = WorldData.SurfDist(near, gx, gz);
-                                if (sd < 6) { float g = (float)(1 - sd / 6) * .85f; for (int k = 0; k < 4; k++) w[k] *= 1 - g; w[3] += g * .7f; w[1] += g * .3f; }
+                                if (sd < 5) { float g = (float)(1 - sd / 5) * .6f; for (int k = 0; k < 4; k++) w[k] *= 1 - g; w[3] += g * .7f; w[1] += g * .3f; }
                             }
                             float sum = w[0] + w[1] + w[2] + w[3]; if (sum <= 0) { w[0] = 1; sum = 1; }
                             for (int k = 0; k < 4; k++) A[r, c, k] = w[k] / sum;
@@ -343,11 +343,12 @@ namespace Magistrala.EditorTools
             var protos = TreeProtos.Prefabs();
             var models = WorldData.Models();
             int total = 0;
+            var rec = new List<byte>();
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
                 var parts = t.name.Split(' ')[1].Split(','); int tx = int.Parse(parts[0]), tz = int.Parse(parts[1]);
                 var td = t.terrainData;
-                td.treePrototypes = protos.Select(p => new TreePrototype { prefab = p }).ToArray();
+                td.SetTreeInstances(new TreeInstance[0], false); td.treePrototypes = new TreePrototype[0];
                 var tile = Tiles.Get(tx, tz);
                 var list = new List<TreeInstance>();
                 bool core = tx >= TX0 && tx <= TX1 && tz >= TZ0 && tz <= TZ1;
@@ -389,17 +390,24 @@ namespace Magistrala.EditorTools
                         if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5)) continue;
                         var q = WorldData.ModelTerrain(models, gx, gz, 2, h); if (q.HasValue) h = (float)q.Value;
                         if (h < .4f) continue;
-                        list.Add(new TreeInstance
-                        {
-                            position = new Vector3((float)((gx - tx * 1024) / 1024), (h - .08f - YMIN) / YSIZE, (float)(((tz + 1) * 1024 - gz) / 1024)),
-                            prototypeIndex = proto, widthScale = s, heightScale = s,
-                            rotation = (float)(rnd.NextDouble() * Math.PI * 2), color = Color.white, lightmapColor = Color.white,
-                        });
+                        var u = W.U(gx, h - .08, gz);
+                        foreach (var v in new[] { u.x, u.y, u.z, (float)(rnd.NextDouble() * 360), s, proto }) rec.AddRange(BitConverter.GetBytes(v));
+                        total++;
                     }
                 }
-                td.SetTreeInstances(list.ToArray(), true);
-                total += list.Count;
             }
+            File.WriteAllBytes(GEN + "/trees.bytes", rec.ToArray()); AssetDatabase.ImportAsset(GEN + "/trees.bytes");
+            var root = Root("Vegetation");
+            var tr = root.AddComponent<Magistrala.TreeRenderer>();
+            tr.data = AssetDatabase.LoadAssetAtPath<TextAsset>(GEN + "/trees.bytes");
+            AssetDatabase.SaveAssets(); tr.meshes = protos.Select(p => AssetDatabase.LoadAssetAtPath<Mesh>(GEN + "/Plants/" + p.name + ".mesh.asset")).ToArray();
+            var mats = new List<Material>(); var starts = new List<int>();
+            foreach (var p in protos) { starts.Add(mats.Count); mats.AddRange(p.GetComponent<MeshRenderer>().sharedMaterials); }
+            tr.materials = mats.ToArray(); tr.materialStart = starts.ToArray();
+            // pine_a, pine_b, olive, cypress, shrub_a, shrub_b, bush_c, rock_a
+            tr.drawDistance = new[] { 1400f, 1400f, 1000f, 1400f, 300f, 300f, 260f, 120f };
+            tr.nearDistance = new[] { 110f, 110f, 90f, 110f, 45f, 45f, 40f, 120f };
+            TreeProtos.Impostors(out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
             Debug.Log($"[Magistrala] trees: {total}");
         }
 
@@ -408,7 +416,7 @@ namespace Magistrala.EditorTools
         public static void Sea()
         {
             var root = Root("Sea");
-            var mat = Lit("Sea", new Color(.05f, .2f, .3f), .93f, 0, null, null);
+            var mat = Lit("Sea", new Color(.025f, .13f, .2f), .86f, 0, null, null);
             var nrm = WaterNormal();
             mat.SetTexture("_BumpMap", nrm); mat.SetFloat("_BumpScale", .35f); mat.EnableKeyword("_NORMALMAP");
             mat.SetTextureScale("_BumpMap", new Vector2(1, 1));

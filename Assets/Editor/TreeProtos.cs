@@ -49,6 +49,49 @@ namespace Magistrala.EditorTools
             return outL;
         }
 
+        // plantAssets.ts: impostor square side and base offset (m), tint
+        static readonly float[] IMP_SIZE = { 12.138f, 11.422f, 5.908f, 11.643f, 2.074f, 1.481f, .877f };
+        static readonly float[] IMP_BASE = { -.243f, -.228f, -.118f, -.233f, -.041f, -.030f, -.018f };
+        static readonly string[] IMP_COL = { "#dfe3cf", "#d2d8c4", "#e4e7da", "#cfd6c6", "#aab69c", "#a4b096", "#e3dccb" };
+
+        /// far LOD: 4 crossed quads (views 0..3 of the game's 8-view impostor atlas), alpha-clipped two-sided URP Lit
+        public static void Impostors(out Mesh[] meshes, out Material[] mats)
+        {
+            meshes = new Mesh[IDS.Length]; mats = new Material[IDS.Length];
+            string dir = WorldBuilder.GEN + "/Plants";
+            for (int p = 0; p < IMP_SIZE.Length; p++)
+            {
+                string tp = $"Assets/Textures/Imp/{IDS[p]}_imp.png";
+                var imp = (TextureImporter)AssetImporter.GetAtPath(tp);
+                if (imp.alphaIsTransparency == false || imp.mipMapsPreserveCoverage == false) { imp.alphaIsTransparency = true; imp.mipMapsPreserveCoverage = true; imp.alphaTestReferenceValue = .45f; imp.wrapMode = TextureWrapMode.Clamp; imp.SaveAndReimport(); }
+                float S = IMP_SIZE[p], B = IMP_BASE[p];
+                var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+                for (int q = 0; q < 4; q++)
+                {
+                    float a = q * Mathf.PI / 4; var r = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (S / 2);
+                    var f = new Vector3(-Mathf.Sin(a), 0, Mathf.Cos(a));
+                    var nrm = (f * .35f + Vector3.up).normalized; int b0 = v.Count;
+                    v.Add(-r + Vector3.up * B); v.Add(r + Vector3.up * B); v.Add(r + Vector3.up * (B + S)); v.Add(-r + Vector3.up * (B + S));
+                    for (int k = 0; k < 4; k++) n.Add(nrm);
+                    float u0 = q / 8f, u1 = (q + 1) / 8f;
+                    uv.Add(new Vector2(u0, 0)); uv.Add(new Vector2(u1, 0)); uv.Add(new Vector2(u1, 1)); uv.Add(new Vector2(u0, 1));
+                    t.AddRange(new[] { b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2 });
+                }
+                var m = new Mesh { name = IDS[p] + "_imp" }; m.SetVertices(v); m.SetNormals(n); m.SetUVs(0, uv); m.SetTriangles(t, 0); m.RecalculateBounds();
+                string mp = $"{dir}/{IDS[p]}_imp.mesh.asset"; if (File.Exists(mp)) AssetDatabase.DeleteAsset(mp); AssetDatabase.CreateAsset(m, mp);
+                string matp = $"{dir}/{IDS[p]}_imp.mat";
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(matp);
+                if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, matp); }
+                ColorUtility.TryParseHtmlString(IMP_COL[p], out var col);
+                mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(tp)); mat.SetColor("_BaseColor", col);
+                mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .45f); mat.EnableKeyword("_ALPHATEST_ON");
+                mat.SetFloat("_Cull", 0); mat.doubleSidedGI = true; mat.SetFloat("_Smoothness", .05f); mat.SetFloat("_SpecularHighlights", 0); mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+                mat.renderQueue = 2450; mat.enableInstancing = true; EditorUtility.SetDirty(mat);
+                meshes[p] = AssetDatabase.LoadAssetAtPath<Mesh>(mp); mats[p] = mat;
+            }
+            AssetDatabase.SaveAssets();
+        }
+
         static float Hash(double x, double z) { double v = System.Math.Sin(x * 12.9898 + z * 78.233) * 43758.5453; return (float)(v - System.Math.Floor(v)); }
 
         /// vegetationData.ts speciesOf: tile tree kind → prototype index + scale (-1 = skip)
