@@ -257,6 +257,7 @@ namespace Magistrala.Traffic
             }
             return 2;
         }
+        public int LightState(int ci, int si) => (int)LightAt(data.corridors[ci].stops[si]);
         public string LightName(int ci, int si) => LightAt(data.corridors[ci].stops[si]) switch { 0 => "green", 1 => "amber", _ => "red" };
 
         // ------------------------------------------------------------------ simulation
