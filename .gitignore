@@ -34,3 +34,7 @@ crashlytics-buildid.txt
 .DS_Store
 /Screenshots/
 # generated big data (rebuilt by importer)
+
+# rebuilt by the importer (menu Magistrala/Build world) — large
+/Assets/Generated/
+/Assets/Generated.meta

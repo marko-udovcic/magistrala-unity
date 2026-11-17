@@ -46,6 +46,7 @@
     "com.unity.modules.wind": "1.0.0",
     "com.unity.modules.xr": "1.0.0",
     "com.unity.pipeline": "1.0.0",
-    "com.unity.cinemachine": "3.1.7"
+    "com.unity.cinemachine": "3.1.7",
+    "com.unity.cloud.gltfast": "6.21.0"
   }
 }
