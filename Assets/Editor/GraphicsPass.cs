@@ -104,7 +104,7 @@ namespace Magistrala.EditorTools
             var sky = Mat("SkyHDRI", "Skybox/Panoramic");
             sky.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(HDRI));
             sky.SetFloat("_Mapping", 1); sky.SetFloat("_ImageType", 0); sky.SetFloat("_Rotation", (rot % 360 + 360) % 360);
-            sky.SetFloat("_Exposure", 1.0f); sky.SetColor("_Tint", new Color(.5f, .5f, .5f)); // (Tint .5 = neutral)
+            sky.SetFloat("_Exposure", .9f); sky.SetColor("_Tint", new Color(.5f, .5f, .5f)); // (Tint .5 = neutral)
             EditorUtility.SetDirty(sky);
             RenderSettings.skybox = sky;
 
@@ -118,8 +118,8 @@ namespace Magistrala.EditorTools
             RenderSettings.ambientEquatorColor = new Color(.66f, .66f, .62f); RenderSettings.ambientGroundColor = new Color(.42f, .36f, .28f);
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox; RenderSettings.reflectionIntensity = 1f;
             // light aerial haze (sea / Kozjak), never grey: pale sky blue
-            RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential; RenderSettings.fogDensity = .00011f;
-            RenderSettings.fogColor = new Color(.78f, .8f, .8f); // warm pale haze: hills and sea fade into it
+            RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential; RenderSettings.fogDensity = .00006f;
+            RenderSettings.fogColor = new Color(.72f, .78f, .84f); // warm pale haze: hills and sea fade into it
             DynamicGI.UpdateEnvironment();
 
             // grading: vibrant, warm highlights, lifted blues / greens, no crushed blacks
@@ -127,12 +127,12 @@ namespace Magistrala.EditorTools
             var prof = vol.sharedProfile;
             T Get<T>() where T : VolumeComponent { if (!prof.TryGet<T>(out var c)) { c = prof.Add<T>(true); AssetDatabase.AddObjectToAsset(c, prof); } c.active = true; return c; }
             Get<Tonemapping>().mode.Override(TonemappingMode.ACES);
-            var ca = Get<ColorAdjustments>(); ca.postExposure.Override(.3f); ca.contrast.Override(6f); ca.saturation.Override(14f); ca.colorFilter.Override(Color.white);
+            var ca = Get<ColorAdjustments>(); ca.postExposure.Override(.22f); ca.contrast.Override(6f); ca.saturation.Override(14f); ca.colorFilter.Override(Color.white);
             var wb = Get<WhiteBalance>(); wb.temperature.Override(7f); wb.tint.Override(-1f);
             var smh = Get<ShadowsMidtonesHighlights>();
             smh.shadows.Override(new Vector4(.98f, 1.0f, 1.06f, .04f)); smh.midtones.Override(new Vector4(1f, 1f, 1f, 0)); smh.highlights.Override(new Vector4(1.03f, 1.0f, .96f, 0));
             var lgg = Get<LiftGammaGain>(); lgg.lift.Override(new Vector4(1f, 1f, 1f, .02f)); lgg.gain.Override(new Vector4(1.02f, 1.0f, .97f, 0));
-            var bl2 = Get<Bloom>(); bl2.threshold.Override(1.25f); bl2.intensity.Override(.22f); bl2.scatter.Override(.6f);
+            var bl2 = Get<Bloom>(); bl2.threshold.Override(1.45f); bl2.intensity.Override(.22f); bl2.scatter.Override(.6f);
             var vg = Get<Vignette>(); vg.intensity.Override(.12f);
             EditorUtility.SetDirty(prof);
             AssetDatabase.SaveAssets();
