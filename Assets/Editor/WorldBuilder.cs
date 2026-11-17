@@ -82,18 +82,50 @@ namespace Magistrala.EditorTools
         {
             return new[]
             {
-                Lit("Asphalt", new Color(.52f, .52f, .53f), .22f, 0, "asphalt_d.jpg", "asphalt_n.jpg", .8f),
-                Lit("Paint", new Color(.88f, .88f, .86f), .3f, 0, null),
+                GraphicsPass.AsphaltMaterial() ?? Lit("Asphalt", new Color(.52f, .52f, .53f), .22f, 0, "asphalt_d.jpg", "asphalt_n.jpg", .8f),
+                GraphicsPass.PaintMaterial(),
                 Lit("Steel", new Color(.62f, .65f, .67f), .55f, .65f),
                 Lit("Kerb", new Color(.66f, .65f, .61f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
                 Lit("Concrete", new Color(.62f, .62f, .6f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
                 Lit("Paving", new Color(.58f, .57f, .55f), .15f, 0, "concrete_d.jpg", "concrete_n.jpg", .8f),
+                DeckMat(),
             };
+        }
+
+        static Material DeckMat()
+        {
+            var m = Lit("DeckConcrete", new Color(.7f, .69f, .66f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f);
+            m.SetFloat("_Cull", 0); m.doubleSidedGI = true; EditorUtility.SetDirty(m); return m;
         }
 
         // ------------------------------------------------------------------ road models
         static readonly string[] DRAW = { "asphalt", "island", "markings", "sidewalk", "guardrail", "deck" };
         static readonly string[] COLL = { "asphalt", "island", "deck", "sidewalk", "guardrail" };
+
+        public struct RoadFrame { public int road; public float u, s, hw, lane; }
+        /// modelJunctions.ts roadFrameAt (tol .45): the one road whose band holds (x, z), else road -1
+        public static RoadFrame FrameAt(List<(List<double[]> p, double w, int n, int lvl)> roads, double x, double z, double tol = .45)
+        {
+            var hit = new RoadFrame { road = -1 };
+            for (int r = 0; r < roads.Count; r++)
+            {
+                var P = roads[r].p; double hw = roads[r].w / 2 + tol, s0 = 0; bool found = false; double bd = 0, bu = 0, bs = 0;
+                for (int i = 0; i + 1 < P.Count; i++)
+                {
+                    double dx = P[i + 1][0] - P[i][0], dz = P[i + 1][1] - P[i][1], L = Math.Sqrt(dx * dx + dz * dz); if (L < 1e-9) continue;
+                    double tx = dx / L, tz = dz / L, t = (x - P[i][0]) * tx + (z - P[i][1]) * tz;
+                    if (t >= -.01 && t <= L + .01) { double u = (x - P[i][0]) * -tz + (z - P[i][1]) * tx; if (!found || Math.Abs(u) < bd) { found = true; bd = Math.Abs(u); bu = u; bs = s0 + t; } }
+                    s0 += L;
+                }
+                if (found && bd <= hw)
+                {
+                    if (hit.road >= 0) return new RoadFrame { road = -1 };
+                    double rw = roads[r].w; int n = Math.Max(1, roads[r].n);
+                    hit = new RoadFrame { road = r, u = (float)Math.Max(-rw / 2, Math.Min(rw / 2, bu)), s = (float)bs, hw = (float)(rw / 2), lane = (float)(n >= 2 ? Math.Max(rw / n, 3.1) : rw) };
+                }
+            }
+            return hit;
+        }
 
         [MenuItem("Magistrala/Build roads")]
         public static void Roads()
@@ -110,8 +142,9 @@ namespace Magistrala.EditorTools
             foreach (var m in models)
             {
                 var glb = Glb.Read(W.KRIZ + m.glb);
-                var v = new List<Vector3>[6]; var nr = new List<Vector3>[6]; var uv = new List<Vector2>[6];
-                for (int k = 0; k < 6; k++) { v[k] = new List<Vector3>(); nr[k] = new List<Vector3>(); uv[k] = new List<Vector2>(); }
+                var v = new List<Vector3>[7]; var nr = new List<Vector3>[7]; var uv = new List<Vector2>[7]; var uv1 = new List<Vector2>[7]; var uv2 = new List<Vector2>[7];
+                for (int k = 0; k < 7; k++) { v[k] = new List<Vector3>(); nr[k] = new List<Vector3>(); uv[k] = new List<Vector2>(); uv1[k] = new List<Vector2>(); uv2[k] = new List<Vector2>(); }
+                var groundRoads = m.roads.FindAll(r => r.lvl == 0);
                 var cv = new List<Vector3>(); var ci = new List<int>();
                 double L0 = m.lin?[0] ?? 1;
                 foreach (var gm in glb)
@@ -132,6 +165,9 @@ namespace Magistrala.EditorTools
                     }
                     int cbase = cv.Count;
                     if (coll) cv.AddRange(P);
+                    // road frame of every asphalt vertex (ModelJunctions2 roadAsphalt: lateral u, arc s of the model road whose band holds it)
+                    RoadFrame[] fr = null;
+                    if (gm.name == "asphalt") { fr = new RoadFrame[P.Length]; for (int i = 0; i < P.Length; i++) fr[i] = FrameAt(groundRoads, m.x + P[i].x, m.z - P[i].z); }
                     for (int t = 0; t + 2 < gm.idx.Length; t += 3)
                     {
                         int a = gm.idx[t], b = gm.idx[t + 2], c = gm.idx[t + 1]; // reversed winding (z flip)
@@ -142,27 +178,35 @@ namespace Magistrala.EditorTools
                             var col = gm.col[a]; float best = 9;
                             for (int q = 0; q < CLS.Length; q++) { float d = (CLS[q] - col).sqrMagnitude; if (d < best) { best = d; k = q; } }
                             if (k == 1) k = 4;
+                            // the bridge structure (deck, not its asphalt): double-sided — its faces were wound inwards (black footbridge on d08)
+                            if (gm.name == "deck" && k != 0) k = 6;
                         }
                         var fn = Vector3.Cross(P[b] - P[a], P[c] - P[a]).normalized;
+                        if (gm.name == "deck" && Mathf.Abs(fn.y) < .6f) k = 6; // deck sides / girders (asphalt-coloured in the GLB: the black footbridge)
+                        bool sameRoad = fr != null && fr[a].road >= 0 && fr[a].road == fr[b].road && fr[b].road == fr[c].road;
                         foreach (int id in new[] { a, b, c })
                         {
-                            var p = P[id]; v[k].Add(p); nr[k].Add(Vector3.Dot(N[id], fn) < 0 ? fn : N[id]); // (some deck faces carry inverted normals)
+                            var p = P[id]; v[k].Add(p); nr[k].Add(k == 6 ? Vector3.up : Vector3.Dot(N[id], fn) < 0 ? fn : N[id]); // (deck structure: wound inwards in the GLB → lit as from above; other inverted normals flipped)
                             float gx = (float)(m.x - W.OX) + p.x, gz = -(float)(m.z - W.OZ) + p.z;
-                            uv[k].Add(Mathf.Abs(fn.y) > .5f ? new Vector2(gx, gz) * .2f : new Vector2((gx + gz) * .5f, p.y + (float)m.y) * .5f);
+                            if (k == 0) uv[k].Add(new Vector2(gx, gz)); // asphalt shader: world metres
+                            else uv[k].Add(Mathf.Abs(fn.y) > .5f ? new Vector2(gx, gz) * .2f : new Vector2((gx + gz) * .5f, p.y + (float)m.y) * .5f);
+                            if (sameRoad) { var f = fr[id]; uv1[k].Add(new Vector2(f.u, f.s)); uv2[k].Add(new Vector2(f.hw, f.lane)); }
+                            else { uv1[k].Add(Vector2.zero); uv2[k].Add(Vector2.zero); }
                         }
                         if (coll) { ci.Add(cbase + a); ci.Add(cbase + b); ci.Add(cbase + c); }
                         tris++;
                     }
                 }
                 var mesh = new Mesh { name = m.key, indexFormat = IndexFormat.UInt32 };
+                var allU1 = new List<Vector2>(); var allU2 = new List<Vector2>();
                 var allV = new List<Vector3>(); var allN = new List<Vector3>(); var allU = new List<Vector2>(); var subs = new List<int[]>(); var subMats = new List<Material>();
-                for (int k = 0; k < 6; k++)
+                for (int k = 0; k < 7; k++)
                 {
                     if (v[k].Count == 0) continue;
-                    int b0 = allV.Count; allV.AddRange(v[k]); allN.AddRange(nr[k]); allU.AddRange(uv[k]);
+                    int b0 = allV.Count; allV.AddRange(v[k]); allN.AddRange(nr[k]); allU.AddRange(uv[k]); allU1.AddRange(uv1[k]); allU2.AddRange(uv2[k]);
                     subs.Add(Enumerable.Range(b0, v[k].Count).ToArray()); subMats.Add(mats[k]);
                 }
-                mesh.SetVertices(allV); mesh.SetNormals(allN); mesh.SetUVs(0, allU);
+                mesh.SetVertices(allV); mesh.SetNormals(allN); mesh.SetUVs(0, allU); mesh.SetUVs(1, allU1); mesh.SetUVs(2, allU2);
                 mesh.subMeshCount = subs.Count;
                 for (int s = 0; s < subs.Count; s++) mesh.SetTriangles(subs[s], s);
                 mesh.RecalculateTangents(); mesh.RecalculateBounds();
@@ -229,12 +273,14 @@ namespace Magistrala.EditorTools
         {
             var models = WorldData.Models();
             var root = Root("Terrain");
+            // CC0 Poly Haven sets (CREDITS.md): olive dry grass with stones, terra rossa, limestone rock face, pale gravel
+            const string PH = "PolyHaven/";
             var layers = new[]
             {
-                Layer("DryGrass", Tinted("karst_grass_d.jpg", "dry_grass_d.jpg", new Color(.98f, .98f, .9f), new Color(.05f, .05f, .04f), .6f), Tex("karst_grass_n.jpg", true), 5),
-                Layer("RedSoil", Tinted("gravel_d.jpg", "red_soil_d.jpg", new Color(.95f, .8f, .68f), new Color(.03f, .01f, .0f), .8f), Tex("gravel_n.jpg", true), 4),
-                Layer("Rock", Tex("karst_stony_d.jpg"), Tex("karst_stony_n.jpg", true), 7),
-                Layer("Gravel", Tinted("gravel_d.jpg", "verge_d.jpg", new Color(1.1f, 1.08f, 1.02f), new Color(.08f, .08f, .07f), .7f), Tex("gravel_n.jpg", true), 3),
+                Layer("DryGrass", Tinted("PolyHaven/aerial_grass_rock_diff.jpg", "grass_olive_d.jpg", new Color(.88f, .97f, .74f), new Color(0, .01f, 0), .95f), Tex(PH + "aerial_grass_rock_nor.jpg", true), 7),
+                Layer("RedSoil", Tex(PH + "red_dirt_mud_01_diff.jpg"), Tex(PH + "red_dirt_mud_01_nor.jpg", true), 5),
+                Layer("Rock", Tinted("PolyHaven/rock_face_03_diff.jpg", "rock_grey_d.jpg", new Color(1.02f, 1.02f, 1.02f), new Color(.1f, .1f, .1f), .25f), Tex(PH + "rock_face_03_nor.jpg", true), 9),
+                Layer("Gravel", Tex(PH + "gravel_ground_01_diff.jpg"), Tex(PH + "gravel_ground_01_nor.jpg", true), 4),
             };
             var terrMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat");
             Dir(GEN + "/Terrain");
@@ -256,6 +302,8 @@ namespace Magistrala.EditorTools
                         }
                     var td = new TerrainData { heightmapResolution = res };
                     td.size = new Vector3(1024, YSIZE, 1024);
+                    // asset first: alphamaps set before CreateAsset were lost (every terrain read back as 100 % layer 0 — the flat tan)
+                    Save(td, $"{GEN}/Terrain/t_{tx}_{tz}.asset");
                     td.SetHeights(0, 0, H);
                     if (core && near.Count > 0)
                     {
@@ -297,30 +345,35 @@ namespace Magistrala.EditorTools
                                     case 1: w[2] += .7f * bw; w[0] += .3f * bw; break;
                                     case 2: w[0] += .55f * bw; w[1] += .45f * bw; break;
                                     case 3: w[1] += .45f * bw; w[0] += .55f * bw; break;
-                                    case 4: w[3] += .45f * bw; w[0] += .35f * bw; w[1] += .2f * bw; break;
+                                    case 4: w[3] += .22f * bw; w[0] += .6f * bw; w[1] += .18f * bw; break;
                                     case 5: w[3] += bw; break;
                                     default: w[3] += .6f * bw; w[1] += .4f * bw; break;
                                 }
                             }
                             float n1 = Perlin(gx, gz, .013f) * .6f + Perlin(gx, gz, .0045f) * .5f - .05f, n2 = Perlin(gx, gz, .07f);
-                            float soil = Mathf.Clamp01((n1 - .6f) * 3f) * .55f + Mathf.Clamp01((n2 - .72f) * 3f) * .25f;
+                            float n3 = Perlin(gx, gz, .0032f); float soil = Mathf.Clamp01((n1 - .55f) * 3f) * .55f + Mathf.Clamp01((n2 - .7f) * 3f) * .3f + Mathf.Clamp01((n3 - .5f) * 3.5f) * .65f;
                             w[1] += soil * (w[0] + .1f); w[0] *= 1 - soil * .7f;
-                            float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) * .6f + Perlin(gx, gz, .008f) * .5f - .6f) * 4f) * .7f;
+                            float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) * .6f + Perlin(gx, gz, .008f) * .5f - .55f) * 4f) * .8f;
                             w[2] += rock * w[0]; w[0] *= 1 - rock * .5f;
                             // slope → rock
                             double dh = Math.Abs(Tiles.Height(gx + 4, gz) - Tiles.Height(gx - 4, gz)) + Math.Abs(Tiles.Height(gx, gz + 4) - Tiles.Height(gx, gz - 4));
                             float slope = Mathf.Clamp01((float)(dh / 8 - .45) * 2.5f);
                             for (int k = 0; k < 4; k++) w[k] *= 1 - slope; w[2] += slope;
+                            // Kozjak: bare karst grows with altitude (limestone above ~150 m, mixed with the scrub)
+                            float hk = Mathf.Clamp01((float)(Tiles.Height(gx, gz) - 140) / 260f) * (.25f + .35f * Perlin(gx, gz, .02f));
+                            w[2] += hk * (w[0] + w[1]); w[0] *= 1 - hk; w[1] *= 1 - hk;
                             if (core && near.Count > 0)
                             {
                                 double sd = WorldData.SurfDist(near, gx, gz);
-                                if (sd < 5) { float g = (float)(1 - sd / 5) * .6f; for (int k = 0; k < 4; k++) w[k] *= 1 - g; w[3] += g * .7f; w[1] += g * .3f; }
+                                if (sd < 3.5) { float g = (float)(1 - sd / 3.5) * .55f; for (int k = 0; k < 4; k++) w[k] *= 1 - g; w[3] += g * .7f; w[1] += g * .3f; }
                             }
+                            // decisive patches (a soft mix of every layer read as one flat tan from afar)
+                            for (int k = 0; k < 4; k++) w[k] = w[k] * w[k];
                             float sum = w[0] + w[1] + w[2] + w[3]; if (sum <= 0) { w[0] = 1; sum = 1; }
                             for (int k = 0; k < 4; k++) A[r, c, k] = w[k] / sum;
                         }
                     td.SetAlphamaps(0, 0, A);
-                    Save(td, $"{GEN}/Terrain/t_{tx}_{tz}.asset");
+                    EditorUtility.SetDirty(td);
                     var go = UnityEngine.Terrain.CreateTerrainGameObject(td);
                     go.name = $"terrain {tx},{tz}"; go.isStatic = true;
                     go.transform.SetParent(root.transform, false);
