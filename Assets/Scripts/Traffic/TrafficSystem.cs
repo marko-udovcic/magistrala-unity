@@ -43,6 +43,7 @@ namespace Magistrala.Traffic
             public float s, v, lat, v0, len, hw, h, a, b, T;
             public float decideT, laneT, stopT;
             public int indicator; // −1 left, +1 right (lane change)
+            public float wheelAng;  // distance driven (m), for the wheel spin
             public bool braking;
             public Vector3 pos; public Quaternion rot;
             public Rigidbody rb;
@@ -346,7 +347,7 @@ namespace Magistrala.Traffic
                     float ds = (car.v + nv) * .5f * dt;
                     // hard clamp: never into the obstacle
                     if (ds > gap - .3f) { ds = Mathf.Max(0, gap - .3f); nv = Mathf.Min(nv, ds / dt); }
-                    car.v = nv; car.s += ds;
+                    car.v = nv; car.s += ds; car.wheelAng += ds;
                     car.stopT = car.v < .3f ? car.stopT + dt : 0;
                     // lane keeping / changing
                     float target = LaneOffAt(cor, car.s, car.laneTo);
@@ -588,7 +589,13 @@ namespace Magistrala.Traffic
                     var pt = parts[p];
                     int b = ids[p] + (pt.paint ? car.paint : 0);
                     if (pt.lamp > 0 && pt.matOn && (pt.lamp == 1 ? car.braking : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
-                    Add(b, M * parts[p].local);
+                    if (pt.wheel)
+                    {
+                        // spin about the wheel's own x axis; mirrored (left) wheels turn the other way round their flipped axis
+                        float sgn = Mathf.Sign(pt.local.m00);
+                        Add(b, M * pt.local * Matrix4x4.Rotate(Quaternion.Euler(sgn * car.wheelAng / pt.radius * Mathf.Rad2Deg, 0, 0)));
+                    }
+                    else Add(b, M * pt.local);
                 }
             }
             for (int b = 0; b < buckets.Count; b++)

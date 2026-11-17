@@ -88,6 +88,7 @@ namespace Magistrala.EditorTools
                     {
                         mesh = mf.sharedMesh, sub = s, mat = nm == "paint" ? null : mat(mats[s]), paint = nm == "paint", local = root * r.transform.localToWorldMatrix,
                         lamp = lamp, matOn = lamp > 0 ? lit(mats[s], lamp) : null,
+                        wheel = r.name.StartsWith("wheelmesh"), radius = r.name.StartsWith("wheelmesh") ? Mathf.Max(.2f, r.transform.position.y - prefab.transform.position.y) : 0,
                     });
                 }
             }
