@@ -277,8 +277,8 @@ namespace Magistrala.EditorTools
             const string PH = "PolyHaven/";
             var layers = new[]
             {
-                Layer("DryGrass", Tinted("PolyHaven/aerial_grass_rock_diff.jpg", "grass_olive_d.jpg", new Color(.68f, .88f, .6f), new Color(0, .01f, 0), .85f), Tex(PH + "aerial_grass_rock_nor.jpg", true), 9), // olive-green maquis ground
-                Layer("RedSoil", Tinted("PolyHaven/dry_ground_rocks_diff.jpg", "soil_ochre_d.jpg", new Color(.95f, .9f, .82f), new Color(.02f, .02f, .01f), .75f), Tex(PH + "dry_ground_rocks_nor.jpg", true), 6), // ochre-brown soil between olive rows, dry patches
+                Layer("DryGrass", Tinted("PolyHaven/aerial_grass_rock_diff.jpg", "grass_maquis_d.jpg", new Color(.56f, .8f, .72f), new Color(0, .006f, .012f), .9f), Tex(PH + "aerial_grass_rock_nor.jpg", true), 9), // olive-green maquis ground
+                Layer("RedSoil", Tinted("PolyHaven/dry_ground_rocks_diff.jpg", "soil_ochre_d3.jpg", new Color(.86f, .78f, .64f), new Color(.015f, .012f, .008f), .72f), Tex(PH + "dry_ground_rocks_nor.jpg", true), 6), // ochre-brown soil between olive rows, dry patches
                 Layer("Rock", Tinted("PolyHaven/rock_face_03_diff.jpg", "rock_grey_d.jpg", new Color(.9f, .91f, .93f), new Color(.06f, .06f, .07f), 0f), Tex(PH + "rock_face_03_nor.jpg", true), 9),
                 Layer("Gravel", Tex(PH + "gravel_ground_01_diff.jpg"), Tex(PH + "gravel_ground_01_nor.jpg", true), 4),
             };
@@ -345,23 +345,25 @@ namespace Magistrala.EditorTools
                                 {
                                     case 0: w[0] += .72f * bw; w[1] += .16f * bw; w[2] += .12f * bw; break;
                                     case 1: w[2] += .7f * bw; w[0] += .3f * bw; break;
-                                    case 2: w[0] += .55f * bw; w[1] += .45f * bw; break;
-                                    case 3: w[1] += .5f * bw; w[0] += .5f * bw; break;
+                                    case 2: w[0] += .68f * bw; w[1] += .32f * bw; break;
+                                    case 3: w[1] += .36f * bw; w[0] += .64f * bw; break;
                                     case 4: w[3] += .22f * bw; w[0] += .6f * bw; w[1] += .18f * bw; break;
                                     case 5: w[3] += bw; break;
                                     // manifest surfaceClasses 7–11 (were all falling through to pale gravel: the cream Kozjak slopes)
                                     case 7: w[3] += bw; break;                                                  // mapped paving
-                                    case 8: w[1] += .5f * bw; w[0] += .5f * bw; break;                          // olive rows
-                                    case 9: w[1] += .55f * bw; w[0] += .45f * bw; break;                        // vineyard rows
+                                    case 8: w[1] += .3f * bw; w[0] += .7f * bw; break;                          // olive rows
+                                    case 9: w[1] += .36f * bw; w[0] += .64f * bw; break;                        // vineyard rows
                                     case 10: w[0] += .62f * bw; w[2] += .3f * bw; w[1] += .08f * bw; break;     // garrigue
                                     case 11: w[0] += .8f * bw; w[1] += .2f * bw; break;                         // gardens
-                                    default: w[0] += .5f * bw; w[1] += .5f * bw; break;
+                                    default: w[0] += .68f * bw; w[1] += .32f * bw; break;
                                 }
                             }
                             float n1 = Perlin(gx, gz, .013f) * .6f + Perlin(gx, gz, .0045f) * .5f - .05f, n2 = Perlin(gx, gz, .07f);
-                            float n3 = Perlin(gx, gz, .0032f), n4 = Perlin(gx, gz, .021f), n5 = Perlin(gx, gz, .11f); float soil = Mathf.Clamp01((n1 * .45f + n3 * .3f + n4 * .25f - .58f) * 3f) * .5f + Mathf.Clamp01((n5 - .72f) * 3f) * .25f;
+                            float n3 = Perlin(gx, gz, .0032f), n4 = Perlin(gx, gz, .021f), n5 = Perlin(gx, gz, .11f); // ochre soil: smaller share than before (.5 + .25 made 100 m orange blobs from the air) and grained at ~6 m, so a patch is
+                            // a mix of soil and scrub, not a uniform fill (the near-road and aerial read stay the same in kind: patches of bare soil)
+                            float soil = (Mathf.Clamp01((n1 * .45f + n3 * .3f + n4 * .25f - .6f) * 3f) * .44f + Mathf.Clamp01((n5 - .72f) * 3f) * .18f) * (.45f + .55f * Perlin(gx + 311, gz - 97, .16f));
                             w[1] += soil * (w[0] + .1f); w[0] *= 1 - soil * .7f;
-                            float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) * .6f + Perlin(gx, gz, .008f) * .5f - .55f) * 4f) * .8f;
+                            float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) * .6f + Perlin(gx, gz, .008f) * .5f - .55f) * 4f) * .55f;
                             w[2] += rock * w[0]; w[0] *= 1 - rock * .5f;
                             // slope → rock
                             double dh = Math.Abs(Tiles.Height(gx + 4, gz) - Tiles.Height(gx - 4, gz)) + Math.Abs(Tiles.Height(gx, gz + 4) - Tiles.Height(gx, gz - 4));
@@ -376,7 +378,7 @@ namespace Magistrala.EditorTools
                                 if (sd < 3.5) { float g = (float)(1 - sd / 3.5) * .55f; for (int k = 0; k < 4; k++) w[k] *= 1 - g; w[3] += g * .7f; w[1] += g * .3f; }
                             }
                             // decisive patches (a soft mix of every layer read as one flat tan from afar)
-                            for (int k = 0; k < 4; k++) w[k] = Mathf.Pow(w[k], 1.4f); // (squared gave big hard blotches from the air)
+                            for (int k = 0; k < 4; k++) w[k] = Mathf.Pow(w[k], 1.25f); // (squared gave big hard blotches from the air)
                             float sum = w[0] + w[1] + w[2] + w[3]; if (sum <= 0) { w[0] = 1; sum = 1; }
                             for (int k = 0; k < 4; k++) A[r, c, k] = w[k] / sum;
                         }
