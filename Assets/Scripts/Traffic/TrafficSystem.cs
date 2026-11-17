@@ -22,6 +22,9 @@ namespace Magistrala.Traffic
         [Range(0, 60)] public int targetCars = 34;
         public float spawnMin = 320, spawnMax = 600, despawnDist = 680;
         public bool signals = true;
+        /// headlight lenses lit (follows LightPreset: sunset)
+        [System.NonSerialized] public bool headlights;
+        LightPreset preset;
         public float lod1Dist = 70, shadowDist = 120;
         public Transform player;
         public int seed = 7;
@@ -589,7 +592,7 @@ namespace Magistrala.Traffic
                 {
                     var pt = parts[p];
                     int b = ids[p] + (pt.paint ? car.paint : 0);
-                    if (pt.lamp > 0 && pt.matOn && (pt.lamp == 1 ? car.braking : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
+                    if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? headlights : pt.lamp == 1 ? car.braking : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
                     if (pt.wheel)
                     {
                         // spin about the wheel's own x axis; mirrored (left) wheels turn the other way round their flipped axis
@@ -619,6 +622,8 @@ namespace Magistrala.Traffic
             var t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             float dt = Mathf.Min(Time.deltaTime, .05f);
             clock += Time.deltaTime;
+            if (!preset) preset = FindFirstObjectByType<LightPreset>();
+            headlights = preset && preset.Golden; // low-beam lenses lit at sunset (G)
             if (!cam) cam = Camera.main;
             if (cam) GeometryUtility.CalculateFrustumPlanes(cam, planes);
             FindPlayer();

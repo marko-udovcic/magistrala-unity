@@ -10,7 +10,7 @@ namespace Magistrala.Traffic
     public class TrafficPart
     {
         public Mesh mesh; public int sub; public Material mat; public Matrix4x4 local; public bool paint;
-        /// lamps: 0 none, 1 tail (brake light), 2 left indicator, 3 right indicator; matOn = the lit variant
+        /// lamps: 0 none, 1 tail (brake light), 2 left indicator, 3 right indicator, 4 headlight; matOn = the lit variant
         public int lamp; public Material matOn;
         /// wheel: spun about its local x axis (origin = wheel centre) by the distance driven / radius
         public bool wheel; public float radius;

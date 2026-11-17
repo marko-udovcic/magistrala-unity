@@ -83,7 +83,7 @@ namespace Magistrala.EditorTools
                 {
                     if (!mats[s]) continue;
                     var nm = mats[s].name;
-                    int lamp = nm == "T_tail" ? 1 : nm == "T_amberL" ? 2 : nm == "T_amberR" ? 3 : 0;
+                    int lamp = nm == "T_tail" ? 1 : nm == "T_amberL" ? 2 : nm == "T_amberR" ? 3 : nm == "T_head" ? 4 : 0;
                     parts.Add(new TrafficPart
                     {
                         mesh = mf.sharedMesh, sub = s, mat = nm == "paint" ? null : mat(mats[s]), paint = nm == "paint", local = root * r.transform.localToWorldMatrix,
@@ -121,7 +121,7 @@ namespace Magistrala.EditorTools
                     if (!cache.TryGetValue(key, out var m))
                     {
                         cache[key] = m = InstMat(src, $"{OUT}/Materials/{k.name}_{key}.mat");
-                        var e = lamp == 1 ? new Color(6f, .25f, .15f) : new Color(6f, 2.6f, .3f);
+                        var e = lamp == 1 ? new Color(6f, .25f, .15f) : lamp == 4 ? new Color(5f, 4.8f, 4.3f) : new Color(6f, 2.6f, .3f);
                         if (m.HasProperty("emissiveFactor")) m.SetColor("emissiveFactor", e);
                         m.EnableKeyword("_EMISSION"); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
                         EditorUtility.SetDirty(m);
