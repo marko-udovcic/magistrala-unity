@@ -20,6 +20,58 @@ namespace Magistrala.EditorTools
         }
         static Color Norm(Color c, float max) { float m = Mathf.Max(c.r, Mathf.Max(c.g, c.b), 1e-6f); return new Color(c.r / m * max, c.g / m * max, c.b / m * max); }
 
+
+        // Brightest sky pixel as seen from a camera looking at the light's sun: (deg right, deg up, luminance).
+        static Vector3 Measure(Material sky, Vector3 toSun)
+        {
+            var go = new GameObject("sky align"); go.hideFlags = HideFlags.HideAndDontSave;
+            var cam = go.AddComponent<Camera>(); go.AddComponent<Skybox>().material = sky;
+            cam.clearFlags = CameraClearFlags.Skybox; cam.cullingMask = 0; cam.fieldOfView = 90; cam.aspect = 1;
+            go.transform.SetPositionAndRotation(new Vector3(0, 5000, 0), Quaternion.LookRotation(toSun));
+            var rt = new RenderTexture(256, 256, 24, RenderTextureFormat.ARGBFloat); cam.targetTexture = rt; cam.Render();
+            var prev = RenderTexture.active; RenderTexture.active = rt;
+            var t = new Texture2D(256, 256, TextureFormat.RGBAFloat, false); t.ReadPixels(new Rect(0, 0, 256, 256), 0, 0); RenderTexture.active = prev;
+            var px = t.GetPixels(); int best = 0; float bl = 0;
+            for (int i = 0; i < px.Length; i++) { float l = px[i].r + px[i].g + px[i].b; if (l > bl) { bl = l; best = i; } }
+            Object.DestroyImmediate(t); cam.targetTexture = null; rt.Release(); Object.DestroyImmediate(rt); Object.DestroyImmediate(go);
+            float x = (best % 256 + .5f) / 128f - 1, y = (best / 256 + .5f) / 128f - 1;
+            return new Vector3(Mathf.Atan(x) * Mathf.Rad2Deg, Mathf.Atan(y) * Mathf.Rad2Deg, bl);
+        }
+
+        /// Turn a Skybox/Panoramic so its sun disc sits where the directional light comes from. Measured by rendering
+        /// (the analytic u/v → direction mapping came out ~100–190° off: the importer / shader flip), so it holds for any HDRI.
+        public static float AlignSky(Material sky, Quaternion sunRot)
+        {
+            var toSun = -(sunRot * Vector3.forward);
+            float bestRot = 0, bestLum = -1;
+            for (int k = 0; k < 16; k++) { sky.SetFloat("_Rotation", k * 22.5f); var m = Measure(sky, toSun); if (m.z > bestLum) { bestLum = m.z; bestRot = k * 22.5f; } }
+            float rot = bestRot;
+            for (int it = 0; it < 6; it++)
+            {
+                sky.SetFloat("_Rotation", (rot % 360 + 360) % 360);
+                var m = Measure(sky, toSun); if (Mathf.Abs(m.x) < .4f) break;
+                rot += m.x; // +1° rotation moves the sun ~1° to the left
+            }
+            rot = (rot % 360 + 360) % 360; sky.SetFloat("_Rotation", rot); EditorUtility.SetDirty(sky);
+            return rot;
+        }
+
+        [MenuItem("Magistrala/Grafika: poravnaj dnevno nebo sa suncem")]
+        public static string AlignDay()
+        {
+            var sun = Object.FindObjectsByType<Light>(FindObjectsSortMode.None).First(l => l.type == LightType.Directional);
+            var mat = AssetDatabase.LoadAssetAtPath<Material>($"{GEN}/Materials/SkyHDRI.mat");
+            float rot = AlignSky(mat, sun.transform.rotation); var m = Measure(mat, -sun.transform.forward);
+            RenderSettings.skybox = mat; DynamicGI.UpdateEnvironment();
+            // the day probes were baked under the mis-turned sky: bake them again into the same files (Custom probes keep pointing at them)
+            int n = 0;
+            foreach (var p in Object.FindObjectsByType<ReflectionProbe>(FindObjectsSortMode.None).Where(p => p.name.StartsWith("probe ")))
+            {
+                var tex = p.customBakedTexture; if (p.mode == ReflectionProbeMode.Custom && tex) { Lightmapping.BakeReflectionProbe(p, AssetDatabase.GetAssetPath(tex)); p.customBakedTexture = tex; n++; }
+            }
+            AssetDatabase.SaveAssets(); EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene()); EditorSceneManager.SaveOpenScenes(); return $"dnevno nebo rot {rot:F1}°, ostatak {m.x:F1}° / {m.y:F1}°, {n} sondi ponovno pečeno";
+        }
+
         [MenuItem("Magistrala/Grafika: zalazak (nebo + refleksije)")]
         public static string Sunset()
         {
@@ -59,6 +111,7 @@ namespace Magistrala.EditorTools
             mat.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(HDRI));
             mat.SetFloat("_Mapping", 1); mat.SetFloat("_ImageType", 0); mat.SetFloat("_Rotation", (rot % 360 + 360) % 360);
             mat.SetFloat("_Exposure", 1f); mat.SetColor("_Tint", new Color(.5f, .5f, .5f));
+            rot = AlignSky(mat, sunRot);
             EditorUtility.SetDirty(mat);
             lp.sunsetSky = mat;
             lp.sunsetSkyAmb = Norm(sky, .5f); lp.sunsetHorizon = Norm(hor, .9f); lp.sunsetFog = Norm(Color.Lerp(hor, sky, .25f), .78f);
@@ -71,9 +124,9 @@ namespace Magistrala.EditorTools
 
             var keep = (RenderSettings.skybox, sunGo.transform.rotation, sunGo.colorTemperature, sunGo.intensity, sunGo.color,
                 RenderSettings.ambientSkyColor, RenderSettings.ambientEquatorColor, RenderSettings.ambientGroundColor, RenderSettings.fogColor, RenderSettings.fogDensity);
-            RenderSettings.skybox = mat; sunGo.transform.rotation = sunRot; sunGo.colorTemperature = 3400; sunGo.intensity = 2.1f; sunGo.color = new Color(1f, .82f, .62f);
-            RenderSettings.ambientSkyColor = lp.sunsetSkyAmb; RenderSettings.ambientEquatorColor = Color.Lerp(lp.sunsetHorizon, lp.sunsetSkyAmb, .45f) * .85f;
-            RenderSettings.ambientGroundColor = new Color(.16f, .13f, .13f); RenderSettings.fogColor = lp.sunsetFog; RenderSettings.fogDensity = .00011f;
+            RenderSettings.skybox = mat; sunGo.transform.rotation = sunRot; sunGo.colorTemperature = 4200; sunGo.intensity = lp.sunIntensity; sunGo.color = new Color(1f, .86f, .72f);
+            RenderSettings.ambientSkyColor = lp.sunsetSkyAmb * lp.ambMul; RenderSettings.ambientEquatorColor = Color.Lerp(lp.sunsetHorizon, lp.sunsetSkyAmb, .45f) * .85f * lp.ambMul;
+            RenderSettings.ambientGroundColor = new Color(.16f, .13f, .13f) * lp.ambMul; RenderSettings.fogColor = lp.sunsetFog; RenderSettings.fogDensity = .00011f;
             DynamicGI.UpdateEnvironment();
             var sunsetTex = new Texture[probes.Length];
             try

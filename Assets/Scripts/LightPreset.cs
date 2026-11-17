@@ -18,8 +18,8 @@ namespace Magistrala
         public Color sunsetSkyAmb = new Color(.42f, .45f, .62f), sunsetHorizon = new Color(.85f, .62f, .5f), sunsetFog = new Color(.78f, .6f, .55f);
 
         [Header("zalazak: ugađanje")]
-        public float ambMul = 1.5f, exposureOff = -.2f, sunIntensity = 2.3f;
-        public Color splitShadows = new Color(.42f, .45f, .6f), splitHighlights = new Color(.7f, .54f, .4f);
+        public float ambMul = 1.9f, exposureOff = -.2f, sunIntensity = 2.3f;
+        public Color splitShadows = new Color(.45f, .47f, .57f), splitHighlights = new Color(.7f, .54f, .4f);
 
         struct S
         {
@@ -57,7 +57,7 @@ namespace Magistrala
         {
             return new S
             {
-                rot = Quaternion.Euler(sunElev, sunYaw, 0), temp = 3400, intensity = sunIntensity, sun = new Color(1f, .82f, .62f), shadowStr = .85f,
+                rot = Quaternion.Euler(sunElev, sunYaw, 0), temp = 4200, intensity = sunIntensity, sun = new Color(1f, .86f, .72f), shadowStr = .85f,
                 fogD = .00011f, fog = sunsetFog,
                 sky = sunsetSkyAmb * ambMul, eq = Color.Lerp(sunsetHorizon, sunsetSkyAmb, .45f) * .85f * ambMul, ground = new Color(.16f, .13f, .13f) * ambMul,
                 filter = Color.white, exposure = day.exposure + exposureOff, contrast = day.contrast + 12, sat = day.sat + 4, wb = day.wb + 6,
