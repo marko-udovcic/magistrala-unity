@@ -79,7 +79,7 @@ namespace Magistrala
                 if (d >= left) { target = cur + (path[k + 1] - cur).normalized * left; break; }
                 left -= d; cur = path[k + 1]; k++; target = cur;
             }
-            Vector3 local = transform.InverseTransformPoint(target);
+            Vector3 local = transform.InverseTransformPoint(new Vector3(target.x, p.y, target.z)); // flat: a height step in the path must not shrink the curvature
             float curvature = 2 * local.x / Mathf.Max(local.sqrMagnitude, 1);
             float steerAngle = Mathf.Atan(curvature * 4.3f) * Mathf.Rad2Deg;
             // TruckController scales the input by its speed-sensitive lock: invert that so the wanted angle is what we get

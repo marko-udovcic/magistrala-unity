@@ -123,16 +123,27 @@ namespace Magistrala.EditorTools
             var r0 = westbound ? m01.roads[2] : m01.roads[0]; (System.Collections.Generic.List<double[]> p, double w, int n) cur = (r0.p, r0.w, r0.n);
             var outL = new System.Collections.Generic.List<Vector2>();
             var used = new System.Collections.Generic.HashSet<object>();
+            double prevOff = double.NaN;
             for (int guard = 0; guard < 200; guard++)
             {
                 used.Add(cur.p);
+                // A model road is one carriageway (its axis = the middle of the asphalt, w = whole width, n = lanes of that carriageway).
+                // The middle of the rightmost lane is w/2 - w/(2n) from the axis (n = 2: w/4; n = 3: w/3; n = 4: 3w/8; one-way n = 1: the axis).
+                // The old fixed w/4 sat 0.9 m inside the right lane of a 3-lane carriageway (and 1.6 m on 4 lanes).
+                double laneOff = cur.w / 2 * (1 - 1.0 / System.Math.Max(1, cur.n)), arc = 0, lastOff = prevOff;
+                if (double.IsNaN(prevOff)) prevOff = lastOff = laneOff;
                 for (int i = 0; i < cur.p.Count - 1; i++)
                 {
                     var a = cur.p[i]; var b = cur.p[i + 1]; double dx = b[0] - a[0], dz = b[1] - a[1], L = System.Math.Sqrt(dx * dx + dz * dz); if (L < .05) continue;
-                    double rx = -dz / L, rz = dx / L, off = cur.w / 4;
-                    outL.Add(new Vector2((float)(a[0] + rx * off), (float)(a[1] + rz * off)));
-                    if (i == cur.p.Count - 2) outL.Add(new Vector2((float)(b[0] + rx * off), (float)(b[1] + rz * off)));
+                    // where a lane is added / dropped between two chained roads, slide to the new lane centre over 40 m (smoothstep)
+                    double f0 = System.Math.Min(1, arc / 40), f1 = System.Math.Min(1, (arc + L) / 40);
+                    double off0 = prevOff + (laneOff - prevOff) * (f0 * f0 * (3 - 2 * f0)), off1 = prevOff + (laneOff - prevOff) * (f1 * f1 * (3 - 2 * f1));
+                    double rx = -dz / L, rz = dx / L;
+                    outL.Add(new Vector2((float)(a[0] + rx * off0), (float)(a[1] + rz * off0)));
+                    if (i == cur.p.Count - 2) outL.Add(new Vector2((float)(b[0] + rx * off1), (float)(b[1] + rz * off1)));
+                    arc += L; lastOff = off1;
                 }
+                prevOff = lastOff;
                 var e = cur.p[cur.p.Count - 1]; var e0 = cur.p[cur.p.Count - 2];
                 double ddx = e[0] - e0[0], ddz = e[1] - e0[1], dl = System.Math.Sqrt(ddx * ddx + ddz * ddz);
                 (System.Collections.Generic.List<double[]> p, double w, int n) next = default; double best = 6; int from = 0;
@@ -157,18 +168,42 @@ namespace Magistrala.EditorTools
             return outL;
         }
 
+        /// the lane path in Unity coordinates, heights from the models' asphalt (where a point falls outside the mesh — a paint gap, a join —
+        /// the height is interpolated from the neighbours; it used to be 0, a 44 m cliff in the path the autopilot then tried to steer to)
+        public static Vector3[] UnityPath(System.Collections.Generic.List<Vector2> path)
+        {
+            var models = WorldData.Models();
+            var ys = new double[path.Count];
+            for (int i = 0; i < path.Count; i++) { ys[i] = double.NaN; foreach (var m in models) { ys[i] = m.Surface(path[i].x, path[i].y); if (!double.IsNaN(ys[i])) break; } }
+            for (int i = 0; i < ys.Length; i++)
+            {
+                if (!double.IsNaN(ys[i])) continue;
+                int a = i - 1; while (a >= 0 && double.IsNaN(ys[a])) a--;
+                int b = i + 1; while (b < ys.Length && double.IsNaN(ys[b])) b++;
+                if (a >= 0 && b < ys.Length) { double t = (double)(i - a) / (b - a); ys[i] = ys[a] + (ys[b] - ys[a]) * t; }
+                else ys[i] = a >= 0 ? ys[a] : b < ys.Length ? ys[b] : 0;
+            }
+            var u = new Vector3[path.Count];
+            for (int i = 0; i < path.Count; i++) u[i] = W.U(path[i].x, ys[i], path[i].y);
+            return u;
+        }
+
+        /// re-derive the autopilot's lane path on the existing truck (after the lane-centre fix), without respawning it
+        [MenuItem("Magistrala/Autopilot: osvježi stazu")]
+        public static void RefreshAutopilotPath()
+        {
+            var ap = Object.FindFirstObjectByType<Magistrala.Autopilot>(); if (!ap) { Debug.LogError("[Magistrala] no truck with an Autopilot in the scene (Magistrala/Spawn truck first)"); return; }
+            var path = EastboundPath(); ap.path = UnityPath(path);
+            EditorUtility.SetDirty(ap); EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log($"[Magistrala] autopilot path: {path.Count} pts, game x {path[0].x:F0} .. {path[path.Count - 1].x:F0}");
+        }
+
         [MenuItem("Magistrala/Spawn truck")]
         public static void Spawn()
         {
             var old = GameObject.Find("Truck"); if (old) Object.DestroyImmediate(old);
             var path = EastboundPath();
-            var models = WorldData.Models();
-            var upath = new Vector3[path.Count];
-            for (int i = 0; i < path.Count; i++)
-            {
-                double y = double.NaN; foreach (var m in models) { y = m.Surface(path[i].x, path[i].y); if (!double.IsNaN(y)) break; }
-                upath[i] = W.U(path[i].x, double.IsNaN(y) ? 0 : y, path[i].y);
-            }
+            var upath = UnityPath(path);
             int si = 2;
             var root = new GameObject("Truck");
             var p0 = upath[si]; var dir = upath[si + 1] - upath[si]; dir.y = 0;

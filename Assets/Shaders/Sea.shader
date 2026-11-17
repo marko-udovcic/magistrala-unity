@@ -7,6 +7,10 @@ Shader "Magistrala/Sea"
         _NormalScale2("Second Normal Tile Size (m)", Float) = 11
         _Speed1("First Scroll Speed (tiles/s, XY)", Vector) = (0.020,0.012,0,0)
         _Speed2("Second Scroll Speed (tiles/s, XY)", Vector) = (-0.015,0.025,0,0)
+        _NormalScale3("Third Normal Tile Size (m)", Float) = 97
+        _Speed3("Third Scroll Speed (tiles/s, XY)", Vector) = (0.006,-0.009,0,0)
+        _DetailFade("Small Waves Fade Out (m from camera: start, end)", Vector) = (80,1400,0,0)
+        _MacroWarp("Tile Break-up: UV warp (m), strength variation", Vector) = (9,0.55,0,0)
         _NormalStrength("Normal Strength", Range(0,2)) = 0.55
         _Smoothness("Smoothness", Range(0,1)) = 0.94
         _FresnelPower("Fresnel Power", Float) = 5
@@ -31,6 +35,10 @@ Shader "Magistrala/Sea"
         CBUFFER_START(UnityPerMaterial)
             float4 _Speed1;
             float4 _Speed2;
+            float4 _Speed3;
+            float4 _DetailFade;
+            float4 _MacroWarp;
+            float _NormalScale3;
             float4 _Tint;
             float _NormalScale1;
             float _NormalScale2;
@@ -78,14 +86,37 @@ Shader "Magistrala/Sea"
             output.lightmapUV = input.lightmapUV * unity_LightmapST.xy + unity_LightmapST.zw;
             return output;
         }
+        float Hash21(float2 c) { return frac(sin(dot(c, float2(127.1, 311.7))) * 43758.5453); }
+        // smooth value noise, 0..1 (low frequency only: breaks the tile grid and the sameness of the water)
+        float ValueNoise(float2 x)
+        {
+            float2 i = floor(x), f = frac(x); f = f * f * (3.0 - 2.0 * f);
+            return lerp(lerp(Hash21(i), Hash21(i + float2(1, 0)), f.x), lerp(Hash21(i + float2(0, 1)), Hash21(i + float2(1, 1)), f.x), f.y);
+        }
+        // one wave layer: world XZ rotated by 'angle' (so the three tile grids are not parallel), scaled, scrolled; tangent-space xy turned back
+        float2 WaveXY(float2 p, float tile, float angle, float2 speed, float strength)
+        {
+            float sn, cs; sincos(angle, sn, cs);
+            float2 q = float2(cs * p.x - sn * p.y, sn * p.x + cs * p.y);
+            float3 n = UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, q / max(tile, 0.001) + _Time.y * speed), strength);
+            return float2(cs * n.x + sn * n.y, -sn * n.x + cs * n.y);
+        }
         float3 SurfaceNormalWS(Varyings input)
         {
             // Velocities are normalized tile scroll rates: worldXZ/scale + time*speed.
-            float2 uv1 = input.positionWS.xz / max(_NormalScale1, 0.001) + _Time.y * _Speed1.xy;
-            float2 uv2 = input.positionWS.xz / max(_NormalScale2, 0.001) + _Time.y * _Speed2.xy;
-            float3 n1 = float3(UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv1), _NormalStrength));
-            float3 n2 = float3(UnpackNormalScale(SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uv2), _NormalStrength));
-            float3 normalTS = normalize(float3(n1.xy + n2.xy, max(n1.z * n2.z, 0.001))); // Whiteout blend.
+            float2 p = input.positionWS.xz;
+            float dist = distance(input.positionWS, _WorldSpaceCameraPos);
+            // low-frequency warp bends the straight tile rows; slow macro noise varies the wave strength from patch to patch
+            float2 warp = float2(ValueNoise(p / 53.0 + float2(3.1, 7.7)), ValueNoise(p / 47.0 + float2(11.3, 2.9))) - 0.5;
+            p += warp * _MacroWarp.x;
+            float macro = lerp(1.0 - _MacroWarp.y * 0.5, 1.0 + _MacroWarp.y * 0.5, ValueNoise(p / 170.0 + float2(5.2, 1.3)));
+            // small waves fade with distance (their tiling and shimmer are what shows from far / above), big swell stays
+            float fSmall = lerp(1.0, 0.15, smoothstep(_DetailFade.x, _DetailFade.y, dist));
+            float fMid = lerp(1.0, 0.45, smoothstep(_DetailFade.y * 0.5, _DetailFade.y * 6.0, dist));
+            float2 xy = WaveXY(p, _NormalScale1, 0.35, _Speed1.xy, _NormalStrength * macro * fMid)
+                      + WaveXY(p, _NormalScale2, -0.83, _Speed2.xy, _NormalStrength * fSmall)
+                      + WaveXY(p, _NormalScale3, 1.21, _Speed3.xy, _NormalStrength * 0.8 * macro);
+            float3 normalTS = normalize(float3(xy, 1.0));
             float3 n = normalize(input.normalWS);
             // World X/Z mapping: +normal-map X points +world X, +Y points +world Z.
             float3 axis = abs(n.x) < 0.99 ? float3(1,0,0) : float3(0,0,1);
