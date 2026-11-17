@@ -6,6 +6,7 @@
 - Teren: **Red Dirt Mud 01** — https://polyhaven.com/a/red_dirt_mud_01 — Rob Tuytel (crvenica / terra rossa)
 - Teren: **Rock Face 03** — https://polyhaven.com/a/rock_face_03 — Dario Barresi, Rico Cilliers (vapnenac, krš)
 - Teren / bankine: **Gravel Ground 01** — https://polyhaven.com/a/gravel_ground_01 — Rob Tuytel
+- Kuće: **Clay Roof Tiles 02** — https://polyhaven.com/a/clay_roof_tiles_02 — Amal Kumar; **White Plaster 02** — https://polyhaven.com/a/white_plaster_02 — Rob Tuytel; **Wood Shutter** — https://polyhaven.com/a/wood_shutter — Dimitrios Savva
 - Asfalt: **Asphalt 02** — https://polyhaven.com/a/asphalt_02 — Rob Tuytel (diffuse, normal, roughness)
 
 Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg) i `Assets/Textures/Sky/*`.

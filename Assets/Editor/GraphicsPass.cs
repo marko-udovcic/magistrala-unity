@@ -48,7 +48,8 @@ namespace Magistrala.EditorTools
             m.SetTexture("_BaseMap", Tex(PH + "asphalt_02_diff.jpg"));
             m.SetTexture("_BumpMap", Tex(PH + "asphalt_02_nor.jpg", true));
             m.SetTexture("_RoughMap", Tex(PH + "asphalt_02_rough.jpg", false, true));
-            m.SetColor("_BaseColor", new Color(.5f, .5f, .52f)); m.SetFloat("_SmoothMax", .5f); m.SetFloat("_SheenAmount", .45f); m.SetFloat("_TrackSmooth", .12f); m.SetFloat("_TrackDarken", .18f);
+            // sun-baked light-medium warm grey (Marko's GTA V references), darker tyre / oil streaks, only a light sheen
+            m.SetColor("_BaseColor", new Color(.86f, .83f, .78f)); m.SetFloat("_SmoothMin", .12f); m.SetFloat("_SmoothMax", .34f); m.SetFloat("_SheenAmount", .3f); m.SetFloat("_TrackSmooth", .06f); m.SetFloat("_TrackDarken", .3f); m.SetFloat("_PatchAmount", .45f); m.SetFloat("_ColorVar", .14f);
             EditorUtility.SetDirty(m);
             return m;
         }
@@ -103,7 +104,7 @@ namespace Magistrala.EditorTools
             var sky = Mat("SkyHDRI", "Skybox/Panoramic");
             sky.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(HDRI));
             sky.SetFloat("_Mapping", 1); sky.SetFloat("_ImageType", 0); sky.SetFloat("_Rotation", (rot % 360 + 360) % 360);
-            sky.SetFloat("_Exposure", .9f); sky.SetColor("_Tint", new Color(.46f, .5f, .56f)); // (Tint .5 = neutral)
+            sky.SetFloat("_Exposure", 1.0f); sky.SetColor("_Tint", new Color(.5f, .5f, .5f)); // (Tint .5 = neutral)
             EditorUtility.SetDirty(sky);
             RenderSettings.skybox = sky;
 
@@ -111,14 +112,14 @@ namespace Magistrala.EditorTools
             sun.transform.rotation = sunRot;
             GraphicsSettings.lightsUseLinearIntensity = true; GraphicsSettings.lightsUseColorTemperature = true;
             sun.useColorTemperature = true; sun.colorTemperature = 5600; sun.color = new Color(1f, .97f, .92f);
-            sun.intensity = 2.6f; sun.shadowStrength = .88f;
+            sun.intensity = 2.9f; sun.shadowStrength = .8f;
             // ambient: trilight (the pure-sky HDRI's lower half is near black: undersides and the footbridge went black); reflections stay the HDRI
             RenderSettings.ambientMode = AmbientMode.Trilight; RenderSettings.ambientSkyColor = new Color(.62f, .74f, .95f) * 1.05f;
             RenderSettings.ambientEquatorColor = new Color(.66f, .66f, .62f); RenderSettings.ambientGroundColor = new Color(.42f, .36f, .28f);
             RenderSettings.defaultReflectionMode = DefaultReflectionMode.Skybox; RenderSettings.reflectionIntensity = 1f;
             // light aerial haze (sea / Kozjak), never grey: pale sky blue
-            RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential; RenderSettings.fogDensity = .00006f;
-            RenderSettings.fogColor = new Color(.56f, .71f, .9f);
+            RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Exponential; RenderSettings.fogDensity = .00011f;
+            RenderSettings.fogColor = new Color(.78f, .8f, .8f); // warm pale haze: hills and sea fade into it
             DynamicGI.UpdateEnvironment();
 
             // grading: vibrant, warm highlights, lifted blues / greens, no crushed blacks
@@ -126,8 +127,8 @@ namespace Magistrala.EditorTools
             var prof = vol.sharedProfile;
             T Get<T>() where T : VolumeComponent { if (!prof.TryGet<T>(out var c)) { c = prof.Add<T>(true); AssetDatabase.AddObjectToAsset(c, prof); } c.active = true; return c; }
             Get<Tonemapping>().mode.Override(TonemappingMode.ACES);
-            var ca = Get<ColorAdjustments>(); ca.postExposure.Override(.15f); ca.contrast.Override(10f); ca.saturation.Override(14f); ca.colorFilter.Override(Color.white);
-            var wb = Get<WhiteBalance>(); wb.temperature.Override(1f); wb.tint.Override(-1f);
+            var ca = Get<ColorAdjustments>(); ca.postExposure.Override(.3f); ca.contrast.Override(6f); ca.saturation.Override(14f); ca.colorFilter.Override(Color.white);
+            var wb = Get<WhiteBalance>(); wb.temperature.Override(7f); wb.tint.Override(-1f);
             var smh = Get<ShadowsMidtonesHighlights>();
             smh.shadows.Override(new Vector4(.98f, 1.0f, 1.06f, .04f)); smh.midtones.Override(new Vector4(1f, 1f, 1f, 0)); smh.highlights.Override(new Vector4(1.03f, 1.0f, .96f, 0));
             var lgg = Get<LiftGammaGain>(); lgg.lift.Override(new Vector4(1f, 1f, 1f, .02f)); lgg.gain.Override(new Vector4(1.02f, 1.0f, .97f, 0));
@@ -147,8 +148,8 @@ namespace Magistrala.EditorTools
             mat.SetTexture("_NormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/water_n.png"));
             EditorUtility.SetDirty(mat);
             var root = WorldBuilder.Root("Sea");
-            Color shallow = new Color(.06f, .52f, .52f), mid = new Color(.03f, .26f, .38f), deep = new Color(.012f, .085f, .2f);
-            Color Tint(double h) { float d = (float)-h; return d < 6 ? Color.Lerp(shallow, mid, Mathf.Clamp01(d / 6)) : Color.Lerp(mid, deep, Mathf.Clamp01((d - 6) / 20)); }
+            Color shallow = new Color(.1f, .62f, .6f), mid = new Color(.04f, .33f, .46f), deep = new Color(.015f, .12f, .27f), foam = new Color(.85f, .88f, .86f);
+            Color Tint(double h) { float d = (float)-h; if (d < .35f) return Color.Lerp(foam, shallow, Mathf.Clamp01((d + .2f) / .55f)); return d < 6 ? Color.Lerp(shallow, mid, Mathf.Clamp01(d / 6)) : Color.Lerp(mid, deep, Mathf.Clamp01((d - 6) / 20)); }
             // near grid: game x -9300 … 1200, z -6000 … -2800 (the bay), 25 m cells
             double x0 = -9300, x1 = 1200, z0 = -6000, z1 = -2800, cell = 25;
             int nx = (int)((x1 - x0) / cell), nz = (int)((z1 - z0) / cell);

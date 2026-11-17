@@ -53,6 +53,10 @@ namespace Magistrala.EditorTools
             catch (Exception e) { Debug.LogError("[Magistrala] model buildings: " + e); }
 
             var chunks = new Dictionary<long, Geo>();
+            // detailed Dalmatian houses (HouseBuilder: windows, škure, balconies, tile roofs) within NEAR m of the D8, boxes beyond
+            const double NEAR = 320;
+            var path = TruckSetup.EastboundPath(); var houses = new Dictionary<long, HouseGeo>(); int nDetailed = 0;
+            bool NearD8(double x, double z) { foreach (var q in path) if ((q.x - x) * (q.x - x) + (q.y - z) * (q.y - z) < NEAR * NEAR) return true; return false; }
             int n = 0, skipped = 0;
             for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++)
                 for (int tx = WorldBuilder.TX0; tx <= WorldBuilder.TX1; tx++)
@@ -76,8 +80,19 @@ namespace Magistrala.EditorTools
                         foreach (var p in P) { double g = Ground(models, p.x, p.z); gmin = Math.Min(gmin, g); gmax = Math.Max(gmax, g); }
                         double baseY = gmax - Math.Min(1.0, (gmax - gmin) * .3), bottom = gmin - .6, top = baseY + h;
                         long key = ((long)Math.Floor(cx / 256) << 32) ^ (uint)Math.Floor(cz / 256);
-                        if (!chunks.TryGetValue(key, out var geo)) chunks[key] = geo = new Geo();
-                        Extrude(geo, P, kind, bottom, baseY, top, cx, cz);
+                        bool done = false;
+                        if (NearD8(cx, cz))
+                        {
+                            if (!houses.TryGetValue(key, out var hg)) houses[key] = hg = new HouseGeo();
+                            var fp = new List<Vector2>(); foreach (var p in P) fp.Add(new Vector2((float)p.x, (float)p.z));
+                            try { HouseBuilder.AddHouse(hg, fp, kind, bottom, baseY, top, (int)(Math.Abs(cx * 7.31 + cz * 3.17) % 100000)); nDetailed++; done = true; }
+                            catch (ArgumentException) { } // self-intersecting footprint: plain box
+                        }
+                        if (!done)
+                        {
+                            if (!chunks.TryGetValue(key, out var geo)) chunks[key] = geo = new Geo();
+                            Extrude(geo, P, kind, bottom, baseY, top, cx, cz);
+                        }
                         n++;
                     }
                 }
@@ -98,8 +113,21 @@ namespace Magistrala.EditorTools
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
                 ci++;
             }
+            var hm = HouseBuilder.Materials(); int hi = 0;
+            foreach (var kv in houses)
+            {
+                var mesh = HouseBuilder.ToMesh(kv.Value, "house" + hi);
+                string p = $"Assets/Generated/TileBuildings/house{hi}.asset";
+                if (File.Exists(p)) AssetDatabase.DeleteAsset(p);
+                AssetDatabase.CreateAsset(mesh, p);
+                var go = new GameObject("houses" + hi); go.isStatic = true; go.transform.SetParent(tr.transform, false);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                go.AddComponent<MeshRenderer>().sharedMaterials = hm;
+                go.AddComponent<MeshCollider>().sharedMesh = mesh;
+                hi++;
+            }
             AssetDatabase.SaveAssets();
-            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared), {ci} chunks");
+            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nDetailed} detailed), {ci} + {hi} chunks");
         }
 
         struct Vector2d { public double x, z; public Vector2d(double x, double z) { this.x = x; this.z = z; } }
