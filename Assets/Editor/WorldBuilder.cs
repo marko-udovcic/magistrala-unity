@@ -83,7 +83,7 @@ namespace Magistrala.EditorTools
             return new[]
             {
                 Lit("Asphalt", new Color(.52f, .52f, .53f), .22f, 0, "asphalt_d.jpg", "asphalt_n.jpg", .8f),
-                Lit("Paint", new Color(.95f, .95f, .92f), .3f, 0, "concrete_d.jpg"),
+                Lit("Paint", new Color(.88f, .88f, .86f), .3f, 0, null),
                 Lit("Steel", new Color(.62f, .65f, .67f), .55f, .65f),
                 Lit("Kerb", new Color(.66f, .65f, .61f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
                 Lit("Concrete", new Color(.62f, .62f, .6f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
@@ -146,7 +146,7 @@ namespace Magistrala.EditorTools
                         var fn = Vector3.Cross(P[b] - P[a], P[c] - P[a]).normalized;
                         foreach (int id in new[] { a, b, c })
                         {
-                            var p = P[id]; v[k].Add(p); nr[k].Add(N[id]);
+                            var p = P[id]; v[k].Add(p); nr[k].Add(Vector3.Dot(N[id], fn) < 0 ? fn : N[id]); // (some deck faces carry inverted normals)
                             float gx = (float)(m.x - W.OX) + p.x, gz = -(float)(m.z - W.OZ) + p.z;
                             uv[k].Add(Mathf.Abs(fn.y) > .5f ? new Vector2(gx, gz) * .2f : new Vector2((gx + gz) * .5f, p.y + (float)m.y) * .5f);
                         }
@@ -302,10 +302,10 @@ namespace Magistrala.EditorTools
                                     default: w[3] += .6f * bw; w[1] += .4f * bw; break;
                                 }
                             }
-                            float n1 = Perlin(gx, gz, .013f), n2 = Perlin(gx, gz, .07f);
+                            float n1 = Perlin(gx, gz, .013f) * .6f + Perlin(gx, gz, .0045f) * .5f - .05f, n2 = Perlin(gx, gz, .07f);
                             float soil = Mathf.Clamp01((n1 - .6f) * 3f) * .55f + Mathf.Clamp01((n2 - .72f) * 3f) * .25f;
                             w[1] += soil * (w[0] + .1f); w[0] *= 1 - soil * .7f;
-                            float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) - .62f) * 4f) * .6f;
+                            float rock = Mathf.Clamp01((Perlin(gx, gz, .045f) * .6f + Perlin(gx, gz, .008f) * .5f - .6f) * 4f) * .7f;
                             w[2] += rock * w[0]; w[0] *= 1 - rock * .5f;
                             // slope → rock
                             double dh = Math.Abs(Tiles.Height(gx + 4, gz) - Tiles.Height(gx - 4, gz)) + Math.Abs(Tiles.Height(gx, gz + 4) - Tiles.Height(gx, gz - 4));

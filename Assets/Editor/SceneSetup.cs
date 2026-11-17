@@ -182,6 +182,7 @@ namespace Magistrala.EditorTools
             var ap = root.AddComponent<Magistrala.Autopilot>(); ap.path = upath;
             var cam = Camera.main;
             var cc = cam.GetComponent<TruckChaseCamera>() ?? cam.gameObject.AddComponent<TruckChaseCamera>(); cc.target = root.GetComponent<TruckController>();
+            if (!cam.GetComponent<Magistrala.ProbeBench>()) cam.gameObject.AddComponent<Magistrala.ProbeBench>();
             var hud = cam.GetComponent<TruckHud>() ?? cam.gameObject.AddComponent<TruckHud>(); hud.target = cc.target;
             cam.transform.position = root.transform.TransformPoint(new Vector3(0, 4, -12)); cam.transform.LookAt(root.transform.position + Vector3.up * 2);
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());

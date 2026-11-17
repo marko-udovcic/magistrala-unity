@@ -148,6 +148,9 @@ public sealed class TruckController : MonoBehaviour
                 pivotOffsets[i] = Quaternion.Inverse(visuals[i].rotation) * (visuals[i].position - transform.TransformPoint(centres[i]));
             }
         }
+        // the GLB's windscreen (alpha .25, mirror-smooth) read as dark blue tinted glass from the cabin
+        foreach (Renderer r in renderers)
+            if (r.name == "body_glass") foreach (Material m in r.materials) { if (m.HasProperty("baseColorFactor")) m.SetColor("baseColorFactor", new Color(.75f, .8f, .83f, .1f)); }
         body.ResetInertiaTensor();
         body.isKinematic = false;
         ready = true;
