@@ -441,7 +441,7 @@ namespace Magistrala.EditorTools
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null) throw new InvalidOperationException("Universal Render Pipeline/Lit shader is unavailable.");
             EnsureFolder(MaterialFolder);
-            Texture2D plaster = Texture("white_plaster_02_diff.jpg", false);
+            Texture2D plaster = Texture("white_plaster_02_soft.jpg", false);
             Texture2D plasterNormal = Texture("white_plaster_02_nor.jpg", true);
             Texture2D roof = Texture("clay_roof_tiles_02_diff.jpg", false);
             Texture2D roofNormal = Texture("clay_roof_tiles_02_nor.jpg", true);
