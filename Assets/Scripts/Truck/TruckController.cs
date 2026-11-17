@@ -155,6 +155,11 @@ public sealed class TruckController : MonoBehaviour
         // the GLB's windscreen (alpha .25, mirror-smooth) read as dark blue tinted glass from the cabin
         foreach (Renderer r in renderers)
             if (r.name == "body_glass") foreach (Material m in r.materials) { if (m.HasProperty("baseColorFactor")) m.SetColor("baseColorFactor", new Color(.75f, .8f, .83f, .1f)); }
+        // the GLB's wipers stand upright (0.8 m blades, parked vertically in front of the driver: a dark bar across the cabin view);
+        // lay them along the glass's lower edge, pointing to the driver's side, a few degrees up
+        foreach (Transform w in nodes)
+            if (w.name == "wiper_0" || w.name == "wiper_1")
+                w.rotation = Quaternion.FromToRotation(w.up, (-transform.right + transform.up * 0.12f).normalized) * w.rotation;
         body.ResetInertiaTensor();
         body.isKinematic = false;
         ready = true;
