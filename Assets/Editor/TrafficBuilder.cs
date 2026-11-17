@@ -94,9 +94,11 @@ namespace Magistrala.EditorTools
             return parts.ToArray();
         }
 
+        static Palette pal;
         static TrafficKind[] Kinds()
         {
             Dir(OUT + "/Materials");
+            pal = new Palette();
             var list = new List<TrafficKind>();
             foreach (var k in KINDS)
             {
@@ -138,9 +140,105 @@ namespace Magistrala.EditorTools
                         paints.Add(InstMat(paintSrc, $"{OUT}/Materials/{k.name}_paint_{c.Substring(1)}.mat", col)); pw.Add(w);
                     }
                 kd.paints = paints.ToArray(); kd.paintW = pw.ToArray();
+                if (p1)
+                {
+                    kd.farMesh = FarMesh(k.name, p1, pal);
+                    kd.farPaints = k.colors.Select(cw => { ColorUtility.TryParseHtmlString(cw.c, out var col); return Urp($"far_paint_{cw.c.Substring(1)}", col, .62f); }).ToArray();
+                    kd.farTail = Urp("far_tail", new Color(.55f, .08f, .07f), .5f);
+                    kd.farTailOn = Urp("far_tail_on", new Color(.8f, .1f, .08f), .5f, new Color(6f, .25f, .15f));
+                }
                 list.Add(kd);
             }
             return list.ToArray();
+        }
+
+        // ------------------------------------------------------------------ far LOD (merged lod1, palette material)
+        class Palette
+        {
+            public readonly List<Color> cols = new List<Color>();
+            public const int N = 32;
+            public Vector2 UV(Color c)
+            {
+                int i = cols.FindIndex(q => Mathf.Abs(q.r - c.r) + Mathf.Abs(q.g - c.g) + Mathf.Abs(q.b - c.b) < .01f);
+                if (i < 0) { i = cols.Count; cols.Add(c); }
+                return new Vector2((i % N + .5f) / N, (i / N + .5f) / N);
+            }
+        }
+
+        static Material Urp(string name, Color c, float smooth, Color? emit = null, Texture2D tex = null)
+        {
+            string path = $"{OUT}/Materials/{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (m == null) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+            m.SetColor("_BaseColor", c); m.SetFloat("_Smoothness", smooth); m.SetFloat("_Metallic", 0);
+            if (tex) m.SetTexture("_BaseMap", tex);
+            if (emit.HasValue) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", emit.Value); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; }
+            m.enableInstancing = true; EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        static Mesh FarMesh(string kind, GameObject prefab, Palette pal)
+        {
+            var V = new List<Vector3>(); var Nn = new List<Vector3>(); var UV = new List<Vector2>(); var T = new[] { new List<int>(), new List<int>(), new List<int>() };
+            var root = prefab.transform.worldToLocalMatrix;
+            foreach (var r in prefab.GetComponentsInChildren<MeshRenderer>())
+            {
+                var mf = r.GetComponent<MeshFilter>(); if (!mf || !mf.sharedMesh) continue;
+                var mesh = mf.sharedMesh; var mats = r.sharedMaterials; var M = root * r.transform.localToWorldMatrix;
+                var v = mesh.vertices; var n = mesh.normals;
+                for (int s = 0; s < mesh.subMeshCount && s < mats.Length; s++)
+                {
+                    if (!mats[s]) continue;
+                    string nm = mats[s].name;
+                    int k = nm == "paint" ? 1 : nm == "T_tail" ? 2 : 0;
+                    Color c = mats[s].HasProperty("baseColorFactor") ? mats[s].GetColor("baseColorFactor") : Color.gray;
+                    if (mats[s].HasProperty("baseColorTexture") && mats[s].GetTexture("baseColorTexture")) c = new Color(.32f, .32f, .33f);
+                    if (nm == "glass") c = new Color(.1f, .12f, .14f);
+                    c.a = 1;
+                    var uv = pal.UV(c);
+                    var tri = mesh.GetTriangles(s); var map = new Dictionary<int, int>();
+                    foreach (int i in tri)
+                    {
+                        if (!map.TryGetValue(i, out int j))
+                        {
+                            j = V.Count; map[i] = j;
+                            V.Add(M.MultiplyPoint3x4(v[i])); Nn.Add(n != null && n.Length > i ? M.MultiplyVector(n[i]).normalized : Vector3.up); UV.Add(uv);
+                        }
+                        T[k].Add(j);
+                    }
+                }
+            }
+            // mirrored node scales flip the winding (glTFast's left wheels): fix triangles whose face normal opposes the vertex normals
+            for (int k = 0; k < 3; k++)
+                for (int t = 0; t + 2 < T[k].Count; t += 3)
+                {
+                    int a = T[k][t], b = T[k][t + 1], c = T[k][t + 2];
+                    var fn = Vector3.Cross(V[b] - V[a], V[c] - V[a]);
+                    if (Vector3.Dot(fn, Nn[a] + Nn[b] + Nn[c]) < 0) { T[k][t + 1] = c; T[k][t + 2] = b; }
+                }
+            var m = new Mesh { name = kind + "_far", indexFormat = V.Count > 65000 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16 };
+            m.SetVertices(V); m.SetNormals(Nn); m.SetUVs(0, UV); m.subMeshCount = 3;
+            for (int k = 0; k < 3; k++) m.SetTriangles(T[k], k);
+            m.RecalculateBounds();
+            Dir(OUT + "/Meshes");
+            string path = $"{OUT}/Meshes/{kind}_far.asset";
+            if (AssetDatabase.LoadAssetAtPath<Mesh>(path)) AssetDatabase.DeleteAsset(path);
+            AssetDatabase.CreateAsset(m, path);
+            return m;
+        }
+
+        static Material PaletteMat(Palette pal)
+        {
+            string path = OUT + "/Materials/far_palette.png";
+            var tex = new Texture2D(Palette.N, Palette.N, TextureFormat.RGBA32, false);
+            var px = new Color[Palette.N * Palette.N];
+            for (int i = 0; i < px.Length; i++) px[i] = i < pal.cols.Count ? pal.cols[i] : Color.magenta;
+            tex.SetPixels(px); tex.Apply();
+            File.WriteAllBytes(path, tex.EncodeToPNG());
+            AssetDatabase.ImportAsset(path);
+            var imp = (TextureImporter)AssetImporter.GetAtPath(path);
+            imp.filterMode = FilterMode.Point; imp.mipmapEnabled = false; imp.textureCompression = TextureImporterCompression.Uncompressed; imp.sRGBTexture = true; imp.SaveAndReimport();
+            return Urp("far_palette", Color.white, .45f, null, AssetDatabase.LoadAssetAtPath<Texture2D>(path));
         }
 
         // ------------------------------------------------------------------ corridors
@@ -391,6 +489,7 @@ namespace Magistrala.EditorTools
             data.corridors = new[] { east, west };
             data.plans = plans.ToArray();
             data.kinds = Kinds();
+            data.farPalette = PaletteMat(pal);
             EditorUtility.SetDirty(data);
             AssetDatabase.SaveAssets();
 

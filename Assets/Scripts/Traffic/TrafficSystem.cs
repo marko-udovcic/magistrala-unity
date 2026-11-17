@@ -6,7 +6,8 @@
 //    at the D8 stop lines of the models' signal plans; a hard clamp keeps a car from ever moving into its obstacle;
 //  - lane changes: merge before a lane drop, pass a slow leader on the left, keep right (gap acceptance), ~2.6 s per change;
 //  - spawn ring 320–600 m from the player outside the camera view (warm start fills 40–600 m once), despawn beyond 680 m;
-//  - drawing: Graphics.RenderMeshInstanced per (kind, part, paint colour), LOD1 beyond 70 m, shadows within 120 m;
+//  - drawing: Graphics.RenderMeshInstanced per (kind, part, paint colour); beyond 70 m the merged far mesh (palette, paint, tail:
+//    3 draws per kind); brake lights / indicators as lit material variants;
 //  - physics: one kinematic Rigidbody + BoxCollider per car (pooled), moved with MovePosition, so the truck collides with them.
 using System.Collections.Generic;
 using UnityEngine;
@@ -29,8 +30,12 @@ namespace Magistrala.Traffic
         public int CarCount => cars.Count;
         public float LastUpdateMs { get; private set; }
         public float AvgUpdateMs { get; private set; }
+        public float AvgSimMs { get; private set; }
+        public float AvgDrawMs { get; private set; }
         public int Spawned { get; private set; }
         public int Despawned { get; private set; }
+        /// spawn attempts refused: 0 off the stretch, 1 in view, 2 spacing, 3 truck, 4 red light ahead
+        public readonly int[] SpawnFails = new int[5];
 
         public class Car
         {
@@ -65,6 +70,7 @@ namespace Magistrala.Traffic
         Matrix4x4[][] mats; int[] matN; // per draw bucket
         readonly List<(Mesh mesh, int sub, Material mat, int lod)> buckets = new List<(Mesh, int, Material, int)>();
         int[][][] kindParts; // [kind][lod][part] -> bucket, paint parts: bucket of paint 0, + paint index
+        int[] farB;          // [kind] -> first bucket of the merged far mesh (palette, paints…, tail, tail lit), -1 none
 
         void OnEnable()
         {
@@ -99,6 +105,15 @@ namespace Magistrala.Traffic
                         else kindParts[k][lod][p] = B(pt.mesh, pt.sub, pt.mat, lod);
                     }
                 }
+            }
+            farB = new int[data.kinds.Length];
+            for (int k = 0; k < data.kinds.Length; k++)
+            {
+                var kd = data.kinds[k]; farB[k] = -1;
+                if (!kd.farMesh || kd.farPaints == null || kd.farPaints.Length != kd.paints.Length) continue;
+                farB[k] = B(kd.farMesh, 0, data.farPalette, 1);
+                for (int c = 0; c < kd.farPaints.Length; c++) B(kd.farMesh, 1, kd.farPaints[c], 1);   // farB + 1 + colour
+                B(kd.farMesh, 2, kd.farTail, 1); B(kd.farMesh, 2, kd.farTailOn, 1);                     // farB + 1 + colours (+1 lit)
             }
             mats = new Matrix4x4[buckets.Count][]; matN = new int[buckets.Count];
             for (int i = 0; i < buckets.Count; i++) mats[i] = new Matrix4x4[16];
@@ -340,7 +355,7 @@ namespace Magistrala.Traffic
                     {
                         car.laneT += dt;
                         // indicator ~1 s before the car moves over (the follower in the target lane already sees it as a leader)
-                        float rate = car.laneT > 1f ? 1.45f * dt : 0;
+                        float rate = car.laneT > 1f ? Mathf.Min(1.45f, .6f + car.v * .1f) * dt : 0;
                         car.lat = Mathf.MoveTowards(car.lat, target, rate);
                         if (Mathf.Abs(car.lat - target) < .05f) { car.lane = car.laneTo; car.laneT = 0; }
                     }
@@ -377,8 +392,20 @@ namespace Magistrala.Traffic
                 return;
             }
             if (car.lane >= nHere) { car.lane = car.laneTo = nHere - 1; return; }
-            // don't start changes right at a stop line queue
-            if (car.v < 4) return;
+            // standing: only to get round a standing obstacle (the truck, a car that won't move) when the next lane is clearly emptier
+            // — in a queue at a red light the next lane is queued too, so nobody hops
+            if (car.v < 4)
+            {
+                if (car.stopT < 3 || gap > 20 || lv > .5f) return;
+                for (int side = 1; side >= -1; side -= 2)
+                {
+                    int to = car.lane + side; if (to < 0 || to >= nHere || to >= nAhead) continue;
+                    float lat = LaneOffAt(cor, car.s, to);
+                    Leader(car, list, idx, lat, car.hw, 160, out float ga, out _);
+                    if (ga > gap + 25 && GapOk(car, list, idx, lat, 8)) { car.laneTo = to; return; }
+                }
+                return;
+            }
             // pass a slow leader on the left
             if (car.lane + 1 < nHere && car.lane + 1 < nAhead && gap < 45 && lv < v0 - 2.5f)
             {
@@ -431,7 +458,7 @@ namespace Magistrala.Traffic
             float sp = pSc[ci];
             float d = warmStart ? 40 + (float)rng.NextDouble() * (spawnMax - 40) : spawnMin + (float)rng.NextDouble() * (spawnMax - spawnMin);
             float s = sp + side * d;
-            if (s < 30 || s > cor.Length - 30) return false;
+            if (s < 30 || s > cor.Length - 30) { SpawnFails[0]++; return false; }
             int n = LanesAt(cor, s);
             // prefer the right lane
             int lane = n <= 1 ? 0 : rng.NextDouble() < .62 ? 0 : 1 + rng.Next(n - 1);
@@ -445,14 +472,14 @@ namespace Magistrala.Traffic
             {
                 var eye = cam.transform.position; var tgt = pos + Vector3.up * 1.2f;
                 bool hidden = Physics.Linecast(eye, tgt, out var hit, ~0, QueryTriggerInteraction.Ignore) && (hit.point - tgt).magnitude > 6 && !hit.rigidbody;
-                if (!hidden && (pos - eye).magnitude < 480) return false;
+                if (!hidden && (pos - eye).magnitude < 480) { SpawnFails[1]++; return false; }
             }
             // spacing
-            foreach (var o in byCorridor[ci]) if (Mathf.Abs(o.s - s) < 30 + (o.len + kd.len) / 2 && Overlap(lat, kd.halfW, o.lat, o.hw, 1)) return false;
+            foreach (var o in byCorridor[ci]) if (Mathf.Abs(o.s - s) < 30 + (o.len + kd.len) / 2 && Overlap(lat, kd.halfW, o.lat, o.hw, 1)) { SpawnFails[2]++; return false; }
             // the player's truck
-            if (pOn[ci] && pS1[ci] > s - 40 && pS0[ci] < s + 40) return false;
+            if (pOn[ci] && pS1[ci] > s - 40 && pS0[ci] < s + 40) { SpawnFails[3]++; return false; }
             // not right before a red light
-            if (cor.stops != null) foreach (var st in cor.stops) if (st.s - s > 0 && st.s - s < 90 && LightAt(st) != 0) return false;
+            if (cor.stops != null) foreach (var st in cor.stops) if (st.s - s > 0 && st.s - s < 90 && LightAt(st) != 0) { SpawnFails[4]++; return false; }
             var car = new Car
             {
                 c = ci, kind = kind, lane = lane, laneTo = lane, s = s, lat = lat, len = kd.len, hw = kd.halfW, h = kd.h, a = kd.a, b = kd.b, T = kd.T,
@@ -503,6 +530,8 @@ namespace Magistrala.Traffic
                 bool gone = d > despawnDist || c.s > cor.Length - 8 || c.s < 2;
                 // stuck far away (a jam that never clears behind a parked truck): recycle
                 if (!gone && c.stopT > 60 && (c.pos - PlayerPos).magnitude > 150 && !InView(c.pos)) gone = true;
+                // boxed in for good behind a standing truck (it blocks every lane it can go round by): recycle when unseen
+                if (!gone && c.stopT > 45 && !InView(c.pos) && (c.pos - PlayerPos).magnitude > 25) gone = true;
                 if (!gone) continue;
                 Release(c); cars.RemoveAt(i); byCorridor[c.c].Remove(c); Despawned++;
             }
@@ -519,11 +548,18 @@ namespace Magistrala.Traffic
             car.pos = (f + r) * .5f;
             car.rot = fwd.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(fwd, Vector3.up) : Quaternion.identity;
             // a lane change yaws the body a little
-            if (car.laneTo != car.lane)
+            if (car.laneTo != car.lane && car.laneT > 1f)
             {
-                float dir = Mathf.Sign(LaneOffAt(cor, car.s, car.laneTo) - car.lat);
-                car.rot = car.rot * Quaternion.Euler(0, dir * Mathf.Rad2Deg * Mathf.Atan2(1.45f, Mathf.Max(car.v, 3f)), 0);
+                float rem = LaneOffAt(cor, car.s, car.laneTo) - car.lat;
+                float rate = Mathf.Min(1.45f, .6f + car.v * .1f) * Mathf.Min(1, Mathf.Abs(rem) / 1.2f);
+                car.rot = car.rot * Quaternion.Euler(0, Mathf.Sign(rem) * Mathf.Rad2Deg * Mathf.Atan2(rate, Mathf.Max(car.v, 2f)), 0);
             }
+        }
+
+        void Add(int b, Matrix4x4 m)
+        {
+            if (matN[b] == mats[b].Length) System.Array.Resize(ref mats[b], mats[b].Length * 2);
+            mats[b][matN[b]++] = m;
         }
 
         void Draw()
@@ -537,6 +573,13 @@ namespace Magistrala.Traffic
                 float dist = (car.pos - cp).magnitude;
                 if (dist > 30 && !GeometryUtility.TestPlanesAABB(planes, new Bounds(car.pos + Vector3.up * car.h * .5f, new Vector3(car.len, car.h, car.len))) && dist > shadowDist) continue;
                 int lod = dist > lod1Dist ? 1 : 0;
+                if (lod == 1 && farB[car.kind] >= 0)
+                {
+                    var MF = Matrix4x4.TRS(car.pos, car.rot, Vector3.one);
+                    int f0 = farB[car.kind], np = kd.farPaints.Length;
+                    Add(f0, MF); Add(f0 + 1 + car.paint, MF); Add(f0 + 1 + np + (car.braking ? 1 : 0), MF);
+                    continue;
+                }
                 var parts = lod == 0 || kd.lod1 == null || kd.lod1.Length == 0 ? kd.lod0 : kd.lod1;
                 var M = Matrix4x4.TRS(car.pos, car.rot, Vector3.one);
                 var ids = kindParts[car.kind][lod];
@@ -545,8 +588,7 @@ namespace Magistrala.Traffic
                     var pt = parts[p];
                     int b = ids[p] + (pt.paint ? car.paint : 0);
                     if (pt.lamp > 0 && pt.matOn && (pt.lamp == 1 ? car.braking : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
-                    if (matN[b] == mats[b].Length) System.Array.Resize(ref mats[b], mats[b].Length * 2);
-                    mats[b][matN[b]++] = M * parts[p].local;
+                    Add(b, M * parts[p].local);
                 }
             }
             for (int b = 0; b < buckets.Count; b++)
@@ -555,7 +597,8 @@ namespace Magistrala.Traffic
                 var bk = buckets[b];
                 var rp = new RenderParams(bk.mat)
                 {
-                    shadowCastingMode = bk.lod == 0 ? ShadowCastingMode.On : ShadowCastingMode.Off, receiveShadows = true,
+                    // far cars are merged meshes (3 draws per kind): their shadows are cheap, keep them (no shadow pop at the LOD switch)
+                    shadowCastingMode = ShadowCastingMode.On, receiveShadows = true,
                     worldBounds = new Bounds(PlayerPos, Vector3.one * 2000), layer = gameObject.layer,
                 };
                 Graphics.RenderMeshInstanced(rp, bk.mesh, bk.sub, mats[b], matN[b]);
@@ -577,7 +620,11 @@ namespace Magistrala.Traffic
             if (!warm && Time.frameCount > 3) { for (int k = 0; k < 400 && cars.Count < targetCars; k++) TrySpawn(true); warm = true; }
             else for (int k = 0; k < 4 && cars.Count < targetCars; k++) if (TrySpawn(false)) break;
             foreach (var c in cars) { Pose(c); c.rb.MovePosition(c.pos); c.rb.MoveRotation(c.rot); }
+            var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw();
+            var t2 = System.Diagnostics.Stopwatch.GetTimestamp();
+            float simMs = (t1 - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency, drawMs = (t2 - t1) * 1000f / System.Diagnostics.Stopwatch.Frequency;
+            AvgSimMs = AvgSimMs <= 0 ? simMs : AvgSimMs * .97f + simMs * .03f; AvgDrawMs = AvgDrawMs <= 0 ? drawMs : AvgDrawMs * .97f + drawMs * .03f;
             float ms = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency;
             LastUpdateMs = ms; AvgUpdateMs = AvgUpdateMs <= 0 ? ms : AvgUpdateMs * .97f + ms * .03f;
         }

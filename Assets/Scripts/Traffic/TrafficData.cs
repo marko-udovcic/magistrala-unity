@@ -22,6 +22,9 @@ namespace Magistrala.Traffic
         public TrafficPart[] lod0, lod1;
         /// body paint colours (instanced copies of the kind's paint material) and their spawn weights
         public Material[] paints; public float[] paintW;
+        /// far LOD: the lod1 model merged into one mesh (submesh 0 = everything else on a shared colour palette, 1 = paint,
+        /// 2 = tail lamps) — three instanced draws per kind instead of ~20; farPaints parallel to paints
+        public Mesh farMesh; public Material[] farPaints; public Material farTail, farTailOn;
     }
 
     [Serializable]
@@ -61,5 +64,7 @@ namespace Magistrala.Traffic
         public TrafficCorridor[] corridors;
         public TrafficKind[] kinds;
         public TrafficPlan[] plans;
+        /// shared palette material of the far LOD meshes
+        public Material farPalette;
     }
 }
