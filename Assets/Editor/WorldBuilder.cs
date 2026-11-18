@@ -466,7 +466,7 @@ namespace Magistrala.EditorTools
             AssetDatabase.SaveAssets(); tr.meshes = protos.Select(p => AssetDatabase.LoadAssetAtPath<Mesh>(GEN + "/Plants/" + p.name + ".mesh.asset")).ToArray();
             var mats = new List<Material>(); var starts = new List<int>();
             foreach (var p in protos) { starts.Add(mats.Count); mats.AddRange(p.GetComponent<MeshRenderer>().sharedMaterials); }
-            tr.materials = mats.ToArray(); tr.materialStart = starts.ToArray();
+            tr.blendMaterials = mats.ToArray(); tr.materialStart = starts.ToArray(); tr.materials = TreeProtos.LeafClip(tr.blendMaterials, tr.materialStart);
             // pine_a, pine_b, olive, cypress, shrub_a, shrub_b, bush_c, rock_a
             tr.drawDistance = new[] { 1400f, 1400f, 1000f, 1400f, 300f, 300f, 260f, 120f };
             tr.nearDistance = new[] { 110f, 110f, 90f, 110f, 45f, 45f, 40f, 120f };

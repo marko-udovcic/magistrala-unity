@@ -92,6 +92,49 @@ namespace Magistrala.EditorTools
             AssetDatabase.SaveAssets();
         }
 
+        /// leaves: the glTF leaf materials are alpha-blended (queue 3000, no depth write, shadow caster without clipping): under
+        /// TAA they smear (no depth, so they reproject like the sky behind them), instanced batches sort wrongly and the cards
+        /// cast square shadows. Alpha-clipped copies (glTF mask mode, as the other glTF cut-out materials: cutoff .5, queue
+        /// 2450, depth write) in Generated/Plants; the originals stay in blendMaterials for -trees-blend.
+        public static Material[] LeafClip(Material[] src, int[] start)
+        {
+            var outM = new Material[src.Length];
+            string dir = WorldBuilder.GEN + "/Plants";
+            for (int i = 0; i < src.Length; i++)
+            {
+                var m = src[i]; outM[i] = m;
+                if (!m || !(m.renderQueue >= 3000 || m.IsKeywordEnabled("_SURFACE_TYPE_TRANSPARENT"))) continue;
+                int p = 0; for (int k = 0; k < start.Length; k++) if (start[k] <= i) p = k;
+                string mp = $"{dir}/{IDS[p]}_{m.name}_clip.mat";
+                var c = AssetDatabase.LoadAssetAtPath<Material>(mp);
+                if (!c) { c = new Material(m); AssetDatabase.CreateAsset(c, mp); } else c.CopyPropertiesFromMaterial(m);
+                c.shader = m.shader; c.name = $"{IDS[p]}_{m.name}_clip";
+                c.DisableKeyword("_SURFACE_TYPE_TRANSPARENT"); c.EnableKeyword("_ALPHATEST_ON");
+                c.SetFloat("_Surface", 0); c.SetFloat("_Blend", 0); c.SetFloat("_AlphaClip", 1); c.SetFloat("_ZWrite", 1);
+                c.SetFloat("_SrcBlend", 1); c.SetFloat("_DstBlend", 0); c.SetFloat("_SrcBlendAlpha", 1); c.SetFloat("_DstBlendAlpha", 0);
+                c.SetFloat("alphaCutoff", .5f); c.SetFloat("_AlphaToMask", 1);
+                c.SetOverrideTag("RenderType", "TransparentCutout"); c.renderQueue = 2450;
+                c.SetShaderPassEnabled("DepthOnly", true); c.SetShaderPassEnabled("SHADOWCASTER", true); c.SetShaderPassEnabled("DepthNormals", true);
+                c.enableInstancing = true; EditorUtility.SetDirty(c);
+                outM[i] = c;
+            }
+            AssetDatabase.SaveAssets();
+            return outM;
+        }
+
+        /// the scene's TreeRenderer: leaves alpha-clipped (LeafClip), originals kept in blendMaterials
+        [MenuItem("Magistrala/Trees: alpha-clipped leaves")]
+        public static string ApplyLeafClip()
+        {
+            var tr = Object.FindFirstObjectByType<Magistrala.TreeRenderer>(); if (!tr) return "no TreeRenderer";
+            if (tr.blendMaterials == null || tr.blendMaterials.Length != tr.materials.Length) tr.blendMaterials = tr.materials;
+            tr.materials = LeafClip(tr.blendMaterials, tr.materialStart);
+            EditorUtility.SetDirty(tr); UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(tr.gameObject.scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(tr.gameObject.scene);
+            int n = 0; for (int i = 0; i < tr.materials.Length; i++) if (tr.materials[i] != tr.blendMaterials[i]) n++;
+            return $"leaf materials clipped: {n} of {tr.materials.Length}";
+        }
+
         static float Hash(double x, double z) { double v = System.Math.Sin(x * 12.9898 + z * 78.233) * 43758.5453; return (float)(v - System.Math.Floor(v)); }
 
         /// vegetationData.ts speciesOf: tile tree kind → prototype index + scale (-1 = skip)
