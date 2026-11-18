@@ -18,7 +18,7 @@ namespace Magistrala
         public Color sunsetSkyAmb = new Color(.42f, .45f, .62f), sunsetHorizon = new Color(.85f, .62f, .5f), sunsetFog = new Color(.78f, .6f, .55f);
 
         [Header("zalazak: ugađanje")]
-        public float ambMul = 1.2f, exposureOff = -.1f, sunIntensity = 2.3f;
+        public float ambMul = 1.45f, exposureOff = -.1f, sunIntensity = 2.3f;
         public Color splitShadows = new Color(.45f, .47f, .57f), splitHighlights = new Color(.7f, .54f, .4f);
 
         struct S
