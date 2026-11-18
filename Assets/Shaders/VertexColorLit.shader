@@ -28,6 +28,7 @@ Shader "Magistrala/VertexColorLit"
         CBUFFER_END
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
+        float _Wetness; // global (WeatherSystem): wet surfaces facing up get darker and glossier
 
         struct Attributes
         {
@@ -101,6 +102,13 @@ Shader "Magistrala/VertexColorLit"
             surface.alpha = 1;
             surface.metallic = _Metallic;
             surface.smoothness = _Smoothness;
+            UNITY_BRANCH if (_Wetness > 0.001)
+            {
+                half up = saturate(data.normalWS.y * 1.5 - 0.3) * _Wetness;
+                half side = _Wetness * 0.35;
+                surface.albedo *= 1.0 - 0.35 * max(up, side);
+                surface.smoothness = lerp(surface.smoothness, 0.75, up);
+            }
             surface.normalTS = half3(0,0,1);
             surface.occlusion = 1;
             half4 result = UniversalFragmentPBR(data, surface);

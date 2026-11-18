@@ -31,7 +31,7 @@ namespace Magistrala
 
         void Start() => Init();
 
-        void Init()
+        public void Init()
         {
             if (ready) return; ready = true;
             sun = GetComponent<Light>();

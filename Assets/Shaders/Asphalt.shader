@@ -63,6 +63,8 @@ Shader "Magistrala/Asphalt"
         TEXTURE2D(_RoughMap); SAMPLER(sampler_RoughMap);
         TEXTURE2D(_WearMap); SAMPLER(sampler_WearMap);
         TEXTURE2D(_WearBump);
+        // global (WeatherSystem): 0 dry .. 1 soaked — darker porous binder, mirror-smooth film, puddles in the ruts / at the edge
+        float _Wetness;
 
         struct Attributes
         {
@@ -225,6 +227,18 @@ Shader "Magistrala/Asphalt"
                 dust = smoothstep(input.roadWidths.x - 0.5, input.roadWidths.x, abs(input.roadUS.x)) * _EdgeDust;
             albedo = lerp(albedo, albedo * 1.55 + float3(0.06,0.05,0.035), dust);
             smoothness *= 1.0 - dust;
+            UNITY_BRANCH if (_Wetness > 0.001)
+            {
+                float wet = _Wetness;
+                // water stands in the tyre ruts, along the low edge (camber) and in noise-shaped dips; repairs sit a bit lower too
+                float pn = ValueNoise(input.positionWS.xz * 0.21 + 5.3) * 0.65 + ValueNoise(input.positionWS.xz * 0.83 - 2.1) * 0.35;
+                float edgeLow = hasRoadFrame ? smoothstep(input.roadWidths.x - 1.4, input.roadWidths.x - 0.3, abs(input.roadUS.x)) : 0.0;
+                float puddle = smoothstep(0.6, 0.7, pn + tracks * 0.16 + edgeLow * 0.14 + repairs * 0.08) * smoothstep(0.35, 0.9, wet);
+                albedo *= lerp(1.0, 0.55, wet) * (1.0 - 0.3 * puddle);
+                smoothness = lerp(smoothness, max(smoothness, 0.7 - 0.25 * dust), wet);
+                smoothness = lerp(smoothness, 0.95, puddle);
+                nTS = normalize(lerp(nTS, float3(0, 0, 1), saturate(wet * 0.45 + puddle)));
+            }
 
             InputData data = (InputData)0;
             data.positionWS = input.positionWS;
