@@ -48,6 +48,7 @@ namespace Magistrala.Traffic
             public int indicator; // −1 left, +1 right (lane change)
             public float wheelAng;  // distance driven (m), for the wheel spin
             public bool braking;
+            public bool beacon; public float beaconPh; // emergency lights flashing, phase offset
             public Vector3 pos; public Quaternion rot;
             public Rigidbody rb;
         }
@@ -96,10 +97,10 @@ namespace Magistrala.Traffic
             for (int k = 0; k < data.kinds.Length; k++)
             {
                 var kd = data.kinds[k];
-                kindParts[k] = new int[2][];
-                for (int lod = 0; lod < 2; lod++)
+                kindParts[k] = new int[3][];
+                for (int lod = 0; lod < 3; lod++)
                 {
-                    var parts = lod == 0 || kd.lod1 == null || kd.lod1.Length == 0 ? kd.lod0 : kd.lod1;
+                    var parts = Level(kd, lod);
                     kindParts[k][lod] = new int[parts.Length];
                     for (int p = 0; p < parts.Length; p++)
                     {
@@ -121,6 +122,14 @@ namespace Magistrala.Traffic
             }
             mats = new Matrix4x4[buckets.Count][]; matN = new int[buckets.Count];
             for (int i = 0; i < buckets.Count; i++) mats[i] = new Matrix4x4[16];
+        }
+
+        /// parts of level lod (0 / 1 / 2), falling back to the next finer level the kind has
+        static TrafficPart[] Level(TrafficKind kd, int lod)
+        {
+            if (lod >= 2 && kd.lod2 != null && kd.lod2.Length > 0) return kd.lod2;
+            if (lod >= 1 && kd.lod1 != null && kd.lod1.Length > 0) return kd.lod1;
+            return kd.lod0;
         }
 
         void OnDisable()
@@ -524,6 +533,7 @@ namespace Magistrala.Traffic
             foreach (var o in byCorridor[ci]) if (o.s > s && o.s - s < 80 && Overlap(lat, kd.halfW, o.lat, o.hw)) car.v = Mathf.Min(car.v, o.v);
             float tot = 0; foreach (var w in kd.paintW) tot += w; float x = (float)rng.NextDouble() * tot;
             for (int i = 0; i < kd.paintW.Length; i++) { x -= kd.paintW[i]; if (x <= 0) { car.paint = i; break; } }
+            car.beacon = kd.beaconShare > 0 && rng.NextDouble() < kd.beaconShare; car.beaconPh = (float)rng.NextDouble();
             car.rb = Acquire(kd);
             Pose(car);
             car.rb.position = car.pos; car.rb.rotation = car.rot; car.rb.transform.SetPositionAndRotation(car.pos, car.rot);
@@ -607,6 +617,7 @@ namespace Magistrala.Traffic
                 float dist = (car.pos - cp).magnitude;
                 if (dist > 30 && !GeometryUtility.TestPlanesAABB(planes, new Bounds(car.pos + Vector3.up * car.h * .5f, new Vector3(car.len, car.h, car.len))) && dist > shadowDist) continue;
                 int lod = dist > lod1Dist ? 1 : 0;
+                bool three = kd.lod2 != null && kd.lod2.Length > 0;
                 if (lod == 1 && farB[car.kind] >= 0)
                 {
                     var MF = Matrix4x4.TRS(car.pos, car.rot, Vector3.one);
@@ -614,14 +625,19 @@ namespace Magistrala.Traffic
                     Add(f0, MF); Add(f0 + 1 + car.paint, MF); Add(f0 + 1 + np + (car.braking ? 1 : 0), MF);
                     continue;
                 }
-                var parts = lod == 0 || kd.lod1 == null || kd.lod1.Length == 0 ? kd.lod0 : kd.lod1;
+                if (three && lod == 0) lod = dist < kd.lodNear ? 0 : dist < kd.lodMid ? 1 : 2;
+                var parts = Level(kd, lod);
                 var M = Matrix4x4.TRS(car.pos, car.rot, Vector3.one);
+                // beacons: A and B alternate, a double flash each (~1.3 Hz)
+                float bph = (clock * 1.3f + car.beaconPh) % 1f;
+                bool bA = car.beacon && (bph < .1f || (bph > .18f && bph < .28f)), bB = car.beacon && ((bph > .5f && bph < .6f) || (bph > .68f && bph < .78f));
                 var ids = kindParts[car.kind][lod];
                 for (int p = 0; p < parts.Length; p++)
                 {
                     var pt = parts[p];
                     int b = ids[p] + (pt.paint ? car.paint : 0);
-                    if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? headlights : pt.lamp == 1 ? car.braking : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
+                    if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? headlights : pt.lamp == 1 ? car.braking : pt.lamp == 5 ? bA : pt.lamp == 6 ? bB
+                        : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
                     if (pt.wheel)
                     {
                         // spin about the wheel's own x axis; mirrored (left) wheels turn the other way round their flipped axis

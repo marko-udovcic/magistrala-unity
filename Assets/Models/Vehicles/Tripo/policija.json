@@ -1,0 +1,13 @@
+{
+  "kind": "policija",
+  "length": 4.69,
+  "bodyWidth": 1.83,
+  "yaw": "auto",
+  "livery": "policija",
+  "colors": ["#f4f4f2"],
+  "weight": 2,
+  "vMul": 1.05, "a": 1.9, "b": 3.3, "T": 1.3,
+  "lightbar": true,
+  "beaconColor": "#2a62ff",
+  "beaconShare": 0.5
+}
