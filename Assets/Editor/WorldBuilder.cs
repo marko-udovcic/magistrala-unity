@@ -534,7 +534,7 @@ namespace Magistrala.EditorTools
                         float h = (float)Tiles.Height(gx, gz);
                         int proto = TreeProtos.Species((int)f[3], gx, h, gz, f[4], out float s);
                         if (proto < 0 || proto >= protos.Count) continue;
-                        if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5)) continue;
+                        if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5) || StreetsBuilder.Covered(gx, gz, 1.5)) continue;
                         var q = WorldData.ModelTerrain(models, gx, gz, 2, h); if (q.HasValue) h = (float)q.Value;
                         if (h < .4f) continue;
                         var u = W.U(gx, h - .08, gz);
