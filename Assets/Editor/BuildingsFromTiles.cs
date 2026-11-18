@@ -52,10 +52,11 @@ namespace Magistrala.EditorTools
             }
             catch (Exception e) { Debug.LogError("[Magistrala] model buildings: " + e); }
 
-            var chunks = new Dictionary<long, Geo>();
+            // [0] = with window quads (LOD0), [1] = without, walls darkened by the window share (LOD1, far)
+            var chunks = new Dictionary<long, Geo[]>();
             // detailed Dalmatian houses (HouseBuilder: windows, škure, balconies, tile roofs) within NEAR m of the D8, boxes beyond
             const double NEAR = 320;
-            var path = TruckSetup.EastboundPath(); var houses = new Dictionary<long, HouseGeo>(); int nDetailed = 0;
+            var path = TruckSetup.EastboundPath(); var houses = new Dictionary<long, HouseGeo[]>(); int nDetailed = 0;
             bool NearD8(double x, double z) { foreach (var q in path) if ((q.x - x) * (q.x - x) + (q.y - z) * (q.y - z) < NEAR * NEAR) return true; return false; }
             int n = 0, skipped = 0;
             for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++)
@@ -84,15 +85,23 @@ namespace Magistrala.EditorTools
                         bool done = false;
                         if (NearD8(cx, cz))
                         {
-                            if (!houses.TryGetValue(key, out var hg)) houses[key] = hg = new HouseGeo();
+                            if (!houses.TryGetValue(key, out var hg)) houses[key] = hg = new[] { new HouseGeo(), new HouseGeo(), new HouseGeo() };
                             var fp = new List<Vector2>(); foreach (var p in P) fp.Add(new Vector2((float)p.x, (float)p.z));
-                            try { HouseBuilder.AddHouse(hg, fp, kind, bottom, baseY, top, (int)(Math.Abs(cx * 7.31 + cz * 3.17) % 100000)); nDetailed++; done = true; }
+                            int seed = (int)(Math.Abs(cx * 7.31 + cz * 3.17) % 100000);
+                            try
+                            {
+                                // the ring is triangulated before anything is appended: a bad footprint throws in level 0 and adds nothing
+                                for (int lod = 0; lod < 3; lod++) { HouseBuilder.Lod = lod; HouseBuilder.AddHouse(hg[lod], fp, kind, bottom, baseY, top, seed); }
+                                nDetailed++; done = true;
+                            }
                             catch (ArgumentException) { } // self-intersecting footprint: plain box
+                            finally { HouseBuilder.Lod = 0; }
                         }
                         if (!done)
                         {
-                            if (!chunks.TryGetValue(key, out var geo)) chunks[key] = geo = new Geo();
-                            Extrude(geo, P, kind, bottom, baseY, top, cx, cz);
+                            if (!chunks.TryGetValue(key, out var geo)) chunks[key] = geo = new[] { new Geo(), new Geo() };
+                            Extrude(geo[0], P, kind, bottom, baseY, top, cx, cz, true);
+                            Extrude(geo[1], P, kind, bottom, baseY, top, cx, cz, false);
                         }
                         n++;
                     }
@@ -101,34 +110,79 @@ namespace Magistrala.EditorTools
             if (!AssetDatabase.IsValidFolder("Assets/Generated/TileBuildings")) AssetDatabase.CreateFolder("Assets/Generated", "TileBuildings");
             var tr = new GameObject("town"); tr.isStatic = true; tr.transform.SetParent(root.transform, false);
             int ci = 0;
+            Mesh Save(Mesh mesh, string file)
+            {
+                string p = $"Assets/Generated/TileBuildings/{file}.asset";
+                if (File.Exists(p)) AssetDatabase.DeleteAsset(p);
+                AssetDatabase.CreateAsset(mesh, p); return mesh;
+            }
+            Mesh TownMesh(Geo g, string name)
+            {
+                var mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
+                mesh.SetVertices(g.v); mesh.SetColors(g.c); mesh.SetTriangles(g.t, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
+                return Save(mesh, name);
+            }
+            long[] triL = new long[5];
             foreach (var kv in chunks)
             {
-                var g = kv.Value; var mesh = new Mesh { name = "town" + ci, indexFormat = IndexFormat.UInt32 };
-                mesh.SetVertices(g.v); mesh.SetColors(g.c); mesh.SetTriangles(g.t, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
-                string p = $"Assets/Generated/TileBuildings/town{ci}.asset";
-                if (File.Exists(p)) AssetDatabase.DeleteAsset(p);
-                AssetDatabase.CreateAsset(mesh, p);
+                var mesh = TownMesh(kv.Value[0], "town" + ci);
                 var go = new GameObject("town" + ci); go.isStatic = true; go.transform.SetParent(tr.transform, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterial = mat;
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
+                var far = TownMesh(kv.Value[1], $"town{ci}_lod1");
+                Lods(go, mesh.bounds, new[] { mesh, far }, new[] { TOWN_FAR }, new[] { mat });
+                triL[0] += kv.Value[0].t.Count / 3; triL[1] += kv.Value[1].t.Count / 3;
                 ci++;
             }
             var hm = HouseBuilder.Materials(); int hi = 0;
             foreach (var kv in houses)
             {
-                var mesh = HouseBuilder.ToMesh(kv.Value, "house" + hi);
-                string p = $"Assets/Generated/TileBuildings/house{hi}.asset";
-                if (File.Exists(p)) AssetDatabase.DeleteAsset(p);
-                AssetDatabase.CreateAsset(mesh, p);
+                var mesh = Save(HouseBuilder.ToMesh(kv.Value[0], "house" + hi), "house" + hi);
                 var go = new GameObject("houses" + hi); go.isStatic = true; go.transform.SetParent(tr.transform, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = hm;
-                go.AddComponent<MeshCollider>().sharedMesh = mesh;
+                go.AddComponent<MeshCollider>().sharedMesh = mesh; // collider: always the full house
+                var m1 = Save(HouseBuilder.ToMesh(kv.Value[1], $"house{hi}_lod1"), $"house{hi}_lod1");
+                var m2 = Save(HouseBuilder.ToMesh(kv.Value[2], $"house{hi}_lod2"), $"house{hi}_lod2");
+                Lods(go, mesh.bounds, new[] { mesh, m1, m2 }, new[] { HOUSE_MID, HOUSE_FAR }, hm);
+                for (int l = 0; l < 3; l++) triL[2 + l] += (long)Tris(kv.Value[l]);
                 hi++;
             }
+            Debug.Log($"[Magistrala] building LODs: town {triL[0] / 1000}k -> far {triL[1] / 1000}k (from {TOWN_FAR} m), houses {triL[2] / 1000}k -> mid {triL[3] / 1000}k (from {HOUSE_MID} m) -> far {triL[4] / 1000}k (from {HOUSE_FAR} m)");
             AssetDatabase.SaveAssets();
             Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nDetailed} detailed), {ci} + {hi} chunks");
+        }
+
+        // LOD switch distances, metres from the camera to the CHUNK CENTRE (a 256 m chunk reaches ~180 m closer than that):
+        // houses mid from 450 m (nearest house >= ~270 m: the 12 cm window reveals / sill ends / railing bars are < 1 px),
+        // houses and town far from 1500 m (windows ~1 px, replaced by the wall colour darkened by their share).
+        const float HOUSE_MID = 450, HOUSE_FAR = 1500, TOWN_FAR = 1500;
+        // the thresholds assume the chase camera's fov (55 deg at rest) and QualitySettings.lodBias of the PC level (2, SceneSetup)
+        const float LOD_FOV = 55, LOD_BIAS = 2;
+
+        static int Tris(HouseGeo g) { int n = 0; foreach (var s in g.sub) n += s.Count / 3; return n; }
+
+        /// LODGroup on the chunk object: level 0 is its own renderer, the others children "lod1", "lod2" (no colliders).
+        static void Lods(GameObject go, Bounds b, Mesh[] meshes, float[] dist, Material[] mats)
+        {
+            var lg = go.AddComponent<LODGroup>();
+            // size only scales the thresholds (a real 256 m chunk would need heights > 1 at 450 m with bias 2): a nominal 16 m
+            const float size = 16;
+            float H(float d) => Mathf.Clamp01(LOD_BIAS * size / (d * 2 * Mathf.Tan(LOD_FOV * .5f * Mathf.Deg2Rad)));
+            var lods = new LOD[meshes.Length];
+            lods[0] = new LOD(H(dist[0]), new Renderer[] { go.GetComponent<MeshRenderer>() });
+            for (int i = 1; i < meshes.Length; i++)
+            {
+                var c = new GameObject("lod" + i); c.isStatic = true; c.transform.SetParent(go.transform, false);
+                c.AddComponent<MeshFilter>().sharedMesh = meshes[i];
+                var r = c.AddComponent<MeshRenderer>(); r.sharedMaterials = mats;
+                // last level: never culled by size (the town stays visible to the far clip)
+                lods[i] = new LOD(i < meshes.Length - 1 ? H(dist[i]) : 0f, new Renderer[] { r });
+            }
+            lg.fadeMode = LODFadeMode.None;
+            lg.SetLODs(lods);
+            lg.localReferencePoint = b.center; lg.size = size; // after SetLODs, which recalculates both from the renderers
         }
 
         struct Vector2d { public double x, z; public Vector2d(double x, double z) { this.x = x; this.z = z; } }
@@ -157,11 +211,13 @@ namespace Magistrala.EditorTools
 
         static Vector3 U(double gx, double y, double gz) => W.U(gx, y, gz);
 
-        static void Extrude(Geo g, List<Vector2d> P, string kind, double bottom, double baseY, double top, double cx, double cz)
+        static void Extrude(Geo g, List<Vector2d> P, string kind, double bottom, double baseY, double top, double cx, double cz, bool windows)
         {
             int hsh = (int)(Math.Abs(Math.Sin(cx * 12.9898 + cz * 78.233) * 43758.5453) * 1000);
             bool ind = kind == "industrial" || kind == "warehouse";
             Color wall = ind ? IND : WALL[hsh % WALL.Length];
+            // far level: no window quads; the wall takes their average (1.1 x 1.35 m per 3.2 x 3 m cell = 15 %, linear colours)
+            if (!windows && !ind) wall = Color.Lerp(wall, WIN, .15f);
             double area = 0, per = 0;
             for (int i = 0; i < P.Count; i++) { var a = P[i]; var b = P[(i + 1) % P.Count]; area += a.x * b.z - b.x * a.z; per += Math.Sqrt((b.x - a.x) * (b.x - a.x) + (b.z - a.z) * (b.z - a.z)); }
             area = Math.Abs(area) / 2;
@@ -177,7 +233,7 @@ namespace Magistrala.EditorTools
                 // windows: dark rectangles per floor, slightly out of the wall
                 double len = Math.Sqrt((b.x - a.x) * (b.x - a.x) + (b.z - a.z) * (b.z - a.z));
                 int nw = (int)Math.Floor(len / (ind ? 6 : 3.2)); int floors = (int)Math.Floor((top - baseY - .5) / 3.0);
-                if (len > 3 && nw > 0 && !ind)
+                if (windows && len > 3 && nw > 0 && !ind)
                 {
                     var off = nrm.normalized * .03f;
                     for (int f = 0; f < floors; f++)
