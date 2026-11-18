@@ -49,8 +49,29 @@ namespace Magistrala
                 if (args[i] == "-grd" && args[i + 1] == "0") rp.gpuResidentDrawerMode = GPUResidentDrawerMode.Disabled;
                 if (args[i] == "-occl" && args[i + 1] == "0") rp.gpuResidentDrawerEnableOcclusionCullingInCameras = false;
             }
+            for (int i = 0; i < args.Length - 1; i++) if (args[i] == "-trava")
+            {
+                var p = args[i + 1].Split(',');
+                float.TryParse(p[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out grassArgD);
+                if (p.Length > 1) float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out grassArgR);
+            }
             Debug.Log($"[kvaliteta] GPU Resident Drawer {rp.gpuResidentDrawerMode}, occlusion {rp.gpuResidentDrawerEnableOcclusionCullingInCameras}");
             Set(lvl, false);
+        }
+
+        // terrain details (grass tufts, stones, maquis; only the 24 core terrains have them): distance / density per level.
+        // measuring: -trava 90,0.7 overrides both, -skip grass (ProbeBench) turns them off
+        static readonly (float dist, float dens)[] Grass = { (140, 1), (140, 1), (140, 1) }; // brzo, srednje, oštro
+        public static bool GrassOff;
+        static float grassArgD = -1, grassArgR = -1;
+        public static void ApplyGrass()
+        {
+            var G = Grass[Current];
+            float d = GrassOff ? 0 : grassArgD >= 0 ? grassArgD : G.dist, r = grassArgR >= 0 ? grassArgR : G.dens;
+            int n = 0;
+            foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None))
+                if (t.terrainData && t.terrainData.detailPrototypes.Length > 0) { t.detailObjectDistance = d; t.detailObjectDensity = r; n++; }
+            Debug.Log($"[kvaliteta] trava {d} m, gustoća {r} ({n} terena)");
         }
 
         void Set(int lvl, bool toast)
@@ -67,6 +88,7 @@ namespace Magistrala
             rp.shadowDistance = L.shadowDist;
             rp.mainLightShadowmapResolution = L.shadowRes;
             rp.shadowCascadeCount = L.cascades;
+            ApplyGrass();
             TreeRenderer.Distance = L.veg; // vegetation distances (full mesh / impostor / shadows / far cutoff)
             var sun = RenderSettings.sun ? RenderSettings.sun : FindSun();
             if (sun)

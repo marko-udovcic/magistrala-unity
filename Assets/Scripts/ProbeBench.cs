@@ -36,6 +36,16 @@ namespace Magistrala
                 {
                     if (w == "trees") foreach (var t in FindObjectsByType<TreeRenderer>(FindObjectsSortMode.None)) t.enabled = false;
                     else if (w == "terrain") foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) t.drawHeightmap = false;
+                    else if (w == "grass") { RenderQuality.GrassOff = true; RenderQuality.ApplyGrass(); } // terrain details (grass, stones, maquis) not drawn
+                    else if (w == "roadshadows" || w == "roadcast") // road / junction models: roadshadows = flat asphalt + paint out of the shadow maps, roadcast = no road model casts (upper bound)
+                    {
+                        var g = GameObject.Find("World/Roads"); var done = new System.Collections.Generic.HashSet<Material>();
+                        if (g) foreach (var r in g.GetComponentsInChildren<MeshRenderer>())
+                        {
+                            if (w == "roadcast") { r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; continue; }
+                            foreach (var m in r.sharedMaterials) if (m && (m.name == "AsphaltPBR" || m.name == "Paint") && done.Add(m)) m.SetShaderPassEnabled("ShadowCaster", false);
+                        }
+                    }
                     else if (w == "shadows") { foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.shadows = LightShadows.None; }
                     else { var g = GameObject.Find(w); if (g) g.SetActive(false); }
                     Debug.Log("[skip] " + w);
