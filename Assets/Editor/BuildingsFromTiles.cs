@@ -151,6 +151,8 @@ namespace Magistrala.EditorTools
             }
             Debug.Log($"[Magistrala] building LODs: town {triL[0] / 1000}k -> far {triL[1] / 1000}k (from {TOWN_FAR} m), houses {triL[2] / 1000}k -> mid {triL[3] / 1000}k (from {HOUSE_MID} m) -> far {triL[4] / 1000}k (from {HOUSE_FAR} m)");
             AssetDatabase.SaveAssets();
+            // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
             Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nDetailed} detailed), {ci} + {hi} chunks");
         }
 
