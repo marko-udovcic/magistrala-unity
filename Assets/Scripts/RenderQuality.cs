@@ -9,12 +9,12 @@ namespace Magistrala
     /// in the lower levels too. Command line: `-kvaliteta 0|1|2`. Attaches itself (no scene change).
     public class RenderQuality : MonoBehaviour
     {
-        struct Level { public string name; public float mpix, shadowDist, fsrSharp; public int shadowRes, cascades; public SoftShadowQuality soft; }
+        struct Level { public string name; public float mpix, shadowDist, fsrSharp, veg; public int shadowRes, cascades; public SoftShadowQuality soft; }
         static readonly Level[] Levels =
         {
-            new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f },
-            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 3, soft = SoftShadowQuality.Medium, fsrSharp = .85f },
-            new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f },
+            new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f },
+            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 3, soft = SoftShadowQuality.Medium, fsrSharp = .85f, veg = 1f },
+            new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f },
         };
         const string PREF = "kvaliteta";
 
@@ -67,6 +67,7 @@ namespace Magistrala
             rp.shadowDistance = L.shadowDist;
             rp.mainLightShadowmapResolution = L.shadowRes;
             rp.shadowCascadeCount = L.cascades;
+            TreeRenderer.Distance = L.veg; // vegetation distances (full mesh / impostor / shadows / far cutoff)
             var sun = RenderSettings.sun ? RenderSettings.sun : FindSun();
             if (sun)
             {
