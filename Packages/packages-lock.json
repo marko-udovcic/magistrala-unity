@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.tayx.graphy": {
+      "version": "https://github.com/Tayx94/graphy.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "1068f3de2bc9f1e4a905150abd59f31e6dead679"
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.16",
       "depth": 0,
@@ -252,6 +259,13 @@
         "com.unity.modules.jsonserialize": "1.0.0"
       },
       "url": "https://packages.unity.com"
+    },
+    "com.yasirkula.ingamedebugconsole": {
+      "version": "https://github.com/yasirkula/UnityIngameDebugConsole.git#master",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "afd8381d503c14d0b41c2d5f6711bdc7dc3d59e6"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
