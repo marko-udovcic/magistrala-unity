@@ -17,6 +17,12 @@ public sealed class TruckController : MonoBehaviour
     [Range(0, 1)] public float extThrottle, extBrake;
     [Range(-1, 1)] public float extSteer;
     public bool extHandbrake;
+    /// gameplay (MagistralaGame unload): parking brake on, no throttle / brake input while the tail lift works
+    public bool parkLock;
+    public bool HandbrakeOn => handbrake;
+    /// gameplay: every collision of the truck body (damage / cargo damage)
+    public event System.Action<Collision> Hit;
+    void OnCollisionEnter(Collision c) => Hit?.Invoke(c);
 
     public float SpeedKmh => body ? body.linearVelocity.magnitude * 3.6f : 0f;
     public int Gear { get; private set; } = 1;
@@ -280,6 +286,7 @@ public sealed class TruckController : MonoBehaviour
     {
         if (!ready) return;
         ReadInput();
+        if (parkLock) { throttleInput = 0; brakeInput = 0; handbrake = true; }
         if (resetRequested) { ResetUpright(); resetRequested = false; }
         float dt = Time.fixedDeltaTime;
         Vector3 forward = body.rotation * Vector3.forward;

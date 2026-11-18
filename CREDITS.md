@@ -22,3 +22,7 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg) i `Assets/Textures/Sky/*`.
 
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
+
+## Fontovi (SIL Open Font License 1.1)
+- **Inter** (Regular, SemiBold) — The Inter Project Authors, https://github.com/rsms/inter (v4.1) — tekst Matina mobitela.
+  Datoteke: `Assets/Resources/Fonts/Inter-*.ttf`, licenca `Assets/Resources/Fonts/Inter-LICENSE.txt`.
