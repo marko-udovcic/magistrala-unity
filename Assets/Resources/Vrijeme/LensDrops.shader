@@ -56,12 +56,12 @@ Shader "Magistrala/LensDrops"
                 float2 q = p * scale;
                 float2 cell = floor(q); float2 f = frac(q) - float2(0.5, 0.0);
                 float3 r = H3(float2(cell.x, cell.y * 7.1));
-                if (r.z < 0.5) return;
+                if (r.z < 0.4) return;
                 float ph = frac(t * (0.10 + 0.16 * r.x) + r.y);
                 float y = 1.05 - ph * ph * 1.15;                 // accelerates down the cell
                 float x = (r.x - 0.5) * 0.5 + sin(ph * 9.0 + r.y * 6.3) * 0.04 + (1.0 - y) * wind * 0.35;
                 float2 d = (f - float2(x, y)) / scale;            // in screen heights
-                float rad = 0.006 + 0.006 * r.z;
+                float rad = 0.008 + 0.008 * r.z;
                 d.y *= 0.8;                                       // a bit taller than wide
                 float l = length(d) / rad;
                 float k = 1.0 - smoothstep(0.75, 1.0, l);

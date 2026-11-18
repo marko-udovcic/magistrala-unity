@@ -30,6 +30,7 @@ Shader "Magistrala/RainStreaks"
             float _RainSpeed;      // fall speed (m/s)
             float _RainShutter;    // streak length = relative speed × this (s)
             float _RainAmount;     // 0..1 (fade in / out, fraction of drops drawn)
+            float _RainNear;       // no drops closer than this (m): 0.7 chase, ~2.3 in the cab (no rain inside it)
 
             struct A { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 rnd : TEXCOORD1; };
             struct V { float4 positionCS : SV_POSITION; float3 uva : TEXCOORD0; };
@@ -54,7 +55,7 @@ Shader "Magistrala/RainStreaks"
                 pos += side * (i.uv.x * width);
                 o.positionCS = TransformWorldToHClip(pos);
                 float halfBox = min(_RainBox.x, _RainBox.z) * 0.5;
-                float fade = saturate((dist - 0.7) / 1.5) * (1.0 - smoothstep(halfBox * 0.6, halfBox, dist));
+                float fade = saturate((dist - _RainNear) / 1.5) * (1.0 - smoothstep(halfBox * 0.6, halfBox, dist));
                 float keep = step(i.rnd.y, _RainAmount);
                 o.uva = float3(i.uv, _Alpha * fade * keep * saturate(0.003 / width * 1.6));
                 if (keep < 0.5) o.positionCS = float4(0, 0, -2, 1); // culled

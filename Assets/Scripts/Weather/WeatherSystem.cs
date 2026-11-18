@@ -21,7 +21,7 @@ namespace Magistrala
         public Color rainFog = new Color(.60f, .63f, .66f);
         public float fogDensity = .00055f, sunMul = .1f, shadowStrength = .2f;
         public Color ambSky = new Color(.95f, .99f, 1.05f), ambEq = new Color(.80f, .83f, .86f), ambGround = new Color(.38f, .38f, .37f);
-        public float exposureAdd = .35f, contrastAdd = -6f, saturationAdd = -22f, wbAdd = -5f, vignette = .28f;
+        public float exposureAdd = .35f, contrastAdd = -9f, saturationAdd = -32f, wbAdd = -5f, vignette = .28f;
         public float fadeTime = 3f;
         static readonly int[] RainCount = { 3000, 5000, 7000 }; // brzo / srednje / oštro
 
@@ -36,15 +36,15 @@ namespace Magistrala
         ColorAdjustments ca; WhiteBalance wbc; Bloom bloom; Vignette vig;
         ReflectionProbe[] probes; ReflectionProbe skyProbe; int skyProbeId = -1; bool skyProbeReady, useGradient, rtProbes, rtProbesSaved; float probeT; Texture rainRefl;
         Material skyMat, rainMat, lensMat; GameObject rainGo, lensGo; Mesh rainMesh; int rainN;
-        Camera cam; UniversalAdditionalCameraData camData; CameraOverrideOption camColorOpt; bool camColorSaved;
+        Camera cam; TruckChaseCamera chase; UniversalAdditionalCameraData camData; CameraOverrideOption camColorOpt; bool camColorSaved;
         Vector3 lastCamPos, camVel; bool haveCam;
-        float toastUntil, toggleAt = -1; GUIStyle toastStyle;
+        float lastHeat = -1, toastUntil, toggleAt = -1; GUIStyle toastStyle;
 
         static readonly int ID_Wetness = Shader.PropertyToID("_Wetness"), ID_Overcast = Shader.PropertyToID("_Overcast"),
             ID_Box = Shader.PropertyToID("_RainBox"), ID_Centre = Shader.PropertyToID("_RainCentre"), ID_CamVel = Shader.PropertyToID("_RainCamVel"),
             ID_Wind = Shader.PropertyToID("_RainWind"), ID_Speed = Shader.PropertyToID("_RainSpeed"), ID_Shutter = Shader.PropertyToID("_RainShutter"),
             ID_Amount = Shader.PropertyToID("_RainAmount"), ID_RainColor = Shader.PropertyToID("_RainColor"), ID_LensAmount = Shader.PropertyToID("_Amount"),
-            ID_LensWind = Shader.PropertyToID("_LensWind"), ID_Alpha = Shader.PropertyToID("_Alpha"), ID_RainI = Shader.PropertyToID("_RainIntensity");
+            ID_LensWind = Shader.PropertyToID("_LensWind"), ID_Alpha = Shader.PropertyToID("_Alpha"), ID_RainI = Shader.PropertyToID("_RainIntensity"), ID_Heat = Shader.PropertyToID("_Heat"), ID_Near = Shader.PropertyToID("_RainNear");
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Attach()
@@ -58,12 +58,14 @@ namespace Magistrala
 
         void Start()
         {
+            lp = FindFirstObjectByType<LightPreset>();
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-vrijeme") { string w = args[i + 1].ToLowerInvariant(); if (w.StartsWith("ki")) { target = 1; k = 1; wet = 1; } }
-            // testing the fade: -vrijeme-prebaci 15 = press V after 15 s
+            // comparing: -vrijeme-odsjaj gradijent = rain reflections from the gradient cube instead of the sky probe
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-vrijeme-odsjaj") useGradient = args[i + 1] == "gradijent";
+            // testing the fade: -vrijeme-prebaci 15 = press V after 15 s
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-vrijeme-prebaci") float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out toggleAt);
             if (target > 0) { Snapshot(); ApplyAll(); Debug.Log("[vrijeme] kiša (naredbeni redak)"); }
@@ -96,7 +98,7 @@ namespace Magistrala
                 sunI = sun ? sun.intensity : 1, shadow = sun ? sun.shadowStrength : 1,
                 fogD = RenderSettings.fogDensity, fog = RenderSettings.fogColor,
                 sky = RenderSettings.ambientSkyColor, eq = RenderSettings.ambientEquatorColor, ground = RenderSettings.ambientGroundColor,
-                exposure = ca ? ca.postExposure.value - CameraFeel.ExposureOffset : 0, // without the eye adaptation contrast = ca ? ca.contrast.value : 0, sat = ca ? ca.saturation.value : 0,
+                exposure = ca ? ca.postExposure.value - CameraFeel.ExposureOffset : 0, /* without the eye adaptation */ contrast = ca ? ca.contrast.value : 0, sat = ca ? ca.saturation.value : 0,
                 wb = wbc ? wbc.temperature.value : 0, bloomT = bloom ? bloom.threshold.value : 1, bloomI = bloom ? bloom.intensity.value : 0, vig = vig ? vig.intensity.value : 0,
                 skybox = RenderSettings.skybox == skyMat ? b.skybox : RenderSettings.skybox,
                 defRefl = RenderSettings.customReflectionTexture, reflMode = RenderSettings.defaultReflectionMode,
@@ -278,7 +280,7 @@ namespace Magistrala
 
         void LateUpdate()
         {
-            if (!cam || !cam.isActiveAndEnabled) { cam = Camera.main; haveCam = false; camData = null; camColorSaved = false; }
+            if (!cam || !cam.isActiveAndEnabled) { cam = Camera.main; chase = null; haveCam = false; camData = null; camColorSaved = false; }
             float dt = Mathf.Max(Time.deltaTime, 1e-4f);
             // G pressed: LightPreset has just applied its full preset (it overwrites every value rain touches) → new base, rain on top
             if (lp && haveBase && lp.Golden != lastGolden) { Snapshot(); ApplyAll(); }
@@ -294,6 +296,9 @@ namespace Magistrala
                 wet = Mathf.MoveTowards(wet, wantWet, dt / (wantWet > wet ? fadeTime * 2f : fadeTime * 6f)); // soaks in ~6 s, dries in ~18 s
                 Shader.SetGlobalFloat(ID_Wetness, wet);
             }
+            // mirage over hot asphalt (Asphalt _Heat): dry day only, not at sunset
+            float heat = (1f - wet) * (lp && lp.Golden ? 0f : 1f);
+            if (!Mathf.Approximately(heat, lastHeat)) { lastHeat = heat; Shader.SetGlobalFloat(ID_Heat, heat); }
             // reflection probe of the overcast sky once the sky is fully grey
             if (k >= .999f && !skyProbeReady)
             {
@@ -312,7 +317,9 @@ namespace Magistrala
                         }
                         catch (System.Exception e) { Debug.LogWarning("[vrijeme] kopija sonde: " + e.Message); }
                     }
+                    var old = rainRefl;
                     rainRefl = ok ? tex : GradientCube(); skyProbeReady = true; skyProbeId = -1;
+                    if (old && old != rainRefl) { ApplyAll(); Destroy(old); } // G in rain renders a new one
                     if (rtProbesSaved) QualitySettings.realtimeReflectionProbes = rtProbes;
                     Debug.Log($"[vrijeme] odsjaji: {(ok ? "nebo (realtime sonda)" : "gradijent")} (tekstura {(tex ? tex.width + " px" : "nema")}, gotova {fin}), {probes.Length} sondi");
                     ApplyAll();
@@ -346,6 +353,8 @@ namespace Magistrala
                 rainMat.SetFloat(ID_Speed, 8.5f);
                 rainMat.SetFloat(ID_Shutter, .04f);
                 rainMat.SetFloat(ID_Amount, k);
+                if (!chase) chase = cam.GetComponent<TruckChaseCamera>();
+                rainMat.SetFloat(ID_Near, chase && chase.CabinView ? 2.3f : .7f);
                 Shader.SetGlobalFloat(ID_RainI, k);
                 rainMat.SetFloat(ID_Alpha, .5f);
                 Color fc = RenderSettings.fogColor.linear;

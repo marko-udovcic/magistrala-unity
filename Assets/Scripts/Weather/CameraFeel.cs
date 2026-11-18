@@ -57,7 +57,7 @@ namespace Magistrala
             if (!prof.TryGet(out grain)) grain = prof.Add<FilmGrain>();
             if (!prof.TryGet(out chroma)) chroma = prof.Add<ChromaticAberration>();
             mb.mode.Override(MotionBlurMode.CameraAndObjects); mb.quality.Override(MotionBlurQuality.Low);
-            mb.intensity.Override(.3f); mb.clamp.Override(.025f);
+            mb.intensity.Override(.2f); mb.clamp.Override(.02f);
             grain.type.Override(FilmGrainLookup.Medium2); grain.intensity.Override(.32f); grain.response.Override(.75f);
             chroma.intensity.Override(.12f);
             ApplyStatic();

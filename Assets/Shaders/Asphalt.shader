@@ -65,6 +65,7 @@ Shader "Magistrala/Asphalt"
         TEXTURE2D(_WearBump);
         // global (WeatherSystem): 0 dry .. 1 soaked — darker porous binder, mirror-smooth film, puddles in the ruts / at the edge
         float _Wetness;
+        float _Heat;          // global (WeatherSystem): dry sunny day — mirage far down the road
         float _RainIntensity; // global (WeatherSystem): rain falling now (ripples in the puddles)
 
         struct Attributes
@@ -259,6 +260,24 @@ Shader "Magistrala/Asphalt"
                         ringN += v / d * band;
                     }
                     nTS = normalize(nTS + float3(ringN * 0.5 * rip, 0));
+                }
+            }
+
+            // hot dry asphalt, far away at a grazing angle: mirage patches that mirror the sky and drift (heat shimmer, no extra pass)
+            UNITY_BRANCH if (_Heat > 0.001)
+            {
+                float hd = distance(input.positionWS, _WorldSpaceCameraPos);
+                float3 hv = GetWorldSpaceNormalizeViewDir(input.positionWS);
+                float graze = saturate(1.0 - hv.y * 10.0);
+                float farK = smoothstep(70.0, 170.0, hd) * graze * _Heat;
+                UNITY_BRANCH if (farK > 0.01)
+                {
+                    float wob = ValueNoise(input.positionWS.xz * 0.045 + float2(_Time.y * 0.3, _Time.y * 0.17)) * 0.7
+                              + ValueNoise(input.positionWS.xz * 0.16 - float2(_Time.y * 0.5, 0.0)) * 0.3;
+                    float mir = farK * smoothstep(0.4, 0.62, wob);
+                    smoothness = lerp(smoothness, 0.97, mir);
+                    nTS = normalize(lerp(nTS, float3(0, 0, 1), mir));
+                    albedo *= 1.0 - 0.6 * mir;
                 }
             }
 
