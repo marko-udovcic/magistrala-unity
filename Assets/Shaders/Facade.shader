@@ -108,8 +108,9 @@ Shader "Magistrala/Facade"
             float3 wp = input.positionWS;
             half vertical = 1 - saturate(abs(nWS.y) * 2);
             float along = dot(wp.xz, normalize(float2(-nWS.z, nWS.x) + 1e-4));
-            float blot = Noise(wp.xz * .23 + wp.y * .31) * .6 + Noise(float2(along, wp.y) * .9) * .4;
-            float streak = Noise(float2(along * 3.1, wp.y * .12)) * Noise(float2(along * 7.3, wp.y * .25 + 3));
+            // two value-noise lookups on walls (GPU budget): blotches, and streaks stretched down the wall
+            float blot = Noise(float2(along * .5 + wp.y * .13, wp.y * .45));
+            float streak = Noise(float2(along * 4.3, wp.y * .14)); streak *= streak;
             float eave = saturate(1 - input.data.z / 4.5);
             float foot = saturate(1 - input.data.y / 1.1);
             half grime = vertical * dirt * saturate(blot * .5 + streak * eave * 2.0 + foot * .6);
