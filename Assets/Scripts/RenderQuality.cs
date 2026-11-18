@@ -9,11 +9,11 @@ namespace Magistrala
     /// in the lower levels too. Command line: `-kvaliteta 0|1|2`. Attaches itself (no scene change).
     public class RenderQuality : MonoBehaviour
     {
-        struct Level { public string name; public float mpix, shadowDist, fsrSharp, veg; public int shadowRes, cascades; public SoftShadowQuality soft; }
+        struct Level { public string name; public float mpix, shadowDist, fsrSharp, veg; public int shadowRes, cascades; public SoftShadowQuality soft; public bool aoDepth, aoHalf, aoAfter, aoOff; }
         static readonly Level[] Levels =
         {
-            new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f },
-            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 3, soft = SoftShadowQuality.Medium, fsrSharp = .85f, veg = 1f },
+            new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f, aoOff = true },
+            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 3, soft = SoftShadowQuality.Medium, fsrSharp = .85f, veg = 1f, aoHalf = true },
             new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f },
         };
         const string PREF = "kvaliteta";
@@ -27,6 +27,11 @@ namespace Magistrala
         float toastUntil; GUIStyle toastStyle;
         // editor only: changing the asset in Play Mode would stick, so the originals come back on exit
         float o_scale, o_dist; int o_res, o_casc; UpscalingFilterSelection o_up; bool saved, o_fsrO; float o_fsr;
+        // SSAO settings (internal class on the renderer feature, set by reflection): aoDepth = normals from depth (Depth prepass
+        // instead of DepthNormals), aoHalf = AO at half resolution, aoAfter = from the depth copy after the opaque pass (no prepass
+        // at all; AO then darkens the lit colour, not only ambient), aoOff = no SSAO. Full SSAO cost ~5.5 ms GPU on the M2 at
+        // 1710x1074, half resolution saves ~3 ms. Depth-source AO is grainy here (far plane 9 km), so no level uses it.
+        ScriptableRendererFeature aoFeature; bool o_aoActive; object ao; System.Reflection.FieldInfo aoSource, aoDown, aoAfter; object o_aoSource; bool o_aoDown, o_aoAfter;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Attach()
@@ -55,6 +60,8 @@ namespace Magistrala
                 float.TryParse(p[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out grassArgD);
                 if (p.Length > 1) float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out grassArgR);
             }
+            FindAO();
+            if (saved && ao != null) { o_aoSource = aoSource.GetValue(ao); o_aoDown = (bool)aoDown.GetValue(ao); o_aoAfter = (bool)aoAfter.GetValue(ao); o_aoActive = aoFeature.isActive; }
             Debug.Log($"[kvaliteta] GPU Resident Drawer {rp.gpuResidentDrawerMode}, occlusion {rp.gpuResidentDrawerEnableOcclusionCullingInCameras}");
             Set(lvl, false);
         }
@@ -89,6 +96,7 @@ namespace Magistrala
             rp.mainLightShadowmapResolution = L.shadowRes;
             rp.shadowCascadeCount = L.cascades;
             ApplyGrass();
+            if (ao != null) { aoSource.SetValue(ao, System.Enum.ToObject(aoSource.FieldType, L.aoDepth ? 0 : 1)); aoAfter.SetValue(ao, L.aoAfter); aoDown.SetValue(ao, L.aoHalf); aoFeature.SetActive(!L.aoOff); }
             TreeRenderer.Distance = L.veg; // vegetation distances (full mesh / impostor / shadows / far cutoff)
             var sun = RenderSettings.sun ? RenderSettings.sun : FindSun();
             if (sun)
@@ -96,9 +104,25 @@ namespace Magistrala
                 if (!sunData) sunData = sun.GetComponent<UniversalAdditionalLightData>();
                 if (sunData) sunData.softShadowQuality = L.soft;
             }
+            GpuSwitches.ApplyPipeline(rp); // measuring only: command-line overrides
             if (toast) PlayerPrefs.SetInt(PREF, Current); // only the player's own choice (K) is remembered
-            Debug.Log($"[kvaliteta] {L.name}: ekran {Screen.width}x{Screen.height}, crta se {Mathf.RoundToInt(Screen.width * Scale)}x{Mathf.RoundToInt(Screen.height * Scale)} (scale {Scale:F2}), sjene {L.shadowDist} m / {L.shadowRes} / {L.cascades}");
+            Debug.Log($"[kvaliteta] {L.name}: ekran {Screen.width}x{Screen.height}, crta se {Mathf.RoundToInt(Screen.width * Scale)}x{Mathf.RoundToInt(Screen.height * Scale)} (scale {Scale:F2}), sjene {L.shadowDist} m / {L.shadowRes} / {L.cascades}, SSAO {(ao == null ? "?" : L.aoOff ? "isključen" : L.aoDepth ? "Depth" : "DepthNormals")}{(L.aoHalf ? " pola rez." : "")}{(L.aoAfter ? " nakon neprozirnih" : "")}");
             if (toast) toastUntil = Time.unscaledTime + 2.5f;
+        }
+
+        void FindAO()
+        {
+            const System.Reflection.BindingFlags F = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            var list = typeof(UniversalRenderPipelineAsset).GetField("m_RendererDataList", F)?.GetValue(rp) as ScriptableRendererData[];
+            if (list == null || list.Length == 0 || !list[0]) return;
+            foreach (var f in list[0].rendererFeatures)
+                if (f is ScreenSpaceAmbientOcclusion)
+                {
+                    aoFeature = f; ao = f.GetType().GetField("m_Settings", F)?.GetValue(f); if (ao == null) return;
+                    aoSource = ao.GetType().GetField("Source", F); aoDown = ao.GetType().GetField("Downsample", F); aoAfter = ao.GetType().GetField("AfterOpaque", F);
+                    if (aoSource == null || aoDown == null || aoAfter == null) ao = null;
+                    return;
+                }
         }
 
         static Light FindSun()
@@ -129,6 +153,7 @@ namespace Magistrala
         {
             if (!saved || !rp) return;
             rp.renderScale = o_scale; rp.shadowDistance = o_dist; rp.mainLightShadowmapResolution = o_res; rp.shadowCascadeCount = o_casc; rp.upscalingFilter = o_up; rp.fsrOverrideSharpness = o_fsrO; rp.fsrSharpness = o_fsr;
+            if (ao != null && o_aoSource != null) { aoSource.SetValue(ao, o_aoSource); aoDown.SetValue(ao, o_aoDown); aoAfter.SetValue(ao, o_aoAfter); aoFeature.SetActive(o_aoActive); }
         }
     }
 }

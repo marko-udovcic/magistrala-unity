@@ -26,6 +26,8 @@ namespace Magistrala.EditorTools
             so.FindProperty("m_SupportsHDR").boolValue = true;
             so.FindProperty("m_SupportsTerrainHoles").boolValue = true;
             var depth = so.FindProperty("m_RequireDepthTexture"); if (depth != null) depth.boolValue = true;
+            // nothing samples _CameraOpaqueTexture (sea is opaque): the full-screen colour copy cost ~1.7 ms GPU at 1710x1074
+            var opq = so.FindProperty("m_RequireOpaqueTexture"); if (opq != null) opq.boolValue = false;
             var cb = so.FindProperty("m_ShadowDepthBias"); if (cb != null) cb.floatValue = 1.0f;
             var nb = so.FindProperty("m_ShadowNormalBias"); if (nb != null) nb.floatValue = 0.6f;
             so.ApplyModifiedProperties();
