@@ -74,7 +74,7 @@ namespace Magistrala
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.lKey.wasPressedThisFrame) { manual = true; manualOn = !lastOn; }
-            bool auto = preset && preset.Golden;
+            bool auto = (preset && preset.Golden) || WeatherSystem.Raining; // dipped beams at sunset and in rain
             bool on = manual ? manualOn : auto;
             if (manual && auto != lastAutoSeen) { manual = false; on = auto; } // changing the time of day hands control back
             lastAutoSeen = auto;
