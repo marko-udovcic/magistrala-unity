@@ -119954,6 +119954,22 @@ MonoBehaviour:
   - {fileID: 4300000, guid: b3357c03e413a413c9c984ea42c6093a, type: 2}
   - {fileID: 4300000, guid: d37cdcf1c3b464c398c98c44413211c1, type: 2}
   materials:
+  - {fileID: 2100000, guid: fc0aa4d227d584a29af8a7cc206e4460, type: 2}
+  - {fileID: 5375450495258703917, guid: 42f6aa03403224bb083b400285434b5e, type: 3}
+  - {fileID: 2100000, guid: 748e89e3010d04095ab67e4c39356b64, type: 2}
+  - {fileID: 5375450495258703917, guid: 70d1e25ac92e84f3eaa5c2cb0780e930, type: 3}
+  - {fileID: 2100000, guid: c4fc6390b03044c04a8527fcb48d4168, type: 2}
+  - {fileID: 9217480048757583367, guid: 7f8d6d3a405604f03b7c42d82c849b87, type: 3}
+  - {fileID: 2100000, guid: 1ce10aa32e9454232b3ef26e011c5ac6, type: 2}
+  - {fileID: 5375450495258703917, guid: 64433a0faa5e4491d8352d4da1a3e8e5, type: 3}
+  - {fileID: 2100000, guid: dc764186edcef45eab2fb42fe9893858, type: 2}
+  - {fileID: 9217480048757583367, guid: 39e1c6da6d97b4d75a96584b390ffd68, type: 3}
+  - {fileID: 2100000, guid: f758670a33e0a4d549a5a95323dd6dae, type: 2}
+  - {fileID: 9217480048757583367, guid: 0f3c395171ed6440383267ddf95ca26d, type: 3}
+  - {fileID: 2100000, guid: 875f5c76d4550407cbbb690a8e68c4ca, type: 2}
+  - {fileID: -3602598932553440445, guid: 768dfca55d17b43fdbd34df646524f71, type: 3}
+  - {fileID: -4459280702531700714, guid: fdcf9de24df5346368a5ba5350f19998, type: 3}
+  blendMaterials:
   - {fileID: -954024796271654956, guid: 42f6aa03403224bb083b400285434b5e, type: 3}
   - {fileID: 5375450495258703917, guid: 42f6aa03403224bb083b400285434b5e, type: 3}
   - {fileID: -954024796271654956, guid: 70d1e25ac92e84f3eaa5c2cb0780e930, type: 3}
