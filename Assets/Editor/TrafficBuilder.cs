@@ -155,6 +155,8 @@ namespace Magistrala.EditorTools
                 }
                 list.Add(kd);
             }
+            // the Tripo cars (Magistrala/Auti: uvezi Tripo modele): their own parts / LODs, far mesh colours onto the shared palette
+            list.AddRange(TripoCarImporter.TrafficKinds(c => pal.UV(c), (n, c, sm, e) => Urp(n, c, sm, e)));
             return list.ToArray();
         }
 

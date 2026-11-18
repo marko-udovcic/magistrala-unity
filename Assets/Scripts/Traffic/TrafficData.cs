@@ -10,7 +10,8 @@ namespace Magistrala.Traffic
     public class TrafficPart
     {
         public Mesh mesh; public int sub; public Material mat; public Matrix4x4 local; public bool paint;
-        /// lamps: 0 none, 1 tail (brake light), 2 left indicator, 3 right indicator, 4 headlight; matOn = the lit variant
+        /// lamps: 0 none, 1 tail (brake light), 2 left indicator, 3 right indicator, 4 headlight, 5 / 6 beacon A / B (alternating,
+        /// emergency kinds: TrafficSystem flashes them on some cars); matOn = the lit variant
         public int lamp; public Material matOn;
         /// wheel: spun about its local x axis (origin = wheel centre) by the distance driven / radius
         public bool wheel; public float radius;
@@ -22,6 +23,11 @@ namespace Magistrala.Traffic
         public string name;
         public float len, halfW, h, vMul, a, b, T, weight;
         public TrafficPart[] lod0, lod1;
+        /// Tripo kinds (Assets/Editor/TripoCarImporter.cs): a third parts level; with lod2: lod0 below lodNear, lod1 below lodMid,
+        /// lod2 up to TrafficSystem.lod1Dist, the far mesh beyond (the web kinds: lod0, then the far mesh)
+        public TrafficPart[] lod2; public float lodNear = 25, lodMid = 45;
+        /// share of the cars of this kind spawned with their beacons flashing (lamps 5 / 6)
+        public float beaconShare;
         /// body paint colours (instanced copies of the kind's paint material) and their spawn weights
         public Material[] paints; public float[] paintW;
         /// far LOD: the lod1 model merged into one mesh (submesh 0 = everything else on a shared colour palette, 1 = paint,
