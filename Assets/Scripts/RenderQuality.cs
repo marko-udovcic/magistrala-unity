@@ -9,12 +9,12 @@ namespace Magistrala
     /// in the lower levels too. Command line: `-kvaliteta 0|1|2`. Attaches itself (no scene change).
     public class RenderQuality : MonoBehaviour
     {
-        struct Level { public string name; public float mpix, shadowDist, fsrSharp, veg; public int shadowRes, cascades; public SoftShadowQuality soft; public bool aoDepth, aoHalf, aoAfter, aoOff; }
+        struct Level { public string name; public float mpix, shadowDist, fsrSharp, veg; public int shadowRes, cascades; public SoftShadowQuality soft; public bool aoDepth, aoHalf, aoAfter, aoOff; public AntialiasingMode aa; }
         static readonly Level[] Levels =
         {
-            new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f, aoOff = true },
-            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 3, soft = SoftShadowQuality.Medium, fsrSharp = .85f, veg = 1f, aoHalf = true },
-            new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f },
+            new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f, aoOff = true, aa = AntialiasingMode.SubpixelMorphologicalAntiAliasing },
+            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .85f, veg = 1f, aoHalf = true, aoDepth = true, aa = AntialiasingMode.TemporalAntiAliasing },
+            new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f, aa = AntialiasingMode.TemporalAntiAliasing },
         };
         const string PREF = "kvaliteta";
 
@@ -30,7 +30,11 @@ namespace Magistrala
         // SSAO settings (internal class on the renderer feature, set by reflection): aoDepth = normals from depth (Depth prepass
         // instead of DepthNormals), aoHalf = AO at half resolution, aoAfter = from the depth copy after the opaque pass (no prepass
         // at all; AO then darkens the lit colour, not only ambient), aoOff = no SSAO. Full SSAO cost ~5.5 ms GPU on the M2 at
-        // 1710x1074, half resolution saves ~3 ms. Depth-source AO is grainy here (far plane 9 km), so no level uses it.
+        // 1710x1074, half resolution saves ~3 ms. Depth-source AO (srednje) skips the DepthNormals prepass. It once looked grainy,
+        // but that was a stripped shader: the player only gets the _SOURCE_DEPTH_* variants because PC_RPAsset also lists
+        // PC_Renderer_SSAOdubina (a copy of PC_Renderer with SSAO from depth, Medium normals; no camera uses it, it only keeps
+        // the variants). Depth is D32 float reversed-Z, so the 0.08 m near / 9 km far planes cost no precision.
+        // AA: TAA blurs a lot under FSR (brzo draws at ~74 %), SMAA is sharper and cheaper there; srednje / oštro keep TAA.
         ScriptableRendererFeature aoFeature; bool o_aoActive; object ao; System.Reflection.FieldInfo aoSource, aoDown, aoAfter; object o_aoSource; bool o_aoDown, o_aoAfter;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -97,6 +101,8 @@ namespace Magistrala
             rp.shadowCascadeCount = L.cascades;
             ApplyGrass();
             if (ao != null) { aoSource.SetValue(ao, System.Enum.ToObject(aoSource.FieldType, L.aoDepth ? 0 : 1)); aoAfter.SetValue(ao, L.aoAfter); aoDown.SetValue(ao, L.aoHalf); aoFeature.SetActive(!L.aoOff); }
+            var cd = Camera.main ? Camera.main.GetComponent<UniversalAdditionalCameraData>() : null;
+            if (cd) { cd.antialiasing = L.aa; cd.antialiasingQuality = AntialiasingQuality.High; }
             TreeRenderer.Distance = L.veg; // vegetation distances (full mesh / impostor / shadows / far cutoff)
             var sun = RenderSettings.sun ? RenderSettings.sun : FindSun();
             if (sun)
@@ -106,7 +112,7 @@ namespace Magistrala
             }
             GpuSwitches.ApplyPipeline(rp); // measuring only: command-line overrides
             if (toast) PlayerPrefs.SetInt(PREF, Current); // only the player's own choice (K) is remembered
-            Debug.Log($"[kvaliteta] {L.name}: ekran {Screen.width}x{Screen.height}, crta se {Mathf.RoundToInt(Screen.width * Scale)}x{Mathf.RoundToInt(Screen.height * Scale)} (scale {Scale:F2}), sjene {L.shadowDist} m / {L.shadowRes} / {L.cascades}, SSAO {(ao == null ? "?" : L.aoOff ? "isključen" : L.aoDepth ? "Depth" : "DepthNormals")}{(L.aoHalf ? " pola rez." : "")}{(L.aoAfter ? " nakon neprozirnih" : "")}");
+            Debug.Log($"[kvaliteta] {L.name}: ekran {Screen.width}x{Screen.height}, crta se {Mathf.RoundToInt(Screen.width * Scale)}x{Mathf.RoundToInt(Screen.height * Scale)} (scale {Scale:F2}), sjene {L.shadowDist} m / {L.shadowRes} / {L.cascades}, SSAO {(ao == null ? "?" : L.aoOff ? "isključen" : L.aoDepth ? "Depth" : "DepthNormals")}{(L.aoHalf ? " pola rez." : "")}{(L.aoAfter ? " nakon neprozirnih" : "")}, AA {L.aa}, meke sjene {L.soft}");
             if (toast) toastUntil = Time.unscaledTime + 2.5f;
         }
 

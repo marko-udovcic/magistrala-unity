@@ -15,6 +15,9 @@ namespace Magistrala
     ///   -shsmall M  renderers whose bounds are smaller than M metres cast no shadow   -tshadow 0  terrain casts no shadow
     ///   -sea 0      -probes 0 (reflection probe blending / box projection off)   -tbase M (terrain basemap distance)
     ///   -golden 1   start in sunset    -shot path.png [-shotat s]  screenshot after s seconds (default 25)
+    ///   -burst N    with -shot: N consecutive frames path_00.png.. (shimmer / temporal look while driving)
+    ///   -near M / -far M  camera clip planes (after TruckChaseCamera.Awake)
+    ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
     public class GpuSwitches : MonoBehaviour
     {
         static string[] args;
@@ -45,6 +48,9 @@ namespace Magistrala
         {
             if (Application.isEditor || !rp) return;
             var sb = new System.Text.StringBuilder("[gpu] pipeline:");
+            var cd0 = Camera.main ? Camera.main.GetComponent<UniversalAdditionalCameraData>() : null; // AA is per level too (RenderQuality), so the switch wins here
+            if (cd0 && TryF("-aa", out var aa0)) { cd0.antialiasing = (AntialiasingMode)(int)aa0; sb.Append($" aa {aa0}"); }
+            if (cd0 && TryF("-aaq", out var aq0)) { cd0.antialiasingQuality = (AntialiasingQuality)(int)aq0; sb.Append($" aaq {aq0}"); }
             if (Off("-hdr")) { rp.supportsHDR = false; sb.Append(" hdr 0"); }
             if (Arg("-opaque") is string op) { rp.supportsCameraOpaqueTexture = op != "0"; sb.Append($" opaque {op}"); }
             if (Off("-depth")) { rp.supportsCameraDepthTexture = false; sb.Append(" depth 0"); }
@@ -86,6 +92,7 @@ namespace Magistrala
                         else if (w.StartsWith("blur")) SetEnum(st, "BlurQuality", int.Parse(w.Substring(4)));
                         else if (w.StartsWith("samples")) SetEnum(st, "Samples", int.Parse(w.Substring(7)));
                         else if (w == "interleaved") SetEnum(st, "AOMethod", 1);
+                        else if (w.StartsWith("nq")) SetEnum(st, "NormalSamples", int.Parse(w.Substring(2)));
                     }
                 }
                 sb.Append($" ssao {ssao}");
@@ -107,12 +114,13 @@ namespace Magistrala
             return arr[0].rendererFeatures;
         }
 
-        float shotAt = 25; string shot; bool shotDone;
+        float shotAt = 25; string shot; bool shotDone; int burst, burstI;
 
         void Start()
         {
             var sb = new System.Text.StringBuilder("[gpu] scene:");
             var cam = Camera.main;
+            Debug.Log($"[gpu] depth {SystemInfo.GetGraphicsFormat(UnityEngine.Experimental.Rendering.DefaultFormat.DepthStencil)}, reversed Z {SystemInfo.usesReversedZBuffer}, near {(cam ? cam.nearClipPlane : 0)} far {(cam ? cam.farClipPlane : 0)}");
             var cd = cam ? cam.GetComponent<UniversalAdditionalCameraData>() : null;
             if (cd)
             {
@@ -120,6 +128,8 @@ namespace Magistrala
                 if (TryF("-aa", out var aa)) { cd.antialiasing = (AntialiasingMode)(int)aa; sb.Append($" aa {aa}"); }
                 if (TryF("-aaq", out var aq)) { cd.antialiasingQuality = (AntialiasingQuality)(int)aq; sb.Append($" aaq {aq}"); }
             }
+            if (cam && TryF("-near", out var nr)) { cam.nearClipPlane = nr; sb.Append($" near {nr}"); }
+            if (cam && TryF("-far", out var fr)) { cam.farClipPlane = fr; sb.Append($" far {fr}"); }
             var vol = FindFirstObjectByType<Volume>();
             if (vol)
             {
@@ -142,13 +152,16 @@ namespace Magistrala
             if (Off("-tshadow")) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.shadowCastingMode = ShadowCastingMode.Off; sb.Append(" tshadow 0"); }
             if (TryF("-tbase", out var tb)) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.basemapDistance = tb; sb.Append($" tbase {tb}"); }
             if (Arg("-golden") == "1") { var lp = FindFirstObjectByType<LightPreset>(); if (lp) { lp.SetGolden(true); sb.Append(" golden"); } }
-            shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa;
+            shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa; if (TryF("-burst", out var bu)) burst = (int)bu;
             Debug.Log(sb.ToString());
         }
 
         void Update()
         {
-            if (shot != null && !shotDone && Time.realtimeSinceStartup > shotAt) { shotDone = true; ScreenCapture.CaptureScreenshot(shot); Debug.Log("[gpu] shot " + shot); }
+            if (shot == null || shotDone || Time.realtimeSinceStartup <= shotAt) return;
+            if (burst <= 1) { shotDone = true; ScreenCapture.CaptureScreenshot(shot); Debug.Log("[gpu] shot " + shot); return; }
+            ScreenCapture.CaptureScreenshot(shot.Replace(".png", $"_{burstI:D2}.png"));
+            if (++burstI >= burst) { shotDone = true; Debug.Log($"[gpu] burst {burst} " + shot); }
         }
     }
 }
