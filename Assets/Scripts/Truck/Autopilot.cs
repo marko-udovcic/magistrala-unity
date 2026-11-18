@@ -10,11 +10,22 @@ namespace Magistrala
         public bool drive;
         public float cruiseKmh = 70;
         TruckController truck;
-        int seg;
+        Magistrala.Traffic.TrafficSystem traffic;
+        int seg; bool tipped; float holdT;
+        /// last traffic reading (HUD / logs): gap to the car ahead, stop line distance, its light
+        public float Gap { get; private set; } = 1e9f;
         public int Segment => seg;
         public float CrossTrack { get; private set; }
 
-        void Start() { truck = GetComponent<TruckController>(); path = Smooth(path); seg = Nearest(); }
+        void Start() { truck = GetComponent<TruckController>(); traffic = FindFirstObjectByType<Magistrala.Traffic.TrafficSystem>(); path = Smooth(path); seg = Nearest(); }
+
+        // [hit] / [tip] lines (autopilot runs: what the truck ran into, when it rolled over)
+        void OnCollisionEnter(Collision c)
+        {
+            if (!drive || c.impulse.magnitude < 3000) return;
+            var g = transform.position;
+            Debug.Log($"[hit] {c.collider.name} impulse {c.impulse.magnitude:F0} N·s rel {c.relativeVelocity.magnitude * 3.6f:F0} km/h at x={g.x - 4200:F0} z={-g.z - 5300:F0} v={truck.SpeedKmh:F0} up={transform.up.y:F2} gap={Gap:F0}");
+        }
 
         /// resample to 4 m and smooth (the chained model axes have small kinks at the joins)
         static Vector3[] Smooth(Vector3[] src)
@@ -98,10 +109,26 @@ namespace Magistrala
             }
             float vt = Mathf.Min(cruiseKmh / 3.6f, vCurve);
             if (seg >= path.Length - 3) vt = 0;
+            // traffic: it used to drive blind — into the queue at a red light (the AI cars are kinematic: an immovable wall that threw
+            // the truck back and over, x ≈ −3090 at 02 / −1536 at 03). Follow the car ahead (keep 7 m standing, ~1.6 s moving, brake
+            // ≤ 3 m/s²) and stop at red / amber stop lines (amber only when it can stop at ≤ 3 m/s²).
+            if (traffic && traffic.PlayerAhead(transform.forward, out float gap, out float lv, out float stopD, out int light))
+            {
+                Gap = gap;
+                float room = gap - 7 - v * 1.6f;
+                vt = Mathf.Min(vt, Mathf.Sqrt(Mathf.Max(0, lv * lv + 2 * 3f * Mathf.Max(0, gap - 7))), lv + Mathf.Max(0, room) * .5f);
+                if (light == 2 || (light == 1 && v * v / (2 * 3f) < stopD - 2))
+                    vt = Mathf.Min(vt, stopD < 2.5f ? 0 : Mathf.Sqrt(2 * 2.2f * Mathf.Max(0, stopD - 2.5f)));
+            }
+            else Gap = 1e9f;
             float e = vt - v;
             truck.extThrottle = Mathf.Clamp01(e * 0.5f);
             truck.extBrake = Mathf.Clamp01(-e * 0.35f);
-            truck.extHandbrake = false;
+            // standing: hold it with the brakes (no creeping into the car ahead / over the line, no rolling back on a slope)
+            holdT = vt < .3f && v < 1.5f ? holdT + Time.fixedDeltaTime : 0;
+            if (holdT > 0) { truck.extThrottle = 0; truck.extBrake = 1; }
+            truck.extHandbrake = holdT > 1;
+            if (!tipped && transform.up.y < .6f) { tipped = true; var g = transform.position; Debug.Log($"[tip] truck rolled over at x={g.x - 4200:F0} z={-g.z - 5300:F0} v={truck.SpeedKmh:F0} gap={Gap:F0}"); }
         }
     }
 }

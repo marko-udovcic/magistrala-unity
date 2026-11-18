@@ -100,6 +100,7 @@ public sealed class TruckChaseCamera : MonoBehaviour
         float distance = Mathf.Sqrt(back * back + height * height);
         Vector3 offset = Quaternion.Euler(0, yaw + orbitYaw, 0) * new Vector3(0, Mathf.Sin(elevation) * distance, -Mathf.Cos(elevation) * distance);
         Vector3 desired = new Vector3(focus.x, focusHeight, focus.z) + offset;
+        groundRef = focus.y;
         KeepAboveTerrain(ref desired);
         Vector3 position = initialized ? Vector3.Lerp(transform.position, desired, Ease(9f, dt)) : desired;
         // Clamp again after smoothing so a rising slope cannot swallow the camera.
@@ -124,10 +125,25 @@ public sealed class TruckChaseCamera : MonoBehaviour
         {
             RaycastHit hit = terrainHits[i];
             if (hit.transform.IsChildOf(target.transform) || hit.normal.y < 0.3f) continue;
+            // overhead structures (the d08 footbridge deck, ~5 m over the road): not ground — the camera went up through them
+            if (hit.point.y > groundRef + 3.2f) continue;
             highest = Mathf.Max(highest, hit.point.y);
         }
         if (!float.IsNegativeInfinity(highest)) position.y = Mathf.Max(position.y, highest + 1f);
+        // under an overhead structure: stay 0.6 m below its underside (the chase camera clipped through the footbridge)
+        Vector3 up0 = new Vector3(position.x, groundRef + 1.2f, position.z);
+        float span = position.y + 1.2f - up0.y;
+        if (span > 0)
+        {
+            bool bf = Physics.queriesHitBackfaces; Physics.queriesHitBackfaces = true;
+            int n = Physics.RaycastNonAlloc(up0, Vector3.up, terrainHits, span, terrainMask, QueryTriggerInteraction.Ignore);
+            Physics.queriesHitBackfaces = bf;
+            float low = float.PositiveInfinity;
+            for (int i = 0; i < n; i++) if (!terrainHits[i].transform.IsChildOf(target.transform) && !terrainHits[i].rigidbody) low = Mathf.Min(low, terrainHits[i].point.y);
+            if (!float.IsPositiveInfinity(low)) position.y = Mathf.Max(up0.y, Mathf.Min(position.y, low - .6f));
+        }
     }
+    float groundRef;
 
     static float Ease(float rate, float dt) => 1f - Mathf.Exp(-rate * dt);
 }

@@ -292,7 +292,9 @@ public sealed class TruckController : MonoBehaviour
         float gas = throttleInput, brake = brakeInput;
         if (Gear > 0)
         {
-            if (brakeInput > 0.1f && Mathf.Abs(speed) < 0.6f && throttleInput < 0.1f)
+            // (brake held at a standstill engages reverse — for the keyboard only: the autopilot holds the brake at red lights / in
+            // queues and was reversing into the cars behind)
+            if (brakeInput > 0.1f && Mathf.Abs(speed) < 0.6f && throttleInput < 0.1f && !externalInput)
             {
                 reverseHold += dt;
                 if (reverseHold > 0.45f) { Gear = -1; reverseHold = 0; gas = brakeInput; brake = 0; }
