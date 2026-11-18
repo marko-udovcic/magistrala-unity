@@ -9,6 +9,7 @@
 - Teren: **Rock Face 03** — https://polyhaven.com/a/rock_face_03 — Dario Barresi, Rico Cilliers (vapnenac, krš)
 - Teren / bankine: **Gravel Ground 01** — https://polyhaven.com/a/gravel_ground_01 — Rob Tuytel
 - Kuće: **Clay Roof Tiles 02** — https://polyhaven.com/a/clay_roof_tiles_02 — Amal Kumar; **White Plaster 02** — https://polyhaven.com/a/white_plaster_02 — Rob Tuytel; **Wood Shutter** — https://polyhaven.com/a/wood_shutter — Dimitrios Savva
+- Zgrade (niz tekstura `Assets/Textures/Buildings/facade_*.jpg`, 1k, boje svedene na tipologiju Kaštela): **White Plaster 02** — https://polyhaven.com/a/white_plaster_02 — Rob Tuytel (žbuka); **White Sandstone Blocks 02** — https://polyhaven.com/a/white_sandstone_blocks_02 — Rob Tuytel (klesani kamen); **Clay Roof Tiles** — https://polyhaven.com/a/clay_roof_tiles — Amal Kumar (kupa kanalica); **Large Red Bricks** — https://polyhaven.com/a/large_red_bricks — Rob Tuytel (opeka nedovršenih katova); **Concrete Wall 008** — https://polyhaven.com/a/concrete_wall_008 — Dario Barresi, Charlotte Baglioni (beton). Lamele škura, ravna boja i sobe iza prozora (`rooms.png`) su proceduralne (BuildingTextures.cs).
 - Asfalt: **Asphalt 02** — https://polyhaven.com/a/asphalt_02 — Rob Tuytel (diffuse, normal, roughness; sloj istrošenog / ispucanog asfalta)
 - Asfalt: **Asphalt Track** — https://polyhaven.com/a/asphalt_track — Dimitrios Savva (diffuse, normal GL, roughness; sitni agregat, osnovni sloj kolnika)
 

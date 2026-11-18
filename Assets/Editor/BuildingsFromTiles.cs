@@ -12,19 +12,11 @@ namespace Magistrala.EditorTools
 {
     public static class BuildingsFromTiles
     {
-        static readonly Color[] WALL = { C(.93f, .91f, .86f), C(.92f, .87f, .76f), C(.89f, .80f, .64f), C(.80f, .78f, .73f), C(.93f, .85f, .80f), C(.95f, .94f, .90f), C(.85f, .82f, .72f) };
-        static readonly Color[] ROOF = { C(.66f, .33f, .22f), C(.72f, .40f, .27f), C(.58f, .30f, .22f), C(.70f, .46f, .33f) };
-        static readonly Color FLAT = C(.62f, .61f, .58f), IND = C(.76f, .78f, .80f), BASE = C(.55f, .53f, .5f), WIN = C(.16f, .18f, .2f);
-        static Color C(float r, float g, float b) => new Color(r, g, b).linear;
+        // the far level's walls take the glass's average over their window share (sRGB)
+        static readonly Color WIN = new Color(.3f, .32f, .34f);
 
-        class Geo { public List<Vector3> v = new List<Vector3>(); public List<Color> c = new List<Color>(); public List<int> t = new List<int>(); }
-
-        static void Tri(Geo g, Vector3 a, Vector3 b, Vector3 c, Color col, Vector3 want)
-        {
-            if (Vector3.Dot(Vector3.Cross(b - a, c - a), want) < 0) { var x = b; b = c; c = x; }
-            int i = g.v.Count; g.v.Add(a); g.v.Add(b); g.v.Add(c); g.c.Add(col); g.c.Add(col); g.c.Add(col); g.t.Add(i); g.t.Add(i + 1); g.t.Add(i + 2);
-        }
-        static void Quad(Geo g, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color col, Vector3 want) { Tri(g, a, b, c, col, want); Tri(g, a, c, d, col, want); }
+        static void Tri(HouseGeo g, Vector3 a, Vector3 b, Vector3 c, Slot s, Vector3 want) => HouseBuilder.Emit(g, s, a, b, c, want);
+        static void Quad(HouseGeo g, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Slot s, Vector3 want) { Tri(g, a, b, c, s, want); Tri(g, a, c, d, s, want); }
 
         public static double Ground(List<ModelJ> models, double gx, double gz)
         {
@@ -53,7 +45,7 @@ namespace Magistrala.EditorTools
             catch (Exception e) { Debug.LogError("[Magistrala] model buildings: " + e); }
 
             // [0] = with window quads (LOD0), [1] = without, walls darkened by the window share (LOD1, far)
-            var chunks = new Dictionary<long, Geo[]>();
+            var chunks = new Dictionary<long, HouseGeo[]>();
             // detailed Dalmatian houses (HouseBuilder: windows, škure, balconies, tile roofs) within NEAR m of the D8, boxes beyond
             const double NEAR = 320;
             var path = TruckSetup.EastboundPath(); var houses = new Dictionary<long, HouseGeo[]>(); int nDetailed = 0;
@@ -99,14 +91,14 @@ namespace Magistrala.EditorTools
                         }
                         if (!done)
                         {
-                            if (!chunks.TryGetValue(key, out var geo)) chunks[key] = geo = new[] { new Geo(), new Geo() };
+                            if (!chunks.TryGetValue(key, out var geo)) chunks[key] = geo = new[] { new HouseGeo(), new HouseGeo() };
                             Extrude(geo[0], P, kind, bottom, baseY, top, cx, cz, true);
                             Extrude(geo[1], P, kind, bottom, baseY, top, cx, cz, false);
                         }
                         n++;
                     }
                 }
-            var mat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Generated/Materials/Buildings.mat");
+            var hm = HouseBuilder.Materials();
             if (!AssetDatabase.IsValidFolder("Assets/Generated/TileBuildings")) AssetDatabase.CreateFolder("Assets/Generated", "TileBuildings");
             var tr = new GameObject("town"); tr.isStatic = true; tr.transform.SetParent(root.transform, false);
             int ci = 0;
@@ -116,26 +108,21 @@ namespace Magistrala.EditorTools
                 if (File.Exists(p)) AssetDatabase.DeleteAsset(p);
                 AssetDatabase.CreateAsset(mesh, p); return mesh;
             }
-            Mesh TownMesh(Geo g, string name)
-            {
-                var mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
-                mesh.SetVertices(g.v); mesh.SetColors(g.c); mesh.SetTriangles(g.t, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
-                return Save(mesh, name);
-            }
+            Mesh TownMesh(HouseGeo g, string name) => Save(HouseBuilder.ToMesh(g, name), name);
             long[] triL = new long[5];
             foreach (var kv in chunks)
             {
                 var mesh = TownMesh(kv.Value[0], "town" + ci);
                 var go = new GameObject("town" + ci); go.isStatic = true; go.transform.SetParent(tr.transform, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
-                go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+                go.AddComponent<MeshRenderer>().sharedMaterials = hm;
                 go.AddComponent<MeshCollider>().sharedMesh = mesh;
                 var far = TownMesh(kv.Value[1], $"town{ci}_lod1");
-                Lods(go, mesh.bounds, new[] { mesh, far }, new[] { TOWN_FAR }, new[] { mat });
-                triL[0] += kv.Value[0].t.Count / 3; triL[1] += kv.Value[1].t.Count / 3;
+                Lods(go, mesh.bounds, new[] { mesh, far }, new[] { TOWN_FAR }, hm);
+                triL[0] += Tris(kv.Value[0]); triL[1] += Tris(kv.Value[1]);
                 ci++;
             }
-            var hm = HouseBuilder.Materials(); int hi = 0;
+            int hi = 0;
             foreach (var kv in houses)
             {
                 var mesh = Save(HouseBuilder.ToMesh(kv.Value[0], "house" + hi), "house" + hi);
@@ -213,13 +200,14 @@ namespace Magistrala.EditorTools
 
         static Vector3 U(double gx, double y, double gz) => W.U(gx, y, gz);
 
-        static void Extrude(Geo g, List<Vector2d> P, string kind, double bottom, double baseY, double top, double cx, double cz, bool windows)
+        static void Extrude(HouseGeo g, List<Vector2d> P, string kind, double bottom, double baseY, double top, double cx, double cz, bool windows)
         {
             int hsh = (int)(Math.Abs(Math.Sin(cx * 12.9898 + cz * 78.233) * 43758.5453) * 1000);
             bool ind = kind == "industrial" || kind == "warehouse";
-            Color wall = ind ? IND : WALL[hsh % WALL.Length];
-            // far level: no window quads; the wall takes their average (1.1 x 1.35 m per 3.2 x 3 m cell = 15 %, linear colours)
-            if (!windows && !ind) wall = Color.Lerp(wall, WIN, .15f);
+            var look = Look.Pick(new System.Random(hsh), kind, (float)baseY, (float)(top - baseY));
+            // far level: no window quads; the wall takes their average (1.1 x 1.35 m per 3.2 x 3 m cell = 15 %)
+            if (!windows && !ind) { look.wall = Color.Lerp(look.wall, WIN, .15f); look.trim = look.wall; }
+            HouseBuilder.Begin(look, (float)baseY, (float)top);
             double area = 0, per = 0;
             for (int i = 0; i < P.Count; i++) { var a = P[i]; var b = P[(i + 1) % P.Count]; area += a.x * b.z - b.x * a.z; per += Math.Sqrt((b.x - a.x) * (b.x - a.x) + (b.z - a.z) * (b.z - a.z)); }
             area = Math.Abs(area) / 2;
@@ -230,9 +218,9 @@ namespace Magistrala.EditorTools
                 var a = P[i]; var b = P[(i + 1) % P.Count];
                 var mid = U((a.x + b.x) / 2, 0, (a.z + b.z) / 2); var outw = mid - new Vector3(C.x, 0, C.z);
                 var e = U(b.x, 0, b.z) - U(a.x, 0, a.z); var nrm = new Vector3(e.z, 0, -e.x); if (Vector3.Dot(nrm, outw) < 0) nrm = -nrm;
-                Quad(g, U(a.x, bottom, a.z), U(b.x, bottom, b.z), U(b.x, baseY + .5, b.z), U(a.x, baseY + .5, a.z), BASE, nrm);
-                Quad(g, U(a.x, baseY + .5, a.z), U(b.x, baseY + .5, b.z), U(b.x, top, b.z), U(a.x, top, a.z), wall, nrm);
-                // windows: dark rectangles per floor, slightly out of the wall
+                Quad(g, U(a.x, bottom, a.z), U(b.x, bottom, b.z), U(b.x, baseY + .5, b.z), U(a.x, baseY + .5, a.z), Slot.Balcony, nrm);
+                Quad(g, U(a.x, baseY + .5, a.z), U(b.x, baseY + .5, b.z), U(b.x, top, b.z), U(a.x, top, a.z), Slot.Wall, nrm);
+                // windows: glass with rooms behind, per floor, slightly out of the wall
                 double len = Math.Sqrt((b.x - a.x) * (b.x - a.x) + (b.z - a.z) * (b.z - a.z));
                 int nw = (int)Math.Floor(len / (ind ? 6 : 3.2)); int floors = (int)Math.Floor((top - baseY - .5) / 3.0);
                 if (windows && len > 3 && nw > 0 && !ind)
@@ -243,16 +231,19 @@ namespace Magistrala.EditorTools
                         {
                             double t0 = (k + .5) / nw - .55 / len, t1 = (k + .5) / nw + .55 / len, y0 = baseY + .5 + f * 3.0 + .9, y1 = y0 + 1.35;
                             if (y1 > top - .3) continue;
-                            Quad(g, U(a.x + (b.x - a.x) * t0, y0, a.z + (b.z - a.z) * t0) + off, U(a.x + (b.x - a.x) * t1, y0, a.z + (b.z - a.z) * t1) + off,
-                                U(a.x + (b.x - a.x) * t1, y1, a.z + (b.z - a.z) * t1) + off, U(a.x + (b.x - a.x) * t0, y1, a.z + (b.z - a.z) * t0) + off, WIN, nrm);
+                            float r0 = (float)((t0 * nw) - k), r1 = (float)((t1 * nw) - k);
+                            float rnd = Mathf.Repeat(Mathf.Sin((float)(cx * 3.1 + cz * 1.7 + f * 13.1 + k * 7.7 + i * 3.3)) * 43758.55f, 1);
+                            float blind = look.rollers ? Mathf.Repeat(rnd * 17.3f, 1) * .9f : 0;
+                            HouseBuilder.EmitGlass(g, U(a.x + (b.x - a.x) * t0, y0, a.z + (b.z - a.z) * t0) + off, U(a.x + (b.x - a.x) * t1, y0, a.z + (b.z - a.z) * t1) + off,
+                                U(a.x + (b.x - a.x) * t1, y1, a.z + (b.z - a.z) * t1) + off, U(a.x + (b.x - a.x) * t0, y1, a.z + (b.z - a.z) * t0) + off,
+                                new Vector2(r0, .3f), new Vector2(r1, .75f), nrm, rnd, blind);
                         }
                 }
             }
             // roof
             var pts = new List<Vector3>(); foreach (var p in P) pts.Add(U(p.x, top, p.z));
-            if (!hip) { foreach (var t in Ear(pts)) Tri(g, pts[t[0]], pts[t[1]], pts[t[2]], ind ? IND * .95f : FLAT, Vector3.up); return; }
+            if (!hip) { foreach (var t in Ear(pts)) Tri(g, pts[t[0]], pts[t[1]], pts[t[2]], ind ? Slot.Wall : Slot.Balcony, Vector3.up); return; }
             double d = .45 * area / (per / 2);
-            Color roof = ROOF[hsh / 7 % ROOF.Length];
             var inner = new List<Vector3>();
             for (int i = 0; i < P.Count; i++)
             {
@@ -262,8 +253,8 @@ namespace Magistrala.EditorTools
                 var q = p + dir / Mathf.Max(L, .01f) * Mathf.Min((float)d * 1.35f, L * .8f);
                 inner.Add(U(q.x, top + d * .55, q.z));
             }
-            for (int i = 0; i < P.Count; i++) { int j = (i + 1) % P.Count; var o0 = pts[i]; var o1 = pts[j]; var e = o1 - o0; var nrm = new Vector3(e.z, 0, -e.x); var mid = (o0 + o1) / 2; if (Vector3.Dot(nrm, mid - new Vector3(C.x, mid.y, C.z)) < 0) nrm = -nrm; Quad(g, o0, o1, inner[j], inner[i], roof, nrm + Vector3.up * 1.5f); }
-            foreach (var t in Ear(inner)) Tri(g, inner[t[0]], inner[t[1]], inner[t[2]], roof, Vector3.up);
+            for (int i = 0; i < P.Count; i++) { int j = (i + 1) % P.Count; var o0 = pts[i]; var o1 = pts[j]; var e = o1 - o0; var nrm = new Vector3(e.z, 0, -e.x); var mid = (o0 + o1) / 2; if (Vector3.Dot(nrm, mid - new Vector3(C.x, mid.y, C.z)) < 0) nrm = -nrm; Quad(g, o0, o1, inner[j], inner[i], Slot.Roof, nrm + Vector3.up * 1.5f); }
+            foreach (var t in Ear(inner)) Tri(g, inner[t[0]], inner[t[1]], inner[t[2]], Slot.Roof, Vector3.up);
             // eaves overhang skipped (probe)
         }
 
