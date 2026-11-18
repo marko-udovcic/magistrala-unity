@@ -652,7 +652,7 @@ namespace Magistrala.Traffic
             float dt = Mathf.Min(Time.deltaTime, .05f);
             clock += Time.deltaTime;
             if (!preset) preset = FindFirstObjectByType<LightPreset>();
-            headlights = preset && preset.Golden; // low-beam lenses lit at sunset (G)
+            headlights = (preset && preset.Golden) || WeatherSystem.Raining; // low-beam lenses lit at sunset (G) and in rain (V)
             if (!cam) cam = Camera.main;
             if (cam) GeometryUtility.CalculateFrustumPlanes(cam, planes);
             FindPlayer();

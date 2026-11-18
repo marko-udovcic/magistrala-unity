@@ -34,7 +34,7 @@ namespace Magistrala
         float target, k, wet; // target 0/1, k = applied blend, wet = road wetness (lags: dries slower than it soaks)
         bool lastGolden; LightPreset lp; Light sun;
         ColorAdjustments ca; WhiteBalance wbc; Bloom bloom; Vignette vig;
-        ReflectionProbe[] probes; ReflectionProbe skyProbe; int skyProbeId = -1; bool skyProbeReady; float probeT; Texture rainRefl;
+        ReflectionProbe[] probes; ReflectionProbe skyProbe; int skyProbeId = -1; bool skyProbeReady, useGradient, rtProbes, rtProbesSaved; float probeT; Texture rainRefl;
         Material skyMat, rainMat, lensMat; GameObject rainGo, lensGo; Mesh rainMesh; int rainN;
         Camera cam; UniversalAdditionalCameraData camData; CameraOverrideOption camColorOpt; bool camColorSaved;
         Vector3 lastCamPos, camVel; bool haveCam;
@@ -44,7 +44,7 @@ namespace Magistrala
             ID_Box = Shader.PropertyToID("_RainBox"), ID_Centre = Shader.PropertyToID("_RainCentre"), ID_CamVel = Shader.PropertyToID("_RainCamVel"),
             ID_Wind = Shader.PropertyToID("_RainWind"), ID_Speed = Shader.PropertyToID("_RainSpeed"), ID_Shutter = Shader.PropertyToID("_RainShutter"),
             ID_Amount = Shader.PropertyToID("_RainAmount"), ID_RainColor = Shader.PropertyToID("_RainColor"), ID_LensAmount = Shader.PropertyToID("_Amount"),
-            ID_LensWind = Shader.PropertyToID("_LensWind"), ID_Alpha = Shader.PropertyToID("_Alpha");
+            ID_LensWind = Shader.PropertyToID("_LensWind"), ID_Alpha = Shader.PropertyToID("_Alpha"), ID_RainI = Shader.PropertyToID("_RainIntensity");
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Attach()
@@ -62,6 +62,8 @@ namespace Magistrala
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-vrijeme") { string w = args[i + 1].ToLowerInvariant(); if (w.StartsWith("ki")) { target = 1; k = 1; wet = 1; } }
             // testing the fade: -vrijeme-prebaci 15 = press V after 15 s
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-vrijeme-odsjaj") useGradient = args[i + 1] == "gradijent";
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-vrijeme-prebaci") float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out toggleAt);
             if (target > 0) { Snapshot(); ApplyAll(); Debug.Log("[vrijeme] kiša (naredbeni redak)"); }
@@ -161,6 +163,9 @@ namespace Magistrala
                 skyProbe.clearFlags = ReflectionProbeClearFlags.Skybox; skyProbe.resolution = 128; skyProbe.hdr = true;
                 skyProbe.size = Vector3.one * .01f; skyProbe.importance = 0; skyProbe.intensity = 1;
             }
+            // the quality levels have realtime probes off: on just for this one render (restored when it's done)
+            if (!rtProbesSaved) { rtProbes = QualitySettings.realtimeReflectionProbes; rtProbesSaved = true; }
+            QualitySettings.realtimeReflectionProbes = true;
             skyProbeId = skyProbe.RenderProbe();
         }
 
@@ -296,9 +301,20 @@ namespace Magistrala
                 else if (skyProbe.IsFinishedRendering(skyProbeId) || Time.unscaledTime - probeT > 2f)
                 {
                     var tex = skyProbe.realtimeTexture;
-                    bool ok = tex && skyProbe.IsFinishedRendering(skyProbeId);
+                    bool fin = skyProbe.IsFinishedRendering(skyProbeId), ok = tex && fin && !useGradient;
+                    if (ok && tex is RenderTexture src)
+                    {
+                        // own copy: the probe's texture may go when realtime probes are switched back off
+                        try
+                        {
+                            var copy = new RenderTexture(src.descriptor) { name = "RainReflection (sky)" };
+                            copy.Create(); Graphics.CopyTexture(src, copy); tex = copy;
+                        }
+                        catch (System.Exception e) { Debug.LogWarning("[vrijeme] kopija sonde: " + e.Message); }
+                    }
                     rainRefl = ok ? tex : GradientCube(); skyProbeReady = true; skyProbeId = -1;
-                    Debug.Log($"[vrijeme] odsjaji: {(ok ? "nebo (realtime sonda)" : "gradijent")}, {probes.Length} sondi");
+                    if (rtProbesSaved) QualitySettings.realtimeReflectionProbes = rtProbes;
+                    Debug.Log($"[vrijeme] odsjaji: {(ok ? "nebo (realtime sonda)" : "gradijent")} (tekstura {(tex ? tex.width + " px" : "nema")}, gotova {fin}), {probes.Length} sondi");
                     ApplyAll();
                 }
             }
@@ -306,6 +322,7 @@ namespace Magistrala
             {
                 if (rainGo && rainGo.activeSelf) rainGo.SetActive(false);
                 if (lensGo && lensGo.activeSelf) lensGo.SetActive(false);
+                Shader.SetGlobalFloat(ID_RainI, 0);
                 if (haveBase && target <= 0) { haveBase = false; SetCameraColor(false); } // back to the plain base (the road still dries)
                 return;
             }
@@ -329,6 +346,7 @@ namespace Magistrala
                 rainMat.SetFloat(ID_Speed, 8.5f);
                 rainMat.SetFloat(ID_Shutter, .04f);
                 rainMat.SetFloat(ID_Amount, k);
+                Shader.SetGlobalFloat(ID_RainI, k);
                 rainMat.SetFloat(ID_Alpha, .5f);
                 Color fc = RenderSettings.fogColor.linear;
                 rainMat.SetColor(ID_RainColor, new Color(fc.r * 1.7f, fc.g * 1.7f, fc.b * 1.75f, 1));

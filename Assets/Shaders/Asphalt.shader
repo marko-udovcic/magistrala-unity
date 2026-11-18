@@ -65,6 +65,7 @@ Shader "Magistrala/Asphalt"
         TEXTURE2D(_WearBump);
         // global (WeatherSystem): 0 dry .. 1 soaked — darker porous binder, mirror-smooth film, puddles in the ruts / at the edge
         float _Wetness;
+        float _RainIntensity; // global (WeatherSystem): rain falling now (ripples in the puddles)
 
         struct Attributes
         {
@@ -233,11 +234,32 @@ Shader "Magistrala/Asphalt"
                 // water stands in the tyre ruts, along the low edge (camber) and in noise-shaped dips; repairs sit a bit lower too
                 float pn = ValueNoise(input.positionWS.xz * 0.21 + 5.3) * 0.65 + ValueNoise(input.positionWS.xz * 0.83 - 2.1) * 0.35;
                 float edgeLow = hasRoadFrame ? smoothstep(input.roadWidths.x - 1.4, input.roadWidths.x - 0.3, abs(input.roadUS.x)) : 0.0;
+                float camD = distance(input.positionWS, _WorldSpaceCameraPos);
                 float puddle = smoothstep(0.64, 0.72, pn + tracks * 0.16 + edgeLow * 0.14 + repairs * 0.08) * smoothstep(0.35, 0.9, wet);
+                puddle *= lerp(1.0, 0.3, saturate((camD - 30.0) / 70.0)); // far away the whole film reads as one sheen, not camouflage
                 albedo *= lerp(1.0, 0.55, wet) * (1.0 - 0.3 * puddle);
                 smoothness = lerp(smoothness, max(smoothness, 0.7 - 0.25 * dust), wet);
                 smoothness = lerp(smoothness, 0.95, puddle);
                 nTS = normalize(lerp(nTS, float3(0, 0, 1), saturate(wet * 0.45 + puddle)));
+                // rain rings in the puddles: one random impact per 0.3 m cell, two layers; only close up (aliasing far away)
+                float rip = puddle * _RainIntensity * saturate(1.0 - camD / 22.0);
+                UNITY_BRANCH if (rip > 0.01)
+                {
+                    float2 ringN = 0;
+                    [unroll] for (int L = 0; L < 2; L++)
+                    {
+                        float2 rp = input.positionWS.xz * (L == 0 ? 3.3 : 2.3) + L * 17.3;
+                        float2 rc = floor(rp); float2 rf = frac(rp) - 0.5;
+                        float h = Hash21(rc + L * 5.1);
+                        float2 c = (float2(Hash21(rc + 3.1), Hash21(rc + 7.7)) - 0.5) * 0.5;
+                        float ph = frac(_Time.y * (1.1 + 0.4 * L) + h);
+                        float2 v = rf - c; float d = length(v) + 1e-4;
+                        float r = ph * 0.42;
+                        float band = saturate(1.0 - abs(d - r) / 0.035) * (1.0 - ph) * (1.0 - ph);
+                        ringN += v / d * band;
+                    }
+                    nTS = normalize(nTS + float3(ringN * 0.5 * rip, 0));
+                }
             }
 
             InputData data = (InputData)0;
