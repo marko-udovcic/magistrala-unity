@@ -19,7 +19,7 @@ namespace Magistrala
             if (acc >= 10f)
             {
                 var tr = FindFirstObjectByType<TruckController>();
-                Debug.Log($"[bench] t={Time.realtimeSinceStartup - t0:F0}s fps={frames / acc:F1} worst={worst * 1000:F0}ms res={Screen.width}x{Screen.height} truck x={(tr ? tr.transform.position.x - 4200 : 0):F0} v={(tr ? tr.SpeedKmh : 0):F0}");
+                Debug.Log($"[bench] t={Time.realtimeSinceStartup - t0:F0}s fps={frames / acc:F1} worst={worst * 1000:F0}ms res={Screen.width}x{Screen.height} q={RenderQuality.Label} truck x={(tr ? tr.transform.position.x - 4200 : 0):F0} v={(tr ? tr.SpeedKmh : 0):F0}");
                 acc = 0; frames = 0; worst = 0;
             }
             var kb = UnityEngine.InputSystem.Keyboard.current;
