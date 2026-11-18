@@ -45,11 +45,19 @@ namespace Magistrala.EditorTools
         public static Material AsphaltMaterial()
         {
             var m = Mat("AsphaltPBR", "Magistrala/Asphalt"); if (!m) return null;
-            m.SetTexture("_BaseMap", Tex(PH + "asphalt_02_diff.jpg"));
-            m.SetTexture("_BumpMap", Tex(PH + "asphalt_02_nor.jpg", true));
-            m.SetTexture("_RoughMap", Tex(PH + "asphalt_02_rough.jpg", false, true));
-            // sun-baked light-medium warm grey (Marko's GTA V references), darker tyre / oil streaks, only a light sheen
-            m.SetColor("_BaseColor", new Color(.86f, .83f, .78f)); m.SetFloat("_SmoothMin", .12f); m.SetFloat("_SmoothMax", .34f); m.SetFloat("_SheenAmount", .3f); m.SetFloat("_TrackSmooth", .06f); m.SetFloat("_TrackDarken", .3f); m.SetFloat("_PatchAmount", .45f); m.SetFloat("_ColorVar", .14f);
+            // fine aggregate: Poly Haven asphalt_track (clean, no cracks — asphalt_02's tar-sealed cracks repeated every 4 m in a
+            // grid across the whole D8); asphalt_02 stays as the worn / cracked layer in patches. Albedo maps are normalised by
+            // their linear means (measured: track 0.0112, 02 0.113), so _BaseColor is the mean albedo: the previous look's
+            // 0.113 × (.86 .83 .78) ≈ sRGB (.35 .345 .335), a touch darker (.31: without the cracks' dark lines the road read lighter) — sun-baked light-medium warm grey (Marko's GTA V references)
+            m.SetTexture("_BaseMap", Tex(PH + "asphalt_track_diff.jpg"));
+            m.SetTexture("_BumpMap", Tex(PH + "asphalt_track_nor.jpg", true));
+            m.SetTexture("_RoughMap", Tex(PH + "asphalt_track_rough.jpg", false, true));
+            m.SetTexture("_WearMap", Tex(PH + "asphalt_02_diff.jpg"));
+            m.SetTexture("_WearBump", Tex(PH + "asphalt_02_nor.jpg", true));
+            m.SetFloat("_Tiling", 2.2f); m.SetFloat("_BaseMean", .0112f); m.SetFloat("_FineContrast", .8f);
+            m.SetFloat("_WearTiling", 5f); m.SetFloat("_WearMean", .113f); m.SetFloat("_WearAmount", .5f); m.SetFloat("_WearScale", 38f);
+            m.SetFloat("_BumpScale", .8f);
+            m.SetColor("_BaseColor", new Color(.31f, .305f, .297f)); m.SetFloat("_SmoothMin", .1f); m.SetFloat("_SmoothMax", .3f); m.SetFloat("_SheenAmount", .3f); m.SetFloat("_TrackSmooth", .06f); m.SetFloat("_TrackDarken", .16f); m.SetFloat("_PatchAmount", .25f); m.SetFloat("_ColorVar", .12f);
             EditorUtility.SetDirty(m);
             return m;
         }
@@ -71,7 +79,8 @@ namespace Magistrala.EditorTools
                     }
                 File.WriteAllBytes(tp, t.EncodeToPNG()); AssetDatabase.ImportAsset(tp);
             }
-            var m = WorldBuilder.Lit("Paint", new Color(.93f, .93f, .91f), .38f, 0, null);
+            // (albedo ≈ 0.5 linear like real road paint: .93 read as glowing white strips against the 0.1 asphalt in ACES)
+            var m = WorldBuilder.Lit("Paint", new Color(.8f, .8f, .78f), .3f, 0, null);
             m.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(tp));
             EditorUtility.SetDirty(m);
             return m;

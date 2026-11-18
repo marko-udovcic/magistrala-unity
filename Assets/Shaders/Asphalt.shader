@@ -2,11 +2,19 @@ Shader "Magistrala/Asphalt"
 {
     Properties
     {
-        [MainTexture] [NoScaleOffset] _BaseMap("Asphalt Albedo", 2D) = "white" {}
+        [MainTexture] [NoScaleOffset] _BaseMap("Asphalt Albedo (fine aggregate)", 2D) = "white" {}
         [Normal] [NoScaleOffset] _BumpMap("Asphalt Normal (OpenGL)", 2D) = "bump" {}
         [NoScaleOffset] _RoughMap("Roughness (R)", 2D) = "white" {}
-        [MainColor] _BaseColor("Tint", Color) = (0.62,0.62,0.64,1)
-        _Tiling("Texture Tile Size (m)", Float) = 4
+        [NoScaleOffset] _WearMap("Worn Asphalt Albedo (cracks)", 2D) = "white" {}
+        [Normal] [NoScaleOffset] _WearBump("Worn Asphalt Normal (OpenGL)", 2D) = "bump" {}
+        [MainColor] _BaseColor("Mean Albedo (sRGB)", Color) = (0.35,0.345,0.335,1)
+        _Tiling("Texture Tile Size (m)", Float) = 2.2
+        _BaseMean("Albedo Map Linear Mean", Float) = 0.0112
+        _FineContrast("Aggregate Contrast", Range(0,1.5)) = 0.55
+        _WearTiling("Worn Tile Size (m)", Float) = 7
+        _WearMean("Worn Map Linear Mean", Float) = 0.113
+        _WearAmount("Worn Patch Coverage", Range(0,1)) = 0.35
+        _WearScale("Worn Patch Size (m)", Float) = 38
         _BumpScale("Normal Strength", Range(0,2)) = 1
         _SmoothMin("Minimum Smoothness", Range(0,1)) = 0.18
         _SmoothMax("Maximum Smoothness", Range(0,1)) = 0.62
@@ -43,10 +51,18 @@ Shader "Magistrala/Asphalt"
             float _TrackDarken;
             float _TrackSmooth;
             float _EdgeDust;
+            float _BaseMean;
+            float _FineContrast;
+            float _WearTiling;
+            float _WearMean;
+            float _WearAmount;
+            float _WearScale;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
         TEXTURE2D(_RoughMap); SAMPLER(sampler_RoughMap);
+        TEXTURE2D(_WearMap); SAMPLER(sampler_WearMap);
+        TEXTURE2D(_WearBump);
 
         struct Attributes
         {
@@ -85,7 +101,7 @@ Shader "Magistrala/Asphalt"
             output.positionWS = p.positionWS;
             output.normalWS = n.normalWS;
             output.tangentWS = float4(n.tangentWS, input.tangentOS.w * GetOddNegativeScale());
-            output.uv = input.groundMetres / max(_Tiling, 0.001);
+            output.uv = input.groundMetres; // world metres (tiling in the fragment: two scales + worn layer)
             output.roadUS = input.roadUS;
             output.roadWidths = input.roadWidths;
             output.lightmapUV = input.lightmapUV * unity_LightmapST.xy + unity_LightmapST.zw;
@@ -93,14 +109,16 @@ Shader "Magistrala/Asphalt"
             output.fogAndLight.yzw = VertexLighting(p.positionWS, n.normalWS);
             return output;
         }
-        float3 SurfaceNormalWS(Varyings input)
+        float3 ToWorld(Varyings input, float3 normalTS)
         {
             float3 n = normalize(input.normalWS);
             float3 t = normalize(input.tangentWS.xyz - n * dot(n, input.tangentWS.xyz));
             float3 b = cross(n, t) * input.tangentWS.w;
-            float3 normalTS = float3(UnpackNormalScale(
-                SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, input.uv), _BumpScale));
             return normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
+        }
+        float3 SurfaceNormalWS(Varyings input)
+        {
+            return ToWorld(input, UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, input.uv / max(_Tiling, 0.001)), _BumpScale));
         }
         float Hash21(float2 p)
         {
@@ -147,7 +165,8 @@ Shader "Magistrala/Asphalt"
             float aa = max(fwidth(us.x), 0.015);
             // 0.55 m full width, including soft shoulders.
             float band = 1.0 - smoothstep(0.19 - aa, 0.275 + aa, distanceToBand);
-            float breaks = smoothstep(0.18, 0.50, ValueNoise(float2(us.y * 0.32, lane * 7.1)));
+            // (12 m cells: long, fading streaks — 3 m cells read as dark dashes on the cleaner aggregate)
+            float breaks = smoothstep(0.25, 0.65, ValueNoise(float2(us.y * 0.08, lane * 7.1)));
             return band * breaks * (1.0 - smoothstep(halfWidth - 0.08, halfWidth, abs(us.x)));
         }
         float4 ShadowCoordinates(float3 positionWS)
@@ -167,9 +186,37 @@ Shader "Magistrala/Asphalt"
             float tracks = TrackMask(input.roadUS, input.roadWidths);
             bool hasRoadFrame = input.roadWidths.x > 0.0 && input.roadWidths.y > 0.0;
             float repairs = RepairMask(hasRoadFrame ? input.roadUS.yx : input.positionWS.xz);
-            float roughness = SAMPLE_TEXTURE2D(_RoughMap, sampler_RoughMap, input.uv).r;
-            float3 albedo = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).rgb * _BaseColor.rgb;
-            albedo *= 1.0 + (macro * 2.0 - 1.0) * _ColorVar;
+            // fine aggregate (asphalt_track, ~2 m real size) at two scales / rotations: the 2.2 m repeat is broken up by a second
+            // sample 2.7× larger and turned 37°; normalised by the map's mean so _BaseColor IS the mean albedo
+            float2 uvA = input.uv / max(_Tiling, 0.001);
+            float2 uvB = float2(input.uv.x * 0.7986 - input.uv.y * 0.6018, input.uv.x * 0.6018 + input.uv.y * 0.7986) / max(_Tiling * 2.7, 0.001) + 0.37;
+            float3 fineA = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvA).rgb, fineB = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uvB).rgb;
+            // (luminance only: the map is a warm brown-black, divided per channel it turned the road mauve; the hue is _BaseColor's)
+            float fineL = dot(fineA * 0.6 + fineB * 0.4, float3(0.2126, 0.7152, 0.0722));
+            // mid-scale mottling (0.4–3 m: binder / aggregate unevenness, oil drops) — the aggregate alone averages out beyond ~10 m
+            float mott = ValueNoise(input.uv * 0.11 + 7.1) * 0.45 + ValueNoise(input.uv * 0.45 - 3.3) * 0.35 + ValueNoise(input.uv * 1.9 + 1.7) * 0.2;
+            float3 fine = lerp(1.0, fineL / max(_BaseMean, 1e-4), _FineContrast) * (1.0 + (mott - 0.5) * 0.36);
+            float roughness = SAMPLE_TEXTURE2D(_RoughMap, sampler_RoughMap, uvA).r;
+            float3 nTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, uvA), _BumpScale);
+            // older, cracked surface (asphalt_02) in patches of ~_WearScale m, world metres (a road-frame uv would seam at the
+            // junction cores, which have none): its sealed cracks run north–south, across the D8 like thermal cracks
+            float2 wp = input.uv;
+            float wn = ValueNoise(input.positionWS.xz / max(_WearScale, 0.001) + 13.7) * 0.7 + ValueNoise(input.positionWS.xz / max(_WearScale * 0.31, 0.001) - 5.1) * 0.3;
+            float wear = smoothstep(1.0 - _WearAmount - 0.08, 1.0 - _WearAmount + 0.08, wn);
+            float3 albedo = fine;
+            UNITY_BRANCH if (wear > 0.002)
+            {
+                float2 uvW = wp / max(_WearTiling, 0.001);
+                float3 wornC = SAMPLE_TEXTURE2D(_WearMap, sampler_WearMap, uvW).rgb;
+                float3 worn = lerp(dot(wornC, float3(0.2126, 0.7152, 0.0722)).xxx, wornC, 0.5) / max(_WearMean, 1e-4);
+                albedo = lerp(albedo, worn, wear);
+                float3 nW = UnpackNormalScale(SAMPLE_TEXTURE2D(_WearBump, sampler_WearMap, uvW), _BumpScale);
+                nTS = normalize(lerp(nTS, nW, wear));
+                roughness = lerp(roughness, 0.95, wear * 0.5);
+            }
+            albedo *= _BaseColor.rgb;
+            float macroBig = ValueNoise(input.positionWS.xz / 95.0 + 3.3);
+            albedo *= (1.0 + (macro * 2.0 - 1.0) * _ColorVar) * (1.0 + (macroBig * 2.0 - 1.0) * _ColorVar * 0.8);
             albedo *= (1.0 - 0.06 * sheenMask) * (1.0 - tracks * _TrackDarken) * (1.0 - 0.15 * repairs);
             float smoothness = saturate(lerp(_SmoothMin, _SmoothMax, sheenMask) * (1.0 - 0.6 * roughness));
             smoothness = saturate(smoothness + tracks * _TrackSmooth + repairs * 0.12);
@@ -182,7 +229,7 @@ Shader "Magistrala/Asphalt"
             InputData data = (InputData)0;
             data.positionWS = input.positionWS;
             data.positionCS = input.positionCS;
-            data.normalWS = half3(SurfaceNormalWS(input));
+            data.normalWS = half3(ToWorld(input, nTS));
             data.viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
             data.shadowCoord = ShadowCoordinates(input.positionWS);
             data.fogCoord = InitializeInputDataFog(float4(input.positionWS, 1.0), input.fogAndLight.x);

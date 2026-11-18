@@ -127,6 +127,20 @@ namespace Magistrala.EditorTools
             return hit;
         }
 
+        /// copy of a road material without its ShadowCaster pass (same shader: SRP-batched with the original)
+        static Material NoCast(Material src, string name)
+        {
+            string p = $"{GEN}/Materials/{name}.mat";
+            var m = AssetDatabase.LoadAssetAtPath<Material>(p);
+            if (m == null) { m = new Material(src); AssetDatabase.CreateAsset(m, p); }
+            m.shader = src.shader; m.CopyPropertiesFromMaterial(src); m.enableInstancing = src.enableInstancing;
+            m.SetShaderPassEnabled("ShadowCaster", false);
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        public static bool flatCast = true; // (A/B: false = every road model's asphalt / paint casts as before)
+
         [MenuItem("Magistrala/Build roads")]
         public static void Roads()
         {
@@ -134,6 +148,7 @@ namespace Magistrala.EditorTools
             var root = Root("Roads");
             Dir(GEN + "/Roads");
             var mats = RoadMats();
+            var flatMats = new[] { NoCast(mats[0], "AsphaltFlat"), NoCast(mats[1], "PaintFlat") };
             var phys = new PhysicsMaterial("Asphalt") { dynamicFriction = 1f, staticFriction = 1f, frictionCombine = PhysicsMaterialCombine.Average };
             Save(phys, GEN + "/Roads/Asphalt.physicMaterial");
             var railPhys = new PhysicsMaterial("Rail") { dynamicFriction = .1f, staticFriction = .1f, frictionCombine = PhysicsMaterialCombine.Minimum };
@@ -142,6 +157,8 @@ namespace Magistrala.EditorTools
             foreach (var m in models)
             {
                 var glb = Glb.Read(W.KRIZ + m.glb);
+                // no bridge deck: its asphalt / paint lie on the (holed, lowered) terrain — nothing below to shadow, out of the shadow maps
+                bool flat = flatCast && !glb.Exists(g => g.name == "deck");
                 var v = new List<Vector3>[7]; var nr = new List<Vector3>[7]; var uv = new List<Vector2>[7]; var uv1 = new List<Vector2>[7]; var uv2 = new List<Vector2>[7];
                 for (int k = 0; k < 7; k++) { v[k] = new List<Vector3>(); nr[k] = new List<Vector3>(); uv[k] = new List<Vector2>(); uv1[k] = new List<Vector2>(); uv2[k] = new List<Vector2>(); }
                 var groundRoads = m.roads.FindAll(r => r.lvl == 0);
@@ -200,11 +217,20 @@ namespace Magistrala.EditorTools
                 var mesh = new Mesh { name = m.key, indexFormat = IndexFormat.UInt32 };
                 var allU1 = new List<Vector2>(); var allU2 = new List<Vector2>();
                 var allV = new List<Vector3>(); var allN = new List<Vector3>(); var allU = new List<Vector2>(); var subs = new List<int[]>(); var subMats = new List<Material>();
+                // welded: the triangles above are unindexed (3 vertices each) — identical corners (position, normal, all uvs) shared
+                // within a material: the GLBs' indexed meshes come back to ~1/4 of the vertices (vertex shading, shadow passes, memory)
                 for (int k = 0; k < 7; k++)
                 {
                     if (v[k].Count == 0) continue;
-                    int b0 = allV.Count; allV.AddRange(v[k]); allN.AddRange(nr[k]); allU.AddRange(uv[k]); allU1.AddRange(uv1[k]); allU2.AddRange(uv2[k]);
-                    subs.Add(Enumerable.Range(b0, v[k].Count).ToArray()); subMats.Add(mats[k]);
+                    var map = new Dictionary<(Vector3, Vector3, Vector2, Vector2, Vector2), int>(v[k].Count / 3);
+                    var ix = new int[v[k].Count];
+                    for (int i = 0; i < v[k].Count; i++)
+                    {
+                        var key = (v[k][i], nr[k][i], uv[k][i], uv1[k][i], uv2[k][i]);
+                        if (!map.TryGetValue(key, out int id)) { id = allV.Count; map[key] = id; allV.Add(v[k][i]); allN.Add(nr[k][i]); allU.Add(uv[k][i]); allU1.Add(uv1[k][i]); allU2.Add(uv2[k][i]); }
+                        ix[i] = id;
+                    }
+                    subs.Add(ix); subMats.Add(flat && k <= 1 ? flatMats[k] : mats[k]);
                 }
                 mesh.SetVertices(allV); mesh.SetNormals(allN); mesh.SetUVs(0, allU); mesh.SetUVs(1, allU1); mesh.SetUVs(2, allU2);
                 mesh.subMeshCount = subs.Count;
@@ -397,6 +423,43 @@ namespace Magistrala.EditorTools
                 }
             AssetDatabase.SaveAssets();
             Debug.Log("[Magistrala] terrain built");
+            FixHoles();
+        }
+
+        /// terrain holes under the models are cut from the models' 1 m surface grid (± 2.2 m): where the mesh is narrower than the
+        /// grid (median gaps on d13 / d14, island ends on d01, kerb corners at 03) a hole was left with no road over it — the sea
+        /// plane / sky showed through as blue patches and lines. A hole stays only where a road collider is over all four corners
+        /// and the centre of its cell (the ground there is the model's surface − 0.25 m: no poke-through when filled).
+        [MenuItem("Magistrala/Fix terrain holes")]
+        public static int FixHoles()
+        {
+            bool Cov(Vector3 p)
+            {
+                foreach (var h in Physics.RaycastAll(p, Vector3.down, 1000)) if (h.collider is MeshCollider && h.collider.transform.parent && h.collider.transform.parent.name == "Roads") return true;
+                return false;
+            }
+            Physics.SyncTransforms();
+            int filled = 0;
+            foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
+            {
+                var td = t.terrainData; int hr = td.holesResolution; if (hr <= 0) continue;
+                var H = td.GetHoles(0, 0, hr, hr); var o = t.transform.position; float cs = td.size.x / hr; int n = 0;
+                for (int r = 0; r < hr; r++)
+                    for (int c = 0; c < hr; c++)
+                    {
+                        if (H[r, c]) continue;
+                        for (int k = 0; k < 5; k++)
+                        {
+                            float fx = k == 4 ? .5f : (k % 2 == 0 ? .05f : .95f), fz = k == 4 ? .5f : (k < 2 ? .05f : .95f);
+                            if (!Cov(new Vector3(o.x + (c + fx) * cs, 500, o.z + (r + fz) * cs))) { H[r, c] = true; n++; break; }
+                        }
+                    }
+                if (n > 0) { td.SetHoles(0, 0, H); EditorUtility.SetDirty(td); filled += n; }
+            }
+            AssetDatabase.SaveAssets();
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log($"[Magistrala] terrain holes: {filled} cells without a road over them filled");
+            return filled;
         }
 
         // ------------------------------------------------------------------ trees (tile TREES: x, y, z, kind, scale; kind 0 pine, 1 deciduous, 2 cypress, 3 olive, 4 shrub, 5 rock)

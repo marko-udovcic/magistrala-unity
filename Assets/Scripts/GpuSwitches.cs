@@ -16,6 +16,8 @@ namespace Magistrala
     ///   -sea 0      -probes 0 (reflection probe blending / box projection off)   -tbase M (terrain basemap distance)
     ///   -golden 1   start in sunset    -shot path.png [-shotat s]  screenshot after s seconds (default 25)
     ///   -burst N    with -shot: N consecutive frames path_00.png.. (shimmer / temporal look while driving)
+    ///   -tp gx[,gx2..]  put the truck on the autopilot path at game x (after 1 s, then the next every 12 s) — look at given stretches
+    ///   -shots t1,t2,..  with -shot: one screenshot at each time after the scene start, path_t030.png.. (look along the drive in one run)
     ///   -near M / -far M  camera clip planes (after TruckChaseCamera.Awake)
     ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
     public class GpuSwitches : MonoBehaviour
@@ -114,10 +116,11 @@ namespace Magistrala
             return arr[0].rendererFeatures;
         }
 
-        float shotAt = 25; string shot; bool shotDone; int burst, burstI;
+        float shotAt = 25; string shot; bool shotDone; int burst, burstI; float[] shots; int shotsI; float t0;
 
         void Start()
         {
+            t0 = Time.realtimeSinceStartup;
             var sb = new System.Text.StringBuilder("[gpu] scene:");
             var cam = Camera.main;
             Debug.Log($"[gpu] depth {SystemInfo.GetGraphicsFormat(UnityEngine.Experimental.Rendering.DefaultFormat.DepthStencil)}, reversed Z {SystemInfo.usesReversedZBuffer}, near {(cam ? cam.nearClipPlane : 0)} far {(cam ? cam.farClipPlane : 0)}");
@@ -153,11 +156,30 @@ namespace Magistrala
             if (TryF("-tbase", out var tb)) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.basemapDistance = tb; sb.Append($" tbase {tb}"); }
             if (Arg("-golden") == "1") { var lp = FindFirstObjectByType<LightPreset>(); if (lp) { lp.SetGolden(true); sb.Append(" golden"); } }
             shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa; if (TryF("-burst", out var bu)) burst = (int)bu;
+            if (Arg("-shots") is string sl) shots = System.Array.ConvertAll(sl.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture));
+            if (Arg("-tp") is string tps) StartCoroutine(Tp(System.Array.ConvertAll(tps.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture))));
             Debug.Log(sb.ToString());
+        }
+
+        System.Collections.IEnumerator Tp(float[] gx)
+        {
+            yield return new WaitForSeconds(1f);
+            var ap = FindFirstObjectByType<Autopilot>();
+            foreach (var x in gx) { if (ap) { ap.Teleport(x); Debug.Log($"[gpu] tp {x} at {Time.realtimeSinceStartup:F0}s"); } yield return new WaitForSeconds(12f); }
         }
 
         void Update()
         {
+            if (shot != null && shots != null)
+            {
+                if (shotsI < shots.Length && Time.realtimeSinceStartup - t0 > shots[shotsI])
+                {
+                    var tr = FindFirstObjectByType<TruckController>();
+                    string f = shot.Replace(".png", $"_t{shots[shotsI]:000}.png"); ScreenCapture.CaptureScreenshot(f);
+                    Debug.Log($"[gpu] shot {f} truck x={(tr ? tr.transform.position.x - 4200 : 0):F0} z={(tr ? -tr.transform.position.z - 5300 : 0):F0}"); shotsI++;
+                }
+                return;
+            }
             if (shot == null || shotDone || Time.realtimeSinceStartup <= shotAt) return;
             if (burst <= 1) { shotDone = true; ScreenCapture.CaptureScreenshot(shot); Debug.Log("[gpu] shot " + shot); return; }
             ScreenCapture.CaptureScreenshot(shot.Replace(".png", $"_{burstI:D2}.png"));
