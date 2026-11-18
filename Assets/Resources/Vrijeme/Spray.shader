@@ -37,10 +37,10 @@ Shader "Magistrala/Spray"
             {
                 float2 d = i.uv * 2 - 1;
                 float r = dot(d, d);
-                float a = saturate(1 - r); a *= a;
+                float a = exp(-r * 3.5) * saturate(1 - r); // gaussian-ish: soft mist, not discs
                 float2 suv = i.screen.xy / i.screen.w;
                 float scene = LinearEyeDepth(SampleSceneDepth(suv), _ZBufferParams);
-                a *= saturate((scene - i.eye) / 0.6) * saturate((i.eye - 0.8) / 2.0);
+                a *= saturate((scene - i.eye) / 0.6) * saturate((i.eye - 2.0) / 4.0);
                 return half4(_Color.rgb * i.color.rgb, a * i.color.a);
             }
             ENDHLSL

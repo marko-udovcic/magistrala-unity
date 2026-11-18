@@ -16,7 +16,7 @@ namespace Magistrala
         ParticleSystem[] truckPs = new ParticleSystem[2], carPs = new ParticleSystem[CarEmitters];
         TrafficSystem.Car[] carOf = new TrafficSystem.Car[CarEmitters];
         TruckController truck; Rigidbody body; WheelCollider[] rear;
-        TrafficSystem traffic; float pickT; bool built;
+        TrafficSystem traffic; float pickT, logT = 15f; bool built, dbgRed = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-prskanje-crveno") >= 0;
         readonly List<TrafficSystem.Car> near = new List<TrafficSystem.Car>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -33,17 +33,17 @@ namespace Magistrala
             ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             var main = ps.main;
             main.loop = true; main.playOnAwake = false; main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(.7f, 1.4f);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(.9f, 1.8f);
             main.startSpeed = new ParticleSystem.MinMaxCurve(.8f, 2.5f);
             main.startSize = new ParticleSystem.MinMaxCurve(.5f * size, 1.1f * size);
             main.startRotation = new ParticleSystem.MinMaxCurve(0, Mathf.PI * 2);
-            main.startColor = new Color(1, 1, 1, .32f);
-            main.maxParticles = 220; main.gravityModifier = .03f;
+            main.startColor = new Color(1, 1, 1, .55f);
+            main.maxParticles = 300; main.gravityModifier = .03f;
             main.emitterVelocityMode = ParticleSystemEmitterVelocityMode.Custom;
             var em = ps.emission; em.rateOverTime = 0;
             var sh = ps.shape; sh.shapeType = ParticleSystemShapeType.Cone; sh.angle = 35; sh.radius = .25f;
-            var inh = ps.inheritVelocity; inh.enabled = true; inh.mode = ParticleSystemInheritVelocityMode.Initial; inh.curveMultiplier = .45f;
-            var drag = ps.limitVelocityOverLifetime; drag.enabled = true; drag.drag = 1.6f; drag.multiplyDragByParticleSize = false; drag.limit = 100f;
+            var inh = ps.inheritVelocity; inh.enabled = true; inh.mode = ParticleSystemInheritVelocityMode.Initial; inh.curveMultiplier = .72f; // the wake drags the mist along: it trails the vehicle instead of stopping dead
+            var drag = ps.limitVelocityOverLifetime; drag.enabled = true; drag.drag = .8f; drag.multiplyDragByParticleSize = false; drag.limit = 100f;
             var sol = ps.sizeOverLifetime; sol.enabled = true; sol.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0, .5f), new Keyframe(1, 2.4f)));
             var col = ps.colorOverLifetime; col.enabled = true;
             var g = new Gradient();
@@ -64,7 +64,7 @@ namespace Magistrala
             built = true;
             var shd = Shader.Find("Magistrala/Spray"); if (!shd) { enabled = false; return; }
             mat = new Material(shd) { name = "Spray (runtime)" };
-            for (int i = 0; i < 2; i++) truckPs[i] = Make("Prskanje kamion " + i, 1.4f);
+            for (int i = 0; i < 2; i++) truckPs[i] = Make("Prskanje kamion " + i, 1.7f);
             for (int i = 0; i < CarEmitters; i++) carPs[i] = Make("Prskanje auto " + i, .8f);
         }
 
@@ -81,7 +81,7 @@ namespace Magistrala
             if (!built) Build();
             if (!mat) return;
             float k = Mathf.InverseLerp(.25f, 1f, wet);
-            mat.SetColor("_Color", RenderSettings.fogColor.linear * 1.25f);
+            mat.SetColor("_Color", dbgRed ? new Color(3, 0, 0) : RenderSettings.fogColor.linear * 1.8f); // brighter than the sky-grey wet road it hangs over, or it vanishes into it
             // truck: the two outermost rear wheels
             if (!truck) { truck = FindFirstObjectByType<TruckController>(); rear = null; }
             if (truck && truck.IsReady && rear == null)
@@ -104,7 +104,7 @@ namespace Magistrala
                     Vector3 p = w.transform.position - t.up * (w.radius * .75f) - t.forward * (w.radius * .7f);
                     truckPs[i].transform.SetPositionAndRotation(p, Quaternion.LookRotation(-t.forward * .8f + t.up * .6f, t.up));
                     var main = truckPs[i].main; main.emitterVelocity = v;
-                    Rate(truckPs[i], k * Mathf.Clamp01((spd - 4f) / 18f) * 70f);
+                    Rate(truckPs[i], k * Mathf.Clamp01((spd - 4f) / 18f) * 95f);
                 }
             }
             // AI cars: re-pick the nearest fast ones 4× a second
@@ -127,6 +127,11 @@ namespace Magistrala
                     carOf[free] = c; carPs[free].transform.position = c.pos; // fresh car: move first, emit from the next frame
                 }
             }
+            if (Time.time > logT)
+            {
+                logT = Time.time + 10f; int pc = 0; foreach (var p in carPs) pc += p.particleCount;
+                Debug.Log($"[prskanje] kamion {(rear != null ? truckPs[0].particleCount + truckPs[1].particleCount : -1)} čestica (kotači {(rear != null ? "da" : "ne")}, {(body ? body.linearVelocity.magnitude * 3.6f : 0):F0} km/h), auti {pc} ({System.Array.FindAll(carOf, x => x != null).Length} emitera)");
+            }
             for (int i = 0; i < CarEmitters; i++)
             {
                 var c = carOf[i];
@@ -135,7 +140,7 @@ namespace Magistrala
                 carPs[i].transform.SetPositionAndRotation(c.pos - f * (c.len * .42f) + up * .15f, Quaternion.LookRotation(-f * .8f + up * .6f, up));
                 var main = carPs[i].main; main.emitterVelocity = f * c.v;
                 var sh = carPs[i].shape; sh.radius = Mathf.Max(.25f, c.hw * .8f);
-                Rate(carPs[i], k * Mathf.Clamp01((c.v - 5f) / 18f) * 45f);
+                Rate(carPs[i], k * Mathf.Clamp01((c.v - 5f) / 18f) * 60f);
             }
         }
     }
