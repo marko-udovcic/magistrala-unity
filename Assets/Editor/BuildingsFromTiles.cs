@@ -79,7 +79,8 @@ namespace Magistrala.EditorTools
                         double gmin = double.MaxValue, gmax = double.MinValue;
                         foreach (var p in P) { double g = Ground(models, p.x, p.z); gmin = Math.Min(gmin, g); gmax = Math.Max(gmax, g); }
                         double baseY = gmax - Math.Min(1.0, (gmax - gmin) * .3), bottom = gmin - .6, top = baseY + h;
-                        long key = ((long)Math.Floor(cx / 256) << 32) ^ (uint)Math.Floor(cz / 256);
+                        // (uint)(int): a negative double cast straight to uint is 0 on ARM, which had merged every cell south of z = 0 into one 2 km strip
+                        long key = ((long)Math.Floor(cx / 256) << 32) ^ (uint)(int)Math.Floor(cz / 256);
                         bool done = false;
                         if (NearD8(cx, cz))
                         {

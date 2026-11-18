@@ -43,6 +43,13 @@ namespace Magistrala
             int lvl = PlayerPrefs.GetInt(PREF, 1);
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++) if (args[i] == "-kvaliteta" && int.TryParse(args[i + 1], out int v)) lvl = v;
+            // measuring only: -grd 0 turns the GPU Resident Drawer off, -occl 0 only its GPU occlusion culling
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (args[i] == "-grd" && args[i + 1] == "0") rp.gpuResidentDrawerMode = GPUResidentDrawerMode.Disabled;
+                if (args[i] == "-occl" && args[i + 1] == "0") rp.gpuResidentDrawerEnableOcclusionCullingInCameras = false;
+            }
+            Debug.Log($"[kvaliteta] GPU Resident Drawer {rp.gpuResidentDrawerMode}, occlusion {rp.gpuResidentDrawerEnableOcclusionCullingInCameras}");
             Set(lvl, false);
         }
 
