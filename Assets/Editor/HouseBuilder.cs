@@ -28,6 +28,11 @@ namespace Magistrala.EditorTools
     public static class HouseBuilder
     {
         const int SlotCount = 11;
+        /// Detail level of the next AddHouse calls (LODGroup per chunk, BuildingsFromTiles): 0 = full (recessed windows with
+        /// reveals, 3D sills, railing bars), 1 = mid (one wall quad per facade, glass / sill fronts / shutters as thin overlays,
+        /// balcony slab + panels), 2 = far (walls, glass overlays, roofs). The same seed gives the same house in every level:
+        /// the random draws do not depend on Lod.
+        public static int Lod;
         const float FloorHeight = 3f;
         const string MaterialFolder = "Assets/Generated/Materials";
         const string TextureFolder = "Assets/Textures/PolyHaven/";
@@ -129,6 +134,7 @@ namespace Magistrala.EditorTools
                 var f = new Facade { origin = a, along = along, outward = outward,
                     length = Vector3.Distance(a, b), baseY = ground };
                 Wall(g, f, Slot.Trim, 0, f.length, bottom, plinth);
+                if (Lod > 0) Wall(g, f, wall, 0, f.length, plinth, top);
                 int columns = f.length > 3 ? Mathf.Max(1, Mathf.FloorToInt(f.length / (industrial ? 7f : 3.2f))) : 0;
                 if (industrial) columns = Mathf.Min(columns, 3);
                 float lastY = plinth;
@@ -147,7 +153,7 @@ namespace Magistrala.EditorTools
                     bool balcony = !industrial && floors >= 2 && i == longest && floor >= 1
                         && f.length >= 4 && random.NextDouble() < .5;
                     int balconyColumn = columns / 2;
-                    if (balcony)
+                    if (balcony && Lod == 0)
                     {
                         float doorCentre = (balconyColumn + .5f) * spacing;
                         Wall(g, f, wall, 0, doorCentre - width / 2, lastY, y0);
@@ -155,30 +161,31 @@ namespace Magistrala.EditorTools
                         Wall(g, f, wall, doorCentre - width / 2, doorCentre + width / 2,
                             lastY, ground + floor * FloorHeight + .08f);
                     }
-                    else Wall(g, f, wall, 0, f.length, lastY, y0);
+                    else if (Lod == 0) Wall(g, f, wall, 0, f.length, lastY, y0);
                     for (int k = 0; k < columns; k++)
                     {
                         float centre = (k + .5f) * spacing, x0 = centre - width / 2, x1 = centre + width / 2;
-                        Wall(g, f, wall, cursor, x0, y0, y1);
+                        if (Lod == 0) Wall(g, f, wall, cursor, x0, y0, y1);
                         // A balcony door drops to the slab; cut the lower wall only in this column.
                         float openingBottom = balcony && k == balconyColumn ? ground + floor * FloorHeight + .08f : y0;
-                        Window(g, f, wall, shutter, x0, x1, openingBottom, y1, shutters && !shop);
+                        if (Lod == 0) Window(g, f, wall, shutter, x0, x1, openingBottom, y1, shutters && !shop);
+                        else FlatWindow(g, f, shutter, x0, x1, openingBottom, y1, shutters && !shop);
                         if (balcony && k == balconyColumn)
                         {
                             float balconyWidth = Mathf.Min(2f + (float)random.NextDouble() * 2f,
                                 2f * Mathf.Min(centre - .3f, f.length - centre - .3f));
-                            Balcony(g, f, centre, ground + floor * FloorHeight, balconyWidth);
+                            if (Lod < 2) Balcony(g, f, centre, ground + floor * FloorHeight, balconyWidth);
                         }
                         cursor = x1;
                     }
-                    Wall(g, f, wall, cursor, f.length, y0, y1);
+                    if (Lod == 0) Wall(g, f, wall, cursor, f.length, y0, y1);
                     lastY = y1;
                 }
-                Wall(g, f, wall, 0, f.length, lastY, top);
+                if (Lod == 0) Wall(g, f, wall, 0, f.length, lastY, top);
             }
 
             // Seal the foundation, including concave footprints.
-            Surface(g, points, triangles, bottom, Slot.Trim, Vector3.down);
+            if (Lod == 0) Surface(g, points, triangles, bottom, Slot.Trim, Vector3.down);
             if (!industrial && points.Count <= 8 && Math.Abs(signedArea) < 450)
                 HipRoof(g, points, top);
             else
@@ -206,6 +213,18 @@ namespace Magistrala.EditorTools
             Face(g, Slot.Trim, s1, f.P(x1 + .08f, y0 - .085f, -.12f), f.P(x1 + .08f, y0 - .015f, -.12f), s2, f.along);
             if (!leaves) return;
             // Open leaves lie beside the reveal, slightly angled off the plaster (no coplanar overlay).
+            Shutter(g, f, shutter, x0 - .49f, x0 - .04f, y0, y1, .065f, .035f);
+            Shutter(g, f, shutter, x1 + .04f, x1 + .49f, y0, y1, .035f, .065f);
+        }
+
+        // Lod 1 / 2: the opening as a glass quad 3 cm off the continuous wall (no reveals); Lod 1 adds the sill front and the leaves
+        static void FlatWindow(HouseGeo g, Facade f, Slot shutter, float x0, float x1, float y0, float y1, bool leaves)
+        {
+            Face(g, Slot.Glass, f.P(x0, y0, .03f), f.P(x1, y0, .03f), f.P(x1, y1, .03f), f.P(x0, y1, .03f), f.outward);
+            if (Lod > 1) return;
+            Vector3 s0 = f.P(x0 - .08f, y0 - .085f, .05f), s1 = f.P(x1 + .08f, y0 - .085f, .05f);
+            Face(g, Slot.Trim, s0, s1, s1 + Vector3.up * .07f, s0 + Vector3.up * .07f, f.outward);
+            if (!leaves) return;
             Shutter(g, f, shutter, x0 - .49f, x0 - .04f, y0, y1, .065f, .035f);
             Shutter(g, f, shutter, x1 + .04f, x1 + .49f, y0, y1, .035f, .065f);
         }
@@ -242,6 +261,7 @@ namespace Magistrala.EditorTools
             RailPanel(g, f.P(left, floorY + .12f, 1), f.P(right, floorY + .12f, 1), f.outward);
             RailPanel(g, f.P(left, floorY + .12f, 0), f.P(left, floorY + .12f, 1), -f.along);
             RailPanel(g, f.P(right, floorY + .12f, 1), f.P(right, floorY + .12f, 0), f.along);
+            if (Lod > 0) return;
             Box(g, Slot.Rail, f.P(left - .025f, floorY + .96f, .975f), f.along, f.outward, width + .05f, .05f, .05f);
             Box(g, Slot.Rail, f.P(left - .025f, floorY + .96f, 0), f.along, f.outward, .05f, .05f, 1);
             Box(g, Slot.Rail, f.P(right - .025f, floorY + .96f, 0), f.along, f.outward, .05f, .05f, 1);
