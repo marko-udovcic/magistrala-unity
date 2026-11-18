@@ -233,7 +233,7 @@ Shader "Magistrala/Asphalt"
                 // water stands in the tyre ruts, along the low edge (camber) and in noise-shaped dips; repairs sit a bit lower too
                 float pn = ValueNoise(input.positionWS.xz * 0.21 + 5.3) * 0.65 + ValueNoise(input.positionWS.xz * 0.83 - 2.1) * 0.35;
                 float edgeLow = hasRoadFrame ? smoothstep(input.roadWidths.x - 1.4, input.roadWidths.x - 0.3, abs(input.roadUS.x)) : 0.0;
-                float puddle = smoothstep(0.6, 0.7, pn + tracks * 0.16 + edgeLow * 0.14 + repairs * 0.08) * smoothstep(0.35, 0.9, wet);
+                float puddle = smoothstep(0.64, 0.72, pn + tracks * 0.16 + edgeLow * 0.14 + repairs * 0.08) * smoothstep(0.35, 0.9, wet);
                 albedo *= lerp(1.0, 0.55, wet) * (1.0 - 0.3 * puddle);
                 smoothness = lerp(smoothness, max(smoothness, 0.7 - 0.25 * dust), wet);
                 smoothness = lerp(smoothness, 0.95, puddle);

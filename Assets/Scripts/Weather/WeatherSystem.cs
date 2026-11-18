@@ -38,7 +38,7 @@ namespace Magistrala
         Material skyMat, rainMat, lensMat; GameObject rainGo, lensGo; Mesh rainMesh; int rainN;
         Camera cam; UniversalAdditionalCameraData camData; CameraOverrideOption camColorOpt; bool camColorSaved;
         Vector3 lastCamPos, camVel; bool haveCam;
-        float toastUntil; GUIStyle toastStyle;
+        float toastUntil, toggleAt = -1; GUIStyle toastStyle;
 
         static readonly int ID_Wetness = Shader.PropertyToID("_Wetness"), ID_Overcast = Shader.PropertyToID("_Overcast"),
             ID_Box = Shader.PropertyToID("_RainBox"), ID_Centre = Shader.PropertyToID("_RainCentre"), ID_CamVel = Shader.PropertyToID("_RainCamVel"),
@@ -61,6 +61,9 @@ namespace Magistrala
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++)
                 if (args[i] == "-vrijeme") { string w = args[i + 1].ToLowerInvariant(); if (w.StartsWith("ki")) { target = 1; k = 1; wet = 1; } }
+            // testing the fade: -vrijeme-prebaci 15 = press V after 15 s
+            for (int i = 0; i < args.Length - 1; i++)
+                if (args[i] == "-vrijeme-prebaci") float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out toggleAt);
             if (target > 0) { Snapshot(); ApplyAll(); Debug.Log("[vrijeme] kiša (naredbeni redak)"); }
         }
 
@@ -91,7 +94,7 @@ namespace Magistrala
                 sunI = sun ? sun.intensity : 1, shadow = sun ? sun.shadowStrength : 1,
                 fogD = RenderSettings.fogDensity, fog = RenderSettings.fogColor,
                 sky = RenderSettings.ambientSkyColor, eq = RenderSettings.ambientEquatorColor, ground = RenderSettings.ambientGroundColor,
-                exposure = ca ? ca.postExposure.value : 0, contrast = ca ? ca.contrast.value : 0, sat = ca ? ca.saturation.value : 0,
+                exposure = ca ? ca.postExposure.value - CameraFeel.ExposureOffset : 0, // without the eye adaptation contrast = ca ? ca.contrast.value : 0, sat = ca ? ca.saturation.value : 0,
                 wb = wbc ? wbc.temperature.value : 0, bloomT = bloom ? bloom.threshold.value : 1, bloomI = bloom ? bloom.intensity.value : 0, vig = vig ? vig.intensity.value : 0,
                 skybox = RenderSettings.skybox == skyMat ? b.skybox : RenderSettings.skybox,
                 defRefl = RenderSettings.customReflectionTexture, reflMode = RenderSettings.defaultReflectionMode,
@@ -265,6 +268,7 @@ namespace Magistrala
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.vKey.wasPressedThisFrame) Set(target < .5f);
+            if (toggleAt > 0 && Time.timeSinceLevelLoad > toggleAt) { toggleAt = -1; Set(target < .5f); }
         }
 
         void LateUpdate()

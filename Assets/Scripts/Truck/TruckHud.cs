@@ -36,6 +36,6 @@ public sealed class TruckHud : MonoBehaviour
         GUI.Label(new Rect(panel.x + 10, panel.y + 4, width - 20, 28), $"{speed:0} km/h    Brzina: {gear}    {rpm:0} rpm", labelStyle);
         float ms = smoothedFrameTime * 1000f;
         GUI.Label(new Rect(panel.x + 10, panel.y + 33, width - 20, 22), $"FPS: {1f / Mathf.Max(smoothedFrameTime, 0.0001f):0} ({ms:0.0} ms) · kvaliteta {Magistrala.RenderQuality.Label}", helpStyle);
-        GUI.Label(new Rect(panel.x + 10, panel.y + 58, width - 20, 23), "WASD vozi · Space ručna · C kabina · R vrati · miš kamera · G zalazak · L svjetla · P autopilot · K kvaliteta · F1 graf · F2 konzola", helpStyle);
+        GUI.Label(new Rect(panel.x + 10, panel.y + 58, width - 20, 23), "WASD vozi · Space ručna · C kabina · R vrati · miš kamera · G zalazak · V kiša · B kamera · L svjetla · P autopilot · K kvaliteta · F1 graf · F2 konzola", helpStyle);
     }
 }
