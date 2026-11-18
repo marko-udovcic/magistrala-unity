@@ -7,6 +7,9 @@ namespace Magistrala
     public class ProbeBench : MonoBehaviour
     {
         float acc; int frames; float worst; float t0;
+        // hitches: frames over 25 / 50 ms in the window, the worst one, the trees' own Update (max ms) and GC collections;
+        // every frame over 50 ms after the first 15 s also gets its own [spike] line (at most 20 per window)
+        int over25, over50, spikeLines, gc0; float treeMax;
         // where the frame goes: FrameTimingManager (main / render thread / GPU, also in release players) and, in development
         // players, the main profiler markers (averaged over the 10 s window)
         static readonly string[] Markers = { "PlayerLoop", "FixedUpdate.PhysicsFixedUpdate", "Update.ScriptRunBehaviourUpdate", "PreLateUpdate.ScriptRunBehaviourLateUpdate",
@@ -28,7 +31,10 @@ namespace Magistrala
         {
             t0 = Time.realtimeSinceStartup;
             foreach (var a in System.Environment.GetCommandLineArgs())
-                if (a == "-autopilot") { var ap = FindFirstObjectByType<Autopilot>(); if (ap) ap.drive = true; }
+                {
+                    if (a == "-autopilot") { var ap = FindFirstObjectByType<Autopilot>(); if (ap) ap.drive = true; }
+                    if (a == "-mute") AudioListener.volume = 0; // measuring runs: no engine / radio on the speakers
+                }
             // measuring only: -skip trees,terrain,World/Buildings,shadows,... turns groups off to see what each one costs
             var args = System.Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length - 1; i++) if (args[i] == "-skip")
@@ -54,6 +60,9 @@ namespace Magistrala
         void Update()
         {
             float dt = Time.unscaledDeltaTime; acc += dt; frames++; worst = Mathf.Max(worst, dt);
+            if (dt > .025f) over25++;
+            if (dt > .05f) { over50++; if (Time.realtimeSinceStartup - t0 > 15 && spikeLines++ < 20) { var tr0 = FindFirstObjectByType<TruckController>(); Debug.Log($"[spike] t={Time.realtimeSinceStartup - t0:F1}s {dt * 1000:F0}ms trees={TreeRenderer.LastMs:F1}ms truck x={(tr0 ? tr0.transform.position.x - 4200 : 0):F0} z={(tr0 ? tr0.transform.position.z : 0):F0}"); } }
+            treeMax = Mathf.Max(treeMax, TreeRenderer.LastMs);
             for (int i = 0; i < rec.Length; i++) if (rec[i].Valid) recSum[i] += rec[i].LastValue * 1e-6;
             FrameTimingManager.CaptureFrameTimings();
             if (FrameTimingManager.GetLatestTimings(1, ft) > 0) { ftMain += ft[0].cpuMainThreadFrameTime; ftRender += ft[0].cpuRenderThreadFrameTime; ftGpu += ft[0].gpuFrameTime; ftN++; }
@@ -66,6 +75,9 @@ namespace Magistrala
                 for (int i = 0; i < rec.Length; i++) if (rec[i].Valid && recSum[i] > 0) sb.Append($" {Markers[i]}={recSum[i] / frames:F2}");
                 for (int i = 0; i < cnt.Length; i++) if (cnt[i].Valid) sb.Append($" [{Counters[i].Replace(" Count", "")}={cnt[i].LastValue}]");
                 Debug.Log(sb.ToString());
+                int gc = System.GC.CollectionCount(0);
+                Debug.Log($"[hitch] t={Time.realtimeSinceStartup - t0:F0}s >25ms={over25} >50ms={over50} worst={worst * 1000:F0}ms trees max={treeMax:F2}ms avg={TreeRenderer.SumMs / Mathf.Max(1, frames):F2}ms gc={gc - gc0}");
+                gc0 = gc; over25 = over50 = spikeLines = 0; treeMax = 0; TreeRenderer.SumMs = 0;
                 System.Array.Clear(recSum, 0, recSum.Length); ftMain = ftRender = ftGpu = 0; ftN = 0;
                 acc = 0; frames = 0; worst = 0;
             }
