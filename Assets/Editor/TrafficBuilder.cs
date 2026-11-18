@@ -72,10 +72,14 @@ namespace Magistrala.EditorTools
             return m;
         }
 
+        /// the decoded web GLBs face glTF forward −Z (head lamps at z −1.7 … −6.1, tail lamps at +z, every kind and its lod1), the
+        /// TrafficSystem pose is LookRotation(fwd) = +Z forward: turned 180° about y here (parts and far mesh) — the cars drove rear first
+        static readonly Matrix4x4 FACE = Matrix4x4.Rotate(Quaternion.Euler(0, 180, 0));
+
         static TrafficPart[] Parts(GameObject prefab, Func<Material, Material> mat, Func<Material, int, Material> lit)
         {
             var parts = new List<TrafficPart>();
-            var root = prefab.transform.worldToLocalMatrix;
+            var root = FACE * prefab.transform.worldToLocalMatrix;
             foreach (var r in prefab.GetComponentsInChildren<MeshRenderer>())
             {
                 var mf = r.GetComponent<MeshFilter>(); if (!mf || !mf.sharedMesh) continue;
@@ -182,7 +186,7 @@ namespace Magistrala.EditorTools
         static Mesh FarMesh(string kind, GameObject prefab, Palette pal)
         {
             var V = new List<Vector3>(); var Nn = new List<Vector3>(); var UV = new List<Vector2>(); var T = new[] { new List<int>(), new List<int>(), new List<int>() };
-            var root = prefab.transform.worldToLocalMatrix;
+            var root = FACE * prefab.transform.worldToLocalMatrix;
             foreach (var r in prefab.GetComponentsInChildren<MeshRenderer>())
             {
                 var mf = r.GetComponent<MeshFilter>(); if (!mf || !mf.sharedMesh) continue;
