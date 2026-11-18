@@ -2,6 +2,7 @@
 //   Corridors – one per direction of the D8, chained from the finished road models' lane axes (model-junctions.json `roads`:
 //               carriageway axis in the traffic direction, width w, n lanes; lane k centre at w/2 − (k + ½)·w/n right of it) like
 //               TruckSetup.EastboundPath, resampled every 2 m, smoothed, heights by raycasts on the road colliders in the scene.
+//               Roads with n ≥ 3: the lanes their mesh has at each point (LaneProfile — 53 / 54: the third lane only near the junction).
 //   Signals   – the models' signal plans (krizanje-01 … 05): the D8 approach edges of each signal group (junction-overrides-modeli.json),
 //               their painted stop lines (signals.stops) projected onto the corridors.
 //   Kinds     – the web game's traffic cars (Assets/Models/Vehicles/Traffic/*.glb, decoded from the web GLBs by Tools/decode_traffic_glb.py),
@@ -243,12 +244,12 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ corridors
-        class Piece { public List<double[]> p; public double w; public int n; }
+        class Piece { public List<double[]> p; public double w; public int n; public LaneProfile.Profile prof; }
 
         static List<Piece> Roads(List<ModelJ> models)
         {
             var roads = new List<Piece>();
-            foreach (var m in models) foreach (var r in m.roads) if (r.n >= 2 && r.lvl == 0 && r.p.Count >= 2) roads.Add(new Piece { p = r.p, w = r.w, n = r.n });
+            foreach (var m in models) for (int ri = 0; ri < m.roads.Count; ri++) { var r = m.roads[ri]; if (r.n >= 2 && r.lvl == 0 && r.p.Count >= 2) roads.Add(new Piece { p = r.p, w = r.w, n = r.n, prof = LaneProfile.Get(m, ri) }); }
             return roads;
         }
 
@@ -273,11 +274,11 @@ namespace Magistrala.EditorTools
         }
 
         /// chained road axis (game x, z) with the width / lane count of the piece each vertex belongs to
-        static List<(double x, double z, double w, int n)> Chain(List<Piece> roads, Piece seed)
+        static List<(double x, double z, double w, int n, Piece pc)> Chain(List<Piece> roads, Piece seed)
         {
             var used = new HashSet<Piece> { seed };
-            var fwd = new List<(double, double, double, int)>();
-            foreach (var q in seed.p) fwd.Add((q[0], q[1], seed.w, seed.n));
+            var fwd = new List<(double, double, double, int, Piece)>();
+            foreach (var q in seed.p) fwd.Add((q[0], q[1], seed.w, seed.n, seed));
             // forward
             var cur = seed; var tail = seed.p;
             for (int guard = 0; guard < 300; guard++)
@@ -288,7 +289,7 @@ namespace Magistrala.EditorTools
                 used.Add(r);
                 var rest = r.p.GetRange(seg + 1, r.p.Count - seg - 1);
                 if (rest.Count == 0) continue;
-                foreach (var q in rest) fwd.Add((q[0], q[1], r.w, r.n));
+                foreach (var q in rest) fwd.Add((q[0], q[1], r.w, r.n, r));
                 tail = new List<double[]> { e }; tail.AddRange(rest);
                 if (tail.Count < 2) break;
             }
@@ -302,8 +303,8 @@ namespace Magistrala.EditorTools
                 used.Add(r);
                 var pre = r.p.GetRange(0, seg + 1);
                 // drop prefix points that lie ahead of the current start (the matched segment may straddle it)
-                var ins = new List<(double, double, double, int)>();
-                foreach (var q in pre) ins.Add((q[0], q[1], r.w, r.n));
+                var ins = new List<(double, double, double, int, Piece)>();
+                foreach (var q in pre) ins.Add((q[0], q[1], r.w, r.n, r));
                 fwd.InsertRange(0, ins);
                 head = new List<double[]>(pre) { s };
                 if (head.Count < 2) break;
@@ -319,24 +320,33 @@ namespace Magistrala.EditorTools
             return best;
         }
 
-        static TrafficCorridor Corridor(string name, List<(double x, double z, double w, int n)> pts, List<ModelJ> models)
+        static TrafficCorridor Corridor(string name, List<(double x, double z, double w, int n, Piece pc)> pts, List<ModelJ> models)
         {
             // resample every STEP m along the polyline (w, n of the segment's start vertex)
-            var P = new List<Vector2>(); var Wd = new List<float>(); var N = new List<int>();
-            P.Add(new Vector2((float)pts[0].x, (float)pts[0].z)); Wd.Add((float)pts[0].w); N.Add(pts[0].n);
+            var P = new List<Vector2>(); var Wd = new List<float>(); var N = new List<int>(); var Pc = new List<Piece>();
+            P.Add(new Vector2((float)pts[0].x, (float)pts[0].z)); Wd.Add((float)pts[0].w); N.Add(pts[0].n); Pc.Add(pts[0].pc);
             double carry = 0;
             for (int i = 0; i + 1 < pts.Count; i++)
             {
                 var a = new Vector2((float)pts[i].x, (float)pts[i].z); var b = new Vector2((float)pts[i + 1].x, (float)pts[i + 1].z);
                 double L = Vector2.Distance(a, b); if (L < 1e-3) continue;
                 double d = STEP - carry;
-                for (; d <= L; d += STEP) { P.Add(Vector2.Lerp(a, b, (float)(d / L))); Wd.Add((float)pts[i].w); N.Add(pts[i].n); }
+                for (; d <= L; d += STEP) { P.Add(Vector2.Lerp(a, b, (float)(d / L))); Wd.Add((float)pts[i].w); N.Add(pts[i].n); Pc.Add(pts[i].pc); }
                 carry = L - (d - STEP);
             }
             int cnt = P.Count;
             // smooth the axis (joins of the chained model axes have small kinks), ±10 m
             var S = new Vector2[cnt];
             for (int i = 0; i < cnt; i++) { var acc = Vector2.zero; int c = 0; for (int k = -5; k <= 5; k++) { int j = Mathf.Clamp(i + k, 0, cnt - 1); acc += P[j]; c++; } S[i] = acc / c; }
+            // profiled roads (n >= 3, LaneProfile): the lanes the mesh has there, offsets relative to this sample (u: its lateral off the road's axis)
+            var Lo = new float[cnt][];
+            for (int i = 0; i < cnt; i++)
+            {
+                var pr = Pc[i].prof; if (pr == null) continue;
+                LaneProfile.Project(Pc[i].p, P[i].x, P[i].y, out double s, out double u);
+                var o = pr.off[pr.Idx(s)]; Lo[i] = new float[o.Length]; for (int k = 0; k < o.Length; k++) Lo[i][k] = o[k] - (float)u;
+                N[i] = o.Length;
+            }
             int maxL = N.Max();
             var cor = new TrafficCorridor { name = name, step = STEP, maxLanes = maxL, axis = new Vector3[cnt], right = new Vector3[cnt], lanes = new byte[cnt], laneOff = new float[cnt * maxL], laneY = new float[cnt * maxL], vmax = new float[cnt] };
             var raw = new float[cnt * maxL];
@@ -347,7 +357,7 @@ namespace Magistrala.EditorTools
                 var rg = new Vector2(-t.y, t.x);
                 cor.right[i] = new Vector3(rg.x, 0, -rg.y);
                 cor.lanes[i] = (byte)N[i];
-                for (int k = 0; k < maxL; k++) raw[i * maxL + k] = k < N[i] ? Wd[i] / 2 - (k + .5f) * Wd[i] / N[i] : float.NaN;
+                for (int k = 0; k < maxL; k++) raw[i * maxL + k] = k >= N[i] ? float.NaN : Lo[i] != null ? Lo[i][k] : Wd[i] / 2 - (k + .5f) * Wd[i] / N[i];
             }
             // lane offsets smoothed ±10 m where the lane exists (width / lane count changes between pieces)
             for (int i = 0; i < cnt; i++)
@@ -475,7 +485,8 @@ namespace Magistrala.EditorTools
         public static void Build()
         {
             Dir(OUT);
-            var models = WorldData.Models();
+            var models = WorldData.Models(); LaneProfile.Clear();
+            Debug.Log("[traffic] lane profiles (n >= 3 roads: lanes where the mesh has them)\n" + LaneProfile.Report(models));
             var roads = Roads(models);
             var m01 = models.Find(m => m.key == "krizanje-01");
             Piece Seed(int idx) => roads.Find(r => r.p == m01.roads[idx].p);

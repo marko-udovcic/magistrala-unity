@@ -94,7 +94,10 @@ namespace Magistrala.EditorTools
 
         static Material DeckMat()
         {
-            var m = Lit("DeckConcrete", new Color(.7f, .69f, .66f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f);
+            // concrete_d.jpg is brown (mean sRGB .30 .26 .20): the d08 footbridge read dark brown — a grey copy (its luminance, lifted to
+            // ~.6 like light concrete) keeps the texture's detail
+            var m = Lit("DeckConcrete", new Color(.95f, .95f, .94f), .12f, 0, null, "concrete_n.jpg", .6f);
+            m.SetTexture("_BaseMap", Tinted("concrete_d.jpg", "concrete_grey_d.jpg", new Color(1.55f, 1.55f, 1.53f), new Color(.2f, .2f, .2f), 0));
             m.SetFloat("_Cull", 0); m.doubleSidedGI = true; EditorUtility.SetDirty(m); return m;
         }
 
@@ -144,7 +147,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Build roads")]
         public static void Roads()
         {
-            var models = WorldData.Models();
+            var models = WorldData.Models(); LaneProfile.Clear();
             var root = Root("Roads");
             Dir(GEN + "/Roads");
             var mats = RoadMats();
@@ -153,7 +156,7 @@ namespace Magistrala.EditorTools
             Save(phys, GEN + "/Roads/Asphalt.physicMaterial");
             var railPhys = new PhysicsMaterial("Rail") { dynamicFriction = .1f, staticFriction = .1f, frictionCombine = PhysicsMaterialCombine.Minimum };
             Save(railPhys, GEN + "/Roads/Rail.physicMaterial");
-            int tris = 0;
+            int tris = 0; var gos = new Dictionary<string, GameObject>();
             foreach (var m in models)
             {
                 var glb = Glb.Read(W.KRIZ + m.glb);
@@ -184,7 +187,23 @@ namespace Magistrala.EditorTools
                     if (coll) cv.AddRange(P);
                     // road frame of every asphalt vertex (ModelJunctions2 roadAsphalt: lateral u, arc s of the model road whose band holds it)
                     RoadFrame[] fr = null;
-                    if (gm.name == "asphalt") { fr = new RoadFrame[P.Length]; for (int i = 0; i < P.Length; i++) fr[i] = FrameAt(groundRoads, m.x + P[i].x, m.z - P[i].z); }
+                    if (gm.name == "asphalt")
+                    {
+                        fr = new RoadFrame[P.Length];
+                        // n >= 3 roads: the tyre tracks of the lanes the mesh has there (LaneProfile), not of w / n over the whole road
+                        var profs = groundRoads.Select(g => LaneProfile.Get(m, m.roads.FindIndex(q => q.p == g.p))).ToArray();
+                        for (int i = 0; i < P.Length; i++)
+                        {
+                            var f = FrameAt(groundRoads, m.x + P[i].x, m.z - P[i].z);
+                            var pr = f.road >= 0 ? profs[f.road] : null;
+                            if (pr != null)
+                            {
+                                int si = pr.Idx(f.s); float uL = pr.uL[si], uR = pr.uR[si];
+                                f.u = Mathf.Clamp(f.u, uL, uR) - (uL + uR) / 2; f.hw = (uR - uL) / 2; f.lane = Mathf.Max((uR - uL) / pr.off[si].Length, 3.1f);
+                            }
+                            fr[i] = f;
+                        }
+                    }
                     for (int t = 0; t + 2 < gm.idx.Length; t += 3)
                     {
                         int a = gm.idx[t], b = gm.idx[t + 2], c = gm.idx[t + 1]; // reversed winding (z flip)
@@ -241,7 +260,7 @@ namespace Magistrala.EditorTools
                 cm.SetVertices(cv); cm.SetTriangles(ci, 0); cm.RecalculateBounds();
                 Save(cm, $"{GEN}/Roads/{m.key}-col.asset");
 
-                var go = new GameObject(m.key); go.isStatic = true;
+                var go = new GameObject(m.key); go.isStatic = true; gos[m.key] = go;
                 go.transform.SetParent(root.transform, false);
                 go.transform.localPosition = W.U(m.x, m.y, m.z);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
@@ -264,6 +283,8 @@ namespace Magistrala.EditorTools
                         }
                 }
             }
+            // section rails continued across the seams into the junction models (no guardrails in their GLBs), sloped terminals
+            Debug.Log(RailSeams.Build(models, gos, mats[2], railPhys));
             AssetDatabase.SaveAssets();
             Debug.Log($"[Magistrala] roads: {models.Count} models, {tris} triangles");
         }
