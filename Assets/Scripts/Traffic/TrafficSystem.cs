@@ -247,6 +247,35 @@ namespace Magistrala.Traffic
             }
         }
 
+        /// for the autopilot: in the corridor the player drives along (heading fwd), the nearest car ahead whose body (or the lane it is
+        /// moving to) overlaps the player's footprint laterally — gap from the player's front bumper, its speed — and the next stop
+        /// line ahead (distance from the front, light 0 green / 1 amber / 2 red). false: not on a corridor.
+        public bool PlayerAhead(Vector3 fwd, out float gap, out float lv, out float stopD, out int light)
+        {
+            gap = 1e9f; lv = 0; stopD = 1e9f; light = 0;
+            if (data == null || data.corridors == null) return false;
+            int ci = -1;
+            for (int c = 0; c < data.corridors.Length && c < 2; c++)
+            {
+                if (!pOn[c] || hint[c] < 0) continue;
+                var cor = data.corridors[c]; int i = hint[c];
+                var t = cor.axis[Mathf.Min(i + 1, cor.axis.Length - 1)] - cor.axis[Mathf.Max(i - 1, 0)]; t.y = 0;
+                if (Vector3.Dot(t.normalized, fwd) > .7f) { ci = c; break; }
+            }
+            if (ci < 0) return false;
+            var co = data.corridors[ci]; float front = pS1[ci];
+            foreach (var o in byCorridor[ci])
+            {
+                float d = o.s - o.len / 2 - front; if (d < -1.5f || d > 250) continue;
+                bool hit = o.lat + o.hw > pL0[ci] - .4f && o.lat - o.hw < pL1[ci] + .4f;
+                if (!hit && o.laneTo != o.lane) { float lt = LaneOffAt(co, o.s, o.laneTo); hit = lt + o.hw > pL0[ci] - .4f && lt - o.hw < pL1[ci] + .4f; }
+                if (hit && d < gap) { gap = Mathf.Max(0, d); lv = o.v; }
+            }
+            if (signals && co.stops != null)
+                foreach (var st in co.stops) { float d = st.s - front; if (d < -1f) continue; stopD = d; light = (int)LightAt(st); break; }
+            return true;
+        }
+
         // ------------------------------------------------------------------ signals
         float LightAt(TrafficStop st)
         {

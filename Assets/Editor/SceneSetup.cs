@@ -125,30 +125,38 @@ namespace Magistrala.EditorTools
             var r0 = westbound ? m01.roads[2] : m01.roads[0]; (System.Collections.Generic.List<double[]> p, double w, int n) cur = (r0.p, r0.w, r0.n);
             var outL = new System.Collections.Generic.List<Vector2>();
             var used = new System.Collections.Generic.HashSet<object>();
-            double prevOff = double.NaN;
+            double lastOff = double.NaN;
             for (int guard = 0; guard < 200; guard++)
             {
                 used.Add(cur.p);
                 // A model road is one carriageway (its axis = the middle of the asphalt, w = whole width, n = lanes of that carriageway).
                 // The middle of the rightmost lane is w/2 - w/(2n) from the axis (n = 2: w/4; n = 3: w/3; n = 4: 3w/8; one-way n = 1: the axis).
                 // The old fixed w/4 sat 0.9 m inside the right lane of a 3-lane carriageway (and 1.6 m on 4 lanes).
-                double laneOff = cur.w / 2 * (1 - 1.0 / System.Math.Max(1, cur.n)), arc = 0, lastOff = prevOff;
-                if (double.IsNaN(prevOff)) prevOff = lastOff = laneOff;
-                for (int i = 0; i < cur.p.Count - 1; i++)
+                // Roads with n >= 3: the lanes the mesh really has there (LaneProfile — on 53 / 54 the third lane is only a pocket at the
+                // junction); with 3 lanes the truck keeps the lane it is in (a pocket that opens on the right is a turn lane), with 2 it
+                // keeps right.
+                var om = LaneProfile.Owner(models, cur.p, out int ori); var prof = om != null ? LaneProfile.Get(om, ori) : null;
+                double laneOff = cur.w / 2 * (1 - 1.0 / System.Math.Max(1, cur.n));
+                // samples every 2 m of this road's own arc, from where the path left the previous one (its lateral offset carried over in
+                // this road's frame: the chained axes are 1–2 m apart at some joins — the old per-segment offsets jogged backwards there)
+                double len = 0; for (int i = 0; i + 1 < cur.p.Count; i++) len += System.Math.Sqrt(Sq(cur.p[i + 1][0] - cur.p[i][0]) + Sq(cur.p[i + 1][1] - cur.p[i][1]));
+                double s0 = 0;
+                if (outL.Count > 0) { var lp = outL[outL.Count - 1]; LaneProfile.Project(cur.p, lp.x, lp.y, out s0, out lastOff); s0 += 2; }
+                for (double s = s0; ; s += 2)
                 {
-                    var a = cur.p[i]; var b = cur.p[i + 1]; double dx = b[0] - a[0], dz = b[1] - a[1], L = System.Math.Sqrt(dx * dx + dz * dz); if (L < .05) continue;
-                    // where a lane is added / dropped between two chained roads, slide to the new lane centre over 40 m (smoothstep)
-                    double f0 = System.Math.Min(1, arc / 40), f1 = System.Math.Min(1, (arc + L) / 40);
-                    double off0 = prevOff + (laneOff - prevOff) * (f0 * f0 * (3 - 2 * f0)), off1 = prevOff + (laneOff - prevOff) * (f1 * f1 * (3 - 2 * f1));
-                    double rx = -dz / L, rz = dx / L;
-                    outL.Add(new Vector2((float)(a[0] + rx * off0), (float)(a[1] + rz * off0)));
-                    if (i == cur.p.Count - 2) outL.Add(new Vector2((float)(b[0] + rx * off1), (float)(b[1] + rz * off1)));
-                    arc += L; lastOff = off1;
+                    bool last = s >= len; if (last) s = len;
+                    At(cur.p, s, out double px, out double pz, out double rx, out double rz);
+                    double tgt = Target(prof, s, laneOff, lastOff);
+                    if (double.IsNaN(lastOff)) lastOff = tgt;
+                    // where a lane is added / dropped (between two chained roads or inside a profiled one) slide to the new lane centre at
+                    // most 1 m sideways per 11 m (a 3.6 m lane change over 40 m)
+                    lastOff += System.Math.Max(-2 / 11.0, System.Math.Min(2 / 11.0, tgt - lastOff));
+                    outL.Add(new Vector2((float)(px + rx * lastOff), (float)(pz + rz * lastOff)));
+                    if (last) break;
                 }
-                prevOff = lastOff;
                 var e = cur.p[cur.p.Count - 1]; var e0 = cur.p[cur.p.Count - 2];
                 double ddx = e[0] - e0[0], ddz = e[1] - e0[1], dl = System.Math.Sqrt(ddx * ddx + ddz * ddz);
-                (System.Collections.Generic.List<double[]> p, double w, int n) next = default; double best = 6; int from = 0;
+                (System.Collections.Generic.List<double[]> p, double w, int n) next = default; double best = 6;
                 foreach (var r in roads)
                 {
                     if (used.Contains(r.p)) continue;
@@ -159,15 +167,38 @@ namespace Magistrala.EditorTools
                         double t = System.Math.Max(0, System.Math.Min(1, ((e[0] - s[0]) * qx + (e[1] - s[1]) * qz) / ql2));
                         double px = s[0] + qx * t - e[0], pz = s[1] + qz * t - e[1], d = System.Math.Sqrt(px * px + pz * pz);
                         double cos = (qx * ddx + qz * ddz) / (System.Math.Sqrt(ql2) * dl + 1e-9);
-                        if (d < best && cos > .85) { best = d; next = r; from = i + 1; }
+                        if (d < best && cos > .85) { best = d; next = r; }
                     }
                 }
-                if (next.p != null) { used.Add(next.p); var rest = next.p.GetRange(from, next.p.Count - from); rest.Insert(0, e); next = (rest, next.w, next.n); }
-                if (next.p != null && next.p.Count < 2) { used.Add(next.p); break; }
                 if (next.p == null) break;
                 cur = next;
             }
             return outL;
+        }
+
+        static double Sq(double v) => v * v;
+        /// point and right-of-travel normal (game frame) at arc s of polyline p
+        static void At(System.Collections.Generic.List<double[]> p, double s, out double x, out double z, out double rx, out double rz)
+        {
+            double acc = 0; x = p[0][0]; z = p[0][1]; rx = 0; rz = 1;
+            for (int i = 0; i + 1 < p.Count; i++)
+            {
+                double dx = p[i + 1][0] - p[i][0], dz = p[i + 1][1] - p[i][1], L = System.Math.Sqrt(dx * dx + dz * dz); if (L < 1e-9) continue;
+                rx = -dz / L; rz = dx / L;
+                if (acc + L >= s || i + 2 == p.Count) { double t = System.Math.Max(0, System.Math.Min(L, s - acc)); x = p[i][0] + dx / L * t; z = p[i][1] + dz / L * t; return; }
+                acc += L;
+            }
+        }
+
+        /// lane centre (m right of the road's axis) the path aims at, arc s: the json's rightmost lane where the road is not profiled;
+        /// on a profiled road its rightmost lane where it has 2 lanes, else the lane nearest to the current offset
+        static double Target(LaneProfile.Profile prof, double s, double formula, double now)
+        {
+            if (prof == null) return formula;
+            var o = prof.off[prof.Idx(s)];
+            if (o.Length <= 2 || double.IsNaN(now)) return o[0];
+            double best = o[0]; foreach (var c in o) if (System.Math.Abs(c - now) < System.Math.Abs(best - now)) best = c;
+            return best;
         }
 
         /// the lane path in Unity coordinates, heights from the models' asphalt (where a point falls outside the mesh — a paint gap, a join —
