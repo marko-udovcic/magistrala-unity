@@ -59,9 +59,8 @@ namespace Magistrala.EditorTools
         /// game-frame (x, z) of a GLB vertex of model m (WorldBuilder.Roads: pads, lin, model origin)
         public static Vector2 GamePos(ModelJ m, Vector3 p)
         {
-            double x = p.x, z = p.z, L0 = m.lin?[0] ?? 1;
-            if (m.padE > 0 && x > m.half - 0.02) x += m.padE / L0;
-            if (m.padW > 0 && x < -m.half + 0.02) x -= m.padW / L0;
+            double x = p.x, z = p.z;
+            m.Pad(ref x, ref z);
             if (m.lin != null) { double nx = m.lin[0] * x + m.lin[1] * z, nz = m.lin[2] * x + m.lin[3] * z; x = nx; z = nz; }
             return new Vector2((float)(m.x + x), (float)(m.z + z));
         }

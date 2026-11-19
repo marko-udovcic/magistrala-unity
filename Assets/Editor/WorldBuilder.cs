@@ -18,7 +18,8 @@ namespace Magistrala.EditorTools
     {
         public const string GEN = "Assets/Generated";
         // core terrain tiles (2 m heightmap) and the backdrop ring (8 m)
-        public const int TX0 = -8, TX1 = -1, TZ0 = -7, TZ1 = -5;
+        // (TX0 −10: mag-11-19 old road / link roads / 42 reach game x −9600; the 2 m core must hold them, ModelTerrain fits it to the models)
+        public const int TX0 = -10, TX1 = -1, TZ0 = -7, TZ1 = -5;
         public const int BX0 = -11, BX1 = 2, BZ0 = -9, BZ1 = -3;
         public const float YMIN = -40, YSIZE = 900;
 
@@ -166,7 +167,6 @@ namespace Magistrala.EditorTools
                 for (int k = 0; k < 7; k++) { v[k] = new List<Vector3>(); nr[k] = new List<Vector3>(); uv[k] = new List<Vector2>(); uv1[k] = new List<Vector2>(); uv2[k] = new List<Vector2>(); }
                 var groundRoads = m.roads.FindAll(r => r.lvl == 0);
                 var cv = new List<Vector3>(); var ci = new List<int>();
-                double L0 = m.lin?[0] ?? 1;
                 foreach (var gm in glb)
                 {
                     if (Array.IndexOf(DRAW, gm.name) < 0) continue;
@@ -177,8 +177,7 @@ namespace Magistrala.EditorTools
                     {
                         double x = gm.pos[i].x, y = gm.pos[i].y, z = gm.pos[i].z;
                         if (m.hfix.Count > 0) y += m.HfixAt(x, z);
-                        if (m.padE > 0 && x > m.half - 0.02) x += m.padE / L0;
-                        if (m.padW > 0 && x < -m.half + 0.02) x -= m.padW / L0;
+                        m.Pad(ref x, ref z);
                         if (m.lin != null) { double nx = m.lin[0] * x + m.lin[1] * z, nz = m.lin[2] * x + m.lin[3] * z; x = nx; z = nz; }
                         P[i] = new Vector3((float)x, (float)y + lift, (float)-z);
                         var n = gm.nrm != null ? gm.nrm[i] : Vector3.up; N[i] = new Vector3(n.x, n.y, -n.z);

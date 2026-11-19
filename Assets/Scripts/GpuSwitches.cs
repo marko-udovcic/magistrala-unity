@@ -18,6 +18,8 @@ namespace Magistrala
     ///   -burst N    with -shot: N consecutive frames path_00.png.. (shimmer / temporal look while driving)
     ///   -tp gx[,gx2..]  put the truck on the autopilot path at game x (after 1 s, then the next every 12 s) — look at given stretches
     ///   -shots t1,t2,..  with -shot: one screenshot at each time after the scene start, path_t030.png.. (look along the drive in one run)
+    ///   -cor ci     before -tp: the autopilot path becomes traffic corridor ci's right lane (0 / 1 D8, 2 / 3 old road east / west)
+    ///   -tpxz gx,gz,yaw[;gx,gz,yaw..]  instead of -tp: put the truck at game (x, z) heading yaw° (0 = north, 90 = east), every 12 s
     ///   -near M / -far M  camera clip planes (after TruckChaseCamera.Awake)
     ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
     public class GpuSwitches : MonoBehaviour
@@ -158,6 +160,7 @@ namespace Magistrala
             shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa; if (TryF("-burst", out var bu)) burst = (int)bu;
             if (Arg("-shots") is string sl) shots = System.Array.ConvertAll(sl.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture));
             if (Arg("-tp") is string tps) StartCoroutine(Tp(System.Array.ConvertAll(tps.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture))));
+            else if (Arg("-cor") != null || Arg("-tpxz") != null) StartCoroutine(Tp(new float[0]));
             Debug.Log(sb.ToString());
         }
 
@@ -165,6 +168,32 @@ namespace Magistrala
         {
             yield return new WaitForSeconds(1f);
             var ap = FindFirstObjectByType<Autopilot>();
+            if (ap && TryF("-cor", out var cf))
+            {
+                var ts = FindFirstObjectByType<Magistrala.Traffic.TrafficSystem>(); int ci = (int)cf;
+                if (ts && ts.data && ci >= 0 && ci < ts.data.corridors.Length)
+                {
+                    var c = ts.data.corridors[ci]; var pts = new Vector3[c.axis.Length];
+                    for (int i = 0; i < pts.Length; i++) { float o = c.laneOff[i * c.maxLanes]; var p = c.axis[i] + c.right[i] * (float.IsNaN(o) ? 0 : o); p.y = c.laneY[i * c.maxLanes]; pts[i] = p; }
+                    ap.UsePath(pts); if (gx.Length == 0) ap.Teleport(pts[Mathf.Min(40, pts.Length - 1)].x - 4200);
+                    Debug.Log($"[gpu] autopilot on corridor {ci} {c.name}, {pts.Length} samples");
+                }
+            }
+            if (Arg("-tpxz") is string xz)
+                foreach (var t in xz.Split(';'))
+                {
+                    var v = System.Array.ConvertAll(t.Split(','), q => float.Parse(q, System.Globalization.CultureInfo.InvariantCulture));
+                    var tr = FindFirstObjectByType<TruckController>();
+                    if (tr)
+                    {
+                        var u = new Vector3(v[0] + 4200, 300, -(v[1] + 5300));
+                        if (Physics.Raycast(u, Vector3.down, out var hit, 600, ~0, QueryTriggerInteraction.Ignore)) u.y = hit.point.y + 1.1f;
+                        var rb = tr.GetComponent<Rigidbody>(); if (rb) { rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero; }
+                        tr.transform.SetPositionAndRotation(u, Quaternion.Euler(0, v.Length > 2 ? v[2] : 0, 0)); if (rb) { rb.position = u; rb.rotation = tr.transform.rotation; }
+                        Debug.Log($"[gpu] tpxz {t} y {u.y:F1}");
+                    }
+                    yield return new WaitForSeconds(12f);
+                }
             foreach (var x in gx) { if (ap) { ap.Teleport(x); Debug.Log($"[gpu] tp {x} at {Time.realtimeSinceStartup:F0}s"); } yield return new WaitForSeconds(12f); }
         }
 

@@ -1,4 +1,4 @@
-// AI traffic on the D8 (port of the core of the web game's client/src/world2/traffic/sim.ts, reduced to the D8 corridors):
+// AI traffic on the D8 and the old road (port of the core of the web game's client/src/world2/traffic/sim.ts, reduced to corridors):
 //  - cars live on a corridor (one per direction, TrafficData from Magistrala/Build traffic) at arc length s with a lateral offset;
 //    lane k's centre comes from the road models' lane axes;
 //  - IDM car following against the nearest vehicle ahead whose body overlaps laterally (a car changing lanes occupies both lanes),
@@ -54,7 +54,8 @@ namespace Magistrala.Traffic
         }
 
         readonly List<Car> cars = new List<Car>();
-        readonly List<Car>[] byCorridor = { new List<Car>(), new List<Car>() };
+        // (one list per corridor: the D8 both ways and, mag-11-19, the old road both ways — sized in OnEnable)
+        List<Car>[] byCorridor = { new List<Car>(), new List<Car>() };
         readonly Stack<Rigidbody> pool = new Stack<Rigidbody>();
         System.Random rng;
         Camera cam;
@@ -65,10 +66,12 @@ namespace Magistrala.Traffic
         // player footprint
         Collider[] playerCols; Rigidbody playerRb;
         Vector3[] footLocal; // 4 corners in the player's local frame
-        readonly int[] hint = { -1, -1 };
-        // per corridor: player's footprint projected (s range, lat range), valid flag, centre s
-        readonly float[] pS0 = new float[2], pS1 = new float[2], pL0 = new float[2], pL1 = new float[2], pSc = new float[2];
-        readonly bool[] pOn = new bool[2];
+        int[] hint = { -1, -1 };
+        // per corridor: player's footprint projected (s range, lat range), valid flag, centre s, horizontal distance to the corridor
+        float[] pS0 = new float[2], pS1 = new float[2], pL0 = new float[2], pL1 = new float[2], pSc = new float[2], pFar = new float[2];
+        bool[] pOn = new bool[2];
+        /// a corridor farther than this from the player (the old road while driving the D8, 500 m south) gets no new cars
+        public float corridorReach = 300;
         float playerSpeed;
 
         // drawing
@@ -81,6 +84,13 @@ namespace Magistrala.Traffic
         {
             rng = new System.Random(seed);
             if (data == null) { enabled = false; Debug.LogWarning("[traffic] no TrafficData (run Magistrala/Build traffic)"); return; }
+            int nc = data.corridors?.Length ?? 0;
+            if (byCorridor.Length != nc)
+            {
+                byCorridor = new List<Car>[nc]; for (int i = 0; i < nc; i++) byCorridor[i] = new List<Car>();
+                hint = new int[nc]; for (int i = 0; i < nc; i++) hint[i] = -1;
+                pS0 = new float[nc]; pS1 = new float[nc]; pL0 = new float[nc]; pL1 = new float[nc]; pSc = new float[nc]; pFar = new float[nc]; pOn = new bool[nc];
+            }
             BuildBuckets();
         }
 
@@ -135,7 +145,7 @@ namespace Magistrala.Traffic
         void OnDisable()
         {
             foreach (var c in cars) Release(c);
-            cars.Clear(); byCorridor[0].Clear(); byCorridor[1].Clear();
+            cars.Clear(); foreach (var l in byCorridor) l.Clear();
         }
 
         // ------------------------------------------------------------------ corridor geometry
@@ -242,6 +252,7 @@ namespace Magistrala.Traffic
             {
                 int i = Nearest(ci, PlayerPos);
                 Project(ci, PlayerPos, i, out pSc[ci], out _);
+                { var d = data.corridors[ci].axis[i] - PlayerPos; pFar[ci] = Mathf.Sqrt(d.x * d.x + d.z * d.z); }
                 pOn[ci] = false;
                 if (footLocal == null) continue;
                 float s0 = 1e9f, s1 = -1e9f, l0 = 1e9f, l1 = -1e9f;
@@ -264,7 +275,7 @@ namespace Magistrala.Traffic
             gap = 1e9f; lv = 0; stopD = 1e9f; light = 0;
             if (data == null || data.corridors == null) return false;
             int ci = -1;
-            for (int c = 0; c < data.corridors.Length && c < 2; c++)
+            for (int c = 0; c < data.corridors.Length; c++)
             {
                 if (!pOn[c] || hint[c] < 0) continue;
                 var cor = data.corridors[c]; int i = hint[c];
@@ -486,12 +497,16 @@ namespace Magistrala.Traffic
         {
             // the emptiest quarter (corridor × ahead / behind the player) gets the next car, so every direction stays populated
             int ci = rng.Next(data.corridors.Length); int side = rng.NextDouble() < .5 ? 1 : -1;
+            // (warm start: a random corridor near the player; never one out of reach)
+            for (int t = 0; t < 8 && pFar[ci] > corridorReach; t++) ci = rng.Next(data.corridors.Length);
+            if (pFar[ci] > corridorReach) { SpawnFails[0]++; return false; }
             if (!warmStart)
             {
                 int best = int.MaxValue;
                 for (int q = 0; q < data.corridors.Length * 2; q++)
                 {
                     int qc = q >> 1, qs = (q & 1) == 0 ? 1 : -1, cnt = 0;
+                    if (pFar[qc] > corridorReach) continue;
                     float far = pSc[qc] + qs * spawnMax; if (far < 30 || far > data.corridors[qc].Length - 30) continue; // stretch ends
                     foreach (var o in byCorridor[qc]) if ((o.s - pSc[qc]) * qs > 0) cnt++;
                     if (cnt < best || (cnt == best && rng.NextDouble() < .5)) { best = cnt; ci = qc; side = qs; }
@@ -570,7 +585,7 @@ namespace Magistrala.Traffic
             for (int i = cars.Count - 1; i >= 0; i--)
             {
                 var c = cars[i]; var cor = data.corridors[c.c];
-                float d = Mathf.Abs(c.s - pSc[c.c]);
+                float d = Mathf.Abs(c.s - pSc[c.c]); d = Mathf.Sqrt(d * d + pFar[c.c] * pFar[c.c]); // (a corridor away from the player: real distance)
                 bool gone = d > despawnDist || c.s > cor.Length - 8 || c.s < 2;
                 // stuck far away (a jam that never clears behind a parked truck): recycle
                 if (!gone && c.stopT > 60 && (c.pos - PlayerPos).magnitude > 150 && !InView(c.pos)) gone = true;
@@ -688,7 +703,7 @@ namespace Magistrala.Traffic
         }
 
         /// teleports / big jumps of the player: start over
-        public void Clear() { OnDisable(); warm = false; hint[0] = hint[1] = -1; }
+        public void Clear() { OnDisable(); warm = false; for (int i = 0; i < hint.Length; i++) hint[i] = -1; }
 
         public IReadOnlyList<Car> Cars => cars;
     }

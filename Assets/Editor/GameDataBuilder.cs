@@ -22,7 +22,7 @@ namespace Magistrala.EditorTools
         const string OutPath = OutDir + "/" + GameWorld.ResourcePath + ".asset";
         // stops: the Unity world (Lukšić → Sućurac and a margin), game coordinates; the graph is kept whole (the GPS may lead
         // out of the built world, e.g. the D8 westbound from Pumpa Kaštela turns round only past Trogir)
-        const double MinX = -9000, MaxX = 300, MinZ = -7000, MaxZ = -3000;
+        const double MinX = WorldData.MIN_X, MaxX = 300, MinZ = -7000, MaxZ = -3000; // (mag-11-19: Štafilić)
 
         public int callbackOrder => 0;
         public void OnPreprocessBuild(BuildReport report) { if (!File.Exists(OutPath)) Build(); }

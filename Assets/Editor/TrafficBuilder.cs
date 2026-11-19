@@ -1,4 +1,5 @@
-// Magistrala/Build traffic: AI traffic for the D8 between Lukšić and Sućurac (runtime: Assets/Scripts/Traffic/TrafficSystem.cs).
+// Magistrala/Build traffic: AI traffic for the D8 between Lukšić and Sućurac and the old road Štafilić – Lukšić (two-way, mag-11-19)
+// (runtime: Assets/Scripts/Traffic/TrafficSystem.cs).
 //   Corridors – one per direction of the D8, chained from the finished road models' lane axes (model-junctions.json `roads`:
 //               carriageway axis in the traffic direction, width w, n lanes; lane k centre at w/2 − (k + ½)·w/n right of it) like
 //               TruckSetup.EastboundPath, resampled every 2 m, smoothed, heights by raycasts on the road colliders in the scene.
@@ -326,7 +327,10 @@ namespace Magistrala.EditorTools
             return best;
         }
 
-        static TrafficCorridor Corridor(string name, List<(double x, double z, double w, int n, Piece pc)> pts, List<ModelJ> models)
+        /// twoWay: the axis carries both directions (mag-11-19 old road, Cesta dr. F. Tuđmana: w 7, n 2): this corridor drives its one
+        /// lane right of the axis, centre (w / n) / 2 — the w/2 − (k + ½)·w/n formula is for one-way carriageways; the other direction is
+        /// the reversed chain
+        static TrafficCorridor Corridor(string name, List<(double x, double z, double w, int n, Piece pc)> pts, List<ModelJ> models, bool twoWay = false)
         {
             // resample every STEP m along the polyline (w, n of the segment's start vertex)
             var P = new List<Vector2>(); var Wd = new List<float>(); var N = new List<int>(); var Pc = new List<Piece>();
@@ -348,11 +352,12 @@ namespace Magistrala.EditorTools
             var Lo = new float[cnt][];
             for (int i = 0; i < cnt; i++)
             {
-                var pr = Pc[i].prof; if (pr == null) continue;
+                var pr = Pc[i].prof; if (pr == null || twoWay) continue;
                 LaneProfile.Project(Pc[i].p, P[i].x, P[i].y, out double s, out double u);
                 var o = pr.off[pr.Idx(s)]; Lo[i] = new float[o.Length]; for (int k = 0; k < o.Length; k++) Lo[i][k] = o[k] - (float)u;
                 N[i] = o.Length;
             }
+            if (twoWay) for (int i = 0; i < cnt; i++) N[i] = 1;
             int maxL = N.Max();
             var cor = new TrafficCorridor { name = name, step = STEP, maxLanes = maxL, axis = new Vector3[cnt], right = new Vector3[cnt], lanes = new byte[cnt], laneOff = new float[cnt * maxL], laneY = new float[cnt * maxL], vmax = new float[cnt] };
             var raw = new float[cnt * maxL];
@@ -363,7 +368,7 @@ namespace Magistrala.EditorTools
                 var rg = new Vector2(-t.y, t.x);
                 cor.right[i] = new Vector3(rg.x, 0, -rg.y);
                 cor.lanes[i] = (byte)N[i];
-                for (int k = 0; k < maxL; k++) raw[i * maxL + k] = k >= N[i] ? float.NaN : Lo[i] != null ? Lo[i][k] : Wd[i] / 2 - (k + .5f) * Wd[i] / N[i];
+                for (int k = 0; k < maxL; k++) raw[i * maxL + k] = k >= N[i] ? float.NaN : twoWay ? Wd[i] / Mathf.Max(2, Pc[i].n) / 2 : Lo[i] != null ? Lo[i][k] : Wd[i] / 2 - (k + .5f) * Wd[i] / N[i];
             }
             // lane offsets smoothed ±10 m where the lane exists (width / lane count changes between pieces)
             for (int i = 0; i < cnt; i++)
@@ -440,21 +445,31 @@ namespace Magistrala.EditorTools
                     foreach (var eid in MiniJson.L(kv.Value))
                     {
                         if (!edges.TryGetValue((long)MiniJson.D(eid), out var e)) continue;
-                        if (!(MiniJson.G(e, "ref") is string rf) || !rf.Contains("D8")) continue;
+                        // (the D8's approaches, and the old road's — mag-11-19 19 / 20 / 21 / s04 — whose corridors run along Cesta dr. F. Tuđmana)
+                        bool d8 = MiniJson.G(e, "ref") is string rf && rf.Contains("D8"), oldRoad = MiniJson.G(e, "name") is string nm && nm.Contains("Tuđmana");
+                        if (!d8 && !oldRoad) continue;
                         var pts = MiniJson.L(e["points"]).Select(q => MiniJson.L(q)).Select(q => new Vector2((float)MiniJson.D(q[0]), (float)MiniJson.D(q[2]))).ToList();
                         // the edge runs into the junction at b: its painted stop line is the one nearest to b − stopLine.b along the edge
-                        // whose heading (atan2 z, x) runs the edge's way
-                        var end = pts[pts.Count - 1]; var dir = (end - pts[Mathf.Max(0, pts.Count - 12)]).normalized;
-                        float back = MiniJson.G(e, "stopLine") is Dictionary<string, object> sl && sl.ContainsKey("b") ? (float)MiniJson.D(sl["b"]) : 0;
-                        var guess = end - dir * back;
-                        int bi = -1; float bd = 25;
-                        for (int q = 0; q < stopLines.Count; q++)
+                        // whose heading (atan2 z, x) runs the edge's way. (A two-way edge of the old road may run into it at a — the
+                        // westbound approaches: both ends are tried, the nearer match wins.)
+                        int bi = -1; float bd = 25; var dir = Vector2.zero;
+                        var sld = MiniJson.G(e, "stopLine") as Dictionary<string, object>;
+                        bool twoWayE = !(MiniJson.G(e, "oneway") is bool ow && ow);
+                        foreach (bool atB in twoWayE ? new[] { true, false } : new[] { true })
                         {
-                            var sd = new Vector2(Mathf.Cos(stopLines[q].a), Mathf.Sin(stopLines[q].a));
-                            float d = Vector2.Distance(stopLines[q].p, guess);
-                            if (Vector2.Dot(sd, dir) > .5f && d < bd) { bd = d; bi = q; }
+                            var end = atB ? pts[pts.Count - 1] : pts[0];
+                            var dr = atB ? (end - pts[Mathf.Max(0, pts.Count - 12)]).normalized : (end - pts[Mathf.Min(pts.Count - 1, 11)]).normalized;
+                            string k = atB ? "b" : "a";
+                            float back = sld != null && sld.ContainsKey(k) ? (float)MiniJson.D(sld[k]) : 0;
+                            var guess = end - dr * back;
+                            for (int q = 0; q < stopLines.Count; q++)
+                            {
+                                var sd = new Vector2(Mathf.Cos(stopLines[q].a), Mathf.Sin(stopLines[q].a));
+                                float d = Vector2.Distance(stopLines[q].p, guess);
+                                if (Vector2.Dot(sd, dr) > .5f && d < bd) { bd = d; bi = q; dir = dr; }
+                            }
                         }
-                        if (bi < 0) { Debug.LogWarning($"[traffic] {key} {kv.Key}: no stop line for D8 edge {eid}"); continue; }
+                        if (bi < 0) { Debug.LogWarning($"[traffic] {key} {kv.Key}: no stop line for edge {eid}"); continue; }
                         var best = stopLines[bi].p; dir = new Vector2(Mathf.Cos(stopLines[bi].a), Mathf.Sin(stopLines[bi].a));
                         stops.Add((best, dir, pi, kv.Key, key));
                     }
@@ -498,13 +513,25 @@ namespace Magistrala.EditorTools
             Piece Seed(int idx) => roads.Find(r => r.p == m01.roads[idx].p);
             var east = Corridor("D8 istok (Split)", Chain(roads, Seed(0)), models);
             var west = Corridor("D8 zapad (Trogir)", Chain(roads, Seed(2)), models);
+            var cors = new List<TrafficCorridor> { east, west };
+            // the old road Štafilić → Lukšić (mag-11-19: s01 … s13, junctions 19 / 20 / 21): two-way, one corridor per direction on the same
+            // chained axis, cut 4 m before the works closure in s13 (tile x 89, README_DIONICE.md: the road is not built beyond it)
+            var s02 = models.Find(m => m.key == "dionica-s02"); var s13 = models.Find(m => m.key == "dionica-s13");
+            if (s02 != null && s02.roads.Count > 0)
+            {
+                var old = Chain(roads, roads.Find(r => r.p == s02.roads[0].p));
+                if (s13 != null) { double cut = s13.x + 85 * (s13.lin?[0] ?? 1); int k = old.FindIndex(q => q.x > cut); if (k > 1) old = old.GetRange(0, k); }
+                var back = new List<(double x, double z, double w, int n, Piece pc)>(old); back.Reverse();
+                cors.Add(Corridor("Stara cesta istok (Lukšić)", old, models, true));
+                cors.Add(Corridor("Stara cesta zapad (Štafilić)", back, models, true));
+            }
             var (plans, stops) = Signals(models);
-            PlaceStops(east, stops); PlaceStops(west, stops);
+            foreach (var c in cors) PlaceStops(c, stops);
 
             string path = OUT + "/TrafficData.asset";
             var data = AssetDatabase.LoadAssetAtPath<TrafficData>(path);
             if (data == null) { data = ScriptableObject.CreateInstance<TrafficData>(); AssetDatabase.CreateAsset(data, path); }
-            data.corridors = new[] { east, west };
+            data.corridors = cors.ToArray();
             data.plans = plans.ToArray();
             data.kinds = Kinds();
             data.farPalette = PaletteMat(pal);
@@ -517,7 +544,7 @@ namespace Magistrala.EditorTools
             EditorUtility.SetDirty(ts);
             EditorSceneManager.MarkSceneDirty(go.scene);
             EditorSceneManager.SaveScene(go.scene);
-            Debug.Log($"[traffic] built: {data.kinds.Length} kinds, {plans.Count} signal plans, stops east {east.stops.Length} / west {west.stops.Length}");
+            Debug.Log($"[traffic] built: {data.kinds.Length} kinds, {plans.Count} signal plans, corridors " + string.Join(", ", cors.Select(c => $"{c.name} ({c.stops.Length} stops)")));
         }
     }
 }

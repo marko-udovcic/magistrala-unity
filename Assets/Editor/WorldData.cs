@@ -34,12 +34,22 @@ namespace Magistrala.EditorTools
 
     public class ModelJ
     {
-        public string key, glb; public double x, y, z, half; public double[] lin; public double padE, padW;
+        public string key, glb; public double x, y, z, half; public double[] lin; public double padE, padW, padN, padS;
         public List<double[]> hfix = new List<double[]>(); public bool tile;
         public List<List<double[]>> rails = new List<List<double[]>>();
         public ModelGrid grid;
         public List<(List<double[]> p, double w, int n, int lvl)> roads = new List<(List<double[]>, double, int, int)>();
 
+        /// a tile edge short of / overlapping its neighbour (data `pad`, mag-11-19: also n / s, negative = 10 cm overlap of the old-road
+        /// tiles, pulled back): the GLB vertex on that edge moves by it (model frame, before `lin`; ui/ModelJunctions2.tsx)
+        public void Pad(ref double x, ref double z)
+        {
+            double L0 = lin?[0] ?? 1, L3 = lin?[3] ?? 1;
+            if (padE != 0 && x > half - 0.02) x += padE / L0;
+            if (padW != 0 && x < -half + 0.02) x -= padW / L0;
+            if (padS != 0 && z > half - 0.02) z += padS / L3;
+            if (padN != 0 && z < -half + 0.02) z -= padN / L3;
+        }
         public double HfixAt(double px, double pz)
         {
             double sw = 0, sv = 0;
@@ -76,7 +86,9 @@ namespace Magistrala.EditorTools
         }
 
         static List<ModelJ> cache;
-        public static List<ModelJ> Models(double minX = -8100, double maxX = -400)
+        // (west edge −10240: mag-11-19 s01 / c01 / 42 at game x −9340 … −9590 — the Štafilić end of the old road and of Škabrnjska)
+        public const double MIN_X = -10240;
+        public static List<ModelJ> Models(double minX = MIN_X, double maxX = -400)
         {
             if (cache == null)
             {
@@ -92,7 +104,7 @@ namespace Magistrala.EditorTools
                         tile = MiniJson.G(j, "tile") is bool b && b,
                     };
                     if (MiniJson.G(j, "lin") is List<object> lin) { m.lin = new double[4]; for (int i = 0; i < 4; i++) m.lin[i] = MiniJson.D(lin[i]); }
-                    if (MiniJson.G(j, "pad") is Dictionary<string, object> pad) { m.padE = pad.ContainsKey("e") ? MiniJson.D(pad["e"]) : 0; m.padW = pad.ContainsKey("w") ? MiniJson.D(pad["w"]) : 0; }
+                    if (MiniJson.G(j, "pad") is Dictionary<string, object> pad) { m.padE = pad.ContainsKey("e") ? MiniJson.D(pad["e"]) : 0; m.padW = pad.ContainsKey("w") ? MiniJson.D(pad["w"]) : 0; m.padN = pad.ContainsKey("n") ? MiniJson.D(pad["n"]) : 0; m.padS = pad.ContainsKey("s") ? MiniJson.D(pad["s"]) : 0; }
                     if (MiniJson.G(j, "hfix") is List<object> hf) foreach (var p in hf) { var q = MiniJson.L(p); m.hfix.Add(new[] { MiniJson.D(q[0]), MiniJson.D(q[1]), MiniJson.D(q[2]) }); }
                     if (MiniJson.G(j, "rails") is List<object> rl)
                         foreach (var r in rl) { var pts = new List<double[]>(); foreach (var p in MiniJson.L(MiniJson.O(r)["p"])) { var q = MiniJson.L(p); pts.Add(new[] { MiniJson.D(q[0]), MiniJson.D(q[1]), MiniJson.D(q[2]), MiniJson.D(q[3]) }); } m.rails.Add(pts); }

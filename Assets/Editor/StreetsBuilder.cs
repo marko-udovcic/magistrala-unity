@@ -1,6 +1,6 @@
 // Menu Magistrala/Build streets — the web game's own road graph around Marko's models: graph.json + the junction-override layers
 // (the web loader's order, as GameDataBuilder), road-closures.json and stops.json, built as drivable streets in the core terrain
-// area (game x −8192 … 0, z −7168 … −4096). Ports of the web code (BalkanDriver client/src/world2, read-only):
+// area (game x −10240 … 0, z −7168 … −4096). Ports of the web code (BalkanDriver client/src/world2, read-only):
 //   worker/buildRoads.ts     asphalt ribbon per graph segment (halfWidth from format/roadSpec.ts), 1.6 m verges dropping 0.4 m,
 //                            side roads trimmed at the through road's edge, width tapers at degree-2 nodes, junction discs with
 //                            kerb fillets, collider flaps; inside the model squares format/modelJunctions.ts modelCuts / cutAway
@@ -28,7 +28,7 @@ namespace Magistrala.EditorTools
 {
     public static class StreetsBuilder
     {
-        public const double AX0 = -8192, AX1 = 0, AZ0 = -7168, AZ1 = -4096;
+        public const double AX0 = -10240, AX1 = 0, AZ0 = -7168, AZ1 = -4096; // (AX0: mag-11-19 Štafilić, = WorldBuilder.TX0)
         const string OUT = WorldBuilder.GEN + "/Streets";
         const float CHUNK = 256;
 

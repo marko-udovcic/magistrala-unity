@@ -51,6 +51,9 @@ namespace Magistrala
             return best;
         }
 
+        /// drive another path from now on (tests: -cor, a traffic corridor's right lane — mag-11-19 the old road)
+        public void UsePath(Vector3[] p) { if (p == null || p.Length < 2) return; path = Smooth(p); seg = Nearest(); }
+
         /// put the truck on the path at the point nearest to game x (tests: start the drive further along the D8)
         public void Teleport(float gameX)
         {

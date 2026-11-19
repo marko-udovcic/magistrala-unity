@@ -39,7 +39,7 @@ namespace Magistrala.EditorTools
             }
             try
             {
-                var pk = BuildingsBuilder.Build(W.REGION + "model-buildings.json", (x, z) => (float)Ground(models, x, z), root.transform, -8100, -300);
+                var pk = BuildingsBuilder.Build(W.REGION + "model-buildings.json", (x, z) => (float)Ground(models, x, z), root.transform, (float)WorldData.MIN_X, -300);
                 pk.name = "package"; pk.transform.localPosition = new Vector3((float)-W.OX, 0, (float)W.OZ);
             }
             catch (Exception e) { Debug.LogError("[Magistrala] model buildings: " + e); }
