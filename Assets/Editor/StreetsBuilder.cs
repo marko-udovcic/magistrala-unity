@@ -715,11 +715,17 @@ namespace Magistrala.EditorTools
             }
             bool inFurnTile(double x, double z) => ModelAt(x, z)?.furniture == true;
             // (an outside street runs up to a model's paving: on a tile's own unpaved ground it is still drawn)
-            var own = e.outside ? Drop.OnModel : Drop.Owned;
+            var own0 = e.outside ? Drop.OnModel : Drop.Owned;
+            // a street of ours hanging on a footprint model's node without an arm cut (mag-11-19 tiles: our street kept up to the end of
+            // the model's closed side stub): its last 14 m drop only on the model's paving, not 4 m around it — else a grass gap
+            // between the stub's end and our street
+            bool Hangs(long nid) => mc?.arm == null && models.Any(m => m.footprint && m.nodes.Contains(nid) && !m.edges.Contains(e.id));
+            bool hangA = !e.outside && Hangs(e.a), hangB = !e.outside && Hangs(e.b);
 
             for (int i = 0; i + 1 < n; i++)
             {
                 int j = i + 1;
+                var own = (hangA && cum[i] < 14) || (hangB && L - cum[j] < 14) ? Drop.OnModel : own0;
                 double mx = (pts[i][0] + pts[j][0]) / 2, mz = (pts[i][2] + pts[j][2]) / 2;
                 if (!InArea(mx, mz)) continue;
                 double smid = (cum[i] + cum[j]) / 2;
@@ -962,7 +968,11 @@ namespace Magistrala.EditorTools
         static List<(double x, double y, double z, double heading, double neg, double pos)> barriers;
         static void FindClosures()
         {
-            barriers = new List<(double, double, double, double, double, double)>();
+            barriers = new List<(double, double, double, double, double, double)>(); barriersDropped = 0;
+            // (a model's paved end / closed arm that an outside street now continues: no barrier — mag-11-19 tiles' side stubs that our
+            // graph lacks but ceste_izvan_modela.json has)
+            var outEnds = edges.Where(e => e.outside).SelectMany(e => new[] { e.pts[0], e.pts[e.pts.Count - 1] }).ToList();
+            bool continued(double x, double z) => outEnds.Any(p => Sq(p[0] - x) + Sq(p[2] - z) < 12 * 12);
             var cf = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "road-closures.json")));
             foreach (var co in MiniJson.L(cf["closures"]))
             {
@@ -973,15 +983,17 @@ namespace Magistrala.EditorTools
                 {
                     var e = edges[ei]; var nd = nodes[nIdx[(string)c["whichEnd"] == "a" ? e.a : e.b]];
                     if (!(m.edges.Contains(eid) && nd.kind == "end")) continue;
+                    if (continued(x, z)) { barriersDropped++; continue; }
                 }
                 var p = PointAt(ei, MiniJson.D(c["alongEdgeM"])); double ext = edges[ei].sp.halfWidth + .5;
                 barriers.Add((p.x, p.y, p.z, MiniJson.D(c["heading"]), ext, ext));
             }
-            // (a model's paved end that an outside street now continues: no barrier)
-            var outEnds = edges.Where(e => e.outside).SelectMany(e => new[] { e.pts[0], e.pts[e.pts.Count - 1] }).ToList();
             foreach (var m in models) foreach (var q in m.paveEnds)
-                if (InArea(q[0], q[2]) && !outEnds.Any(p => Sq(p[0] - q[0]) + Sq(p[2] - q[2]) < 12 * 12)) barriers.Add((q[0], q[1], q[2], q[3], q[4] / 2 + .3, q[4] / 2 + .3));
+                if (!InArea(q[0], q[2])) continue;
+                else if (continued(q[0], q[2])) barriersDropped++;
+                else barriers.Add((q[0], q[1], q[2], q[3], q[4] / 2 + .3, q[4] / 2 + .3));
         }
+        static int barriersDropped;
         static void BuildBarriers(GameObject root)
         {
             if (barriers.Count == 0) return;
@@ -1125,7 +1137,7 @@ namespace Magistrala.EditorTools
             }
             BuildBarriers(root);
             AssetDatabase.SaveAssets();
-            log.Add($"streets: {kmDrawn:F1} km ribbon ({segsDrawn} segments, {sidewalkSegs} sidewalk sides), {discs} junction discs, {nCourts} courts, {barriers.Count} barriers; {tris} triangles ({dropped} dropped on models), {nv} vertices, {chunks.Count} chunks");
+            log.Add($"streets: {kmDrawn:F1} km ribbon ({segsDrawn} segments, {sidewalkSegs} sidewalk sides), {discs} junction discs, {nCourts} courts, {barriers.Count} barriers ({barriersDropped} dropped: an outside street continues the stub); {tris} triangles ({dropped} dropped on models), {nv} vertices, {chunks.Count} chunks");
             log.Add(CarveTerrain());
             log.Add(WriteCover());
             log.Add(ClearDetails());

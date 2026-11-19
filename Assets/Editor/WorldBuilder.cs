@@ -81,24 +81,29 @@ namespace Magistrala.EditorTools
         static readonly Vector3[] CLS = { new Vector3(.33f, .35f, .37f), new Vector3(.94f, .94f, .92f), new Vector3(.55f, .58f, .6f), new Vector3(.72f, .71f, .66f), new Vector3(.8f, .8f, .77f), new Vector3(.63f, .63f, .61f) };
         static Material[] RoadMats()
         {
+            // kerb / light concrete / paving (islands, the sidewalks of the mag-11-19 old road s01–s13): the grey copy of concrete_d.jpg —
+            // the brown original × .6 read as near-black bands either side of the old road; tints as the street walks (StreetsBuilder)
+            var grey = GreyConcrete();
             return new[]
             {
                 GraphicsPass.AsphaltMaterial() ?? Lit("Asphalt", new Color(.52f, .52f, .53f), .22f, 0, "asphalt_d.jpg", "asphalt_n.jpg", .8f),
                 GraphicsPass.PaintMaterial(),
                 Lit("Steel", new Color(.62f, .65f, .67f), .55f, .65f),
-                Lit("Kerb", new Color(.66f, .65f, .61f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
-                Lit("Concrete", new Color(.62f, .62f, .6f), .12f, 0, "concrete_d.jpg", "concrete_n.jpg", .6f),
-                Lit("Paving", new Color(.58f, .57f, .55f), .15f, 0, "concrete_d.jpg", "concrete_n.jpg", .8f),
+                Lit("Kerb", new Color(.92f, .91f, .88f), .12f, 0, grey, "concrete_n.jpg", .6f),
+                Lit("Concrete", new Color(1f, 1f, .97f), .14f, 0, grey, "concrete_n.jpg", .6f),
+                Lit("Paving", new Color(.82f, .81f, .79f), .15f, 0, grey, "concrete_n.jpg", .8f),
                 DeckMat(),
             };
         }
+
+        static string GreyConcrete() { Tinted("concrete_d.jpg", "concrete_grey_d.jpg", new Color(1.55f, 1.55f, 1.53f), new Color(.2f, .2f, .2f), 0); return "concrete_grey_d.jpg"; }
 
         static Material DeckMat()
         {
             // concrete_d.jpg is brown (mean sRGB .30 .26 .20): the d08 footbridge read dark brown — a grey copy (its luminance, lifted to
             // ~.6 like light concrete) keeps the texture's detail
             var m = Lit("DeckConcrete", new Color(.95f, .95f, .94f), .12f, 0, null, "concrete_n.jpg", .6f);
-            m.SetTexture("_BaseMap", Tinted("concrete_d.jpg", "concrete_grey_d.jpg", new Color(1.55f, 1.55f, 1.53f), new Color(.2f, .2f, .2f), 0));
+            m.SetTexture("_BaseMap", Tex(GreyConcrete()));
             m.SetFloat("_Cull", 0); m.doubleSidedGI = true; EditorUtility.SetDirty(m); return m;
         }
 

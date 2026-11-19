@@ -232,7 +232,24 @@ namespace Magistrala.EditorTools
                 var P = run.p; var e = atB ? run.b : run.a; int k = atB ? P.Count - 1 : 0, k2 = atB ? Math.Max(0, P.Count - 3) : Math.Min(P.Count - 1, 2);
                 double dx = P[k][0] - P[k2][0], dz = P[k][2] - P[k2][2], l = Math.Sqrt(dx * dx + dz * dz); if (l < 1e-9) l = 1; dx /= l; dz /= l; // outward
                 // (the joined point keeps the street's own height: the pin e.y is blended in at the end)
-                void Put(double x, double y, double z) { var q = new[] { x, P[k][1], z }; if (Math.Sqrt(Sq(x - P[k][0]) + Sq(z - P[k][2])) < .5) P[k] = q; else if (atB) P.Add(q); else P.Insert(0, q); }
+                // (a join point beside the street's line — a model stub's end node 1–2 m off the package line —: the last metres are bent
+                // over to it, smoothstep over max(10 m, 4 × the offset), instead of one sharp jog at the end)
+                void Put(double x, double y, double z)
+                {
+                    double ox = x - P[k][0], oz = z - P[k][2], al = ox * dx + oz * dz, lx = ox - al * dx, lz = oz - al * dz, lat = Math.Sqrt(lx * lx + lz * lz);
+                    if (lat > .2 && lat < 4)
+                    {
+                        double Lb = Math.Max(10, 4 * lat), sAcc = 0;
+                        for (int i = k, st = atB ? -1 : 1; i >= 0 && i < P.Count; i += st)
+                        {
+                            if (i != k) sAcc += Math.Sqrt(Sq(P[i][0] - P[i - st][0]) + Sq(P[i][2] - P[i - st][2]));
+                            if (sAcc >= Lb) break;
+                            double t = 1 - sAcc / Lb, w = t * t * (3 - 2 * t);
+                            P[i] = new[] { P[i][0] + lx * w, P[i][1], P[i][2] + lz * w };
+                        }
+                    }
+                    var q = new[] { x, P[k][1], z }; if (Math.Sqrt(Sq(x - P[k][0]) + Sq(z - P[k][2])) < .5) P[k] = q; else if (atB) P.Add(q); else P.Insert(0, q);
+                }
                 if (e.kind == 3)
                 {
                     double y = ModelY(e.model, P[k][0], P[k][2], dx, dz);
