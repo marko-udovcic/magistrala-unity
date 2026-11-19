@@ -449,6 +449,7 @@ namespace Magistrala.Game
         // ------------------------------------------------------------------ HUD: job card + wallet (top left), prompt (centre)
         void OnGUI()
         {
+            if (Magistrala.GpuSwitches.NoHud) return;
             if (!Truck) return;
             if (big == null)
             {

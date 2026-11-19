@@ -227,6 +227,7 @@ namespace Magistrala.Game.Phone
 
         void OnGUI()
         {
+            if (Magistrala.GpuSwitches.NoHud) return;
             if (slide <= 0.001f) return;
             Styles();
             GUI.depth = -10;

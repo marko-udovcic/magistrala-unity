@@ -22,6 +22,7 @@ public sealed class TruckHud : MonoBehaviour
 
     void OnGUI()
     {
+        if (Magistrala.GpuSwitches.NoHud) return;
         if (labelStyle == null)
         {
             labelStyle = new GUIStyle(GUI.skin.label) { fontSize = 18, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };

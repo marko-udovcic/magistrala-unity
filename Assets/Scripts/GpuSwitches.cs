@@ -24,6 +24,8 @@ namespace Magistrala
     ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
     public class GpuSwitches : MonoBehaviour
     {
+        /// -nohud: no HUD panels, minimap or phone (clean video for marketing); -capfps N: fixed game time per frame (Time.captureFramerate) so -burst frames make a smooth N fps video
+        public static readonly bool NoHud = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nohud") >= 0;
         static string[] args;
         static string Arg(string k)
         {
@@ -158,6 +160,7 @@ namespace Magistrala
             if (TryF("-tbase", out var tb)) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.basemapDistance = tb; sb.Append($" tbase {tb}"); }
             if (Arg("-golden") == "1") { var lp = FindFirstObjectByType<LightPreset>(); if (lp) { lp.SetGolden(true); sb.Append(" golden"); } }
             shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa; if (TryF("-burst", out var bu)) burst = (int)bu;
+            if (TryF("-capfps", out var cf)) { Time.captureFramerate = (int)cf; sb.Append($" capfps {cf}"); }
             if (Arg("-shots") is string sl) shots = System.Array.ConvertAll(sl.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture));
             if (Arg("-tp") is string tps) StartCoroutine(Tp(System.Array.ConvertAll(tps.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture))));
             else if (Arg("-cor") != null || Arg("-tpxz") != null) StartCoroutine(Tp(new float[0]));

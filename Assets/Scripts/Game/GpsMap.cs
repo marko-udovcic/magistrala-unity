@@ -71,6 +71,7 @@ namespace Magistrala.Game
 
         void OnGUI()
         {
+            if (Magistrala.GpuSwitches.NoHud) return;
             if (Event.current.type != EventType.Repaint || g == null || !g.Truck || g.World == null) return;
             Vector3 tp = g.TruckCentre();
             if ((new Vector2(tp.x - cachedAt.x, tp.z - cachedAt.z)).magnitude > metres * 0.4f) CacheRoads(tp);
