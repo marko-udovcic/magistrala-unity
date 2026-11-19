@@ -14,6 +14,8 @@
 // Meshes merged per 256 m chunk (asphalt / paint / verge / kerb / footway / court), static, no shadows (flat); one MeshCollider
 // per chunk with the Asphalt physic material. A 2 m cover mask (Assets/Generated/Streets/cover.bytes) keeps the terrain details
 // and trees off the streets (GraphicsPass.Details / WorldBuilder.Trees read it; Build also clears the current ones).
+// Plus the streets outside Marko's models that our graph lacks (OutsideStreets.cs, ~/Documents/mag-11-19/ceste_izvan_modela.json):
+// added as edges of the same kind (drawn up to the models' paving, the ground also raised to them), graph edges split at their T's.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,6 +44,9 @@ namespace Magistrala.EditorTools
             public List<double[]> pts; public List<(string k, double f, double t)> spans = new List<(string, double, double)>();
             public double[] cum; public Spec sp; public bool closed;
             public double L => cum[cum.Length - 1];
+            // streets outside the models (OutsideStreets): end trims at a through road that was not split, the models at the ends
+            public bool outside, noPaint; public double trimA, trimB, mhwA = double.NaN, mhwB = double.NaN; public ModelJ mA, mB; public long splitOf = -1;
+            public E Clone() { var c = (E)MemberwiseClone(); c.spans = new List<(string, double, double)>(spans); return c; }
         }
         class Spec { public double laneW, medianHalf, innerStrip, shoulder, halfWidth, edgeLine; public int lanes; public bool dual, oneway, barriers; }
 
@@ -168,13 +173,21 @@ namespace Magistrala.EditorTools
             var closed = new HashSet<long>();
             foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "road-closures.json")))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
 
-            nodes = ns.Values.ToList(); nIdx = new Dictionary<long, int>(); for (int i = 0; i < nodes.Count; i++) nIdx[nodes[i].id] = i;
-            edges = es.Values.Where(e => e.pts != null && e.pts.Count >= 2 && nIdx.ContainsKey(e.a) && nIdx.ContainsKey(e.b)).ToList();
+            nodes = ns.Values.ToList(); var ids = new HashSet<long>(ns.Keys);
+            edges = es.Values.Where(e => e.pts != null && e.pts.Count >= 2 && ids.Contains(e.a) && ids.Contains(e.b)).ToList();
+            foreach (var e in edges) e.closed = closed.Contains(e.id);
+            Index();
+            return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids";
+        }
+        /// node / edge indices, segment grid, lengths, road specs, the D8 one-way repair and the hidden ramps (after any change of nodes / edges)
+        static void Index()
+        {
+            nIdx = new Dictionary<long, int>(); for (int i = 0; i < nodes.Count; i++) nIdx[nodes[i].id] = i;
             eIdx = new Dictionary<long, int>(); adj = new List<int>[nodes.Count]; for (int i = 0; i < adj.Length; i++) adj[i] = new List<int>();
             grid = new Dictionary<long, List<(int, int)>>();
             for (int ei = 0; ei < edges.Count; ei++)
             {
-                var e = edges[ei]; eIdx[e.id] = ei; e.closed = closed.Contains(e.id);
+                var e = edges[ei]; eIdx[e.id] = ei;
                 e.cum = new double[e.pts.Count];
                 for (int i = 1; i < e.pts.Count; i++) { var p = e.pts[i]; var q = e.pts[i - 1]; e.cum[i] = e.cum[i - 1] + Math.Sqrt(Sq(p[0] - q[0]) + Sq(p[1] - q[1]) + Sq(p[2] - q[2])); }
                 adj[nIdx[e.a]].Add(ei); adj[nIdx[e.b]].Add(ei);
@@ -206,7 +219,115 @@ namespace Magistrala.EditorTools
                 var e = edges[ei];
                 if (e.type == "ramp" && !e.oneway && e.L > 120 && edges.Any(o => IsD8(o) && ((o.a == e.a && o.b == e.b) || (o.b == e.a && o.a == e.b)) && o.L / e.L > .9 && o.L / e.L < 1.1)) hidden.Add(ei);
             }
-            return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids";
+        }
+
+        // ------------------------------------------------------------------ streets outside the models (OutsideStreets: ceste_izvan_modela.json)
+        /// the graph as OutsideStreets sees it (after LoadGraph + LoadModels); splittable = an edge no model / closure / span refers to
+        static List<OutsideStreets.GEdgeV> OutsideView(out List<OutsideStreets.GNode> gn)
+        {
+            var refd = new HashSet<long>(); foreach (var m in models) { refd.UnionWith(m.edges); foreach (var a in m.arms) refd.Add(a.edge); }
+            gn = nodes.Select((n, i) => new OutsideStreets.GNode { id = n.id, x = n.x, y = n.y, z = n.z, deg = adj[i].Count }).ToList();
+            var gv = new List<OutsideStreets.GEdgeV>();
+            for (int ei = 0; ei < edges.Count; ei++)
+            {
+                var e = edges[ei]; if (hidden.Contains(ei) || e.spans.Any(s => s.k == "tunnel")) continue;
+                bool nearModel = e.pts.Any(p => ModelAt(p[0], p[2], 20) != null);
+                gv.Add(new OutsideStreets.GEdgeV
+                {
+                    id = e.id, a = e.a, b = e.b, pts = e.pts, hw = e.sp.halfWidth,
+                    splittable = !refd.Contains(e.id) && !nearModel && !e.closed && e.spans.Count == 0 && !IsD8(e) && e.spur == null && !e.roundabout && e.type != "ramp" && e.type != "motorway",
+                });
+            }
+            return gv;
+        }
+        /// the network of the streets outside the models for this graph (GameDataBuilder routes on the same one)
+        public static OutsideStreets.Net OutsideNet()
+        {
+            LoadGraph(); LoadModels();
+            var gv = OutsideView(out var gn);
+            return OutsideStreets.Compute(gn, gv, models.Select(m => m.j).ToList(), AX0, AX1, AZ0, AZ1);
+        }
+        /// split polyline `pts` at the point nearest (x, z) (2D): (before, after), both containing the split point
+        public static (List<double[]>, List<double[]>) SplitAt(List<double[]> pts, double x, double y, double z)
+        {
+            int bi = 0; double bd = double.MaxValue, bt = 0;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                var p = pts[i]; var q = pts[i + 1]; double bx = q[0] - p[0], bz = q[2] - p[2], l2 = bx * bx + bz * bz;
+                double t = l2 < 1e-12 ? 0 : Math.Max(0, Math.Min(1, ((x - p[0]) * bx + (z - p[2]) * bz) / l2));
+                double d = Sq(x - p[0] - bx * t) + Sq(z - p[2] - bz * t); if (d < bd) { bd = d; bi = i; bt = t; }
+            }
+            var s = new[] { x, y, z };
+            var A = pts.GetRange(0, bi + 1); if (bt > 1e-3) A.Add(s); else A[A.Count - 1] = s;
+            var B = new List<double[]> { s }; B.AddRange(pts.GetRange(bi + 1, pts.Count - bi - 1)); if (bt >= 1 - 1e-3 && B.Count > 2) B.RemoveAt(1);
+            return (A, B);
+        }
+        static string ApplyOutside()
+        {
+            var gv = OutsideView(out var gn);
+            var net = OutsideStreets.Compute(gn, gv, models.Select(m => m.j).ToList(), AX0, AX1, AZ0, AZ1);
+            foreach (var nn in net.nodes) nodes.Add(new N { id = nn.id, x = nn.x, y = nn.y, z = nn.z, kind = "junction" });
+            long sid = OutsideStreets.SPLIT0;
+            foreach (var sp in net.splits)
+            {
+                if (!sp.render) continue;
+                var nn = net.nodes.First(q => q.id == sp.node); var e = edges.FirstOrDefault(q => q.id == sp.edge);
+                if (e == null) continue;
+                // (several splits on one edge: the part that holds the point)
+                var part = edges.Where(q => q.id == sp.edge || q.splitOf == sp.edge).OrderBy(q => DistTo(q.pts, nn.x, nn.z)).First();
+                var (A, B) = SplitAt(part.pts, nn.x, nn.y, nn.z);
+                var e2 = part.Clone(); e2.id = sid++; e2.splitOf = sp.edge; e2.a = nn.id; e2.pts = B;
+                part.b = nn.id; part.pts = A; edges.Add(e2);
+            }
+            foreach (var st in net.streets)
+            {
+                var e = new E
+                {
+                    id = st.id, a = st.a, b = st.b, oneway = st.oneway, lanes = st.lanes, name = st.name ?? "",
+                    type = st.cls == "primary" || st.cls == "secondary" || st.cls == "tertiary" ? st.cls : "residential", pts = st.pts,
+                    shoulderW = .25, verge = st.sidewalk ? "urban_kerb" : null, profile = st.sidewalk ? "urban_local" : null, dual = false,
+                    outside = true, trimA = st.trimA, trimB = st.trimB, mA = st.modelA, mB = st.modelB, mhwA = st.mhwA, mhwB = st.mhwB, noPaint = !st.paint,
+                };
+                e.laneW = Math.Max(1.6, st.oneway ? (st.width - .5) / st.lanes : (st.width / 2 - .25) / st.lanes);
+                // a T onto a road that is not split: the drawn street stops 5 cm onto that road's asphalt, 1.5 cm under it (the
+                // polyline itself is cut, so the far side's sidewalk is not taken for blocked); the GPS edge keeps the full line
+                e.pts = new List<double[]>(st.pts);
+                if (st.trimA > 0) { e.pts = CutStart(e.pts, st.trimA + .1); e.pts[0][1] -= .015; e.trimA = 0; }
+                if (st.trimB > 0) { e.pts.Reverse(); e.pts = CutStart(e.pts, st.trimB + .1); e.pts[0][1] -= .015; e.pts.Reverse(); e.trimB = 0; }
+                edges.Add(e);
+            }
+            Index();
+            foreach (var l in net.log.Skip(1)) Debug.Log("[Magistrala] " + l);
+            return net.log.Count > 0 ? net.log[0] : "outside streets: none";
+        }
+        /// the polyline without its first `d` metres (2D), the cut point interpolated (copies of the points)
+        static List<double[]> CutStart(List<double[]> pts, double d)
+        {
+            double acc = 0;
+            for (int i = 1; i < pts.Count; i++)
+            {
+                var a = pts[i - 1]; var b = pts[i]; double l = Math.Sqrt(Sq(b[0] - a[0]) + Sq(b[2] - a[2]));
+                if (acc + l > d && pts.Count - i >= 1)
+                {
+                    double t = (d - acc) / Math.Max(1e-9, l);
+                    var o = new List<double[]> { new[] { a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t } };
+                    for (int k = i; k < pts.Count; k++) o.Add((double[])pts[k].Clone());
+                    return o.Count >= 2 ? o : pts;
+                }
+                acc += l;
+            }
+            return pts;
+        }
+        public static double DistTo(List<double[]> pts, double x, double z)
+        {
+            double bd = double.MaxValue;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                var p = pts[i]; var q = pts[i + 1]; double bx = q[0] - p[0], bz = q[2] - p[2], l2 = bx * bx + bz * bz;
+                double t = l2 < 1e-12 ? 0 : Math.Max(0, Math.Min(1, ((x - p[0]) * bx + (z - p[2]) * bz) / l2));
+                bd = Math.Min(bd, Sq(x - p[0] - bx * t) + Sq(z - p[2] - bz * t));
+            }
+            return bd;
         }
         static long Key(int cx, int cz) => ((long)cx << 32) ^ (uint)cz;
 
@@ -524,7 +645,7 @@ namespace Magistrala.EditorTools
             Fr cutF = default; bool hasCut = mc?.arm != null && !double.IsNaN(mc.sCut);
             if (hasCut) { var p = PointAt(ei, mc.sCut); cutF = new Fr { x = p.x, y = p.y, z = p.z, rx = -p.tz, rz = p.tx }; }
             double[] Snap(double s, double u, double w) => hasCut ? ArmSnap(mc, s, u, w, cutF) : new double[3];
-            var endA = JunctionEnd(ei, true); var endB = JunctionEnd(ei, false);
+            var endA = e.trimA > 0 ? (through: false, trim: e.trimA) : JunctionEnd(ei, true); var endB = e.trimB > 0 ? (through: false, trim: e.trimB) : JunctionEnd(ei, false);
             double MarkW(double s)
             {
                 double w = 1;
@@ -551,6 +672,9 @@ namespace Magistrala.EditorTools
                     if (mh >= 0) mh = T.mhN + (mh - T.mhN) * k;
                     if (T.marks) mk = Smooth((d - 4) / (T.Lt * 0.45));
                 }
+                // an outside street meeting a model's road: its width tapered to the model's asphalt over 15 m
+                if (!double.IsNaN(e.mhwA) && s < 15) w = e.mhwA + (w - e.mhwA) * Smooth(s / 15);
+                if (!double.IsNaN(e.mhwB) && L - s < 15) w = e.mhwB + (w - e.mhwB) * Smooth((L - s) / 15);
                 return (w, mh, mk);
             }
             bool VergeOK(double s) => !((clearA > 0 && s < clearA - 9) || (clearB > 0 && s > L - (clearB - 9)));
@@ -559,10 +683,29 @@ namespace Magistrala.EditorTools
             bool sidewalkEdge = e.spur == null && e.profile != null && !d8 && e.verge == "urban_kerb";
             int lanesTot = sp.oneway ? sp.lanes : 2 * sp.lanes;
             // position of lateral u (half width w) at frame F, height offset dy, with the arm snap
+            // an outside street ending on a model: the cross-section tilted onto the model's edge over the last 10 m
+            var mendCache = new Dictionary<(bool, long), double>();
+            double MEndDy(Fr F, double u)
+            {
+                double dy = 0;
+                foreach (var (m, atB) in new[] { (e.mA, false), (e.mB, true) })
+                {
+                    if (m == null) continue; double d = atB ? L - F.s : F.s; if (d >= 10) continue;
+                    var key = (atB, (long)Math.Round(u * 4));
+                    if (!mendCache.TryGetValue(key, out double off))
+                    {
+                        var EF = FrameAt(atB ? L : 0); double sg = atB ? 1 : -1;
+                        double ys = OutsideStreets.ModelY(m, EF.x + EF.rx * u, EF.z + EF.rz * u, EF.rz * sg, -EF.rx * sg);
+                        off = double.IsNaN(ys) ? 0 : Math.Max(-.5, Math.Min(.5, ys - EF.y)); mendCache[key] = off;
+                    }
+                    dy += off * Smooth(1 - d / 10);
+                }
+                return dy;
+            }
             G Pos(Fr F, double u, double w, double dy)
             {
                 var sn = Snap(F.s, u, w);
-                return new G(F.x + F.rx * u + sn[0], F.y + dy + sn[1], F.z + F.rz * u + sn[2]);
+                return new G(F.x + F.rx * u + sn[0], F.y + dy + sn[1] + (e.outside ? MEndDy(F, u) : 0), F.z + F.rz * u + sn[2]);
             }
             bool Blocked(Fr F, double u, double margin)
             {
@@ -571,6 +714,8 @@ namespace Magistrala.EditorTools
                 return h.ei >= 0 && h.dist < edges[h.ei].sp.halfWidth + margin && Math.Abs(h.y - F.y) < 3;
             }
             bool inFurnTile(double x, double z) => ModelAt(x, z)?.furniture == true;
+            // (an outside street runs up to a model's paving: on a tile's own unpaved ground it is still drawn)
+            var own = e.outside ? Drop.OnModel : Drop.Owned;
 
             for (int i = 0; i + 1 < n; i++)
             {
@@ -579,7 +724,7 @@ namespace Magistrala.EditorTools
                 if (!InArea(mx, mz)) continue;
                 double smid = (cum[i] + cum[j]) / 2;
                 if (DuplicateRibbon(ei, smid)) continue;
-                if (CutAway(mc, ei, cum[i], cum[j])) continue;
+                if (!e.outside && CutAway(mc, ei, cum[i], cum[j])) continue; // (outside streets: only their triangles on a model's paving go)
                 if ((endA.trim > 0 && cum[j] <= endA.trim) || (endB.trim > 0 && cum[i] >= L - endB.trim)) continue;
                 string kind = null; foreach (var sp2 in e.spans) if (smid >= sp2.f && smid <= sp2.t) kind = sp2.k;
                 if (kind == "tunnel") continue;
@@ -595,7 +740,7 @@ namespace Magistrala.EditorTools
 
                 // asphalt (+ collider)
                 G R(Fr F, double u, double w) { var g = Pos(F, u, w, 0); g.f1 = new Vector2((float)u, (float)F.s); g.f2 = new Vector2((float)w, (float)Math.Max(2 * w / lanesTot, 3.1)); return g; }
-                Quad(MAT_ASPHALT, R(A, -wA, wA), R(B, -wB, wB), R(B, wB, wB), R(A, wA, wA), Vector3.up, Drop.Owned, true);
+                Quad(MAT_ASPHALT, R(A, -wA, wA), R(B, -wB, wB), R(B, wB, wB), R(A, wA, wA), Vector3.up, own, true);
                 bool any = tris > before;
                 // collider flaps: a 3 m ramp 0.9 m down from each edge (a wheel off the asphalt climbs back)
                 if (kind == null)
@@ -603,7 +748,7 @@ namespace Magistrala.EditorTools
                     {
                         var ea = Pos(A, wA * sd, wA, 0); var eb = Pos(B, wB * sd, wB, 0);
                         var oa = new G(ea.x + A.rx * 3 * sd, ea.y - .9, ea.z + A.rz * 3 * sd); var ob = new G(eb.x + B.rx * 3 * sd, eb.y - .9, eb.z + B.rz * 3 * sd);
-                        Quad(-1, ea, eb, ob, oa, Vector3.up, Drop.Owned, true);
+                        Quad(-1, ea, eb, ob, oa, Vector3.up, own, true);
                     }
                 // sides: urban sidewalk (kerb 0.15 m) or a gravel verge
                 foreach (int side in new[] { -1, 1 })
@@ -623,10 +768,10 @@ namespace Magistrala.EditorTools
                         sidewalkSegs++;
                     }
                     else if (verge)
-                        Quad(MAT_VERGE, Pos(A, side * wA, wA, -.01), Pos(B, side * wB, wB, -.01), Pos(B, side * (wB + 1.6), wB, -.4), Pos(A, side * (wA + 1.6), wA, -.4), Vector3.up, Drop.Owned, false);
+                        Quad(MAT_VERGE, Pos(A, side * wA, wA, -.01), Pos(B, side * wB, wB, -.01), Pos(B, side * (wB + 1.6), wB, -.4), Pos(A, side * (wA + 1.6), wA, -.4), Vector3.up, own, false);
                 }
                 // markings (tiles/materials.ts), not on driveways
-                if (e.spur == null)
+                if (e.spur == null && !e.noPaint)
                 {
                     double mkA = MarkW(A.s) * shA.mk, mkB = MarkW(B.s) * shB.mk;
                     if (Math.Min(mkA, mkB) > .5) Paint(sp, shA.mh, A, B, wA, wB, Pos);
@@ -639,6 +784,8 @@ namespace Magistrala.EditorTools
                     // (the snap can tilt the cross-section: the lower edge's height is used)
                     var la = Pos(A, -wA, wA, 0); var ra = Pos(A, wA, wA, 0); var lb = Pos(B, -wB, wB, 0); var rb = Pos(B, wB, wB, 0);
                     Carve(la.x, la.z, la.y, lb.x, lb.z, lb.y, 1.6); Carve(ra.x, ra.z, ra.y, rb.x, rb.z, rb.y, 1.6);
+                    // outside streets: the ground also raised to the street (it follows our ground only smoothed)
+                    if (e.outside) carve.Add(new[] { ca.x, ca.z, Math.Min(la.y, ra.y), cb.x, cb.z, Math.Min(lb.y, rb.y), Math.Max(wA, wB) + 1.6, 1 });
                 }
             }
         }
@@ -830,7 +977,10 @@ namespace Magistrala.EditorTools
                 var p = PointAt(ei, MiniJson.D(c["alongEdgeM"])); double ext = edges[ei].sp.halfWidth + .5;
                 barriers.Add((p.x, p.y, p.z, MiniJson.D(c["heading"]), ext, ext));
             }
-            foreach (var m in models) foreach (var q in m.paveEnds) if (InArea(q[0], q[2])) barriers.Add((q[0], q[1], q[2], q[3], q[4] / 2 + .3, q[4] / 2 + .3));
+            // (a model's paved end that an outside street now continues: no barrier)
+            var outEnds = edges.Where(e => e.outside).SelectMany(e => new[] { e.pts[0], e.pts[e.pts.Count - 1] }).ToList();
+            foreach (var m in models) foreach (var q in m.paveEnds)
+                if (InArea(q[0], q[2]) && !outEnds.Any(p => Sq(p[0] - q[0]) + Sq(p[2] - q[2]) < 12 * 12)) barriers.Add((q[0], q[1], q[2], q[3], q[4] / 2 + .3, q[4] / 2 + .3));
         }
         static void BuildBarriers(GameObject root)
         {
@@ -917,7 +1067,7 @@ namespace Magistrala.EditorTools
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var log = new List<string>();
-            log.Add(LoadGraph()); LoadModels(); ModelCuts();
+            log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
             tris = dropped = segsDrawn = sidewalkSegs = discs = nCourts = 0; kmDrawn = 0;
@@ -986,8 +1136,14 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ terrain under the streets
+        static List<ModelJ> wbModels;
+        static double Ground(double gx, double gz, double step)
+        {
+            double h = Tiles.Height(gx, gz); var q = WorldData.ModelTerrain(wbModels, gx, gz, step, h); return q ?? h;
+        }
         static string CarveTerrain()
         {
+            wbModels = WorldData.Models(-1e9, 1e9);
             int changed = 0, tiles = 0;
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
@@ -1013,8 +1169,30 @@ namespace Magistrala.EditorTools
                             double h = Tiles.Height(gx, gz); Set(r, c, h + (b.y - .06 - h) * k); // (from the baked ground: a rebuild gives the same court)
                         }
                 }
+                // outside streets' fills: the ground set to the street within reach, blended back over 6 m (raise or lower)
                 foreach (var q in carve)
                 {
+                    if (q.Length < 8) continue;
+                    double reach = q[6], x0 = Math.Min(q[0], q[3]) - reach - 6, x1 = Math.Max(q[0], q[3]) + reach + 6, z0 = Math.Min(q[1], q[4]) - reach - 6, z1 = Math.Max(q[1], q[4]) + reach + 6;
+                    if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;
+                    double bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
+                    for (int r = Math.Max(0, (int)Math.Floor((oz1 - z1) / step)); r <= Math.Min(res - 1, (int)Math.Ceiling((oz1 - z0) / step)); r++)
+                        for (int c = Math.Max(0, (int)Math.Floor((x0 - ox) / step)); c <= Math.Min(res - 1, (int)Math.Ceiling((x1 - ox) / step)); c++)
+                        {
+                            double gx = ox + c * step, gz = oz1 - r * step;
+                            double tt = l2 < 1e-9 ? 0 : Math.Max(0, Math.Min(1, ((gx - q[0]) * bx + (gz - q[1]) * bz) / l2));
+                            double dd = Math.Sqrt(Sq(gx - q[0] - bx * tt) + Sq(gz - q[1] - bz * tt)); if (dd > reach + 6) continue;
+                            // (blended against the ground as WorldBuilder made it, not the current one: a rebuild gives the same ground)
+                            double ry = q[2] + (q[5] - q[2]) * tt - .18, k = dd <= reach ? 1 : Smooth(1 - (dd - reach) / 6);
+                            // (the models' ground is WorldBuilder's / ModelTerrain's: faded out towards their paving)
+                            double sd = WorldData.SurfDist(wbModels, gx, gz); if (sd < 4) k *= Smooth((sd - 1.5) / 2.5);
+                            double h = k >= 1 ? 0 : Ground(gx, gz, step);
+                            Set(r, c, h + (ry - h) * k);
+                        }
+                }
+                foreach (var q in carve)
+                {
+                    if (q.Length >= 8) continue;
                     double reach = q[6]; // (half width + 1.6 m = the web's hw + step · 0.8 on the 2 m grid)
                     double x0 = Math.Min(q[0], q[3]) - reach, x1 = Math.Max(q[0], q[3]) + reach, z0 = Math.Min(q[1], q[4]) - reach, z1 = Math.Max(q[1], q[4]) + reach;
                     if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;

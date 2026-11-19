@@ -61,6 +61,28 @@ namespace Magistrala.EditorTools
             var cf = W.REGION + "road-closures.json";
             if (File.Exists(cf)) foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(cf)))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
 
+            // ---- streets outside the models (OutsideStreets, the same network StreetsBuilder draws): new nodes / edges, graph edges
+            // split where a new street meets them (the split-off part keeps the closure of its edge)
+            var net = StreetsBuilder.OutsideNet(); var splitOf = new Dictionary<long, long>(); long sid = OutsideStreets.SPLIT0 + 500_000;
+            foreach (var nn in net.nodes) nodes[nn.id] = new N { id = nn.id, x = nn.x, y = nn.y, z = nn.z };
+            foreach (var sp in net.splits)
+            {
+                var nn = nodes[sp.node]; E part = null; double bd = double.MaxValue;
+                foreach (var e in edges.Values)
+                {
+                    if (e.id != sp.edge && !(splitOf.TryGetValue(e.id, out long o) && o == sp.edge)) continue;
+                    double d = StreetsBuilder.DistTo(e.pts, nn.x, nn.z); if (d < bd) { bd = d; part = e; }
+                }
+                if (part == null) continue;
+                var (A, B) = StreetsBuilder.SplitAt(part.pts, nn.x, nn.y, nn.z);
+                var e2 = new E { id = sid++, a = nn.id, b = part.b, oneway = part.oneway, name = part.name, lanes = part.lanes, spur = part.spur, pts = B };
+                splitOf[e2.id] = sp.edge; part.b = nn.id; part.pts = A;
+                part.length = PolyLen(A); e2.length = PolyLen(B); edges[e2.id] = e2;
+            }
+            foreach (var st in net.streets) edges[st.id] = new E { id = st.id, a = st.a, b = st.b, oneway = st.oneway, name = st.name, lanes = st.lanes, pts = st.pts, length = PolyLen(st.pts) };
+            foreach (var kv in splitOf) if (closed.Contains(kv.Value)) closed.Add(kv.Key);
+            Debug.Log("[igra] " + (net.log.Count > 0 ? net.log[0] : "outside streets: none"));
+
             // ---- clip to the Unity world, index
             bool In(N n) => true;
             var nIndex = new Dictionary<long, int>(); var nList = new List<Vector3>();
@@ -109,7 +131,7 @@ namespace Magistrala.EditorTools
             var asset = AssetDatabase.LoadAssetAtPath<GameWorld>(OutPath);
             bool fresh = !asset; if (fresh) asset = ScriptableObject.CreateInstance<GameWorld>();
             asset.stops = stops.ToArray(); asset.nodes = nList.ToArray(); asset.edges = eList.ToArray(); asset.pts = pts.ToArray(); asset.dist = dist;
-            asset.source = $"graph.json + {applied} override entries ({skipped} skipped), {closed.Count} closed edge ids, {DateTime.Now:yyyy-MM-dd HH:mm}";
+            asset.source = $"graph.json + {applied} override entries ({skipped} skipped), {closed.Count} closed edge ids, {net.streets.Count} outside streets ({net.splits.Count} splits), {DateTime.Now:yyyy-MM-dd HH:mm}";
             if (fresh) AssetDatabase.CreateAsset(asset, OutPath); else EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
             Debug.Log($"[igra] {OutPath}: {stops.Count} stops, {nList.Count} nodes, {eList.Count} edges ({eList.FindAll(e => e.closed).Count} closed), {pts.Count} points; {asset.source}");
@@ -145,6 +167,7 @@ namespace Magistrala.EditorTools
             return e;
         }
         static double Sq(double v) => v * v;
+        static double PolyLen(List<double[]> p) { double L = 0; for (int i = 1; i < p.Count; i++) L += Math.Sqrt(Sq(p[i][0] - p[i - 1][0]) + Sq(p[i][1] - p[i - 1][1]) + Sq(p[i][2] - p[i - 1][2])); return L; }
 
         /// one override entry, atomically (junctionOverrides.ts applyJunctionOverrides): false = ignored (stale signature / missing ids)
         static bool Apply(Dictionary<string, object> entry, Dictionary<long, N> nodes, Dictionary<long, E> edges)
