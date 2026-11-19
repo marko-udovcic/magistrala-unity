@@ -34,6 +34,9 @@ namespace Magistrala.Game
         public float jobStartMin, jobNightMin, jobCargoDamage, jobTruckDamage;
         public bool jobLoaded;
         public int vesnaDay = -1;
+        /// mag-11-19: the running tour whole (legs, the current leg, rows delivered; no legs = none) and the tours driven ("day:key")
+        public MagistralaGame.Job job;
+        public List<string> toursDone = new List<string>();
         public PhoneSave phone = new PhoneSave();
     }
 
@@ -85,10 +88,12 @@ namespace Magistrala.Game
             if (best != null) S.stop = best.id;
             if (Current != null)
             {
+                S.job = Clone(Current); S.job.rowsOff = Unload ? Unload.Rows - Unload.RowsIn : 0;
+                if (State == Phase.Loading && loadingKind == 'a') S.job.leg = 0;
                 S.jobTo = Current.to; S.jobStartMin = Current.startMin; S.jobNightMin = Current.nightMin;
                 S.jobCargoDamage = Current.cargoDamage; S.jobTruckDamage = Current.truckDamage; S.jobLoaded = State != Phase.Loading;
             }
-            else S.jobTo = "";
+            else { S.jobTo = ""; S.job = null; }
             if (Phone) S.phone = Phone.Export();
             try { System.IO.File.WriteAllText(savePath, JsonUtility.ToJson(S, true)); Debug.Log($"[save] {why}: {DayLabel}, stop {S.stop}, cash {S.cash:0.0} €"); }
             catch (Exception e) { Debug.LogWarning($"[save] failed: {e.Message}"); }
@@ -101,10 +106,19 @@ namespace Magistrala.Game
         {
             var s = World.Stop(S.stop);
             if (s != null && s.id != Warehouse) PlaceAtStop(s);
-            if (!string.IsNullOrEmpty(S.jobTo))
+            if (S.job != null && S.job.legs != null && S.job.legs.Count > 0 && S.job.leg < S.job.legs.Count && S.job.legs.TrueForAll(l => World.Stop(l.stop) != null))
+            {
+                var j = Clone(S.job); j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
+                Current = j; State = Phase.Driving;
+                SetPallets(j.loaded); if (j.loaded && Unload) Unload.SetDelivered(j.rowsOff);
+                int left = 0; for (int i = j.leg; i < j.legs.Count; i++) if (j.legs[i].K == 'd') left++;
+                Truck.SetCargo(j.loaded && j.drops > 0 ? j.kg * left / j.drops : 0);
+                Banner($"Tura se nastavlja: {j.label} · {LegVerb(j.Leg)}");
+            }
+            else if (!string.IsNullOrEmpty(S.jobTo))
             {
                 int k = Array.FindIndex(FirmJobs, j => j.to == S.jobTo);
-                var j = k >= 0 ? Offer(k) : null;
+                var j = k >= 0 ? Single(k) : null;
                 if (j != null)
                 {
                     j.startMin = S.jobStartMin; j.nightMin = S.jobNightMin; j.cargoDamage = S.jobCargoDamage; j.truckDamage = S.jobTruckDamage;
@@ -167,10 +181,11 @@ namespace Magistrala.Game
             {
                 var l = new List<PhoneJob>();
                 if (!ToursOpen || Current != null) return l;
-                for (int k = 0; k < FirmJobs.Length; k++)
+                var of = Offers();
+                for (int k = 0; k < of.Count && k < 9; k++)
                 {
-                    var j = Offer(k); if (j == null) continue; int kk = k;
-                    l.Add(new PhoneJob { label = $"{k + 1}  {j.label}", sub = $"{j.cargo} · {j.km:0.0} km · {Eur(j.pay)} · rok {Hm(S.clockMin + Deadline(j.km))}", take = () => { Accept(kk); if (Current != null) Phone.Close(); } });
+                    var j = of[k]; int kk = k;
+                    l.Add(new PhoneJob { label = $"{k + 1}  {(j.tour != "" ? OfferLine(j) : j.label)}", sub = OfferSub(j), take = () => { Accept(kk); if (Current != null) Phone.Close(); } });
                 }
                 return l;
             };
@@ -180,10 +195,10 @@ namespace Magistrala.Game
                 S.closedDay == Day ? "Danas nema firmine ture." :
                 S.answeredDay != Day ? "Čeka se Zdravkov jutarnji poziv." :
                 !atWarehouse ? "Ture se preuzimaju u skladištu u Lukšiću (GPS te vodi)." :
-                Truck.SpeedKmh > 3 ? "Stani u skladištu pa biraj turu." : "Biraj turu (1 / 2 / 3).";
+                Truck.SpeedKmh > 3 ? "Stani u skladištu pa biraj turu." : $"Biraj turu (1–{Mathf.Min(9, Offers().Count)}).";
             Phone.outgoing = who => who switch
             {
-                "zdravko" => Current != null ? "Javi kad istovariš. I ne zovi me dok voziš." : ToursOpen ? "Ture su u Poslovima. Biraj, Bašiću." : "Bašiću, sad nemam ništa za tebe.",
+                "zdravko" => Current != null && Current.tour != "" ? $"Još {Current.legs.Count - Current.leg} do kraja ture. Javi kad završiš." : Current != null ? "Javi kad istovariš. I ne zovi me dok voziš." : ToursOpen ? "Ture su u Poslovima. Biraj, Bašiću." : "Bašiću, sad nemam ništa za tebe.",
                 "vesna" => "Vozi polako. Vidimo se navečer.",
                 "zare" => "Polako, Mate. Cesta neće pobić, a ćevapi oće.",
                 "marija" => "Mate! Burek je baš sad izašao. Svrati kad stigneš.",

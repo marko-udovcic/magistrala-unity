@@ -16,7 +16,17 @@ namespace Magistrala.Game
         public Vector3 bay; public Vector2 bayDir; public float bayHl, bayHw;
         /// graph node index of the spur's pad end (GPS target) and of the access node (distances.json), -1 = none
         public int padNode = -1, accessNode = -1;
+        /// mag-11-19 delivery points (GameDataBuilder.Tours.cs): the package checkpoint id (-1 = a stops.json stop), its tours
+        /// ("pice:u" load / "pice:d" deliver), the largest vehicle allowed ("" = any; "mali" = van or small truck, the waterfronts)
+        public int pid = -1;
+        public string[] tours = new string[0];
+        public string maxVehicle = "";
+        public bool Has(string tour, char role) { foreach (var t in tours) if (t.Length == tour.Length + 2 && t.StartsWith(tour) && t[tour.Length + 1] == role) return true; return false; }
     }
+
+    /// a tour type of the package (world_1to1.json tours): cargo, route text, who orders it (firma / fatureta), invoice / cash
+    [Serializable]
+    public class GTour { public string id, cargo, route, who, payment; public int pickups, drops; }
 
     [Serializable]
     public class GEdge
@@ -38,11 +48,13 @@ namespace Magistrala.Game
         /// directed road metres between stops (distances.json, access node to access node): dist[i * stops.Length + j], -1 = none
         public float[] dist;
         public string source;
+        public GTour[] tours = new GTour[0];
 
         public const string ResourcePath = "MagistralaGame";
 
         public GStop Stop(string id) => Array.Find(stops, s => s.id == id);
         public int StopIndex(string id) => Array.FindIndex(stops, s => s.id == id);
+        public GTour Tour(string id) => Array.Find(tours, t => t.id == id);
         public float RoadMetres(string from, string to)
         {
             int i = StopIndex(from), j = StopIndex(to);

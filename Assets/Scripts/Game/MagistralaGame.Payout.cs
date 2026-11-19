@@ -2,7 +2,8 @@
 // base = the firm's pay (10 € + 3 €/road km); lines: late (−15 % + 1 % per 6 min over, at most −50 %), cargo damage (−%),
 // reversed into the bay (+10 %), night run (+20 %, more than half of the tour's game minutes between 21 and 5:30). Local region
 // jobs: bonuses share a budget of 120 € − base; the total rounded to 0.5 €. Rating 5 stars − late − damage > 10 / 35 % − truck
-// damage > 15 %. Shown as a short card after the unload (Enter closes, gone after 10 s). Firm pay goes to the pocket (cash).
+// damage > 15 %. A multi-stop tour (MagistralaGame.Tours.cs) is paid once, at its end: base = 10 € + 3 €/km of the whole tour
+// + StopPay per stop after the first, the empties' return included. Shown as a short card after the unload (Enter closes, gone after 10 s). Firm pay goes to the pocket (cash).
 // Damage (engine.ts drainContacts): body contact force over 60 kN → strength = (F − 60 kN) / (mass · 60), debounced 0.6 s;
 // truck damage strength · 6 (· 9 with a vehicle), cargo damage × 1.2.
 using System.Collections.Generic;
@@ -108,7 +109,9 @@ namespace Magistrala.Game
             GUI.Label(new Rect(x + 20, cy - 6, w - 40, 30), new string('★', p.rating) + new string('☆', 5 - p.rating), new GUIStyle(cdLabel) { alignment = TextAnchor.UpperRight, fontSize = 24, normal = { textColor = new Color(1f, 0.83f, 0.3f) } });
             cy += 18;
             GUI.Label(new Rect(x + 20, cy, w - 40, 38), p.job.cargo.Substring(0, 1).ToUpper() + p.job.cargo.Substring(1), cdTitle); cy += 38;
-            GUI.Label(new Rect(x + 20, cy, w - 40, 20), $"{World.Stop(p.job.from)?.name} → {p.job.label} · {p.job.km:0.0} km · {Mathf.Round(p.minutes):0} min u igri", cdSub); cy += 20;
+            string sub = p.job.tour != "" ? $"{p.job.label} · {p.job.km:0.0} km · {Mathf.Round(p.minutes):0} min u igri{(TourReturns(p.job.tour) ? " · prazne gajbe vraćene (u cijeni)" : "")}"
+                : $"{World.Stop(p.job.from)?.name} → {p.job.label} · {p.job.km:0.0} km · {Mathf.Round(p.minutes):0} min u igri";
+            GUI.Label(new Rect(x + 20, cy, w - 40, 20), sub, cdSub); cy += 20;
             GUI.Label(new Rect(x + 20, cy, w - 40, 26), $"„{p.quip}“", cdQuip); cy += 26 + 12;
             void Row(string l, float a, int i, bool money = true)
             {
@@ -117,7 +120,7 @@ namespace Magistrala.Game
                 var st = new GUIStyle(cdRow) { alignment = TextAnchor.UpperRight, normal = { textColor = a < 0 ? new Color(1f, 0.5f, 0.45f) : a > 0 && i > 0 ? new Color(0.5f, 0.9f, 0.55f) : Color.white } };
                 GUI.Label(new Rect(x + 20, cy, w - 40, 24), (i > 0 && a > 0 ? "+" : a < 0 ? "−" : "") + Eur(Mathf.Abs(a)), st);
             }
-            Row("Osnovna zarada (10 € + 3 €/km)", p.base_, 0); cy += 26;
+            Row(p.job.tour != "" && p.job.legs.Count > 1 ? $"Osnovna zarada (10 € + 3 €/km + {StopPay:0} € po stajanju)" : "Osnovna zarada (10 € + 3 €/km)", p.base_, 0); cy += 26;
             for (int i = 0; i < p.lines.Count; i++) { Row(p.lines[i].label, p.lines[i].amount, i + 1); cy += 26; }
             cy += 4; GUI.DrawTexture(new Rect(x + 20, cy, w - 40, 1), cdLine); cy += 8;
             float shown = age < 0.6f + n * 0.3f ? 0 : Mathf.Min(1, (age - 0.6f - n * 0.3f) / 0.8f) * p.total;

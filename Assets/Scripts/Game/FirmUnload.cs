@@ -2,6 +2,8 @@
 // extended to a row-by-row sequence: the roll-up door goes up, the tail lift unfolds level at bed height, then for each pallet row
 // (rear first) the pallet truck pulls the row onto the platform, the lift lowers it to the ground, the row is pushed off behind the
 // truck (it stays there, in the world) and the lift comes back up. Then the lift folds and the door closes.
+// Multi-stop tours (mag-11-19, MagistralaGame.Tours.cs): Begin(n) unloads only the next n rows still in the box (rear first);
+// an abort brings back only that stop's rows.
 // Nodes of firm_truck.glb (atego.py): door_roll/door_roll_0..6, tail_lift (stowed: rotation.x −90°), load_pallets/load_pallets_0..n.
 // Model space = the GLB's (glTFast mirrors x; y and z as in the web, the box rear at +z).
 using System.Collections.Generic;
@@ -28,9 +30,15 @@ namespace Magistrala.Game
         public float T { get; private set; } = -1;
         public bool Running => T >= 0;
         public bool Ok => lift != null && panels.Count > 0;
-        public float Duration => TDoor + TFold + rows.Length * TRow + TFold + TDoor;
+        public float Duration => TDoor + TFold + (seq ?? AllRows()).Length * TRow + TFold + TDoor;
         public int RowsOff { get; private set; }
         public int Rows => rows.Length;
+        /// rows of the running (or last) unload
+        public int SeqRows => (seq ?? AllRows()).Length;
+        /// rows still in the box
+        public int RowsIn { get { int n = 0; foreach (var r in rows) if (r.gameObject.activeSelf) n++; return n; } }
+        int[] seq; // the rows of this unload, in order (indices into rows)
+        int[] AllRows() { var a = new int[rows.Length]; for (int i = 0; i < a.Length; i++) a[i] = i; return a; }
         float abortT = -1; float door0, angle0, drop0;
         float door, angle = -90, drop;
 
@@ -93,10 +101,19 @@ namespace Magistrala.Game
         {
             ClearDropped();
             for (int i = 0; i < rows.Length; i++) { rows[i].gameObject.SetActive(on); rows[i].localPosition = Vector3.zero; }
-            RowsOff = 0;
+            RowsOff = 0; seq = null;
         }
 
-        public void Begin() { T = 0; abortT = -1; RowsOff = 0; }
+        /// a resumed tour: the first `off` rows (rear first) already delivered
+        public void SetDelivered(int off) { for (int i = 0; i < rows.Length; i++) rows[i].gameObject.SetActive(i >= off); }
+
+        /// unload the next `count` rows still in the box (−1 = all of them)
+        public void Begin(int count = -1)
+        {
+            var l = new List<int>();
+            for (int i = 0; i < rows.Length && (count < 0 || l.Count < count); i++) if (rows[i].gameObject.activeSelf) l.Add(i);
+            seq = l.ToArray(); T = 0; abortT = -1; RowsOff = 0;
+        }
 
         /// the truck moved off: ease the lift / door back to stowed, the rows come back into the box (web: an aborted unload's row returns)
         public void Abort()
@@ -104,7 +121,7 @@ namespace Magistrala.Game
             if (T < 0) return;
             T = -1; abortT = 0; door0 = door; angle0 = angle; drop0 = drop;
             ClearDropped();
-            for (int i = 0; i < rows.Length; i++) { rows[i].gameObject.SetActive(true); rows[i].localPosition = Vector3.zero; }
+            foreach (int i in seq ?? AllRows()) { rows[i].gameObject.SetActive(true); rows[i].localPosition = Vector3.zero; }
             RowsOff = 0;
         }
 
@@ -127,16 +144,17 @@ namespace Magistrala.Game
             door = Ramp(t, 0, TDoor) * (1 - Ramp(t, D - TDoor, D));
             angle = -90 * (1 - Ramp(t, TDoor, TDoor + TFold) * (1 - Ramp(t, D - TDoor - TFold, D - TDoor)));
             drop = 0;
-            for (int k = 0; k < rows.Length; k++)
+            var sq = seq ?? AllRows();
+            for (int q = 0; q < sq.Length; q++)
             {
-                float s = RowStart(k);
+                int k = sq[q]; float s = RowStart(q);
                 float dk = LiftDrop * Ramp(t, s + TPull, s + TPull + TDown) * (1 - Ramp(t, s + TPull + TDown + TPush, s + TRow));
                 drop += dk;
                 var row = rows[k];
                 if (!row.gameObject.activeSelf) continue;
                 if (t < s) { row.localPosition = Vector3.zero; continue; }
                 // onto the platform (and down to its top at the end of the pull), down with the lift, pushed off behind the truck
-                float dz = Ramp(t, s, s + TPull) * (plateZ - rowZ[k]) + Ramp(t, s + TPull + TDown, s + TPull + TDown + TPush) * (PushBack + k * 1.35f); // rows in a line behind the truck
+                float dz = Ramp(t, s, s + TPull) * (plateZ - rowZ[k]) + Ramp(t, s + TPull + TDown, s + TPull + TDown + TPush) * (PushBack + q * 1.35f); // rows in a line behind the truck
                 float dy = Ramp(t, s + TPull * 0.6f, s + TPull) * (plateTop - rowBottom[k]) - LiftDrop * Ramp(t, s + TPull, s + TPull + TDown);
                 row.localPosition = new Vector3(0, dy, dz);
                 if (t >= s + TPull + TDown + TPush) Drop(k);
