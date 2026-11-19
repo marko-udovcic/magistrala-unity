@@ -54,7 +54,7 @@ namespace Magistrala.Game.Phone
         };
         public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
 
-        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon }
+        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About }
         public bool Open { get; private set; }
         public Screen Current { get; private set; } = Screen.Home;
         public PhoneCall Ringing { get; private set; }
@@ -267,6 +267,7 @@ namespace Magistrala.Game.Phone
                 case Screen.InCall: DrawCall(area); break;
                 case Screen.Outgoing: DrawOutgoing(scr, area); break;
                 case Screen.Soon: DrawSoon(area); break;
+                case Screen.About: DrawAbout(area); break;
             }
             Fill(new Rect(x + W / 2 - 62, scr.yMax - 13, 124, 5), new Color(1, 1, 1, 0.85f), 2.5f); // home bar
             if (Open)
@@ -347,6 +348,7 @@ namespace Magistrala.Game.Phone
                 new App { name = "Poslovi", glyph = PhoneArt.Box, c = new Color(1f, 0.58f, 0.1f), s = Screen.Jobs },
                 new App { name = "Karta", glyph = PhoneArt.Map, c = new Color(0.3f, 0.75f, 0.55f), s = Screen.Soon },
                 new App { name = "Banka", glyph = PhoneArt.Bank, c = new Color(0.2f, 0.32f, 0.62f), s = Screen.Soon },
+                new App { name = "O igri", glyph = PhoneArt.Person, c = new Color(0.45f, 0.47f, 0.52f), s = Screen.About },
             };
             var dock = new[]
             {
@@ -393,6 +395,20 @@ namespace Magistrala.Game.Phone
         {
             float y = Title(a, soonName ?? "");
             GUI.Label(new Rect(a.x, y, a.width, 60), "Uskoro.", txt);
+            items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
+            List(a, a.yMax - 50);
+        }
+
+        // credits / sources (the attribution the data licences ask for; full list in CREDITS.md)
+        public const string AboutText =
+            "Magistrala — Kaštela, Split.\n\n" +
+            "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni " +
+            "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
+            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).";
+        void DrawAbout(Rect a)
+        {
+            float y = Title(a, "O igri", "Izvori podataka");
+            GUI.Label(new Rect(a.x, y, a.width, a.yMax - 60 - y), AboutText, small);
             items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
             List(a, a.yMax - 50);
         }

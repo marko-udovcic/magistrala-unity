@@ -21,6 +21,11 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg) i `Assets/Textures/Sky/*`.
   (Sadrži podatke Državne geodetske uprave; podaci su izmijenjeni)
 - Kamion `firm_truck.glb`, biljke `plants/*.glb` i njihovi impostori, teksture `tex/pbr/*` (stari teren / beton)
 
+## Državna geodetska uprava (Otvorena dozvola, data.gov.hr/otvorena-dozvola)
+- **Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni.**
+  Boja tla oko Kaštel Lukšića (`Assets/Generated/Terrain/Macro/*`, izvedeno: zgrade i ceste maskirane i popunjene, boja
+  svedena na naše teksture; docs/dof-tlo.md). Ne predstavlja službeni geodetski dokument. Isti tekst je u igri (mobitel → O igri).
+
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
 

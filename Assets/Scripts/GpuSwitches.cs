@@ -13,6 +13,8 @@ namespace Magistrala
     ///   -ssao 0 | half | full | depth | normals | after | before | blur0..2 | samples0..2 (comma list)
     ///   -soft 0..3 (0 = hard shadows)   -casc N   -shd metres   -shres N   -scale F
     ///   -shsmall M  renderers whose bounds are smaller than M metres cast no shadow   -tshadow 0  terrain casts no shadow
+    ///   -camhigh H  camera H m up, 1.2 H behind the truck (higher look at the ground)
+    ///   -dof 0      orthophoto ground colour off (stock terrain material on the macro tiles)
     ///   -sea 0      -probes 0 (reflection probe blending / box projection off)   -tbase M (terrain basemap distance)
     ///   -golden 1   start in sunset    -shot path.png [-shotat s]  screenshot after s seconds (default 25)
     ///   -burst N    with -shot: N consecutive frames path_00.png.. (shimmer / temporal look while driving)
@@ -120,6 +122,7 @@ namespace Magistrala
             return arr[0].rendererFeatures;
         }
 
+        float camHigh; // -camhigh H: the camera H m above / 1.2 H behind the truck, looking 25 m ahead (a higher look at the ground)
         float shotAt = 25; string shot; bool shotDone; int burst, burstI; float[] shots; int shotsI; float t0;
 
         void Start()
@@ -157,8 +160,17 @@ namespace Magistrala
                 sb.Append($" shsmall {small}: {n} renderers");
             }
             if (Off("-tshadow")) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.shadowCastingMode = ShadowCastingMode.Off; sb.Append(" tshadow 0"); }
+            if (Off("-dof"))
+            {
+                // A/B of the orthophoto ground colour (OrthoGround.cs): the macro tiles get the stock URP terrain material back
+                Material stock = null; int n = 0;
+                foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) if (t.materialTemplate && !t.materialTemplate.HasProperty("_MacroTex")) { stock = t.materialTemplate; break; }
+                foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) if (stock && t.materialTemplate && t.materialTemplate.HasProperty("_MacroTex")) { t.materialTemplate = stock; n++; }
+                Shader.SetGlobalFloat("_MacroOff", 1); sb.Append($" dof 0: {n} terrains");
+            }
             if (TryF("-tbase", out var tb)) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.basemapDistance = tb; sb.Append($" tbase {tb}"); }
             if (Arg("-golden") == "1") { var lp = FindFirstObjectByType<LightPreset>(); if (lp) { lp.SetGolden(true); sb.Append(" golden"); } }
+            if (TryF("-camhigh", out var ch)) { camHigh = ch; sb.Append($" camhigh {ch}"); }
             shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa; if (TryF("-burst", out var bu)) burst = (int)bu;
             if (TryF("-capfps", out var cf)) { Time.captureFramerate = (int)cf; sb.Append($" capfps {cf}"); }
             if (Arg("-shots") is string sl) shots = System.Array.ConvertAll(sl.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture));
@@ -198,6 +210,16 @@ namespace Magistrala
                     yield return new WaitForSeconds(12f);
                 }
             foreach (var x in gx) { if (ap) { ap.Teleport(x); Debug.Log($"[gpu] tp {x} at {Time.realtimeSinceStartup:F0}s"); } yield return new WaitForSeconds(12f); }
+        }
+
+        void LateUpdate()
+        {
+            if (camHigh <= 0 || !Camera.main) return;
+            var tr = FindFirstObjectByType<TruckController>(); if (!tr) return;
+            var chase = Camera.main.GetComponent<TruckChaseCamera>(); if (chase) chase.enabled = false;
+            var f = tr.transform.forward; f.y = 0; f.Normalize();
+            Camera.main.transform.position = tr.transform.position + Vector3.up * camHigh - f * camHigh * 1.2f;
+            Camera.main.transform.LookAt(tr.transform.position + f * 25);
         }
 
         void Update()
