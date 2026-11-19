@@ -60,11 +60,39 @@ firma 10 € + 3 €/km, fatureta 8 € + 4 €/km (najmanje 45 €), zaokružen
   sam prije builda igrača.
 - Igra: `Assets/Scripts/Game/*` se stvara pri učitavanju scene (scena se ne mijenja).
 
+## Točke dostave i ture (paket mag-11-19, grana ture-11-19)
+
+- Uvoz u istom izborniku (`Assets/Editor/GameDataBuilder.Tours.cs`): `~/Documents/mag-11-19/world_1to1.json` (ne 1to3), točke iz
+  okvira paketa afinom transformacijom iz `paket-approaches.json` (kao OutsideStreets) u naš, pa u Unity. Zadrže se samo točke s
+  turama u području ulica (Štafilić → Sućurac) koje GPS dosiže iz skladišta u Lukšiću i natrag; točka se prikvači na najbližu
+  ulicu grafa (D8 se računa 40 m dalje), brid se tu podijeli (novi čvor = cilj GPS-a), mjesto istovara leži uz ulicu.
+  Izvještaj: `Logs/ture-uvoz.txt` (koje su ušle, koje nisu i zašto). 2026-11-19: 55 od 85; van su Split / Solin (25),
+  baze i odmorišta bez tura (8) i Caffe bar Verona na rivi Starog (Vukovarska: otok u grafu, nema puta).
+- Imena: `Assets/Editor/imena-firmi.json` – jedna tablica stvarno → izmišljeno (Lidl → Cjenko, Interspar → Interšpajz, Plodine →
+  Urodica, Tommy → Tonći, Ribola → Škarpina, JYSK → Jastuk namještaj, Roto dinamic → Burin, Stop Shop → Stani-Kupi centar, kafići i
+  konobe izmišljena imena). Točka firme bez ključa dobije opće ime po vrsti i upozorenje u logu. Kuće: ulica (+ broj kad se ponavlja).
+- Ture (`MagistralaGame.Tours.cs`): noge – utovar (E) → dostave po redu najbližeg susjeda (E, dizalica spusti svoj dio redova paleta;
+  stajanje bez reda: gajbe rukom) → kod veleprodaje pića natrag u skladište s praznim gajbama (E; u cijeni, ne plaća se posebno).
+  GPS vodi na sljedeću nogu. Jedna ukupna isplata na kraju: 10 € + 3 €/km cijele ture (skladište → utovar → dostave → natrag)
+  + 5 € po stajanju iza prvog (`StopPay`, za Marka), rok po satu igre (1/6 min igre u sekundi): km pri ~40 km/h × 1,4 + 6 min po stajanju + 30 min (Deadline(km) iz weba je za
+  ture od 20+ km davao više od dana). Duga tura pića (24 km) tako traje ~10 h igre – za Marka: manje stajanja ili brži sat.
+- Ponuda dana (sjeme = dan): 2 ture pića (Burin u zoni Sućurca, 4–8 kafića / konoba: jedna oko veleprodaje, jedna oko nasumične rive),
+  1 peciva (pekara → 3–6 kafića / dućana), 1 namještaj (Jastuk → 1–3 kuće), pa Zdravkove 3 stare jednostavne ture (pumpa, Marijina
+  pumpa, dućan) kao kratke ture iz skladišta. Odvožena tura nestane s popisa za taj dan.
+- Nisu igrive u Kaštelima: brašno, riba, voće (utovar u Splitu), bicikli, šuta (dostava u Splitu). Faturete (drva, ormar) su u
+  podacima, ali se ne nude (Galeb i večer još nisu u Unityju).
+- Proba (2026-11-19): `-job pice -jobauto -jobnear 0` (skok u mjesto svake noge) odvozi cijelu turu (utovar, 8 dostava, gajbe,
+  isplata). `-jobnear 250` s autopilotom: utovar i jedna dostava stvarno odvožene; autopilot ne zna unazad i u uskim ulicama reže
+  kutove u zgrade (tada nakon 20 s skoči u mjesto, zapisano u logu); kod Konobe Mandrač (riva Starog, pločica terena -8,-5)
+  kamion je više puta propao kroz teren – za provjeru terena / ulice tamo.
+- Vozilo: `maxVehicle = "mali"` (kombi ili mali kamion) na točkama rive; samo upisano i prikazano u opisu ture, ne provjerava se
+  (klasa Atega još nije odlučena).
+
 ## Tipke i testni prekidači (igra)
 
 - Tab mobitel (igra stoji, sat stoji): ↑ ↓ Enter, 1–9, Backspace natrag, Tab zatvori. Poziv: Y javi se, N odbij.
-- U skladištu: 1 / 2 / 3 tura (ili mobitel → Poslovi). U mjestu istovara: E (ručna se povuče, dizalica). W / S prekida istovar.
+- U skladištu: 1–9 tura (ili mobitel → Poslovi). U mjestu istovara: E (ručna se povuče, dizalica). W / S prekida istovar.
   J otkaži turu. Enter zatvara karticu isplate. N kraj dana (poslije 17 h ili kad nema ture).
-- Prekidači: `-job <id>`, `-jobauto`, `-jobnear M` (0 = u mjestu istovara, unazad), `-jobabort s`, `-jobfresh`, `-savefile put`,
+- Prekidači: `-job <id>` (ili vrsta ture, npr. `-job pice`: prva današnja tura te vrste), `-jobauto`, `-jobnear M` (0 = u mjestu istovara, unazad), `-jobabort s`, `-jobfresh`, `-savefile put`,
   `-clock HH:MM`, `-clockx N`, `-call [7]`, `-callpick k`, `-phone home|poruke|pozivi|kontakti|poslovi|thread`, `-phonedemo`,
   `-camorbit yaw,pitch`.

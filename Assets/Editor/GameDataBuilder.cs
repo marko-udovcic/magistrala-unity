@@ -16,7 +16,7 @@ using UnityEngine;
 
 namespace Magistrala.EditorTools
 {
-    public class GameDataBuilder : IPreprocessBuildWithReport
+    public partial class GameDataBuilder : IPreprocessBuildWithReport
     {
         const string OutDir = "Assets/Generated/Game/Resources";
         const string OutPath = OutDir + "/" + GameWorld.ResourcePath + ".asset";
@@ -83,6 +83,9 @@ namespace Magistrala.EditorTools
             foreach (var kv in splitOf) if (closed.Contains(kv.Value)) closed.Add(kv.Key);
             Debug.Log("[igra] " + (net.log.Count > 0 ? net.log[0] : "outside streets: none"));
 
+            // ---- mag-11-19 delivery points: each snapped onto its street (the edge split there, GameDataBuilder.Tours.cs)
+            var pk = SnapPackage(nodes, edges, closed, out var tourDefs);
+
             // ---- clip to the Unity world, index
             bool In(N n) => true;
             var nIndex = new Dictionary<long, int>(); var nList = new List<Vector3>();
@@ -117,6 +120,9 @@ namespace Magistrala.EditorTools
                 stops.Add(st);
             }
 
+            // ---- the package's points as stops: only those the GPS reaches from the Lukšić warehouse and back
+            AddPackageStops(pk, stops, nIndex, eList, pts, nList.Count, tourDefs);
+
             // ---- distances
             var dist = new float[stops.Count * stops.Count];
             for (int i = 0; i < dist.Length; i++) dist[i] = -1;
@@ -126,11 +132,13 @@ namespace Magistrala.EditorTools
                 var row = MiniJson.O(MiniJson.G(table, stops[i].id)); if (row == null) continue;
                 for (int j = 0; j < stops.Count; j++) if (MiniJson.G(row, stops[j].id) is object v) dist[i * stops.Count + j] = MiniJson.F(v);
             }
+            // pairs distances.json does not have (every pair with a package point): our graph's road metres (Dijkstra pad → pad)
+            FillDistances(stops, eList, pts, nList.Count, dist);
 
             Directory.CreateDirectory(OutDir);
             var asset = AssetDatabase.LoadAssetAtPath<GameWorld>(OutPath);
             bool fresh = !asset; if (fresh) asset = ScriptableObject.CreateInstance<GameWorld>();
-            asset.stops = stops.ToArray(); asset.nodes = nList.ToArray(); asset.edges = eList.ToArray(); asset.pts = pts.ToArray(); asset.dist = dist;
+            asset.stops = stops.ToArray(); asset.nodes = nList.ToArray(); asset.edges = eList.ToArray(); asset.pts = pts.ToArray(); asset.dist = dist; asset.tours = tourDefs.ToArray();
             asset.source = $"graph.json + {applied} override entries ({skipped} skipped), {closed.Count} closed edge ids, {net.streets.Count} outside streets ({net.splits.Count} splits), {DateTime.Now:yyyy-MM-dd HH:mm}";
             if (fresh) AssetDatabase.CreateAsset(asset, OutPath); else EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
