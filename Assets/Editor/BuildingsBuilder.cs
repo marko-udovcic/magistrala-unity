@@ -43,6 +43,12 @@ namespace Magistrala.EditorTools
                 throw new FormatException("Expected a JSON object containing an objects array.");
             var chunks = new SortedDictionary<int, Geometry>();
             int count = 0;
+            // Pumpa Kaštela by geometry around the job's fuel bay (as the web's findPumpaKastela; ids change with every package import)
+            var bays = PumpaBays(Path.Combine(Path.GetDirectoryName(jsonPath), "stops.json"));
+            var pumpa = FindPumpaKastela(objects, bays);
+            if (pumpa.canopy == null || pumpa.shop == null || pumpa.sign == null)
+                Debug.LogError($"Buildings: Pumpa Kaštela not found by geometry around the kastela_pumpa bay (canopy {pumpa.canopy}, shop {pumpa.shop}, sign {pumpa.sign}).");
+            else Debug.Log($"Buildings: Pumpa Kaštela = {pumpa.canopy}, {pumpa.shop}, {pumpa.sign}.");
             foreach (object value in objects)
             {
                 var o = value as Dictionary<string, object>;
@@ -56,7 +62,7 @@ namespace Magistrala.EditorTools
                     geo = new Geometry(new Vector3(cell * CellSize, 0, z));
                     chunks.Add(cell, geo);
                 }
-                ApplyBranding(o); // ModelBuildings2 calls withBranding before drawing.
+                ApplyBranding(o, pumpa, bays); // ModelBuildings2 calls withBranding before drawing.
                 new Recipe(o, groundAtGame, geo).Build();
                 count++;
             }
@@ -172,19 +178,88 @@ namespace Magistrala.EditorTools
         static Color Mix(Color c, float k) => new Color(c.r * k + (1-k) * .55f, c.g * k + (1-k) * .55f, c.b * k + (1-k) * .53f, 1);
         static string Kind(Dictionary<string, object> o) => Str(o, "kind", Str(o, "k", "bld"));
 
-        static void ApplyBranding(Dictionary<string, object> o)
+        /// a job's fuel bay in GAME x / z (stops.json): centre, yaw (along = (sin, cos)), half length / width
+        public struct FuelBay { public double x, z, yaw, hl, hw; }
+        /// a canopy column / pump island centre closer than this to the bay goes (island 2.6 m half length + 0.6 m clearance)
+        public const double BayClear = 3.3;
+        public const string PumpaStop = "kastela_pumpa";
+
+        public static List<FuelBay> PumpaBays(string stopsPath)
+        {
+            var r = new List<FuelBay>();
+            if (!File.Exists(stopsPath)) return r;
+            var f = MiniJson.Parse(File.ReadAllText(stopsPath)) as Dictionary<string, object>;
+            if (f == null || !(Get(f, "stops") is List<object> stops)) return r;
+            foreach (object v in stops)
+            {
+                if (!(v is Dictionary<string, object> st) || Str(st, "id") != PumpaStop) continue;
+                var list = Get(st, "bays") is List<object> bl && bl.Count > 0 ? bl : new List<object> { st };
+                foreach (object q in list) if (q is Dictionary<string, object> b)
+                    r.Add(new FuelBay { x = Convert.ToDouble(Get(b, "x")), z = Convert.ToDouble(Get(b, "z")), yaw = Convert.ToDouble(Get(b, "yaw")),
+                        hl = Convert.ToDouble(Get(b, "hl")), hw = Convert.ToDouble(Get(b, "hw")) });
+            }
+            return r;
+        }
+        /// how far a GAME point lies outside a bay rectangle (0 inside)
+        public static double BayGap(FuelBay b, double x, double z)
+        {
+            double fx = Math.Sin(b.yaw), fz = Math.Cos(b.yaw), dx = x - b.x, dz = z - b.z;
+            return Math.Max(0, Math.Max(Math.Abs(dx * fx + dz * fz) - b.hl, Math.Abs(-dx * fz + dz * fx) - b.hw));
+        }
+        /// the canopy over (≤ 5 m from) the bay, the shop = nearest building of the same model with a sign (≤ 25 m from the canopy),
+        /// the totem = nearest sign of the same model (≤ 60 m from the bay); as content/modelBuildings.ts findPumpaKastela
+        public static (string canopy, string shop, string sign) FindPumpaKastela(List<object> objects, List<FuelBay> bays)
+        {
+            if (bays == null || bays.Count == 0) return (null, null, null);
+            double cx = 0, cz = 0; foreach (var b in bays) { cx += b.x / bays.Count; cz += b.z / bays.Count; }
+            Dictionary<string, object> canopy = null; double best = 5;
+            foreach (object v in objects)
+            {
+                if (!(v is Dictionary<string, object> o) || Kind(o) != "canopy") continue;
+                double a = Num(o, "a"), tx = Math.Cos(a), tz = Math.Sin(a);
+                foreach (var b in bays)
+                {
+                    double dx = b.x - Num(o, "x"), dz = b.z - Num(o, "z");
+                    double g = Math.Max(0, Math.Max(Math.Abs(dx * tx + dz * tz) - Num(o, "l", 2) / 2, Math.Abs(-dx * tz + dz * tx) - Num(o, "w", 2) / 2));
+                    if (g <= best) { best = g; canopy = o; }
+                }
+            }
+            if (canopy == null) return (null, null, null);
+            string model = Str(canopy, "model");
+            Dictionary<string, object> shop = null, sign = null; double bs = 25, bg = 60;
+            foreach (object v in objects)
+            {
+                if (!(v is Dictionary<string, object> o) || Str(o, "model") != model) continue;
+                if (Kind(o) == "bld" && Get(o, "signs") is List<object> sl && sl.Count > 0)
+                {
+                    double d = Math.Sqrt(Math.Pow(Num(o, "x") - Num(canopy, "x"), 2) + Math.Pow(Num(o, "z") - Num(canopy, "z"), 2));
+                    if (d <= bs) { bs = d; shop = o; }
+                }
+                else if (Kind(o) == "sign")
+                {
+                    double d = Math.Sqrt(Math.Pow(Num(o, "x") - cx, 2) + Math.Pow(Num(o, "z") - cz, 2));
+                    if (d <= bg) { bg = d; sign = o; }
+                }
+            }
+            return (Str(canopy, "id"), shop == null ? null : Str(shop, "id"), sign == null ? null : Str(sign, "id"));
+        }
+
+        static void ApplyBranding(Dictionary<string, object> o, (string canopy, string shop, string sign) pumpa, List<FuelBay> bays)
         {
             string id = Str(o, "id");
-            if (id != "d19:canopy:12" && id != "d19:bld:13" && id != "d19:sign:17") return;
+            if (id.Length == 0 || (id != pumpa.canopy && id != pumpa.shop && id != pumpa.sign)) return;
             if (Kind(o) == "canopy")
             {
                 o["col"] = "#124eaa"; o["ucol"] = "#f4f5f4"; o["ccol"] = "#e6e8ea"; o["pcol"] = "#2896e1";
+                o["s"] = "PUMPA KAŠTELA"; o["tcol"] = "#ffffff";
+                // every island / column within BayClear of the job's fuel bay goes (the canopy end stays cantilevered over it)
+                double a = Num(o, "a"), tx = Math.Cos(a), tz = Math.Sin(a), nx = -tz, nz = tx, ox = Num(o, "x"), oz = Num(o, "z");
                 foreach (string key in new[] { "cols", "pumps" })
                     if (Get(o, key) is List<object> list)
-                        list.RemoveAll(v => v is List<object> p && p.Count >= 2 &&
-                            Math.Abs(Convert.ToDouble(p[0]) + 3.6) < .5 && Math.Abs(Convert.ToDouble(p[1]) - 10.5) < .5);
+                        list.RemoveAll(v => v is List<object> p && p.Count >= 2 && bays.Exists(b =>
+                            BayGap(b, ox + nx * Convert.ToDouble(p[0]) + tx * Convert.ToDouble(p[1]), oz + nz * Convert.ToDouble(p[0]) + tz * Convert.ToDouble(p[1])) < BayClear));
             }
-            else if (Kind(o) == "sign") o["col"] = "#124eaa";
+            else if (Kind(o) == "sign") { o["col"] = "#124eaa"; o["s"] = "PUMPA|KAŠTELA|DIZEL · PLIN"; o["tcol"] = "#ffffff"; }
             else
             {
                 float sy = -1;
@@ -197,10 +272,10 @@ namespace Magistrala.EditorTools
                     b["col"] = fascia ? "#124eaa" : "#2896e1";
                     if (!fascia) b["h"] = (double)Mathf.Max(h, .2f);
                 }
+                foreach (var s in Records(o, "signs")) { s["s"] = "PUMPA KAŠTELA"; s["tcol"] = "#ffffff"; }
                 o["col"] = "#f4f5f4";
             }
         }
-
         sealed class Geometry
         {
             public readonly Vector3 Anchor;
