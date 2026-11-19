@@ -25,6 +25,18 @@ namespace Magistrala.EditorTools
             return q ?? h;
         }
 
+        /// the package's roadside buildings only (World/Buildings/package), e.g. after BuildingsBuilder.TripoPumps changed
+        public static string RebuildPackage()
+        {
+            var models = WorldData.Models();
+            var root = GameObject.Find("World/Buildings"); if (!root) return "no World/Buildings";
+            var old = root.transform.Find("package"); if (old) UnityEngine.Object.DestroyImmediate(old.gameObject);
+            var pk = BuildingsBuilder.Build(W.REGION + "model-buildings.json", (x, z) => (float)Ground(models, x, z), root.transform, (float)WorldData.MIN_X, -300);
+            pk.name = "package"; pk.transform.localPosition = new Vector3((float)-W.OX, 0, (float)W.OZ); pk.transform.SetAsFirstSibling();
+            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
+            return "package rebuilt: " + pk.transform.childCount + " chunks";
+        }
+
         public static void Build()
         {
             var models = WorldData.Models();

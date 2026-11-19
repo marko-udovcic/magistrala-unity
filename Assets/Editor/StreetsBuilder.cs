@@ -1073,6 +1073,20 @@ namespace Magistrala.EditorTools
         }
         static void Save(UnityEngine.Object o, string path) { if (AssetDatabase.LoadMainAssetAtPath(path) != null) AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(o, path); }
 
+        /// carriageway segments (game x / z of both ends, half width of the asphalt) of the streets Build draws: graph + outside
+        /// streets (PropsBuilder keeps props off them)
+        public static List<(double ax, double az, double bx, double bz, double hw)> Carriageways()
+        {
+            LoadGraph(); LoadModels(); ApplyOutside();
+            var r = new List<(double, double, double, double, double)>();
+            foreach (var e in edges)
+            {
+                if (e.pts == null || e.sp == null) continue;
+                for (int i = 0; i + 1 < e.pts.Count; i++) r.Add((e.pts[i][0], e.pts[i][2], e.pts[i + 1][0], e.pts[i + 1][2], e.sp.halfWidth));
+            }
+            return r;
+        }
+
         // ------------------------------------------------------------------ build
         [MenuItem("Magistrala/Build streets")]
         public static string Build()

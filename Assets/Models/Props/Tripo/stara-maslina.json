@@ -1,0 +1,1 @@
+{ "fit": "y", "size": 9, "tex": 2048, "cull": 700, "collider": "trunk", "trunkR": 0.9, "trunkH": 3, "lod0": 10000, "lod1": 3000, "lod2": 900, "twoSided": true }

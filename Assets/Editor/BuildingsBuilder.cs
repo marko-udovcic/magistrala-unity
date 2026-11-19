@@ -25,9 +25,16 @@ namespace Magistrala.EditorTools
         /// <summary>groundAtGame must sample terrain / road / asphalt in GAME x,z coordinates and return absolute y.
         /// Parent with worldPositionStays=true preserves absolute Unity placement, including under a transformed parent.
         /// Rebuilding updates mesh assets in place (preserves GUIDs). Existing scene roots are left to the caller.</summary>
+        /// pump islands without the box dispensers: PropsBuilder stands Tripo's aparat-gorivo on them (PumpSpotsPath, game frame:
+        /// canopy id, island top centre, unit axis along the island)
+        public static bool TripoPumps = true;
+        public const string PumpSpotsPath = "Assets/Generated/Props/pump-spots.json";
+        static readonly List<(string id, Vector3 p, Vector3 a)> PumpSpots = new List<(string, Vector3, Vector3)>();
+
         public static GameObject Build(string jsonPath, Func<float, float, float> groundAtGame,
             Transform parent, float minX = float.NegativeInfinity, float maxX = float.PositiveInfinity)
         {
+            PumpSpots.Clear();
             if (groundAtGame == null) throw new ArgumentNullException(nameof(groundAtGame));
             if (float.IsNaN(minX) || float.IsNaN(maxX) || minX > maxX)
                 throw new ArgumentException("Invalid game x interval.");
@@ -109,7 +116,15 @@ namespace Magistrala.EditorTools
                     collider.sharedMesh = saved;
                 }
                 AssetDatabase.SaveAssets();
-                Debug.Log($"Buildings: imported {count} objects into {root.transform.childCount} chunks.", root);
+                EnsureFolder(Path.GetDirectoryName(PumpSpotsPath).Replace('\\', '/'));
+                var js = new StringBuilder("{\"spots\":[");
+                for (int i = 0; i < PumpSpots.Count; i++)
+                {
+                    var q = PumpSpots[i];
+                    js.Append(i > 0 ? "," : "").Append(string.Format(CultureInfo.InvariantCulture, "{{\"id\":\"{0}\",\"x\":{1:F3},\"y\":{2:F3},\"z\":{3:F3},\"ax\":{4:F4},\"az\":{5:F4}", q.id, q.p.x, q.p.y, q.p.z, q.a.x, q.a.z)).Append("}");
+                }
+                File.WriteAllText(PumpSpotsPath, js.Append("]}").ToString());
+                Debug.Log($"Buildings: imported {count} objects into {root.transform.childCount} chunks, {PumpSpots.Count} pump islands ({PumpSpotsPath}).", root);
                 return root;
             }
             catch { Object.DestroyImmediate(root); throw; }
@@ -323,6 +338,8 @@ namespace Magistrala.EditorTools
                 foreach (var p in pumps)
                 {
                     g.Box(At(p.x,p.y,.08f+low/2),b*.55f,Vector3.up*(.08f-low/2),a*2.6f,Kerb);
+                    // the dispensers: Tripo's aparat-gorivo (PropsBuilder) on the island instead of two boxes
+                    if (TripoPumps) { PumpSpots.Add((Str(o,"id"),At(p.x,p.y,.16f),a)); continue; }
                     foreach (float d in new[] {-1.4f,1.4f})
                         g.Box(At(p.x,p.y,1)+a*d,b*.28f,Vector3.up*.85f,a*.45f,pc);
                 }
