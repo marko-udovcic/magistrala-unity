@@ -28,7 +28,10 @@ namespace Magistrala.EditorTools
         static string MOSAIC => W.BD + $"/tools/world/dgu/cache/dof/mosaic-{Source}/";
         const string OUT = WorldBuilder.GEN + "/Terrain/Macro";
         const int N = 2048; const double PX = 0.5;
-        public static float Bright = 1f, Sat = 1f, Contrast = 1f, RMin = .3f, RMax = 2.4f; const double FADE = 64, BDIL = 3, RDIL = 2;
+        public static float Bright = 1f, Sat = 1f, Contrast = 1f, RMin = .45f, RMax = 2.4f;
+        // the photo's own shadows (trees, houses, walls our world doesn't have there) are lifted (Deshadow); Strength = how much
+        // of the photo's ratio is applied (0.7 = 70 %), RMin: the photo never darkens our ground below 45 %
+        public static float Strength = .7f, ShadowHi = .85f, ShadowLift = .75f; const int SHADOW_R = 24; const double FADE = 64, BDIL = 3, RDIL = 2;
 
         static float Lin(float s) => s <= .04045f ? s / 12.92f : Mathf.Pow((s + .055f) / 1.055f, 2.4f);
 
@@ -171,6 +174,45 @@ namespace Magistrala.EditorTools
             for (int k = 0; k < 3; k++) for (int i = 0; i < n * n; i++) if (!valid[i]) ch[k][i] = levels[0].c[k][i];
         }
 
+        /// Box sums over (2R+1)² (clamped at the edges) via an integral image.
+        static float[] BoxSum(float[] a, int R)
+        {
+            var I = new double[(N + 1) * (N + 1)];
+            for (int y = 0; y < N; y++) { double row = 0; for (int x = 0; x < N; x++) { row += a[y * N + x]; I[(y + 1) * (N + 1) + x + 1] = I[y * (N + 1) + x + 1] + row; } }
+            var o = new float[N * N];
+            for (int y = 0; y < N; y++)
+            {
+                int y0 = Math.Max(0, y - R), y1 = Math.Min(N, y + R + 1);
+                for (int x = 0; x < N; x++)
+                {
+                    int x0 = Math.Max(0, x - R), x1 = Math.Min(N, x + R + 1);
+                    o[y * N + x] = (float)(I[y1 * (N + 1) + x1] - I[y0 * (N + 1) + x1] - I[y1 * (N + 1) + x0] + I[y0 * (N + 1) + x0]);
+                }
+            }
+            return o;
+        }
+
+        /// Lifts the photo's shadows / dark crowns (trees and walls standing where ours are not: dark patches on empty ground)
+        /// without moving any colour: a pixel darker than ShadowHi × its local (SHADOW_R px = 12 m) mean is brightened by
+        /// (target / lum)^ShadowLift (≤ ×3) and its blue shadow cast pulled halfway to grey. A gain, not a replacement: no halos,
+        /// the olive rows and field edges stay sharp (tested on t_-7_-6 against a lit-mean replacement, which smeared them).
+        static void Deshadow(float[][] ch)
+        {
+            int n = N * N; var lum = new float[n];
+            for (int i = 0; i < n; i++) lum[i] = .2126f * ch[0][i] + .7152f * ch[1][i] + .0722f * ch[2][i];
+            var one = new float[n]; for (int i = 0; i < n; i++) one[i] = 1;
+            var area = BoxSum(one, SHADOW_R); var big = BoxSum(lum, SHADOW_R);
+            for (int i = 0; i < n; i++)
+            {
+                float tgt = big[i] / area[i] * ShadowHi; if (lum[i] >= tgt) continue;
+                float g = Mathf.Min(3f, Mathf.Pow(tgt / Mathf.Max(lum[i], 1e-4f), ShadowLift));
+                float k = Mathf.Clamp01((g - 1) / 1.5f) * .5f, y = 0;
+                for (int c = 0; c < 3; c++) { ch[c][i] *= g; }
+                y = .2126f * ch[0][i] + .7152f * ch[1][i] + .0722f * ch[2][i];
+                for (int c = 0; c < 3; c++) ch[c][i] = Mathf.Lerp(ch[c][i], y, k);
+            }
+        }
+
         static void Blur3(float[] a)
         {
             var t = new float[a.Length];
@@ -226,6 +268,7 @@ namespace Magistrala.EditorTools
                 }
                 Inpaint(ch, valid, N);
                 for (int k = 0; k < 3; k++) Blur3(ch[k]);
+                Deshadow(ch);
 
                 var td = terrain.terrainData; var layers = td.terrainLayers; int L = layers.Length;
                 var means = new Vector3[L]; for (int k = 0; k < L; k++) means[k] = LayerMean(layers[k]);
@@ -275,7 +318,7 @@ namespace Magistrala.EditorTools
                     float pr = ch[0][o] * G[0], pg = ch[1][o] * G[1], pb = ch[2][o] * G[2];
                     float y = .2126f * pr + .7152f * pg + .0722f * pb;
                     pr = y + (pr - y) * Sat; pg = y + (pg - y) * Sat; pb = y + (pb - y) * Sat;
-                    float R(float p, float m) => Mathf.Lerp(1, Mathf.Clamp(Mathf.Pow(p / Mathf.Max(m, .005f), Contrast), RMin, RMax), s);
+                    float R(float p, float m) => Mathf.Lerp(1, Mathf.Clamp(Mathf.Pow(p / Mathf.Max(m, .005f), Contrast), RMin, RMax), s * Strength);
                     float rr = R(pr, mean[0][o]), rg = R(pg, mean[1][o]), rb = R(pb, mean[2][o]);
                     if (s > .99f && (o & 63) == 0) lums.Add(.2126f * rr + .7152f * rg + .0722f * rb);
                     outPx[o] = new Color32((byte)Mathf.Clamp(Mathf.RoundToInt(rr * 127.5f), 0, 255), (byte)Mathf.Clamp(Mathf.RoundToInt(rg * 127.5f), 0, 255), (byte)Mathf.Clamp(Mathf.RoundToInt(rb * 127.5f), 0, 255), 255);
