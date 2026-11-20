@@ -267,6 +267,20 @@ namespace Magistrala.Traffic
             }
         }
 
+        /// test runs (ProbeBench -trafdbg): per corridor the player is on, its footprint (s, lat) and the cars within 120 m (s, lane, lat, v km/h)
+        public string DebugNear()
+        {
+            var sb = new System.Text.StringBuilder();
+            if (data == null || pOn == null) return "";
+            for (int c = 0; c < data.corridors.Length; c++)
+            {
+                if (!pOn[c]) continue;
+                sb.Append($" c{c} truck s {pS0[c]:F0}..{pS1[c]:F0} lat {pL0[c]:F1}..{pL1[c]:F1}:");
+                foreach (var o in byCorridor[c]) if (Mathf.Abs(o.s - pSc[c]) < 120) sb.Append($" [{o.s - pSc[c]:F0} L{o.lane}>{o.laneTo} lat {o.lat:F1} v {o.v * 3.6f:F0} stop {o.stopT:F0}]");
+            }
+            return sb.ToString();
+        }
+
         /// for the autopilot: in the corridor the player drives along (heading fwd), the nearest car ahead whose body (or the lane it is
         /// moving to) overlaps the player's footprint laterally — gap from the player's front bumper, its speed — and the next stop
         /// line ahead (distance from the front, light 0 green / 1 amber / 2 red). false: not on a corridor.
