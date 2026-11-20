@@ -1,0 +1,1 @@
+{"name": "stol-kafic", "fit": "y", "size": 0.75, "sat": 1, "gain": 1, "contrast": 1, "smooth": 0.3, "tex": 512, "lod0": 1600, "lod1": 600, "lod2": 200, "cull": 70, "collider": "box", "colShrink": 0.9}

@@ -9,7 +9,8 @@ namespace Magistrala.EditorTools
     /// What a face is made of. Wall / Roof / Trim / Balcony / Shutter / Detail all go to submesh 0 (Magistrala/Facade, one
     /// texture array: the layer and tint come from the house's Look), Glass to submesh 1 (Magistrala/WindowInterior), Rail to
     /// submesh 2 (cutout railing panels, URP Lit).
-    public enum Slot { Wall, Roof, Glass, Shutter, Trim, Balcony, Rail, Detail }
+    /// Yard: dry-stone yard walls (rubble layer, untinted).
+    public enum Slot { Wall, Roof, Glass, Shutter, Trim, Balcony, Rail, Detail, Yard }
 
     public sealed class HouseGeo
     {
@@ -18,6 +19,7 @@ namespace Magistrala.EditorTools
         public List<Vector2> uv = new List<Vector2>();
         public List<Vector4> d = new List<Vector4>();
         public List<Color> c = new List<Color>();
+        public List<Vector2> o = new List<Vector2>(); // UV2: baked occlusion, sill drip mask (Magistrala/Facade)
         public List<int>[] sub = { new List<int>(), new List<int>(), new List<int>() };
     }
 
@@ -36,6 +38,7 @@ namespace Magistrala.EditorTools
         static readonly string[] Warm = { "E9D79A", "D8B26A", "DDB08A", "E3C3B0", "E6CFA0", "BFCBB0" };
         static readonly string[] Derelict = { "6E6A58", "807A64", "77725E" };
         static Color Pick(System.Random r, string[] a) => H(a[r.Next(a.Length)]);
+        public static Color Desat(Color c, float k) { float l = .3f * c.r + .59f * c.g + .11f * c.b; return Color.Lerp(c, new Color(l, l, l, c.a), k); }
 
         /// ground = the building's ground height (m above sea): old cores lie by the shore
         public static Look Pick(System.Random r, string kind, float ground, float height)
@@ -48,6 +51,7 @@ namespace Magistrala.EditorTools
             k.family = ind ? 4 : apt ? 3 : height > 13 ? 2 : f < pOld * .65 ? 0 : f < pOld ? 1 : 2;
             k.derelict = !ind && c > .95;
             k.wall = ind ? Color.Lerp(H("C9C6BE"), H("E4E2DC"), (float)d) : k.derelict ? Pick(r, Derelict) : c < .66 ? Pick(r, Neutral) : Pick(r, Warm);
+            k.wall = Desat(k.wall, .5f); // the pastels faded by sun and salt (vivid tints read as "drawn")
             k.dirt = (float)(k.derelict ? .85 : k.family <= 1 ? .35 + .4 * d : ind ? .3 + .3 * d : .1 + .4 * d);
             int P = BuildingTextures.Plaster, S = BuildingTextures.Stone;
             k.wallCode = k.family == 0 ? S + 8 * S : k.family == 1 ? S + 8 * P : ind ? BuildingTextures.Concrete * 9 : P * 9;
@@ -60,6 +64,7 @@ namespace Magistrala.EditorTools
             if (k.family <= 1) k.trim = Color.white;
             k.shutter = s < .5 ? (q < .5 ? H("3F6F55") : H("4E8266")) : s < .8 ? H("5B3A29") : s < .95 ? H("3B3E42") : H("3F5E7E");
             if (k.derelict) k.shutter = H("7C8F6A");
+            k.shutter = Desat(k.shutter, .25f);
             k.leaves = !ind && (k.family <= 1 ? d < .92 : k.family == 2 ? u > .5 && u < .85 : u < .3);
             k.rollers = !ind && !k.leaves && (k.family >= 2 ? u > .2 : false);
             // roof: #C8532F +- 12 %, older roofs faded / browner
@@ -89,16 +94,26 @@ namespace Magistrala.EditorTools
         static Vector4 Data(Slot s, float y)
         {
             float code = s == Slot.Wall ? look.wallCode : s == Slot.Roof ? BuildingTextures.Roof * 9 : s == Slot.Trim ? look.trimLayer * 9
-                : s == Slot.Balcony ? BuildingTextures.Concrete * 9 : s == Slot.Shutter ? BuildingTextures.Louvre * 9 : BuildingTextures.Plain * 9;
+                : s == Slot.Balcony ? BuildingTextures.Concrete * 9 : s == Slot.Shutter ? BuildingTextures.Louvre * 9
+                : s == Slot.Yard ? BuildingTextures.Rubble * 9 : BuildingTextures.Plain * 9;
             return new Vector4(code, y - gY, tY - y, s == Slot.Detail ? look.dirt * .4f : look.dirt);
         }
         static Color Tint(Slot s)
         {
             Color t = s == Slot.Wall ? look.wall : s == Slot.Roof ? look.roof : s == Slot.Trim ? look.trim : s == Slot.Balcony ? look.balcony
-                : s == Slot.Shutter ? look.shutter : detailTint;
+                : s == Slot.Shutter ? look.shutter : s == Slot.Yard ? Color.white : detailTint;
             // tints are authored in sRGB; vertex colours are read as linear; the roof tint is a multiplier (kept linear)
             Color lin = s == Slot.Roof ? t : t.linear;
             lin.a = s == Slot.Wall ? look.split / 40f : 0; return lin;
+        }
+
+        // UV2 of the next faces: reveal depth (occlusion grows into the opening) and the drip mask under a sill
+        static bool revealOn, dripOn; static Vector3 revealO, revealN; static float revealD, dripY0, dripY1;
+        static Vector2 Occ(Vector3 p)
+        {
+            float x = revealOn ? Mathf.Clamp01(.2f + .8f * Vector3.Dot(revealO - p, revealN) / revealD) : 0;
+            float y = dripOn ? Mathf.Clamp01((p.y - dripY0) / (dripY1 - dripY0)) : 0;
+            return new Vector2(x, y);
         }
 
         // As in BuildingsFromTiles.Tri: orient AFTER the W.U reflection. Swap UVs with the vertices.
@@ -121,6 +136,7 @@ namespace Magistrala.EditorTools
             if (slot == Slot.Glass) { g.d.Add(glassData); g.d.Add(glassData); g.d.Add(glassData); }
             else { g.d.Add(Data(slot, a.y)); g.d.Add(Data(slot, b.y)); g.d.Add(Data(slot, c.y)); }
             var col = Tint(slot); g.c.Add(col); g.c.Add(col); g.c.Add(col);
+            g.o.Add(Occ(a)); g.o.Add(Occ(b)); g.o.Add(Occ(c));
             int sm = slot == Slot.Glass ? 1 : slot == Slot.Rail ? 2 : 0;
             g.sub[sm].Add(index); g.sub[sm].Add(index + 1); g.sub[sm].Add(index + 2);
         }
@@ -161,6 +177,75 @@ namespace Magistrala.EditorTools
                 new Vector2(x0, y0), new Vector2(x1, y0), new Vector2(x1, y1), new Vector2(x0, y1), f.outward);
         }
 
+        /// A yard wall along `pts` (Unity world, y = the ground at each point), one open run, for the house AddHouse emitted
+        /// last (its look). kind 0 dry stone (rubble), 1 the house's wall (plaster / stone) with a concrete cap, 2 a low plastered
+        /// wall with a railing on it. Gate posts at the run's ends when `posts`.
+        public static void YardWall(HouseGeo g, List<Vector3> pts, float h, int kind, bool postA, bool postB)
+        {
+            if (pts.Count < 2) return;
+            const float t = .15f; // half thickness
+            float g0 = float.MaxValue; foreach (var p in pts) g0 = Mathf.Min(g0, p.y);
+            float sg = gY, st = tY; gY = g0; tY = g0 + 100;
+            Slot body = kind == 0 ? Slot.Yard : Slot.Wall;
+            float wh = kind == 2 ? .75f : h;
+            Vector3 up = Vector3.up * wh, dn = Vector3.down * .35f;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                Vector3 p = pts[i], q = pts[i + 1], e = q - p; e.y = 0; if (e.sqrMagnitude < 1e-4f) continue; e.Normalize();
+                Vector3 sd = new Vector3(-e.z, 0, e.x);
+                // overlap the joints by the thickness: no slits at bends
+                Vector3 pe = i == 0 ? p : p - e * t, qe = i + 2 == pts.Count ? q : q + e * t;
+                Face(g, body, pe + sd * t + dn, qe + sd * t + dn, qe + sd * t + up, pe + sd * t + up, sd);
+                Face(g, body, qe - sd * t + dn, pe - sd * t + dn, pe - sd * t + up, qe - sd * t + up, -sd);
+                if (kind == 0) Face(g, Slot.Yard, pe + sd * t + up, pe - sd * t + up, qe - sd * t + up, qe + sd * t + up, Vector3.up);
+                else
+                {
+                    // concrete coping, 3 cm proud each side
+                    Vector3 c0 = up, c1 = up + Vector3.up * .07f; float tc = t + .03f;
+                    Face(g, Slot.Balcony, pe + sd * tc + c1, pe - sd * tc + c1, qe - sd * tc + c1, qe + sd * tc + c1, Vector3.up);
+                    Face(g, Slot.Balcony, pe + sd * tc + c0, qe + sd * tc + c0, qe + sd * tc + c1, pe + sd * tc + c1, sd);
+                    Face(g, Slot.Balcony, qe - sd * tc + c0, pe - sd * tc + c0, pe - sd * tc + c1, qe - sd * tc + c1, -sd);
+                    Face(g, Slot.Balcony, pe + sd * tc + c0, pe - sd * tc + c0, qe - sd * tc + c0, qe + sd * tc + c0, Vector3.down);
+                    if (kind == 2 && Lod < 2) RailPanel(g, p + up + Vector3.up * .07f, q + up + Vector3.up * .07f, sd);
+                }
+            }
+            // end faces
+            for (int k = 0; k < 2; k++)
+            {
+                Vector3 p = k == 0 ? pts[0] : pts[pts.Count - 1], o = k == 0 ? pts[1] : pts[pts.Count - 2], e = p - o; e.y = 0; e.Normalize();
+                Vector3 sd = new Vector3(-e.z, 0, e.x);
+                Face(g, body, p - sd * t + dn, p + sd * t + dn, p + sd * t + up, p - sd * t + up, e);
+                if ((k == 0 ? postA : postB) && Lod < 2)
+                {
+                    // gate post: a 44 cm pier a little taller than the wall, with a cap
+                    float ph = Mathf.Max(wh, h) + .25f;
+                    Box(g, body, p - e * .44f - sd * .22f + dn, e, sd, .44f, ph + .35f, .44f, false);
+                    Box(g, Slot.Balcony, p - e * .47f - sd * .25f + Vector3.up * ph, e, sd, .5f, .08f, .5f);
+                }
+            }
+            gY = sg; tY = st;
+        }
+
+        /// the wall strip between the storey below and this row of windows, cut per column so the piece under each sill
+        /// carries the drip mask (UV2.y: 1 under the sill, 0 at the window below); the front door's column stays open
+        static void RowBelow(HouseGeo g, Facade f, int columns, float spacing, float width, float yb, float yt, int doorColumn)
+        {
+            float cursor = 0;
+            for (int k = 0; k < columns; k++)
+            {
+                float centre = (k + .5f) * spacing, x0 = centre - width / 2 - .1f, x1 = centre + width / 2 + .1f;
+                Wall(g, f, Slot.Wall, cursor, x0, yb, yt);
+                if (k == doorColumn) { Wall(g, f, Slot.Wall, x0, x0 + .1f, yb, yt); Wall(g, f, Slot.Wall, x1 - .1f, x1, yb, yt); }
+                else { dripOn = true; dripY0 = yb; dripY1 = yt; Wall(g, f, Slot.Wall, x0, x1, yb, yt); dripOn = false; }
+                cursor = x1;
+            }
+            Wall(g, f, Slot.Wall, cursor, f.length, yb, yt);
+        }
+
+        /// front doors of the houses added since the list was cleared (game frame is not needed: Unity world, a point 0.9 m in
+        /// front of the door at its threshold, and the facade's outward normal) — PropsBuilder puts flower pots beside them
+        public static readonly List<(Vector3 p, Vector3 n)> Doors = new List<(Vector3, Vector3)>();
+
         /// <param name="footprintGame">Game (x,z), metres; simple ring, either winding, no repeated closing point.</param>
         public static void AddHouse(HouseGeo g, List<Vector2> footprintGame, string kind,
             double bottomY, double baseY, double topY, int seed)
@@ -194,7 +279,8 @@ namespace Magistrala.EditorTools
                 float length = Vector3.Distance(points[i], points[(i + 1) % points.Count]);
                 if (length > longestLength) { longestLength = length; longest = i; }
             }
-            bool hip = !industrial && points.Count <= 8 && Math.Abs(signedArea) < 450;
+            // most Kaštela houses carry a tiled hip roof; flat roofs (terraces) on the larger / irregular ones
+            bool hip = !industrial && !apartment && points.Count <= 10 && Math.Abs(signedArea) < 750;
             int dishFacade = hasDish ? clutter.Next(points.Count) : -1;
             float dishAt = (float)clutter.NextDouble();
 
@@ -234,7 +320,9 @@ namespace Magistrala.EditorTools
                         Wall(g, f, Slot.Wall, doorCentre - width / 2, doorCentre + width / 2,
                             lastY, ground + floor * FloorHeight + .08f);
                     }
-                    else if (Lod == 0) Wall(g, f, Slot.Wall, 0, f.length, lastY, y0);
+                    // the front door: ground floor of the longest facade, a middle column (not on blocks' shop floors)
+                    int doorColumn = floor == 0 && i == longest && !industrial && !shop && columns >= 2 && f.length >= 5 ? (columns - 1) / 2 : -1;
+                    if (!(balcony && Lod == 0) && Lod == 0) RowBelow(g, f, columns, spacing, width, lastY, y0, doorColumn);
                     float floorY = ground + floor * FloorHeight;
                     for (int k = 0; k < columns; k++)
                     {
@@ -242,17 +330,20 @@ namespace Magistrala.EditorTools
                         if (Lod == 0) Wall(g, f, Slot.Wall, cursor, x0, y0, y1);
                         // A balcony door drops to the slab; cut the lower wall only in this column.
                         bool door = balcony && k == balconyColumn;
-                        float openingBottom = door ? floorY + .08f : y0;
+                        bool front = k == doorColumn;
+                        float openingBottom = door ? floorY + .08f : front ? lastY : y0;
                         // the window's state (same draws in every level): 0 open leaves, 1 closed, 2 one leaf closed;
                         // rollers: the blind's drop; the glass: room / lamp / curtains
                         double st = random.NextDouble(), rr = random.NextDouble();
                         bool leaves = look.leaves && !shop;
                         int state = !leaves ? 0 : st < .5 && !door ? 1 : st < .65 ? 2 : 0;
+                        if (front) { state = 1; leaves = false; } // a door leaf (louvred, the shutters' colour) instead of glass
                         float blind = look.rollers && !shop ? (rr < .35 ? 0 : rr < .75 ? .2f + .5f * (float)(rr - .35) / .4f : .97f) : 0;
                         glassData = new Vector4((float)random.NextDouble(), blind, 0, 0);
                         var cell = new Rect(k * spacing, floorY, spacing, FloorHeight);
-                        if (Lod == 0) Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop, !door);
-                        else FlatWindow(g, f, x0, x1, openingBottom, y1, leaves, state, cell, !door);
+                        if (Lod == 0) Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop && !front, !door && !front);
+                        else FlatWindow(g, f, x0, x1, openingBottom, y1, leaves, state, cell, !door && !front);
+                        if (front && Lod == 0) { Doors.Add((f.P(centre, lastY, .9f), f.outward)); { detailTint = new Color(.62f, .6f, .56f); Box(g, Slot.Detail, f.P(x0 - .25f, lastY - .5f, 0), f.along, f.outward, x1 - x0 + .5f, .5f, .45f, false); } } // a step
                         if (door)
                         {
                             float balconyWidth = Mathf.Min(2f + (float)random.NextDouble() * 2f,
@@ -308,16 +399,19 @@ namespace Magistrala.EditorTools
 
         static void Window(HouseGeo g, Facade f, float x0, float x1, float y0, float y1, bool leaves, int state, Rect cell, bool roller, bool sill)
         {
-            const float recess = -.12f;
+            // stone walls are thick (old houses ~50 cm, the frame sits in the middle), new plastered houses ~20 cm
+            float recess = look.family <= 1 ? -.26f : -.18f;
             Vector3 a = f.P(x0, y0), b = f.P(x1, y0), c = f.P(x1, y1), d = f.P(x0, y1);
             Vector3 ar = f.P(x0, y0, recess), br = f.P(x1, y0, recess), cr = f.P(x1, y1, recess), dr = f.P(x0, y1, recess);
             if (state == 1) Shutter(g, f, x0, x1, y0, y1, recess + .02f, recess + .02f); // closed leaves in the opening
             else Glass(g, f, x0, x1, y0, y1, recess, cell);
             if (state == 2) Shutter(g, f, (x0 + x1) / 2, x1, y0, y1, recess + .03f, recess + .03f);
+            revealOn = true; revealO = a; revealN = f.outward; revealD = -recess;
             Face(g, Slot.Wall, a, ar, dr, d, f.along);
             Face(g, Slot.Wall, br, b, c, cr, -f.along);
             Face(g, Slot.Wall, a, b, br, ar, Vector3.up);
             Face(g, Slot.Wall, dr, cr, c, d, Vector3.down);
+            revealOn = false;
             Frame(g, f, x0, x1, y0, y1, sill);
             if (sill)
             {
@@ -508,7 +602,7 @@ namespace Magistrala.EditorTools
                 best = area; u = x; v = z; minU = loX; maxU = hiX; minV = loZ; maxV = hiZ;
             }
             Vector3 centre = origin + u * ((minU + maxU) / 2) + v * ((minV + maxV) / 2) + Vector3.up * top;
-            float halfLength = (maxU - minU) / 2 + .35f, halfWidth = (maxV - minV) / 2 + .35f;
+            float halfLength = (maxU - minU) / 2 + .5f, halfWidth = (maxV - minV) / 2 + .5f; // 50 cm eaves
             if (halfLength < halfWidth)
             {
                 var axis = u; u = v; v = -axis;
@@ -759,11 +853,26 @@ namespace Magistrala.EditorTools
             mesh.SetUVs(0, g.uv);
             mesh.SetUVs(1, g.d);
             mesh.SetColors(g.c);
+            mesh.SetUVs(2, g.o);
             mesh.subMeshCount = SlotCount;
             for (int i = 0; i < SlotCount; i++) mesh.SetTriangles(g.sub[i], i, false);
             mesh.RecalculateBounds();
-            if (g.v.Count > 0) mesh.RecalculateTangents();
+            if (g.v.Count > 0) { mesh.RecalculateTangents(); Compact(mesh); }
             return mesh;
+        }
+
+        /// the building vertex in 56 bytes instead of 88 (float everywhere): normal, tangent, tint and the data channel in half
+        /// floats, the occlusion in bytes; positions and the world-metre UV0 stay 32-bit. Existing data is converted.
+        public static void Compact(Mesh mesh)
+        {
+            mesh.SetVertexBufferParams(mesh.vertexCount,
+                new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float16, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float16, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float16, 4),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float16, 4),
+                new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.UNorm8, 4));
         }
 
         /// facade (texture array), glass (rooms), railing (cutout URP Lit): the three materials of a house chunk

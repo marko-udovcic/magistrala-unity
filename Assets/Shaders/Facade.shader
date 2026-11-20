@@ -1,6 +1,8 @@
 // Buildings (HouseBuilder / BuildingsFromTiles): one material for walls, roofs, trims, shutters and the small clutter of a chunk.
 // Texture array layers (BuildingTextures): 0 plaster, 1 stone ashlar, 2 roof tiles (kupa kanalica), 3 brick, 4 concrete,
-// 5 shutter louvres, 6 plain (painted metal / plastic). UV0 = world metres on the face.
+// 5 shutter louvres, 6 plain (painted metal / plastic), 7 rubble (dry-stone yard walls). UV0 = world metres on the face.
+// UV2: x = baked occlusion 0..1 (window / door reveals, deeper = darker), y = drip mask under a window sill (1 at the sill).
+//      Every mesh on this material must carry UV2 (zeros when unused): a missing stream reads garbage on Metal.
 // UV1: x = lower layer + 8 * upper layer, y = height above the building's ground (m), z = height below the wall top (m),
 //      w = dirt 0..1. COLOR: rgb = tint of the tintable layers (linear), a = height of the lower / upper layer boundary / 40 m
 //      (a horizontal line: stone ground floor under plaster, plaster under an unfinished brick top floor).
@@ -9,7 +11,8 @@ Shader "Magistrala/Facade"
     Properties
     {
         _Albedo("Albedo array", 2DArray) = "" {}
-        _Normal("Normal array (linear rgb)", 2DArray) = "" {}
+        _Normal("Normal xy + roughness b array (linear)", 2DArray) = "" {}
+        _Grime("Grime masks (r streaks, g runs, b drips)", 2D) = "black" {}
         _NormalScale("Normal strength", Range(0,2)) = .8
         _Smoothness("Smoothness", Range(0,1)) = 0.12
     }
@@ -28,12 +31,13 @@ Shader "Magistrala/Facade"
         CBUFFER_END
         TEXTURE2D_ARRAY(_Albedo); SAMPLER(sampler_Albedo);
         TEXTURE2D_ARRAY(_Normal);
+        TEXTURE2D(_Grime); SAMPLER(sampler_Grime);
         float _Wetness; // global (WeatherSystem)
 
         // metres per texture repeat, per layer; tintable layers take the vertex colour, the others keep their own colour
-        static const float TILE[8] = { 1.6, 2.0, 3.0, 2.0, 2.7, 0.55, 1.0, 1.0 };
-        static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 1 };
-        static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.2 };
+        static const float TILE[8] = { 1.6, 2.0, 3.0, 2.0, 2.7, 0.55, 1.0, 2.2 };
+        static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
+        static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
 
         struct Attributes
         {
@@ -42,6 +46,7 @@ Shader "Magistrala/Facade"
             float4 tangentOS : TANGENT;
             float2 uv : TEXCOORD0;
             float4 data : TEXCOORD1;
+            float2 occ : TEXCOORD2;
             half4 color : COLOR;
             UNITY_VERTEX_INPUT_INSTANCE_ID
         };
@@ -55,6 +60,7 @@ Shader "Magistrala/Facade"
             float4 data : TEXCOORD4;
             half4 color : COLOR;
             half fog : TEXCOORD5;
+            half2 occ : TEXCOORD6;
             UNITY_VERTEX_INPUT_INSTANCE_ID
             UNITY_VERTEX_OUTPUT_STEREO
         };
@@ -81,6 +87,7 @@ Shader "Magistrala/Facade"
             o.uv = input.uv;
             o.data = input.data;
             o.color = input.color;
+            o.occ = input.occ;
             o.fog = ComputeFogFactor(p.positionCS.z);
             return o;
         }
@@ -95,29 +102,43 @@ Shader "Magistrala/Facade"
             int li = (int)layer;
             float2 uv = input.uv / TILE[li];
             half3 tex = SAMPLE_TEXTURE2D_ARRAY(_Albedo, sampler_Albedo, uv, layer).rgb;
-            half3 nt = SAMPLE_TEXTURE2D_ARRAY(_Normal, sampler_Albedo, uv, layer).rgb * 2 - 1;
-            nt.xy *= _NormalScale;
+            half3 ns = SAMPLE_TEXTURE2D_ARRAY(_Normal, sampler_Albedo, uv, layer).rgb;
+            half rough = ns.b; // photoscanned roughness (BuildingTextures packs it into blue)
+            half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale; nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
             half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, TINTED[li]);
             half3 nWS = normalize(input.normalWS);
             half3 tWS = normalize(input.tangentWS.xyz);
             half3 bWS = cross(nWS, tWS) * input.tangentWS.w;
             half3 normalWS = normalize(nt.x * tWS + nt.y * bWS + max(nt.z, .2) * nWS);
 
-            // weathering: large blotches, rain streaks from the eaves, splash dirt at the foot of the wall, faded roof patches
+            // weathering: large blotches, rain streaks from the eaves and under the sills, splash dirt at the foot of the wall,
+            // faded roof patches; plus ambient occlusion where light cannot reach (reveals, the foot of the wall, under the eaves)
             float dirt = input.data.w;
             float3 wp = input.positionWS;
             half vertical = 1 - saturate(abs(nWS.y) * 2);
             float along = dot(wp.xz, normalize(float2(-nWS.z, nWS.x) + 1e-4));
-            // two value-noise lookups on walls (GPU budget): blotches, and streaks stretched down the wall
+            // one value-noise lookup on walls (GPU budget): large blotches
             float blot = Noise(float2(along * .5 + wp.y * .13, wp.y * .45));
-            float streak = Noise(float2(along * 4.3, wp.y * .14)); streak *= streak;
+            // rain streaks and drips: ambientCG leaking masks, 4.5 m wide x 5.5 m high repeat
+            half3 leak = SAMPLE_TEXTURE2D(_Grime, sampler_Grime, float2(along * .22, wp.y * .18)).rgb;
+            float streak = leak.r * leak.r;
             float eave = saturate(1 - input.data.z / 4.5);
             float foot = saturate(1 - input.data.y / 1.1);
-            half grime = vertical * dirt * saturate(blot * .5 + streak * eave * 2.0 + foot * .6);
+            // drips from the window sills: the streak noise, narrower and stronger right under the sill
+            half drip = input.occ.y * input.occ.y * saturate(leak.g * 1.6 + leak.b * 1.2 + .12);
+            half grime = vertical * saturate(dirt * saturate(blot * .5 + streak * eave * 2.0 + foot * .6) + drip * (.35 + .5 * dirt));
             if (li == 2) // roof: ±12 % tone patches, darker old tiles
                 albedo *= .86 + .28 * Noise(wp.xz * .35) - .12 * dirt * Noise(wp.xz * 1.7 + 7);
+            else // walls: broad ±8 % tone variation (repairs, sun-bleached patches) also on clean houses
+                albedo *= .94 + .12 * blot * vertical + .06 * (1 - vertical);
             albedo *= 1 - .42 * grime;
-            albedo = lerp(albedo, albedo * half3(.92, .9, .84), grime * .5);
+            albedo = lerp(albedo, albedo * half3(.92, .88, .8), grime * .6);
+            // occlusion: baked reveals, a soft dark band at the foot of every wall (contact with the ground), under the eaves
+            half contact = saturate(1 - input.data.y / .8); contact *= contact;
+            half under = input.data.z > 0 && li != 2 ? saturate(1 - input.data.z / .9) : 0;
+            half ao = (1 - .6 * saturate(input.occ.x)) * (1 - vertical * (.38 * contact + .3 * under * under));
+            // the sun is most of the light here; URP occlusion only darkens the ambient part, so part of it goes into the albedo
+            albedo *= lerp(1, ao, .55);
 
             InputData data = (InputData)0;
             data.positionWS = wp;
@@ -137,7 +158,7 @@ Shader "Magistrala/Facade"
             surface.albedo = albedo;
             surface.alpha = 1;
             surface.metallic = 0;
-            surface.smoothness = GLOSS[li] * (1 - grime * .5);
+            surface.smoothness = saturate(lerp(GLOSS[li], (1 - rough) * .6, .7)) * (1 - grime * .5);
             UNITY_BRANCH if (_Wetness > 0.001)
             {
                 half up = saturate(nWS.y * 1.5 - 0.3) * _Wetness;
@@ -146,7 +167,7 @@ Shader "Magistrala/Facade"
                 surface.smoothness = lerp(surface.smoothness, 0.75, max(up, side * .5));
             }
             surface.normalTS = half3(0, 0, 1);
-            surface.occlusion = 1 - foot * .25 * vertical;
+            surface.occlusion = ao;
             half4 result = UniversalFragmentPBR(data, surface);
             result.rgb = MixFog(result.rgb, data.fogCoord);
             return result;

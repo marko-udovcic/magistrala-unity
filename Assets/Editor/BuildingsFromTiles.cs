@@ -62,6 +62,10 @@ namespace Magistrala.EditorTools
             const double NEAR = 320;
             var path = TruckSetup.EastboundPath(); var houses = new Dictionary<long, HouseGeo[]>(); int nDetailed = 0;
             bool NearD8(double x, double z) { foreach (var q in path) if ((q.x - x) * (q.x - x) + (q.y - z) * (q.y - z) < NEAR * NEAR) return true; return false; }
+            // the probe of the richer look (Kaštel Lukšić around the firm's warehouse): every house detailed, with a yard wall
+            Yards.Begin(models, rects);
+            HouseBuilder.Doors.Clear();
+            int nYards = 0;
             int n = 0, skipped = 0;
             for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++)
                 for (int tx = WorldBuilder.TX0; tx <= WorldBuilder.TX1; tx++)
@@ -87,7 +91,8 @@ namespace Magistrala.EditorTools
                         // (uint)(int): a negative double cast straight to uint is 0 on ARM, which had merged every cell south of z = 0 into one 2 km strip
                         long key = ((long)Math.Floor(cx / 256) << 32) ^ (uint)(int)Math.Floor(cz / 256);
                         bool done = false;
-                        if (NearD8(cx, cz))
+                        bool probe = InProbe(cx, cz);
+                        if (probe || NearD8(cx, cz))
                         {
                             if (!houses.TryGetValue(key, out var hg)) houses[key] = hg = new[] { new HouseGeo(), new HouseGeo(), new HouseGeo() };
                             var fp = new List<Vector2>(); foreach (var p in P) fp.Add(new Vector2((float)p.x, (float)p.z));
@@ -97,6 +102,7 @@ namespace Magistrala.EditorTools
                                 // the ring is triangulated before anything is appended: a bad footprint throws in level 0 and adds nothing
                                 for (int lod = 0; lod < 3; lod++) { HouseBuilder.Lod = lod; HouseBuilder.AddHouse(hg[lod], fp, kind, bottom, baseY, top, seed); }
                                 nDetailed++; done = true;
+                                if (probe && kind == "house" && h < 13 && Yards.Build(hg, P, baseY, seed)) nYards++;
                             }
                             catch (ArgumentException) { } // self-intersecting footprint: plain box
                             finally { HouseBuilder.Lod = 0; }
@@ -152,13 +158,14 @@ namespace Magistrala.EditorTools
             AssetDatabase.SaveAssets();
             // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
-            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nDetailed} detailed), {ci} + {hi} chunks");
+            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nDetailed} detailed, {nYards} yards), {ci} + {hi} chunks");
+            Yards.WriteSpots();
         }
 
         // LOD switch distances, metres from the camera to the CHUNK CENTRE (a 256 m chunk reaches ~180 m closer than that):
-        // houses mid from 450 m (nearest house >= ~270 m: the 12 cm window reveals / sill ends / railing bars are < 1 px),
+        // houses mid from 320 m (nearest house >= ~140 m: the 18-26 cm window reveals / sill ends / railing bars are ~1 px),
         // houses and town far from 1500 m (windows ~1 px, replaced by the wall colour darkened by their share).
-        const float HOUSE_MID = 450, HOUSE_FAR = 1500, TOWN_FAR = 1500;
+        const float HOUSE_MID = 320, HOUSE_FAR = 1500, TOWN_FAR = 1500;
         // the thresholds assume the chase camera's fov (55 deg at rest) and QualitySettings.lodBias of the PC level (2, SceneSetup)
         const float LOD_FOV = 55, LOD_BIAS = 2;
 
@@ -186,9 +193,13 @@ namespace Magistrala.EditorTools
             lg.localReferencePoint = b.center; lg.size = size; // after SetLODs, which recalculates both from the renderers
         }
 
-        struct Vector2d { public double x, z; public Vector2d(double x, double z) { this.x = x; this.z = z; } }
+        /// the probe area (game x, z, radius m): Kaštel Lukšić around the warehouse (stops.json kastela_skladiste)
+        public static readonly (double x, double z, double r)[] Probe = { (-6709.6, -5526.8, 420) };
+        public static bool InProbe(double x, double z) { foreach (var p in Probe) if ((x - p.x) * (x - p.x) + (z - p.z) * (z - p.z) < p.r * p.r) return true; return false; }
 
-        static bool Covered(List<double[]> rects, List<Vector2d> P, double cx, double cz)
+        public struct Vector2d { public double x, z; public Vector2d(double x, double z) { this.x = x; this.z = z; } }
+
+        public static bool Covered(List<double[]> rects, List<Vector2d> P, double cx, double cz)
         {
             foreach (var r in rects)
             {
@@ -202,7 +213,7 @@ namespace Magistrala.EditorTools
             }
             return false;
         }
-        static bool InPoly(List<Vector2d> r, double x, double z)
+        public static bool InPoly(List<Vector2d> r, double x, double z)
         {
             bool hit = false;
             for (int i = 0, j = r.Count - 1; i < r.Count; j = i++)

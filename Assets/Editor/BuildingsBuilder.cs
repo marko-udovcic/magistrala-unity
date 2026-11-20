@@ -96,10 +96,14 @@ namespace Magistrala.EditorTools
                     mesh.SetNormals(g.Normals);
                     mesh.SetColors(g.Colors); // Color, not Color32: retain linear precision.
                     mesh.SetUVs(0, g.UVs);
+                    mesh.SetUVs(1, g.Data);
+                    mesh.SetUVs(2, new Vector2[g.Positions.Count]); // no baked occlusion (a missing stream is not zero on Metal)
+                    mesh.subMeshCount = 2;
                     mesh.SetTriangles(g.Indices, 0);
+                    mesh.SetTriangles(g.GlassIndices, 1);
                     mesh.RecalculateBounds();
-                    // Supply a non-overlapping secondary UV set for future baked lighting.
-                    Unwrapping.GenerateSecondaryUVSet(mesh);
+                    mesh.RecalculateTangents();
+                    HouseBuilder.Compact(mesh);
                     string path = MeshFolder + "/Buildings_" + pair.Key + ".asset";
                     Mesh saved = AssetDatabase.LoadAssetAtPath<Mesh>(path);
                     if (saved == null) { AssetDatabase.CreateAsset(mesh, path); saved = mesh; }
@@ -114,7 +118,7 @@ namespace Magistrala.EditorTools
                     chunk.transform.localPosition = Reflect(g.Anchor);
                     chunk.AddComponent<MeshFilter>().sharedMesh = saved;
                     var renderer = chunk.AddComponent<MeshRenderer>();
-                    renderer.sharedMaterial = material;
+                    renderer.sharedMaterials = new[] { BuildingTextures.Facade(), BuildingTextures.Glass() };
                     renderer.shadowCastingMode = ShadowCastingMode.On;
                     renderer.receiveShadows = true;
                     var collider = chunk.AddComponent<MeshCollider>();
@@ -284,6 +288,15 @@ namespace Magistrala.EditorTools
             public readonly List<Color> Colors = new List<Color>();
             public readonly List<Vector2> UVs = new List<Vector2>();
             public readonly List<int> Indices = new List<int>();
+            // Magistrala/Facade (submesh 0) and Magistrala/WindowInterior (submesh 1, GlassIndices), as the town's houses:
+            // UV0 planar metres, UV1 = (layer code, height above the ground, below the top, dirt) or the glass's data
+            public readonly List<Vector4> Data = new List<Vector4>();
+            public readonly List<int> GlassIndices = new List<int>();
+            // the building being emitted: faces in its wall colour are plaster, in its roof colour tiles / concrete, the rest plain
+            public bool Bld; public Color WallCol, RoofCol; public bool Pitched; public float GroundY, TopY = 1e4f, Dirt = .2f;
+            // set while a glass quad is emitted: its corners (game frame) and the window's random number
+            public bool GlassOn; Vector3 ga, gb, gd; float grnd;
+            static readonly Color RoofMean = new Color(.392f, .0976f, .0497f); // #A9573F linear: the tile layer's mean
             public Geometry(Vector3 anchor) { Anchor = anchor; }
             public void Tri(Vector3 a, Vector3 b, Vector3 c, Color color, Vector3 hint)
             {
@@ -293,14 +306,35 @@ namespace Magistrala.EditorTools
                 if (Vector3.Dot(n, hint) < 0) { Vector3 tmp = b; b = c; c = tmp; n = -n; }
                 // First finish the GAME-frame triangle, then reflect positions/normals and reverse winding.
                 int start = Positions.Count;
-                Vector3 u = (b-a).normalized, v = Vector3.Cross(n, u);
+                Vector3 u, v;
+                if (Mathf.Abs(n.y) > .9f) { u = Vector3.right; v = Vector3.forward; }
+                else { u = Vector3.Cross(Vector3.up, n).normalized; v = Vector3.Cross(n, u).normalized; }
+                int layer = BuildingTextures.Plain; Color tint = color;
+                if (Bld && color == WallCol) layer = BuildingTextures.Plaster;
+                else if (Bld && color == RoofCol)
+                {
+                    bool tiles = Pitched && color.r > 2.5f * color.g;
+                    layer = tiles ? BuildingTextures.Roof : BuildingTextures.Concrete;
+                    if (tiles) tint = new Color(color.r / RoofMean.r, color.g / RoofMean.g, color.b / RoofMean.b) * .8f;
+                }
+                if (layer == BuildingTextures.Plain) tint = color / .915f; // the plain layer's grey
+                else if (layer != BuildingTextures.Roof) tint = Look.Desat(color, .35f) / .86f * .92f; // plaster / concrete: faded, a little darker
                 foreach (Vector3 p in new[] { a, b, c })
                 {
-                    Positions.Add(Reflect(p - Anchor)); Normals.Add(Reflect(n)); Colors.Add(color);
-                    UVs.Add(new Vector2(Vector3.Dot(p-a, u), Vector3.Dot(p-a, v)));
+                    Positions.Add(Reflect(p - Anchor)); Normals.Add(Reflect(n)); Colors.Add(new Color(tint.r, tint.g, tint.b, 0));
+                    Vector3 q = p - Anchor;
+                    if (GlassOn)
+                    {
+                        float gx = Mathf.Round(Vector3.Dot(p - ga, (gb - ga).normalized) / Mathf.Max(.01f, (gb - ga).magnitude)), gy = Mathf.Round((p.y - ga.y) / Mathf.Max(.01f, gd.y - ga.y));
+                        UVs.Add(new Vector2(Mathf.Lerp(.2f, .8f, gx), Mathf.Lerp(.28f, .75f, gy))); Data.Add(new Vector4(grnd, 0, gx, gy));
+                    }
+                    else { UVs.Add(new Vector2(Vector3.Dot(q, u), Vector3.Dot(q, v))); Data.Add(new Vector4(layer * 9, p.y - GroundY, TopY - p.y, Dirt)); }
                 }
-                Indices.Add(start); Indices.Add(start+2); Indices.Add(start+1);
+                var list = GlassOn ? GlassIndices : Indices;
+                list.Add(start); list.Add(start+2); list.Add(start+1);
             }
+            public void Glass(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 hint, float rnd)
+            { GlassOn = true; ga = a; gb = b; gd = d; grnd = rnd; Quad(a, b, c, d, Color.white, hint); GlassOn = false; }
             public void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Color color, Vector3 hint)
             { Tri(a,b,c,color,hint); Tri(a,c,d,color,hint); }
             public void Box(Vector3 c, Vector3 x, Vector3 y, Vector3 z, Color color)
@@ -354,6 +388,7 @@ namespace Magistrala.EditorTools
             Vector3 At(float u,float v,float y) => new Vector3(x,y0+y,z)+n*u+t*v;
             public void Build()
             {
+                g.GroundY=y0; g.TopY=1e4f;
                 if (kind=="sign") { Sign(); return; }
                 if (kind=="canopy") { Canopy(); return; }
                 // TS treats every remaining kind as a box building (there are only bld/canopy/sign in this file).
@@ -439,6 +474,11 @@ namespace Magistrala.EditorTools
                 float h=NonZero(o,"h",3.2f); string roof=Str(o,"roof","flat");
                 float rh=roof=="flat"?0:NonZero(o,"rh",1.6f);
                 Color rc=Tint(o,"rcol",Srgb(.62f,.3f,.22f)); var sides=Sides();
+                g.Bld=true; g.WallCol=col; g.RoofCol=rc; g.Pitched=roof!="flat"; g.GroundY=y0; g.TopY=y0+h; g.Dirt=.3f;
+                try { BuildingBody(h,roof,rh,rc,sides); } finally { g.Bld=false; g.GroundY=y0; g.TopY=1e4f; g.Dirt=.2f; }
+            }
+            void BuildingBody(float h,string roof,float rh,Color rc,Dictionary<string,Side> sides)
+            {
                 foreach (Side s in sides.Values) Rect(s,-s.Width/2,s.Width/2,low,h,col,0);
                 foreach (var b in Records(o,"band")) foreach (var pair in sides)
                 {
@@ -457,7 +497,9 @@ namespace Magistrala.EditorTools
                     {
                         float u=u0+(i+.5f)*(u1-u0)/count, y=yb+r*dy;
                         Rect(s,u-ww/2-.06f,u+ww/2+.06f,Mathf.Max(low,y-.06f),y+wh+.06f,Mix(col,.72f),.025f);
-                        Rect(s,u-ww/2,u+ww/2,y,y+wh,cl,.035f);
+                        // glass with a room behind it (the package's colour only told light / dark glass)
+                        Vector3 gd=s.Normal*.035f;
+                        g.Glass(s.At(u-ww/2,y)+gd,s.At(u+ww/2,y)+gd,s.At(u+ww/2,y+wh)+gd,s.At(u-ww/2,y+wh)+gd,s.Normal,Mathf.Repeat(Mathf.Sin(u*12.9f+y*78.2f+x*.37f+z*.71f)*43758.5f,1));
                     }
                 }
                 foreach (var sg in Records(o,"signs"))
