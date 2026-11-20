@@ -371,7 +371,7 @@ namespace Magistrala.EditorTools
         // ------------------------------------------------------------------ probe (Kaštel Lukšić): flower pots, a café terrace
         // Poly Haven potted plant: the pot and its leaves are two prefabs (two textures); the leaves sit on the pot at this offset
         // (prefab space, both scaled 1.5 x by their configs)
-        static readonly Vector3 LeavesOnPot = new Vector3(.07f, .3135f, -.148f);
+        static readonly Vector3 LeavesOnPot = new Vector3(.07f, .3135f, -.148f) * .69f; // the pot and its leaves at 0.69 of the first import (pot 0.5 m across)
 
         static bool PottedPlant(Transform g, Vector3 p, float yaw)
         {
@@ -406,8 +406,12 @@ namespace Magistrala.EditorTools
                 var v = MiniJson.L(o); var p = new Vector3((float)MiniJson.D(v[0]), (float)MiniJson.D(v[1]), (float)MiniJson.D(v[2]));
                 var n = new Vector3((float)MiniJson.D(v[3]), 0, (float)MiniJson.D(v[4])).normalized; var t = Vector3.Cross(Vector3.up, n);
                 int h = Hash(p.x.ToString("F1") + p.z.ToString("F1"));
+                // since the yards cover all of Kaštela: outside the probe one pot at a third of the gates (props cost a
+                // draw each; the yard walls themselves are in the house meshes)
+                bool probe = BuildingsFromTiles.InProbe(p.x + W.OX, -p.z + W.OZ);
+                if (!probe && (h >> 4) % 3 != 0) continue;
                 foreach (float side in new[] { -1f, 1f })
-                    if ((h >> (side > 0 ? 1 : 2) & 3) != 0 && PottedPlant(g, p + n * .55f + t * side * 2.05f, h % 360)) gates++;
+                    if ((probe ? (h >> (side > 0 ? 1 : 2) & 3) != 0 : side > 0) && PottedPlant(g, p + n * .55f + t * side * 2.05f, h % 360)) gates++;
             }
             foreach (var o in MiniJson.L(j["doors"]))
             {

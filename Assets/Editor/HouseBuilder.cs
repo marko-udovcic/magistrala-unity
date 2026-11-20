@@ -19,60 +19,90 @@ namespace Magistrala.EditorTools
         public List<Vector2> uv = new List<Vector2>();
         public List<Vector4> d = new List<Vector4>();
         public List<Color> c = new List<Color>();
-        public List<Vector2> o = new List<Vector2>(); // UV2: baked occlusion, sill drip mask (Magistrala/Facade)
+        public List<Vector4> o = new List<Vector4>(); // UV2: baked occlusion, sill drip mask, stone darkening / greying (Magistrala/Facade)
         public List<int>[] sub = { new List<int>(), new List<int>(), new List<int>() };
     }
 
     /// Per-building appearance after TIPOLOGIJA.md (references/fotografije/zgrade-predlosci): family A old stone house,
-    /// B stone ground floor + plaster above, C new plastered house (apartments); colours 55 % neutral / 25 % warm pastel /
-    /// 15 % bare stone / 5 % derelict; shutters one colour per house (green 50 / brown 30 / grey 15 / blue 5 %); light frames.
+    /// B stone ground floor + plaster above, C new plastered house (apartments). Colours are EFFECTIVE albedos (what the wall
+    /// shows: plaster layer x tint), calibrated on the Kaštela photos (riva Kaštel Stari 20211204-33: sunlit plaster #C2B9A6,
+    /// stone #A5A191; Sućurac 20220206-16: stone #908A81; Sućurac panoramio: ochre render #AA9872, derelict #817D67), so the
+    /// game's bright sun (2.9 + exposure +0.22, ACES) lands near the photos and not on paper white.
     public struct Look
     {
         public int family; // 0 A, 1 B, 2 C, 3 block (apartment), 4 industrial
         public Color wall, trim, shutter, roof, balcony;
         public int wallCode, trimLayer; public float split, dirt;
         public bool leaves, rollers, derelict, unfinished;
+        public int bare; // C houses without paint: 1 grey concrete / cement render, 2 bare brick (opeka)
+        public float stoneDark, stoneGrey; // per-house tone of the (untinted) stone layer: darker / greyer
+        public float flatRoll, gableRoll; // roof draws (HouseBuilder decides with the footprint)
 
         static Color H(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
-        static readonly string[] Neutral = { "EDE8DC", "E6D9B8", "F4F1E8", "EAE4D4", "E8E1CF", "C9C6BE" };
-        static readonly string[] Warm = { "E9D79A", "D8B26A", "DDB08A", "E3C3B0", "E6CFA0", "BFCBB0" };
-        static readonly string[] Derelict = { "6E6A58", "807A64", "77725E" };
-        static Color Pick(System.Random r, string[] a) => H(a[r.Next(a.Length)]);
+        /// the plaster / concrete layers are grey ~#DCDCDC (linear .71): the tint that makes the wall show `hex`
+        static Color E(string h) { var c = H(h).linear; return new Color(Mathf.Clamp01(c.r / .71f), Mathf.Clamp01(c.g / .71f), Mathf.Clamp01(c.b / .71f)).gamma; }
+        // weathered off-white / greyish white (never paper white), cream and beige
+        static readonly string[] OffWhite = { "C9C3B5", "C4BEAF", "CCC6B8", "BFB9AB", "C6BFAE", "B9B5AA", "C2BCB0" };
+        static readonly string[] Beige = { "C8B99B", "C2B392", "CDBEA0", "BDAF92", "C6B596" };
+        // warm ochre, sand, light terracotta / peach
+        static readonly string[] Warm = { "C2AC86", "BEA889", "C6B08E", "B9A283", "C0A98A", "BDA08A", "C1A592", "B79D85" };
+        // faded pastels (rarer): sage, dusty pink, pale yellow, grey-blue, pale salmon
+        static readonly string[] Pastel = { "B4BA9F", "C2AEA2", "C8BC96", "AEB3AE", "C6A797", "A9705A" };
+        // grey concrete / unpainted cement render
+        static readonly string[] Bare = { "9E9B93", "A6A297", "A9A395", "958F84", "ACA89D" };
+        static readonly string[] Derelict = { "6E6A58", "807A64", "77725E", "817D67" };
+        static Color Pick(System.Random r, string[] a) => E(a[r.Next(a.Length)]);
         public static Color Desat(Color c, float k) { float l = .3f * c.r + .59f * c.g + .11f * c.b; return Color.Lerp(c, new Color(l, l, l, c.a), k); }
 
-        /// ground = the building's ground height (m above sea): old cores lie by the shore
-        public static Look Pick(System.Random r, string kind, float ground, float height)
+        /// ground = the building's ground height (m above sea): old cores lie by the shore; core = in an old town core
+        public static Look Pick(System.Random r, string kind, float ground, float height, bool core = false)
         {
             var k = new Look();
             bool ind = string.Equals(kind, "industrial", StringComparison.OrdinalIgnoreCase) || string.Equals(kind, "warehouse", StringComparison.OrdinalIgnoreCase);
             bool apt = string.Equals(kind, "apartment", StringComparison.OrdinalIgnoreCase);
-            double pOld = ground < 10 ? .5 : ground < 25 ? .25 : ground < 60 ? .12 : .05;
+            double pOld = core ? .62 : ground < 10 ? .4 : ground < 25 ? .2 : ground < 60 ? .1 : .04;
             double f = r.NextDouble(), c = r.NextDouble(), s = r.NextDouble(), d = r.NextDouble(), u = r.NextDouble(), q = r.NextDouble();
-            k.family = ind ? 4 : apt ? 3 : height > 13 ? 2 : f < pOld * .65 ? 0 : f < pOld ? 1 : 2;
-            k.derelict = !ind && c > .95;
-            k.wall = ind ? Color.Lerp(H("C9C6BE"), H("E4E2DC"), (float)d) : k.derelict ? Pick(r, Derelict) : c < .66 ? Pick(r, Neutral) : Pick(r, Warm);
-            k.wall = Desat(k.wall, .5f); // the pastels faded by sun and salt (vivid tints read as "drawn")
-            k.dirt = (float)(k.derelict ? .85 : k.family <= 1 ? .35 + .4 * d : ind ? .3 + .3 * d : .1 + .4 * d);
+            double tone = r.NextDouble(), b = r.NextDouble(), st = r.NextDouble();
+            k.flatRoll = (float)r.NextDouble(); k.gableRoll = (float)r.NextDouble();
+            k.family = ind ? 4 : apt ? 3 : height > 13 ? 2 : f < pOld * .6 ? 0 : f < pOld ? 1 : 2;
+            k.derelict = !ind && c > .955;
+            // 38 % off-white, 17 % beige, 26 % warm, 7 % pastel (the rest of the draw falls on the warm end too)
+            k.wall = ind ? Color.Lerp(E("9F9D96"), E("BDBAB2"), (float)d) : k.derelict ? Pick(r, Derelict)
+                : c < .45 ? Pick(r, OffWhite) : c < .66 ? Pick(r, Beige) : c < .84 ? Pick(r, Warm) : c < .9 ? Pick(r, Pastel) : Pick(r, OffWhite);
+            // per-house tone: +-7 % brightness, a little hue drift (repainted / sun-bleached / damp)
+            float tb = .93f + .14f * (float)tone; k.wall = new Color(k.wall.r * tb, k.wall.g * tb, k.wall.b * tb * (.98f + .04f * (float)q));
+            k.dirt = (float)(k.derelict ? .9 : k.family <= 1 ? .45 + .45 * d : ind ? .35 + .35 * d : .2 + .55 * d);
             int P = BuildingTextures.Plaster, S = BuildingTextures.Stone;
             k.wallCode = k.family == 0 ? S + 8 * S : k.family == 1 ? S + 8 * P : ind ? BuildingTextures.Concrete * 9 : P * 9;
-            k.split = k.family == 1 ? (q < .6 ? 3.2f : 2.4f) : 0;
-            // 12 % of new houses: top storey in bare brick (and rebar on a flat roof)
-            k.unfinished = k.family == 2 && u < .08 && height > 5;
-            if (k.unfinished) { k.wallCode = P + 8 * BuildingTextures.Brick; k.split = Mathf.Max(2.6f, height - 2.9f); }
-            k.trim = k.derelict ? H("E8E4D8") : Color.Lerp(k.wall, H("F2EEE4"), .65f);
+            k.split = k.family == 1 ? (height > 8.5f && q < .45 ? 6.1f : q < .75 ? 3.2f : 2.4f) : 0;
+            // the stone: limestone from warm cream to grey, sun-bleached or damp
+            k.stoneDark = .05f + .28f * (float)st; k.stoneGrey = (float)(st < .5 ? .35 + .4 * q : .25 + .3 * q); // light beige-grey limestone (owner photos 44 / 48)
+            if (k.family == 2 && !k.derelict && height > 2.5f)
+            {
+                // TIPOLOGIJA 9.8: unfinished top storey (bare brick, concrete columns, rebar), unpainted houses
+                k.unfinished = u < .14 && height > 5;
+                k.bare = b < .1 ? 1 : b < .15 ? 2 : 0;
+                if (k.bare == 1) { k.wallCode = BuildingTextures.Concrete * 9; k.wall = Pick(r, Bare); }
+                else if (k.bare == 2) k.wallCode = BuildingTextures.Brick * 9;
+                if (k.unfinished) { k.wallCode = (k.bare == 2 ? BuildingTextures.Brick : k.bare == 1 ? BuildingTextures.Concrete : P) + 8 * BuildingTextures.Brick; k.split = Mathf.Max(2.6f, height - 2.9f); }
+            }
+            k.trim = k.derelict ? E("C9C5B9") : Color.Lerp(k.wall, E("D6D1C5"), .55f);
             k.trimLayer = k.family <= 1 ? S : P;
             if (k.family <= 1) k.trim = Color.white;
-            k.shutter = s < .5 ? (q < .5 ? H("3F6F55") : H("4E8266")) : s < .8 ? H("5B3A29") : s < .95 ? H("3B3E42") : H("3F5E7E");
+            // shutters: faded green 50 % / brown 30 % / grey 15 % / blue 5 %, one colour per house, sun-bleached
+            // owner photos 43 / 44 / 50: white louvres on many old stone houses, dark green everywhere, some brown
+            k.shutter = k.family <= 1 && s < .38 ? (q < .5 ? E("C9C6BE") : E("BDBAB1"))
+                : s < .72 ? (q < .5 ? H("38543F") : H("4A6A52")) : s < .9 ? (q < .5 ? H("5A4232") : H("6B5444")) : s < .97 ? H("5A5C5D") : H("53687A");
             if (k.derelict) k.shutter = H("7C8F6A");
-            k.shutter = Desat(k.shutter, .25f);
+            k.shutter = Desat(k.shutter, .15f + .2f * (float)d);
             k.leaves = !ind && (k.family <= 1 ? d < .92 : k.family == 2 ? u > .5 && u < .85 : u < .3);
             k.rollers = !ind && !k.leaves && (k.family >= 2 ? u > .2 : false);
             // roof: #C8532F +- 12 %, older roofs faded / browner
             double rt = r.NextDouble();
             k.roof = k.family <= 1 && rt < .4 ? Color.Lerp(Color.white, new Color(.86f, .97f, 1.12f), (float)r.NextDouble())
                 : new Color(.9f + .24f * (float)rt, .9f + .2f * (float)r.NextDouble(), .92f + .16f * (float)rt);
-            k.roof *= .8f; // the texture's mean is #C8532F in sRGB; a little darker under the bright Dalmatian sun
-            k.balcony = Color.Lerp(H("CFCBC2"), k.trim, .5f);
+            k.roof *= .74f; // the texture's mean is #C8532F in sRGB; darker under the bright Dalmatian sun
+            k.balcony = Color.Lerp(E("A9A69E"), k.trim, .4f);
             return k;
         }
     }
@@ -103,17 +133,19 @@ namespace Magistrala.EditorTools
             Color t = s == Slot.Wall ? look.wall : s == Slot.Roof ? look.roof : s == Slot.Trim ? look.trim : s == Slot.Balcony ? look.balcony
                 : s == Slot.Shutter ? look.shutter : s == Slot.Yard ? Color.white : detailTint;
             // tints are authored in sRGB; vertex colours are read as linear; the roof tint is a multiplier (kept linear)
+            if (Lod >= 3 && s == Slot.Wall) t = Color.Lerp(t, new Color(.3f, .32f, .34f), .15f);
             Color lin = s == Slot.Roof ? t : t.linear;
             lin.a = s == Slot.Wall ? look.split / 40f : 0; return lin;
         }
 
         // UV2 of the next faces: reveal depth (occlusion grows into the opening) and the drip mask under a sill
         static bool revealOn, dripOn; static Vector3 revealO, revealN; static float revealD, dripY0, dripY1;
-        static Vector2 Occ(Vector3 p)
+        static Vector4 Occ(Vector3 p, Slot slot)
         {
             float x = revealOn ? Mathf.Clamp01(.2f + .8f * Vector3.Dot(revealO - p, revealN) / revealD) : 0;
             float y = dripOn ? Mathf.Clamp01((p.y - dripY0) / (dripY1 - dripY0)) : 0;
-            return new Vector2(x, y);
+            // the frames, sills and quoins of dressed stone stay light (kamena erta: lighter than the wall, owner photos 43 / 44)
+            return slot == Slot.Trim ? new Vector4(x, y, 0, look.stoneGrey * .5f) : new Vector4(x, y, look.stoneDark, look.stoneGrey);
         }
 
         // As in BuildingsFromTiles.Tri: orient AFTER the W.U reflection. Swap UVs with the vertices.
@@ -136,7 +168,7 @@ namespace Magistrala.EditorTools
             if (slot == Slot.Glass) { g.d.Add(glassData); g.d.Add(glassData); g.d.Add(glassData); }
             else { g.d.Add(Data(slot, a.y)); g.d.Add(Data(slot, b.y)); g.d.Add(Data(slot, c.y)); }
             var col = Tint(slot); g.c.Add(col); g.c.Add(col); g.c.Add(col);
-            g.o.Add(Occ(a)); g.o.Add(Occ(b)); g.o.Add(Occ(c));
+            g.o.Add(Occ(a, slot)); g.o.Add(Occ(b, slot)); g.o.Add(Occ(c, slot));
             int sm = slot == Slot.Glass ? 1 : slot == Slot.Rail ? 2 : 0;
             g.sub[sm].Add(index); g.sub[sm].Add(index + 1); g.sub[sm].Add(index + 2);
         }
@@ -246,9 +278,30 @@ namespace Magistrala.EditorTools
         /// front of the door at its threshold, and the facade's outward normal) — PropsBuilder puts flower pots beside them
         public static readonly List<(Vector3 p, Vector3 n)> Doors = new List<(Vector3, Vector3)>();
 
+        /// Options of one AddHouse call (BuildingsFromTiles). lookSeed: the seed of the paint (an annex shares its main
+        /// house's look); roof -1 auto, 0 flat, 1 hip, 2 gable; terrace: a flat roof with a railing all round (roof terrace
+        /// of an annex); core: the house stands in an old town core (more bare stone).
+        public struct Opts { public int lookSeed, roof; public bool terrace, core, noStairs; }
+
+        /// per facade (Unity world a -> b, on the ground): the height (absolute y) below which a neighbour covers it
+        /// (-inf: free) and whether a neighbour stands against part of it (blind wall: no openings). Null: all free.
+        public static Func<Vector3, Vector3, (float hide, bool blind)> EdgeQuery;
+        /// from a facade's midpoint (Unity world) along its outward normal: metres to the nearest carriageway edge and that
+        /// road's half width (main streets get shop fronts). Null: no streets.
+        public static Func<Vector3, Vector3, (float gap, float hw)> StreetQuery;
+        /// far levels: the footprint pulled in and the top lowered by this many metres, so where the mid level and the far
+        /// level overlap during the switch the nearer one always wins the depth test (no z-fighting)
+        public static float Shrink;
+        /// shop fronts on facades this close (m) to a carriageway of at least this half width
+        const float SHOP_GAP = 4.5f, SHOP_HW = 3.0f;
+
         /// <param name="footprintGame">Game (x,z), metres; simple ring, either winding, no repeated closing point.</param>
         public static void AddHouse(HouseGeo g, List<Vector2> footprintGame, string kind,
             double bottomY, double baseY, double topY, int seed)
+            => AddHouse(g, footprintGame, kind, bottomY, baseY, topY, seed, new Opts { lookSeed = seed, roof = -1 });
+
+        public static void AddHouse(HouseGeo g, List<Vector2> footprintGame, string kind,
+            double bottomY, double baseY, double topY, int seed, Opts o)
         {
             if (g == null) throw new ArgumentNullException(nameof(g));
             if (footprintGame == null) throw new ArgumentNullException(nameof(footprintGame));
@@ -260,44 +313,115 @@ namespace Magistrala.EditorTools
             if (Math.Abs(signedArea) < .01) return;
             // Triangulate before appending anything; malformed rings cannot leave half a house in a chunk.
             List<int> triangles = Ear(points, signedArea);
+            int N = points.Count;
+            // the neighbours and the streets, asked on the true footprint (before any Shrink)
+            var hideBelow = new float[N]; var blindF = new bool[N]; var gap = new float[N]; var roadHw = new float[N];
+            for (int i = 0; i < N; i++)
+            {
+                Vector3 a = points[i], b = points[(i + 1) % N], al = (b - a).normalized;
+                Vector3 ow = new Vector3(al.z, 0, -al.x) * (signedArea > 0 ? 1 : -1);
+                (hideBelow[i], blindF[i]) = EdgeQuery != null ? EdgeQuery(a, b) : (float.NegativeInfinity, false);
+                (gap[i], roadHw[i]) = StreetQuery != null ? StreetQuery((a + b) / 2, ow) : (1e9f, 0);
+            }
+            if (Shrink > 0 && topY - Shrink > baseY + .5)
+            {
+                var inner = Inset(points, signedArea, Shrink);
+                try { triangles = Ear(inner, SignedArea(inner)); points = inner; signedArea = SignedArea(inner); topY -= Shrink; }
+                catch (ArgumentException) { }
+            }
             var random = new System.Random(seed);
             bool industrial = string.Equals(kind, "industrial", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(kind, "warehouse", StringComparison.OrdinalIgnoreCase);
             bool apartment = string.Equals(kind, "apartment", StringComparison.OrdinalIgnoreCase);
             float bottom = (float)bottomY, ground = (float)baseY, top = (float)topY;
-            look = Look.Pick(new System.Random(seed * 31 + 7), kind, ground, top - ground); gY = ground; tY = top;
+            look = Look.Pick(new System.Random(o.lookSeed * 31 + 7), kind, ground, top - ground, o.core); gY = ground; tY = top;
             var clutter = new System.Random(seed * 17 + 3); // the clutter's own draws (identical in every level)
             bool hasAc = !industrial && clutter.NextDouble() < .7, hasDish = !industrial && clutter.NextDouble() < .35;
             bool hasCable = !industrial && clutter.NextDouble() < .9;
+            var shape = new System.Random(seed * 53 + 11); // shape draws (identical in every level)
+            double rShop = shape.NextDouble(), rStair = shape.NextDouble(), rLong = shape.NextDouble(), rChim = shape.NextDouble(),
+                rStairSide = shape.NextDouble(), rSign = shape.NextDouble();
             float plinth = Mathf.Min(ground + .5f, top);
             // Consider partial top storeys too; the opening-height test below rejects those too short for a window.
             int floors = Mathf.Max(1, Mathf.CeilToInt((top - ground) / FloorHeight));
-            int longest = 0;
-            float longestLength = 0;
-            for (int i = 0; i < points.Count; i++)
+            // a facade is drawn when not wholly behind a neighbour; it has openings when no neighbour stands against it
+            var visible = new bool[N]; var open = new bool[N];
+            for (int i = 0; i < N; i++) { visible[i] = hideBelow[i] < top - .05f; open[i] = visible[i] && !blindF[i] && hideBelow[i] <= plinth; }
+            int longest = -1; float longestLength = 0;
+            for (int pass = 0; pass < 2 && longest < 0; pass++)
+                for (int i = 0; i < N; i++)
+                {
+                    if (pass == 0 && !open[i]) continue;
+                    float length = Vector3.Distance(points[i], points[(i + 1) % N]);
+                    if (length > longestLength) { longestLength = length; longest = i; }
+                }
+            // roof: most Kaštela houses carry tiles (hip or gable); flat roofs (terraces) on a third of the new houses, the
+            // unfinished ones, blocks, halls and the large / irregular footprints
+            var rect = MinRect(points); float fill = (float)(Math.Abs(signedArea) / Math.Max(1e-3, rect.area));
+            bool canPitch = !industrial && !apartment && N <= 10 && (Math.Abs(signedArea) < 750 || fill > .85f && Math.Abs(signedArea) < 1600);
+            int roof = o.roof >= 0 ? o.roof
+                : !canPitch || look.unfinished ? 0
+                : look.family == 2 && look.flatRoll < .32f && Math.Abs(signedArea) > 45 ? 0
+                : fill > .9f && look.gableRoll < (look.family <= 1 ? .5f : .38f) ? 2 : 1;
+            if (roof > 0 && !canPitch) roof = 0;
+            // shop fronts: the ground floor of the facades along a main street (blocks always, houses often)
+            bool shopHouse = !industrial && floors >= 2 && (apartment || rShop < (o.core ? .7 : .5));
+            var shopF = new bool[N];
+            for (int i = 0; i < N; i++) shopF[i] = shopHouse && open[i] && gap[i] < SHOP_GAP && roadHw[i] >= SHOP_HW && Vector3.Distance(points[i], points[(i + 1) % N]) >= 4;
+            // an outside stair to the first floor along a side facade (old and new family houses)
+            int stairFacade = -1;
+            if (!o.noStairs && !industrial && !apartment && floors >= 2 && look.family != 0 && rStair < .22)
             {
-                float length = Vector3.Distance(points[i], points[(i + 1) % points.Count]);
-                if (length > longestLength) { longestLength = length; longest = i; }
+                var cand = new List<int>();
+                for (int i = 0; i < N; i++)
+                    if (i != longest && open[i] && !shopF[i] && gap[i] > 3 && Vector3.Distance(points[i], points[(i + 1) % N]) >= 7.5f) cand.Add(i);
+                if (cand.Count > 0) stairFacade = cand[(int)(rStairSide * cand.Count) % cand.Count];
             }
-            // most Kaštela houses carry a tiled hip roof; flat roofs (terraces) on the larger / irregular ones
-            bool hip = !industrial && !apartment && points.Count <= 10 && Math.Abs(signedArea) < 750;
-            int dishFacade = hasDish ? clutter.Next(points.Count) : -1;
+            bool hip = roof > 0;
+            int dishFacade = hasDish ? clutter.Next(N) : -1;
             float dishAt = (float)clutter.NextDouble();
 
-            for (int i = 0; i < points.Count; i++)
+            for (int i = 0; i < N; i++)
             {
-                Vector3 a = points[i], b = points[(i + 1) % points.Count];
+                Vector3 a = points[i], b = points[(i + 1) % N];
                 Vector3 along = (b - a).normalized;
                 // Polygon winding, rather than a centroid test, also works for concave corners.
                 Vector3 outward = new Vector3(along.z, 0, -along.x) * (signedArea > 0 ? 1 : -1);
                 var f = new Facade { origin = a, along = along, outward = outward,
                     length = Vector3.Distance(a, b), baseY = ground };
-                Wall(g, f, Slot.Balcony, 0, f.length, bottom, plinth); // concrete plinth
+                if (!visible[i]) continue; // party wall wholly behind the neighbour
+                if (!open[i])
+                {
+                    // against a neighbour: blank wall, only above its roof when it covers the lower part
+                    float from = Mathf.Max(bottom, hideBelow[i]);
+                    if (from < plinth) { Wall(g, f, Slot.Balcony, 0, f.length, from, plinth); from = plinth; }
+                    Wall(g, f, Slot.Wall, 0, f.length, from, top);
+                    continue;
+                }
+                bool shopHere = shopF[i];
+                if (!(shopHere && Lod == 0)) Wall(g, f, Slot.Balcony, 0, f.length, bottom, plinth); // concrete plinth
                 if (Lod > 0) Wall(g, f, Slot.Wall, 0, f.length, plinth, top);
                 int columns = f.length > 3 ? Mathf.Max(1, Mathf.FloorToInt(f.length / (industrial ? 7f : 3.2f))) : 0;
                 if (industrial) columns = Mathf.Min(columns, 3);
-                float lastY = plinth;
-                for (int floor = 0; floor < floors && columns > 0; floor++)
+                float lastY = plinth; int firstFloor = 0;
+                if (shopHere && floors >= 2)
+                {
+                    ShopFront(g, f, bottom, plinth, ground + FloorHeight, seed * 7 + i, rSign);
+                    // konoba / café fronts in the old cores: a timber pergola with a dark red canvas over the pavement (owner photo 43)
+                    if (o.core && gap[i] > 2.4f && rSign > .45 && Lod < 2) Pergola(g, f, Mathf.Min(2.6f, gap[i] - .6f), rSign);
+                    lastY = ground + FloorHeight; firstFloor = 1;
+                }
+                // the outside stair: a solid stair rising along the facade to a landing in front of column 0 of floor 1
+                bool stairHere = i == stairFacade && columns >= 2;
+                float stairX0 = 0, stairX1 = 0;
+                if (stairHere)
+                {
+                    float sp = f.length / columns, c0 = sp * .5f;
+                    stairX0 = Mathf.Max(.2f, c0 - .75f); stairX1 = c0 + .75f + 4.3f;
+                    if (stairX1 > f.length - .3f) stairHere = false;
+                    else if (Lod < 2) OutsideStair(g, f, ground, ground + FloorHeight, stairX0, c0 + .75f, stairX1);
+                }
+                for (int floor = firstFloor; floor < floors && columns > 0; floor++)
                 {
                     // Warehouses have one sparse row, regardless of their tall interior volume.
                     if (industrial && floor > 0) break;
@@ -311,48 +435,54 @@ namespace Magistrala.EditorTools
                     float cursor = 0;
                     bool balcony = !industrial && floors >= 2 && i == longest && floor >= 1
                         && f.length >= 4 && random.NextDouble() < .5;
-                    int balconyColumn = columns / 2;
-                    if (balcony && Lod == 0)
+                    bool stairDoor = stairHere && floor == 1;
+                    int doorCol = balcony ? columns / 2 : stairDoor ? 0 : -1;
+                    float floorY = ground + floor * FloorHeight;
+                    if (doorCol >= 0 && Lod == 0)
                     {
-                        float doorCentre = (balconyColumn + .5f) * spacing;
+                        float doorCentre = (doorCol + .5f) * spacing;
                         Wall(g, f, Slot.Wall, 0, doorCentre - width / 2, lastY, y0);
                         Wall(g, f, Slot.Wall, doorCentre + width / 2, f.length, lastY, y0);
-                        Wall(g, f, Slot.Wall, doorCentre - width / 2, doorCentre + width / 2,
-                            lastY, ground + floor * FloorHeight + .08f);
+                        Wall(g, f, Slot.Wall, doorCentre - width / 2, doorCentre + width / 2, lastY, floorY + .08f);
                     }
                     // the front door: ground floor of the longest facade, a middle column (not on blocks' shop floors)
                     int doorColumn = floor == 0 && i == longest && !industrial && !shop && columns >= 2 && f.length >= 5 ? (columns - 1) / 2 : -1;
-                    if (!(balcony && Lod == 0) && Lod == 0) RowBelow(g, f, columns, spacing, width, lastY, y0, doorColumn);
-                    float floorY = ground + floor * FloorHeight;
+                    if (doorColumn >= 0 && stairHere) { float dc = (doorColumn + .5f) * spacing; if (dc > stairX0 - .8f && dc < stairX1 + .8f) doorColumn = -1; }
+                    if (doorCol < 0 && Lod == 0) RowBelow(g, f, columns, spacing, width, lastY, y0, doorColumn);
                     for (int k = 0; k < columns; k++)
                     {
                         float centre = (k + .5f) * spacing, x0 = centre - width / 2, x1 = centre + width / 2;
                         if (Lod == 0) Wall(g, f, Slot.Wall, cursor, x0, y0, y1);
                         // A balcony door drops to the slab; cut the lower wall only in this column.
-                        bool door = balcony && k == balconyColumn;
+                        bool door = k == doorCol;
                         bool front = k == doorColumn;
                         float openingBottom = door ? floorY + .08f : front ? lastY : y0;
                         // the window's state (same draws in every level): 0 open leaves, 1 closed, 2 one leaf closed;
                         // rollers: the blind's drop; the glass: room / lamp / curtains
                         double st = random.NextDouble(), rr = random.NextDouble();
                         bool leaves = look.leaves && !shop;
-                        int state = !leaves ? 0 : st < .5 && !door ? 1 : st < .65 ? 2 : 0;
+                        int state = !leaves ? 0 : look.family <= 1 ? (st < .3 && !door ? 1 : st < .48 ? 2 : 0) : (st < .45 && !door ? 1 : st < .6 ? 2 : 0);
                         if (front) { state = 1; leaves = false; } // a door leaf (louvred, the shutters' colour) instead of glass
                         float blind = look.rollers && !shop ? (rr < .35 ? 0 : rr < .75 ? .2f + .5f * (float)(rr - .35) / .4f : .97f) : 0;
                         glassData = new Vector4((float)random.NextDouble(), blind, 0, 0);
                         var cell = new Rect(k * spacing, floorY, spacing, FloorHeight);
-                        if (Lod == 0) Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop && !front, !door && !front);
+                        // ground-floor windows behind the outside stair are left out (the stair stands in front)
+                        bool behindStair = stairHere && floor == 0 && x1 > stairX0 - .1f && x0 < stairX1 + .1f;
+                        if (behindStair) { if (Lod == 0) Wall(g, f, Slot.Wall, x0, x1, openingBottom, y1); }
+                        else if (Lod == 0) Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop && !front, !door && !front);
                         else FlatWindow(g, f, x0, x1, openingBottom, y1, leaves, state, cell, !door && !front);
-                        if (front && Lod == 0) { Doors.Add((f.P(centre, lastY, .9f), f.outward)); { detailTint = new Color(.62f, .6f, .56f); Box(g, Slot.Detail, f.P(x0 - .25f, lastY - .5f, 0), f.along, f.outward, x1 - x0 + .5f, .5f, .45f, false); } } // a step
-                        if (door)
+                        if (front && Lod == 0) { Doors.Add((f.P(centre, lastY, .9f), f.outward)); { detailTint = new Color(.5f, .48f, .45f); { againstWall = true; Box(g, Slot.Detail, f.P(x0 - .25f, lastY - .5f, 0), f.along, f.outward, x1 - x0 + .5f, .5f, .45f, false); againstWall = false; } } } // a step
+                        if (door && balcony)
                         {
                             float balconyWidth = Mathf.Min(2f + (float)random.NextDouble() * 2f,
                                 2f * Mathf.Min(centre - .3f, f.length - centre - .3f));
                             bool laundry = clutter.NextDouble() < .3; int pots = clutter.Next(4);
-                            if (Lod < 2) Balcony(g, f, centre, floorY, balconyWidth, laundry, pots, clutter.Next());
+                            // newer houses: often one long balcony along the whole facade
+                            bool longB = look.family >= 2 && rLong < .4 && f.length >= 6;
+                            if (Lod < 2) Balcony(g, f, longB ? f.length / 2 : centre, floorY, longB ? f.length - .8f : balconyWidth, laundry, pots, clutter.Next());
                         }
                         // an AC unit between this window and the next (70 % of houses, ~1-3 each)
-                        bool ac = hasAc && k < columns - 1 && clutter.NextDouble() < .22 && !(balcony && (k == balconyColumn || k + 1 == balconyColumn));
+                        bool ac = hasAc && k < columns - 1 && clutter.NextDouble() < .22 && !(doorCol >= 0 && (k == doorCol || k + 1 == doorCol)) && !behindStair;
                         if (ac && Lod == 0) AcUnit(g, f, (k + 1) * spacing, y0 + .25f);
                         cursor = x1;
                     }
@@ -362,22 +492,142 @@ namespace Magistrala.EditorTools
                 if (Lod == 0) Wall(g, f, Slot.Wall, 0, f.length, lastY, top);
                 if (Lod == 0 && i == longest && !industrial) MeterBox(g, f, Mathf.Min(.7f, f.length * .2f));
                 if (Lod == 0 && i == longest && hasCable) Cable(g, f, top - .4f);
-                if (Lod == 0 && i == longest && hip) { detailTint = new Color(.55f, .56f, .57f); Box(g, Slot.Detail, f.P(.12f, ground, 0), f.along, f.outward, .08f, top - .12f - ground, .08f, false); } // downpipe
+                if (Lod == 0 && i == longest && hip) { detailTint = new Color(.47f, .48f, .49f); { againstWall = true; Box(g, Slot.Detail, f.P(.12f, ground, 0), f.along, f.outward, .08f, top - .12f - ground, .08f, false); againstWall = false; } } // downpipe
                 if (Lod == 0 && i == dishFacade && f.length > 2.5f && top - ground > 4) Dish(g, f.P(.8f + dishAt * (f.length - 1.6f), top - 1.0f, .02f), f.outward, f.along);
+                // the unfinished storey: concrete columns at the corners and ring beams, between them bare brick
+                if (look.unfinished && Lod < 2 && f.length > 1.2f)
+                {
+                    float sy = ground + look.split;
+                    { againstWall = true; Box(g, Slot.Balcony, f.P(0, sy - .3f, 0), f.along, f.outward, .32f, top - sy + .3f, .04f, false); againstWall = false; }
+                    { againstWall = true; Box(g, Slot.Balcony, f.P(f.length - .32f, sy - .3f, 0), f.along, f.outward, .32f, top - sy + .3f, .04f, false); againstWall = false; }
+                    { againstWall = true; Box(g, Slot.Balcony, f.P(0, sy - .3f, 0), f.along, f.outward, f.length, .3f, .045f, false); againstWall = false; }
+                    if (f.length > 7) { againstWall = true; Box(g, Slot.Balcony, f.P(f.length / 2 - .16f, sy, 0), f.along, f.outward, .32f, top - sy, .04f, false); againstWall = false; }
+                }
             }
 
-            // Seal the foundation, including concave footprints.
-            if (Lod == 0) Surface(g, points, triangles, bottom, Slot.Balcony, Vector3.down);
+            // (no foundation: the underside is never seen)
             bool chim = clutter.NextDouble() < .85, chim2 = clutter.NextDouble() < .3, antenna = clutter.NextDouble() < .45;
             double ra = clutter.NextDouble(), rb = clutter.NextDouble(), rc = clutter.NextDouble(), rd = clutter.NextDouble();
             if (hip)
-                HipRoof(g, points, top, chim, chim2, antenna, (float)ra);
+                HipRoof(g, points, top, chim, chim2, antenna, (float)ra, roof == 2, rect);
             else
             {
+                hiddenEdge = visible; for (int i = 0; i < N; i++) visible[i] = hideBelow[i] < top + .3f;
                 FlatRoof(g, points, triangles, top, signedArea);
-                if (!industrial && Lod < 2 && points.Count <= 12)
-                    RoofClutter(g, points, triangles, top, signedArea, rb < .5, rc < .35, rd < .3, ra < .3, look.unfinished);
+                hiddenEdge = null;
+                if (!industrial && Lod < 2 && N <= 24)
+                    RoofClutter(g, points, triangles, top, signedArea, o.terrace || rb < .5, !o.terrace && rc < .35, !o.terrace && rd < .3, ra < .3, look.unfinished, !o.terrace && !apartment && rChim < .6);
             }
+        }
+
+        /// ground floor of a facade on a main street: wide shop windows / doors in deep reveals, roller-shutter boxes, some
+        /// shutters down, a plain fascia band above (no names)
+        static void ShopFront(HouseGeo g, Facade f, float bottom, float plinth, float yTop, int seed, double rSign)
+        {
+            var r = new System.Random(seed);
+            int n = Mathf.Max(1, Mathf.FloorToInt(f.length / 3.9f)); float sp = f.length / n, w = Mathf.Min(2.9f, sp - .8f);
+            float oy0 = gY + .08f, oy1 = gY + 2.6f, recess = -.22f;
+            if (w < 1.4f) return;
+            float cursor = 0;
+            var shutterCol = look.shutter;
+            for (int k = 0; k < n; k++)
+            {
+                float c = (k + .5f) * sp, x0 = c - w / 2, x1 = c + w / 2;
+                bool down = r.NextDouble() < .3; glassData = new Vector4((float)r.NextDouble(), 0, 0, 0);
+                var cell = new Rect(k * sp, gY, sp, FloorHeight);
+                look.shutter = new Color(.62f, .62f, .6f); // aluminium roller shutters
+                if (Lod == 0)
+                {
+                    Wall(g, f, Slot.Balcony, cursor, x0, bottom, plinth);
+                    Wall(g, f, Slot.Wall, cursor, x0, plinth, yTop);
+                    Wall(g, f, Slot.Wall, x0, x1, oy1, yTop);
+                    Wall(g, f, Slot.Balcony, x0, x1, bottom, oy0);
+                    Vector3 a = f.P(x0, oy0), b = f.P(x1, oy0), cc = f.P(x1, oy1), d = f.P(x0, oy1);
+                    Vector3 ar = f.P(x0, oy0, recess), br = f.P(x1, oy0, recess), cr = f.P(x1, oy1, recess), dr = f.P(x0, oy1, recess);
+                    if (down) Shutter(g, f, x0, x1, oy0, oy1, recess + .03f, recess + .03f); else Glass(g, f, x0, x1, oy0, oy1, recess, cell);
+                    revealOn = true; revealO = a; revealN = f.outward; revealD = -recess;
+                    Face(g, Slot.Wall, a, ar, dr, d, f.along); Face(g, Slot.Wall, br, b, cc, cr, -f.along);
+                    Face(g, Slot.Balcony, a, b, br, ar, Vector3.up); Face(g, Slot.Wall, dr, cr, cc, d, Vector3.down);
+                    revealOn = false;
+                    // the frame mullion of a shop door / window pair
+                    if (!down) { detailTint = new Color(.2f, .21f, .22f); Box(g, Slot.Detail, f.P(c - .03f, oy0, recess), f.along, f.outward, .06f, oy1 - oy0, .05f, false); }
+                }
+                else if (Lod < 3)
+                {
+                    if (down) Shutter(g, f, x0, x1, oy0, oy1, .03f, .03f); else Glass(g, f, x0, x1, oy0, oy1, .03f, cell);
+                }
+                look.shutter = shutterCol;
+                if (Lod < 2) { againstWall = true; Box(g, Slot.Trim, f.P(x0 - .1f, oy1, -.02f), f.along, f.outward, w + .2f, .26f, .14f); againstWall = false; } // roller box
+                cursor = x1;
+            }
+            if (Lod == 0) { Wall(g, f, Slot.Balcony, cursor, f.length, bottom, plinth); Wall(g, f, Slot.Wall, cursor, f.length, plinth, yTop); }
+            if (Lod < 2 && rSign < .75)
+            {
+                // fascia: a muted painted band over the shop windows
+                Color[] fascia = { new Color(.22f, .3f, .25f), new Color(.38f, .16f, .14f), new Color(.17f, .22f, .32f), new Color(.36f, .36f, .35f), new Color(.62f, .58f, .5f), new Color(.45f, .3f, .18f) };
+                detailTint = fascia[(int)(rSign * 8) % fascia.Length];
+                { againstWall = true; Box(g, Slot.Detail, f.P(.4f, oy1 + .3f, 0), f.along, f.outward, f.length - .8f, .42f, .07f, false); againstWall = false; }
+            }
+        }
+
+        static void Pergola(HouseGeo g, Facade f, float depth, double rnd)
+        {
+            float x0 = .3f, x1 = f.length - .3f, h = gY + 2.75f;
+            detailTint = new Color(.3f, .2f, .13f); // stained timber
+            int posts = Mathf.Max(2, Mathf.RoundToInt((x1 - x0) / 3f) + 1);
+            for (int k = 0; k < posts; k++) Box(g, Slot.Detail, f.P(x0 + (x1 - x0 - .12f) * k / (posts - 1), gY - .05f, depth - .14f), f.along, f.outward, .12f, h - gY + .05f, .12f, false);
+            Box(g, Slot.Detail, f.P(x0, h, depth - .16f), f.along, f.outward, x1 - x0, .16f, .16f);
+            detailTint = rnd < .7 ? new Color(.42f, .13f, .1f) : new Color(.55f, .5f, .42f); // canvas
+            Vector3 a = f.P(x0 - .1f, h + .35f, 0), b = f.P(x1 + .1f, h + .35f, 0), c = f.P(x1 + .1f, h + .16f, depth + .1f), d = f.P(x0 - .1f, h + .16f, depth + .1f);
+            Face(g, Slot.Detail, a, b, c, d, Vector3.up); Face(g, Slot.Detail, d, c, b, a, Vector3.down);
+            Face(g, Slot.Detail, d, c, c + Vector3.down * .22f, d + Vector3.down * .22f, f.outward); // valance
+        }
+
+        /// a solid (masonry / concrete) stair along the facade from the ground up to a landing at `land` (x0 .. xl), descending
+        /// to x1; railing on its open side
+        static void OutsideStair(HouseGeo g, Facade f, float ground, float land, float x0, float xl, float x1)
+        {
+            Slot s = look.family <= 1 ? Slot.Trim : Slot.Balcony;
+            const float depth = 1.05f;
+            int n = Mathf.Max(6, Mathf.RoundToInt((land - ground) / .19f)); float rise = (land - ground) / n, tread = (x1 - xl) / n;
+            { againstWall = true; Box(g, s, f.P(x0, ground - .3f, 0), f.along, f.outward, xl - x0, land - ground + .3f, depth, false); againstWall = false; }
+            for (int k = 0; k < n - 1; k++)
+            {
+                float xs = xl + (n - 1 - k) * tread; // step k (k = 0 the lowest) from xs to xs + tread
+                { againstWall = true; Box(g, s, f.P(xs, ground - .3f, 0), f.along, f.outward, tread + (k == 0 ? 0 : .01f), (k + 1) * rise + .3f, depth, false); againstWall = false; }
+            }
+            // railing: along the open side of the flight (sloped) and round the landing
+            Vector3 h = Vector3.up * .84f;
+            Vector3 pa = f.P(x1, ground + rise, depth), pb = f.P(xl, land, depth);
+            float L = Vector3.Distance(pa, pb);
+            Quad(g, Slot.Rail, pa, pb, pb + h, pa + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, .28f), new Vector2(0, .28f), f.outward);
+            Quad(g, Slot.Rail, pa, pb, pb + h, pa + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, .28f), new Vector2(0, .28f), -f.outward);
+            RailPanel(g, f.P(xl, land, depth), f.P(x0, land, depth), f.outward);
+            RailPanel(g, f.P(x0, land, depth), f.P(x0, land, 0), -f.along);
+        }
+
+        /// minimum-area enclosing rectangle (one candidate per footprint edge): origin, axes, extents, area
+        struct MRect { public Vector3 origin, u, v; public float minU, maxU, minV, maxV; public double area; }
+        static MRect MinRect(List<Vector3> points)
+        {
+            var m = new MRect { origin = points[0], u = Vector3.right, v = Vector3.forward, area = double.MaxValue };
+            for (int i = 0; i < points.Count; i++)
+            {
+                Vector3 x = (points[(i + 1) % points.Count] - points[i]).normalized;
+                Vector3 z = new Vector3(-x.z, 0, x.x);
+                float loX = float.MaxValue, hiX = float.MinValue, loZ = float.MaxValue, hiZ = float.MinValue;
+                foreach (Vector3 p in points)
+                {
+                    Vector3 d = p - m.origin;
+                    float px = Vector3.Dot(d, x), pz = Vector3.Dot(d, z);
+                    loX = Mathf.Min(loX, px); hiX = Mathf.Max(hiX, px);
+                    loZ = Mathf.Min(loZ, pz); hiZ = Mathf.Max(hiZ, pz);
+                }
+                double area = (double)(hiX - loX) * (hiZ - loZ);
+                if (area >= m.area) continue;
+                m.area = area; m.u = x; m.v = z; m.minU = loX; m.maxU = hiX; m.minV = loZ; m.maxV = hiZ;
+            }
+            return m;
         }
 
         static bool Finite(double x) => !double.IsNaN(x) && !double.IsInfinity(x) && Math.Abs(x) < float.MaxValue;
@@ -423,7 +673,7 @@ namespace Magistrala.EditorTools
                 Face(g, Slot.Trim, s0, s3, f.P(x0 - .08f, y0 - .015f, -.12f), f.P(x0 - .08f, y0 - .085f, -.12f), -f.along);
                 Face(g, Slot.Trim, s1, f.P(x1 + .08f, y0 - .085f, -.12f), f.P(x1 + .08f, y0 - .015f, -.12f), s2, f.along);
             }
-            if (roller) Box(g, Slot.Trim, f.P(x0 - .12f, y1 + .12f, -.02f), f.along, f.outward, x1 - x0 + .24f, .24f, .1f);
+            if (roller) { againstWall = true; Box(g, Slot.Trim, f.P(x0 - .12f, y1 + .12f, -.02f), f.along, f.outward, x1 - x0 + .24f, .24f, .1f); againstWall = false; }
             if (!leaves) return;
             // Open leaves lie beside the reveal, slightly angled off the plaster (no coplanar overlay).
             if (state != 1) Shutter(g, f, x0 - .49f, x0 - .04f, y0, y1, .065f, .035f);
@@ -433,6 +683,7 @@ namespace Magistrala.EditorTools
         // Lod 1 / 2: the opening as a glass quad 3 cm off the continuous wall (no reveals); Lod 1 adds sill, frame and leaves
         static void FlatWindow(HouseGeo g, Facade f, float x0, float x1, float y0, float y1, bool leaves, int state, Rect cell, bool sill)
         {
+            if (Lod >= 3) return; // the box level: the wall takes the windows' average (Tint)
             if (state == 1) Shutter(g, f, x0, x1, y0, y1, .03f, .03f);
             else Glass(g, f, x0, x1, y0, y1, .03f, cell);
             if (Lod > 1) return;
@@ -451,7 +702,7 @@ namespace Magistrala.EditorTools
         // light frame around the opening, 12 cm, 1.5 cm proud of the wall (stone on old houses)
         static void Frame(HouseGeo g, Facade f, float x0, float x1, float y0, float y1, bool bottom)
         {
-            const float w = .12f, z = .015f;
+            float w = look.family <= 1 ? .17f : .12f, z = look.family <= 1 ? .03f : .015f;
             Face(g, Slot.Trim, f.P(x0 - w, y1, z), f.P(x1 + w, y1, z), f.P(x1 + w, y1 + w, z), f.P(x0 - w, y1 + w, z), f.outward);
             Face(g, Slot.Trim, f.P(x0 - w, y0 - (bottom ? w : 0), z), f.P(x0, y0 - (bottom ? w : 0), z), f.P(x0, y1, z), f.P(x0 - w, y1, z), f.outward);
             Face(g, Slot.Trim, f.P(x1, y0 - (bottom ? w : 0), z), f.P(x1 + w, y0 - (bottom ? w : 0), z), f.P(x1 + w, y1, z), f.P(x1, y1, z), f.outward);
@@ -464,6 +715,8 @@ namespace Magistrala.EditorTools
         }
 
         // Oriented closed box. x/z are horizontal unit axes; y is world up.
+        /// wall-mounted boxes (their -z side against a wall: AC units, meters, steps, roller boxes...) leave that face out
+        static bool againstWall;
         static void Box(HouseGeo g, Slot slot, Vector3 origin, Vector3 x, Vector3 z, float width, float height, float depth, bool bottomFace = true)
         {
             int firstVertex = g.v.Count;
@@ -471,7 +724,7 @@ namespace Magistrala.EditorTools
             Vector3 h = Vector3.up * height;
             if (bottomFace) Face(g, slot, a, b, c, d, Vector3.down);
             Face(g, slot, a + h, d + h, c + h, b + h, Vector3.up);
-            Face(g, slot, a, a + h, b + h, b, -z);
+            if (!againstWall) Face(g, slot, a, a + h, b + h, b, -z);
             Face(g, slot, d, c, c + h, d + h, z);
             Face(g, slot, a, d, d + h, a + h, -x);
             Face(g, slot, b, b + h, c + h, c, x);
@@ -543,23 +796,23 @@ namespace Magistrala.EditorTools
         static void AcUnit(HouseGeo g, Facade f, float x, float y)
         {
             detailTint = new Color(.93f, .93f, .92f);
-            Box(g, Slot.Detail, f.P(x - .4f, y, 0), f.along, f.outward, .8f, .55f, .28f);
+            { againstWall = true; Box(g, Slot.Detail, f.P(x - .4f, y, 0), f.along, f.outward, .8f, .55f, .28f); againstWall = false; }
             detailTint = new Color(.25f, .26f, .27f); // fan grille
             Vector3 c = f.P(x + .08f, y + .275f, .285f);
             Face(g, Slot.Detail, c - f.along * .2f - Vector3.up * .2f, c + f.along * .2f - Vector3.up * .2f, c + f.along * .2f + Vector3.up * .2f, c - f.along * .2f + Vector3.up * .2f, f.outward);
             detailTint = new Color(.9f, .9f, .88f); // the pipe duct down the wall
-            Box(g, Slot.Detail, f.P(x - .36f, y - .9f, 0), f.along, f.outward, .07f, .9f, .06f, false);
+            { againstWall = true; Box(g, Slot.Detail, f.P(x - .36f, y - .9f, 0), f.along, f.outward, .07f, .9f, .06f, false); againstWall = false; }
         }
         static void MeterBox(HouseGeo g, Facade f, float x)
         {
             detailTint = new Color(.82f, .82f, .78f);
-            Box(g, Slot.Detail, f.P(x, gY + .7f, 0), f.along, f.outward, .45f, .6f, .14f, false);
+            { againstWall = true; Box(g, Slot.Detail, f.P(x, gY + .7f, 0), f.along, f.outward, .45f, .6f, .14f, false); againstWall = false; }
         }
         static void Cable(HouseGeo g, Facade f, float y)
         {
             detailTint = new Color(.1f, .1f, .1f);
-            Box(g, Slot.Detail, f.P(.15f, y, .03f), f.along, f.outward, f.length - .3f, .025f, .025f, false);
-            Box(g, Slot.Detail, f.P(.15f, gY + 1.3f, .03f), f.along, f.outward, .025f, y - gY - 1.3f, .025f, false);
+            { againstWall = true; Box(g, Slot.Detail, f.P(.15f, y, .03f), f.along, f.outward, f.length - .3f, .025f, .025f, false); againstWall = false; }
+            { againstWall = true; Box(g, Slot.Detail, f.P(.15f, gY + 1.3f, .03f), f.along, f.outward, .025f, y - gY - 1.3f, .025f, false); againstWall = false; }
         }
         static void Dish(HouseGeo g, Vector3 at, Vector3 outward, Vector3 along)
         {
@@ -579,28 +832,10 @@ namespace Magistrala.EditorTools
             }
         }
 
-        static void HipRoof(HouseGeo g, List<Vector3> points, float top, bool chimney, bool chimney2, bool antenna, float rnd)
+        static void HipRoof(HouseGeo g, List<Vector3> points, float top, bool chimney, bool chimney2, bool antenna, float rnd, bool gable, MRect mr)
         {
-            Vector3 origin = points[0], u = Vector3.right, v = Vector3.forward;
-            float minU = 0, maxU = 0, minV = 0, maxV = 0;
-            double best = double.MaxValue;
-            // Minimum-area enclosing rectangle: one candidate per footprint edge (small rings only).
-            for (int i = 0; i < points.Count; i++)
-            {
-                Vector3 x = (points[(i + 1) % points.Count] - points[i]).normalized;
-                Vector3 z = new Vector3(-x.z, 0, x.x);
-                float loX = float.MaxValue, hiX = float.MinValue, loZ = float.MaxValue, hiZ = float.MinValue;
-                foreach (Vector3 p in points)
-                {
-                    Vector3 d = p - origin;
-                    float px = Vector3.Dot(d, x), pz = Vector3.Dot(d, z);
-                    loX = Mathf.Min(loX, px); hiX = Mathf.Max(hiX, px);
-                    loZ = Mathf.Min(loZ, pz); hiZ = Mathf.Max(hiZ, pz);
-                }
-                double area = (double)(hiX - loX) * (hiZ - loZ);
-                if (area >= best) continue;
-                best = area; u = x; v = z; minU = loX; maxU = hiX; minV = loZ; maxV = hiZ;
-            }
+            Vector3 origin = mr.origin, u = mr.u, v = mr.v;
+            float minU = mr.minU, maxU = mr.maxU, minV = mr.minV, maxV = mr.maxV;
             Vector3 centre = origin + u * ((minU + maxU) / 2) + v * ((minV + maxV) / 2) + Vector3.up * top;
             float halfLength = (maxU - minU) / 2 + .5f, halfWidth = (maxV - minV) / 2 + .5f; // 50 cm eaves
             if (halfLength < halfWidth)
@@ -609,7 +844,7 @@ namespace Magistrala.EditorTools
                 float size = halfLength; halfLength = halfWidth; halfWidth = size;
             }
             float rise = halfWidth * Mathf.Tan(22f * Mathf.Deg2Rad);
-            float ridgeHalf = Mathf.Max(0, halfLength - halfWidth);
+            float ridgeHalf = gable ? halfLength : Mathf.Max(0, halfLength - halfWidth);
             Vector3 a = centre - u * halfLength - v * halfWidth;
             Vector3 b = centre + u * halfLength - v * halfWidth;
             Vector3 c = centre + u * halfLength + v * halfWidth;
@@ -618,15 +853,47 @@ namespace Magistrala.EditorTools
             Vector3 r1 = centre + u * ridgeHalf + Vector3.up * rise;
             Face(g, Slot.Roof, a, b, r1, r0, Vector3.up - v);
             Face(g, Slot.Roof, c, d0, r0, r1, Vector3.up + v);
-            RoofTriangle(g, b, c, r1, Vector3.up + u);
-            RoofTriangle(g, d0, a, r0, Vector3.up - u);
             Vector3 down = Vector3.down * .14f;
-            Face(g, Slot.Trim, a + down, b + down, b, a, -v);
-            Face(g, Slot.Trim, b + down, c + down, c, b, u);
-            Face(g, Slot.Trim, c + down, d0 + down, d0, c, v);
-            Face(g, Slot.Trim, d0 + down, a + down, a, d0, -u);
-            // Close the projecting underside: no see-through eaves when driving below a house.
-            Face(g, Slot.Trim, a + down, b + down, c + down, d0 + down, Vector3.down);
+            if (!gable)
+            {
+                RoofTriangle(g, b, c, r1, Vector3.up + u);
+                RoofTriangle(g, d0, a, r0, Vector3.up - u);
+                Face(g, Slot.Trim, a + down, b + down, b, a, -v);
+                Face(g, Slot.Trim, b + down, c + down, c, b, u);
+                Face(g, Slot.Trim, c + down, d0 + down, d0, c, v);
+                Face(g, Slot.Trim, d0 + down, a + down, a, d0, -u);
+                // Close the projecting underside: no see-through eaves when driving below a house.
+                if (Lod < 2) Face(g, Slot.Trim, a + down, b + down, c + down, d0 + down, Vector3.down);
+            }
+            else
+            {
+                // gable ends: the wall rises to the ridge in the facade plane (50 cm inside the roof's edge); the roof's
+                // overhang shows its underside there, a barge board follows the slope
+                float wl = halfLength - .5f, ww = halfWidth - .5f, eh = rise * .5f / halfWidth;
+                Face(g, Slot.Trim, a + down, b + down, b, a, -v);
+                Face(g, Slot.Trim, c + down, d0 + down, d0, c, v);
+                for (int e = -1; e <= 1; e += 2)
+                {
+                    Vector3 cu = centre + u * (wl * e), cv = centre + u * (halfLength * e);
+                    Vector3 p0 = cu - v * ww, p1 = cu + v * ww;
+                    Emit(g, Slot.Wall, p0, p1, p1 + Vector3.up * eh, u * e); Emit(g, Slot.Wall, p0, p1 + Vector3.up * eh, p0 + Vector3.up * eh, u * e);
+                    Emit(g, Slot.Wall, p0 + Vector3.up * eh, p1 + Vector3.up * eh, cu + Vector3.up * rise, u * e);
+                    Vector3 e0 = cv - v * halfWidth, e1 = cv + v * halfWidth, er = cv + Vector3.up * rise;
+                    Vector3 i0 = cu - v * halfWidth, i1 = cu + v * halfWidth, ir = cu + Vector3.up * rise;
+                    if (Lod < 2)
+                    {
+                        Face(g, Slot.Trim, i0, e0, er, ir, -(Vector3.up - v)); // overhang undersides
+                        Face(g, Slot.Trim, e1, i1, ir, er, -(Vector3.up + v));
+                    }
+                    Face(g, Slot.Trim, e0 + down, er + down, er, e0, u * e); // barge boards
+                    Face(g, Slot.Trim, er + down, e1 + down, e1, er, u * e);
+                }
+                if (Lod < 2)
+                {
+                    Face(g, Slot.Trim, a + down, b + down, b + down + v * .5f, a + down + v * .5f, Vector3.down);
+                    Face(g, Slot.Trim, d0 + down - v * .5f, c + down - v * .5f, c + down, d0 + down, Vector3.down);
+                }
+            }
             if (Lod > 1) return;
             // chimneys: plastered / stone stacks a little above the ridge, with a concrete cap
             if (chimney) Chimney(g, centre + u * (ridgeHalf * .5f + halfLength * .15f) * (rnd < .5 ? 1 : -1) + v * .7f, u, v, top, rise);
@@ -664,9 +931,14 @@ namespace Magistrala.EditorTools
                 o + new Vector2(Vector3.Dot(c - a, u), Vector3.Dot(c - a, v)), want);
         }
 
+        static bool[] hiddenEdge; // FlatRoof: per edge, false = against a neighbour reaching the parapet (no parapet there)
         static void FlatRoof(HouseGeo g, List<Vector3> points, List<int> triangles, float top, double area)
         {
+            // the roof slab: dark, weathered concrete / bitumen (not the light balcony concrete), the parapet a light coping
+            var keep = look.balcony; float keepDirt = look.dirt;
+            look.balcony = new Color(.55f, .54f, .51f); look.dirt = Mathf.Max(.7f, look.dirt);
             Surface(g, points, triangles, top, Slot.Balcony, Vector3.up);
+            look.balcony = keep; look.dirt = keepDirt;
             var inner = Inset(points, area, .16f);
             Vector3 low = Vector3.up * top, high = Vector3.up * (top + .4f);
             for (int i = 0; i < points.Count; i++)
@@ -674,6 +946,7 @@ namespace Magistrala.EditorTools
                 int j = (i + 1) % points.Count;
                 Vector3 e = (points[j] - points[i]).normalized;
                 Vector3 n = new Vector3(e.z, 0, -e.x) * (area > 0 ? 1 : -1);
+                if (hiddenEdge != null && !hiddenEdge[i]) continue;
                 Face(g, Slot.Wall, points[i] + low, points[j] + low, points[j] + high, points[i] + high, n);
                 Face(g, Slot.Wall, inner[i] + low, inner[j] + low, inner[j] + high, inner[i] + high, -n);
                 Face(g, Slot.Trim, points[i] + high, points[j] + high, inner[j] + high, inner[i] + high, Vector3.up);
@@ -700,7 +973,7 @@ namespace Magistrala.EditorTools
         }
 
         // flat-roof terrace: railing on the parapet, water tank, solar water heater, AC, rebar of the "next storey"
-        static void RoofClutter(HouseGeo g, List<Vector3> points, List<int> tris, float top, double area, bool railing, bool tank, bool solar, bool ac, bool rebar)
+        static void RoofClutter(HouseGeo g, List<Vector3> points, List<int> tris, float top, double area, bool railing, bool tank, bool solar, bool ac, bool rebar, bool chimney)
         {
             // the largest triangle's centroid: inside the footprint
             int bt = 0; float ba = 0;
@@ -712,6 +985,7 @@ namespace Magistrala.EditorTools
             Vector3 c = (points[tris[bt]] + points[tris[bt + 1]] + points[tris[bt + 2]]) / 3; c.y = top;
             Vector3 u = (points[1] - points[0]).normalized, v = new Vector3(-u.z, 0, u.x);
             float room = Mathf.Sqrt(ba / 2); // ~ the triangle's size
+            if (chimney && room > 2.5f) Chimney(g, c - v * 1.1f + u * 1.2f, u, v, top, .2f);
             if (tank && room > 2)
             {
                 detailTint = new Color(.12f, .12f, .13f);
@@ -735,6 +1009,20 @@ namespace Magistrala.EditorTools
             {
                 detailTint = new Color(.93f, .93f, .92f);
                 Box(g, Slot.Detail, c + v * 1.2f, u, v, .8f, .55f, .3f, false);
+            }
+            // large roofs: AC units, tanks and antennas spread over the other big triangles
+            var rr = new System.Random((int)(Mathf.Abs(c.x * 13.1f + c.z * 7.7f)) % 100000);
+            for (int i = 0; i < tris.Count; i += 3)
+            {
+                if (i == bt) continue;
+                float A = Mathf.Abs(Vector3.Cross(points[tris[i + 1]] - points[tris[i]], points[tris[i + 2]] - points[tris[i]]).y) / 2;
+                if (A < 25) continue;
+                Vector3 q = (points[tris[i]] + points[tris[i + 1]] + points[tris[i + 2]]) / 3; q.y = top;
+                double k = rr.NextDouble();
+                if (k < .45) { detailTint = new Color(.88f, .88f, .87f); Box(g, Slot.Detail, q, u, v, .8f, .55f, .3f, false); }
+                else if (k < .7) { detailTint = new Color(.13f, .13f, .14f); Box(g, Slot.Detail, q, u, v, .9f, 1.1f, .9f, false); }
+                else if (k < .85 && Lod == 0) { detailTint = new Color(.6f, .6f, .6f); Box(g, Slot.Detail, q, u, v, .04f, 2.4f, .04f, false); Box(g, Slot.Detail, q + Vector3.up * 1.9f - u * .5f, u, v, 1f, .03f, .03f, false); }
+                else Chimney(g, q, u, v, top, .2f);
             }
             if (Lod > 0) return;
             if (railing)
@@ -847,7 +1135,8 @@ namespace Magistrala.EditorTools
         public static Mesh ToMesh(HouseGeo g, string name)
         {
             if (g == null) throw new ArgumentNullException(nameof(g));
-            var mesh = new Mesh { name = name, indexFormat = IndexFormat.UInt32 };
+            Weld(g);
+            var mesh = new Mesh { name = name, indexFormat = g.v.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
             mesh.SetVertices(g.v);
             mesh.SetNormals(g.n);
             mesh.SetUVs(0, g.uv);
@@ -859,6 +1148,25 @@ namespace Magistrala.EditorTools
             mesh.RecalculateBounds();
             if (g.v.Count > 0) { mesh.RecalculateTangents(); Compact(mesh); }
             return mesh;
+        }
+
+        /// every triangle was emitted with its own three vertices: merge the identical ones (the two triangles of a quad,
+        /// neighbouring wall pieces of one plane) - about half the vertices, and half the build size of the town
+        static void Weld(HouseGeo g)
+        {
+            int n = g.v.Count; if (n == 0) return;
+            var map = new Dictionary<(Vector3, Vector3, Vector2, Vector4, Color, Vector4), int>(n / 2);
+            var remap = new int[n];
+            var v = new List<Vector3>(n / 2); var nn = new List<Vector3>(n / 2); var uv = new List<Vector2>(n / 2);
+            var d = new List<Vector4>(n / 2); var c = new List<Color>(n / 2); var o = new List<Vector4>(n / 2);
+            for (int i = 0; i < n; i++)
+            {
+                var k = (g.v[i], g.n[i], g.uv[i], g.d[i], g.c[i], g.o[i]);
+                if (!map.TryGetValue(k, out int j)) { j = v.Count; map[k] = j; v.Add(g.v[i]); nn.Add(g.n[i]); uv.Add(g.uv[i]); d.Add(g.d[i]); c.Add(g.c[i]); o.Add(g.o[i]); }
+                remap[i] = j;
+            }
+            foreach (var sub in g.sub) for (int i = 0; i < sub.Count; i++) sub[i] = remap[sub[i]];
+            g.v = v; g.n = nn; g.uv = uv; g.d = d; g.c = c; g.o = o;
         }
 
         /// the building vertex in 56 bytes instead of 88 (float everywhere): normal, tangent, tint and the data channel in half
@@ -938,6 +1246,15 @@ namespace Magistrala.EditorTools
             Tri(g, slot, a, b, c, new Vector2(Vector3.Dot(a, u), Vector3.Dot(a, v)), new Vector2(Vector3.Dot(b, u), Vector3.Dot(b, v)),
                 new Vector2(Vector3.Dot(c, u), Vector3.Dot(c, v)), want);
         }
+        /// sidewalk paving (concrete layer, grey, as the town's pavements): a quad strip a0-a1 (facade foot) to b0-b1 (kerb)
+        public static void Paving(HouseGeo g, Vector3 a0, Vector3 a1, Vector3 b1, Vector3 b0)
+        {
+            var keep = look; look.balcony = new Color(.6f, .59f, .56f); look.dirt = .6f; look.stoneDark = 0; look.stoneGrey = 0;
+            gY = Mathf.Min(a0.y, b0.y) - 2; tY = gY + 100;
+            Face(g, Slot.Balcony, a0, a1, b1, b0, Vector3.up);
+            look = keep;
+        }
+
         /// a window glass quad (a..d counter-clockwise from bottom-left) in its room cell
         public static void EmitGlass(HouseGeo g, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector2 ra, Vector2 rc, Vector3 want, float rnd, float blind)
         {

@@ -22,7 +22,8 @@ namespace Magistrala.EditorTools
         static readonly (string id, Color? mean, float grey, float contrast)[] Src =
         {
             ("white_plaster_02", null, .86f, .8f),
-            ("white_sandstone_blocks_02", Hex("CBC2AE"), 0, 1),
+            // dressed limestone ashlar in irregular courses (Kaštela riva fronts: owner photos 43 / 44 / 48), 3 m sample
+            ("sandstone_blocks_08", Hex("C6BEAB"), 0, 1),
             ("clay_roof_tiles_02", Hex("A9573F"), 0, 1),
             ("large_red_bricks", Hex("B5573D"), 0, 1),
             ("concrete_wall_008", null, .8f, .7f),
@@ -64,6 +65,28 @@ namespace Magistrala.EditorTools
             AssetDatabase.Refresh();
             Configure();
             return "strips written";
+        }
+
+        /// replace one layer of the committed strips from srcDir/{id}_diff_1k.jpg, _nor_gl_1k.jpg, _rough_1k.jpg (the other
+        /// layers' sources need not be present)
+        public static string ReplaceLayer(int layer, string srcDir)
+        {
+            var src = layer == Rubble ? RubbleSrc : Src[layer];
+            var a = Load(Path.Combine(srcDir, src.id + "_diff_1k.jpg")); var n = Load(Path.Combine(srcDir, src.id + "_nor_gl_1k.jpg"));
+            Normalise(a, src.mean, src.grey, src.contrast);
+            var ro = Load(Path.Combine(srcDir, src.id + "_rough_1k.jpg"));
+            for (int i = 0; i < n.Length; i++) n[i].b = ro[i].r;
+            int row = Layers - 1 - layer;
+            foreach (var (path, px, q) in new[] { (AlbedoStrip, a, 92), (NormalStrip, n, 94) })
+            {
+                var t = new Texture2D(2, 2, TextureFormat.RGBA32, false); t.LoadImage(File.ReadAllBytes(path));
+                if (t.width != Size || t.height != Size * Layers) throw new InvalidOperationException(path + " is not a strip");
+                var all = t.GetPixels32(); UnityEngine.Object.DestroyImmediate(t);
+                Array.Copy(px, 0, all, row * Size * Size, Size * Size);
+                Write(path, all, Size, Size * Layers, q);
+            }
+            AssetDatabase.Refresh(); Configure();
+            return $"layer {layer} <- {src.id}";
         }
 
         /// grime atlas from srcDir/Leaking012A|016A|017A_1K-JPG_Color.jpg (white = clean): inverted, levelled, 512²
