@@ -261,7 +261,7 @@ namespace Magistrala.EditorTools
             {
                 id = "pine:" + id, mesh = Shape(full, "pine_" + id), mats = mats,
                 imp = cross && cross != full ? Shape(cross, "pine_" + id + "_cross") : null, impMat = cm,
-                draw = 1400, near = 90,
+                draw = 1400, near = 60,
             };
         }
 

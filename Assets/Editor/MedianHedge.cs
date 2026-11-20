@@ -45,8 +45,8 @@ namespace Magistrala.EditorTools
                 var pink = near.sharedMaterial; pink.enableInstancing = true;
                 var white = WhiteFlowers(pink);
                 Mesh M(MeshRenderer r) => r.GetComponent<MeshFilter>().sharedMesh;
-                list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = M(near), mats = new[] { pink }, imp = M(far), impMat = pink, draw = 260, near = 45 });
-                list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = M(near), mats = new[] { white }, imp = M(far), impMat = white, draw = 260, near = 45 });
+                list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = M(near), mats = new[] { pink }, imp = M(far), impMat = pink, draw = 160, near = 14 });
+                list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = M(near), mats = new[] { white }, imp = M(far), impMat = white, draw = 160, near = 14 });
             }
             else Debug.LogWarning("[priroda] no oleander prefab (Assets/Models/Props/Tripo/oleander.glb + .json)");
             // dense dark-green filler: the package's rose bush without flowers, tinted to a dark Mediterranean evergreen
@@ -57,13 +57,13 @@ namespace Magistrala.EditorTools
                 MeshRenderer R(int i) => lods == null ? bush.GetComponentInChildren<MeshRenderer>() : lods[Mathf.Min(i, lods.Length - 1)].renderers.OfType<MeshRenderer>().FirstOrDefault();
                 var near = R(1); var far = lods != null && lods.Length > 2 ? R(lods.Length - 1) : null;
                 var mats = near.sharedMaterials.Select(m => Tint(m, "tamni", new Color(.5f, .62f, .45f, 1))).ToArray();
-                list.Add(new NaturePass.Proto { id = "grm-tamni", mesh = Flat(near, bush.transform, "grm_tamni"), mats = mats, imp = far && far != near ? Flat(far, bush.transform, "grm_tamni_far") : null, impMat = far && far != near ? Tint(far.sharedMaterial, "tamni", new Color(.5f, .62f, .45f, 1)) : null, draw = 160, near = 40 });
+                list.Add(new NaturePass.Proto { id = "grm-tamni", mesh = Flat(near, bush.transform, "grm_tamni"), mats = mats, imp = far && far != near ? Flat(far, bush.transform, "grm_tamni_far") : null, impMat = far && far != near ? Tint(far.sharedMaterial, "tamni", new Color(.5f, .62f, .45f, 1)) : null, draw = 90, near = 12 });
             }
             var grass = Load<GameObject>(CE + "Foliage and Grass/Prefabs/Prefab_beach_grass_02_2.prefab");
             if (grass)
             {
                 var r = grass.GetComponentInChildren<MeshRenderer>();
-                list.Add(new NaturePass.Proto { id = "trava-suha", mesh = Flat(r, grass.transform, "trava_suha"), mats = r.sharedMaterials.Select(m => Tint(m, "suha", new Color(1.05f, .95f, .75f, 1))).ToArray(), draw = 70, near = 1e5f });
+                list.Add(new NaturePass.Proto { id = "trava-suha", mesh = Flat(r, grass.transform, "trava_suha"), mats = r.sharedMaterials.Select(m => Tint(m, "suha", new Color(1.05f, .95f, .75f, 1))).ToArray(), draw = 35, near = 1e5f });
             }
         }
 
@@ -177,7 +177,7 @@ namespace Magistrala.EditorTools
                         }
                         // fill between and under: shrubs where the oleanders leave gaps, grass at the base on both edges
                         if (rnd.NextDouble() < .55) { Pick("fill", out var id); if (id != null) { put(x + (rnd.NextDouble() - .5) * .5, Y(x, zc) - .05, zc + (rnd.NextDouble() - .5) * Math.Min(room, 2.4), (float)(rnd.NextDouble() * 360), (float)(.9 + .3 * rnd.NextDouble()), id); n++; } }
-                        if (rnd.NextDouble() < .7) { Pick("base", out var id); if (id != null) { double side = rnd.NextDouble() < .5 ? -1 : 1; put(x, Y(x, zc), zc + side * Math.Min(Math.Max(0, room - .15), 1.9), (float)(rnd.NextDouble() * 360), (float)(.7 + .4 * rnd.NextDouble()), id); n++; } }
+                        if (rnd.NextDouble() < .4) { Pick("base", out var id); if (id != null) { double side = rnd.NextDouble() < .5 ? -1 : 1; put(x, Y(x, zc), zc + side * Math.Min(Math.Max(0, room - .15), 1.9), (float)(rnd.NextDouble() * 360), (float)(.7 + .4 * rnd.NextDouble()), id); n++; } }
                     }
                     j = j1;
                 }
