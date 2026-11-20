@@ -38,7 +38,7 @@ namespace Magistrala.EditorTools
         public class NNode { public long id; public double x, y, z; }
         public class Street
         {
-            public long id, a, b; public string name = "", cls = "", src = ""; public double width; public int lanes; public bool oneway;
+            public long id, a, b; public string name = "", cls = "", src = ""; public double width; public int lanes, maxspeed; public bool oneway;
             public List<double[]> pts; public double trimA, trimB; public ModelJ modelA, modelB; public double mhwA = double.NaN, mhwB = double.NaN; public bool paint, sidewalk;
             public double maxGrade; public double L => Len(pts);
         }
@@ -155,7 +155,7 @@ namespace Magistrala.EditorTools
 
         // ---- the run ends
         class End { public int kind; /*0 free, 1 graph node, 2 graph edge, 3 model, 4 new node*/ public long node = -1; public int gedge = -1; public double s, y = double.NaN; public ModelJ model; public double trim, mhw = double.NaN; public double[] ext; public double[] rpt; }
-        class Run { public string id, name, cls; public double width; public int lanes; public bool oneway; public List<double[]> p; public End a = new End(), b = new End(); }
+        class Run { public string id, name, cls; public double width; public int lanes, maxspeed; public bool oneway; public List<double[]> p; public End a = new End(), b = new End(); }
 
         public static Net Compute(List<GNode> nodes, List<GEdgeV> edges, List<ModelJ> models, double ax0, double ax1, double az0, double az1)
         {
@@ -212,7 +212,7 @@ namespace Magistrala.EditorTools
                         var run = new Run
                         {
                             id = r["id"].ToString(), name = r["name"] as string ?? "", cls = r["cls"] as string ?? "", width = MiniJson.D(r["width"]),
-                            oneway = r["oneway"] is bool ow && ow, p = S.GetRange(i0, j0 - i0 + 1).Select(q => (double[])q.Clone()).ToList(),
+                            oneway = r["oneway"] is bool ow && ow, maxspeed = r.TryGetValue("maxspeed", out var ms) && ms != null ? (int)MiniJson.D(ms) : 0, p = S.GetRange(i0, j0 - i0 + 1).Select(q => (double[])q.Clone()).ToList(),
                         };
                         int lf = (int)MiniJson.D(r["lanesForward"]), lb = (int)MiniJson.D(r["lanesBackward"]);
                         run.lanes = Math.Max(1, run.oneway ? lf : Math.Max(lf, lb));
@@ -400,7 +400,7 @@ namespace Magistrala.EditorTools
                 double g = 0; for (int i = 4; i < P.Count; i++) { double ds = c[i] - c[i - 4]; if (ds > 5) g = Math.Max(g, Math.Abs(P[i][1] - P[i - 4][1]) / ds); }
                 var st = new Street
                 {
-                    id = nextEdge++, a = r.a.node, b = r.b.node, name = r.name, cls = r.cls, src = r.id, width = r.width, lanes = r.lanes, oneway = r.oneway, pts = P,
+                    id = nextEdge++, a = r.a.node, b = r.b.node, name = r.name, cls = r.cls, src = r.id, width = r.width, lanes = r.lanes, maxspeed = r.maxspeed, oneway = r.oneway, pts = P,
                     trimA = r.a.kind == 2 ? r.a.trim : 0, trimB = r.b.kind == 2 ? r.b.trim : 0, modelA = r.a.model, modelB = r.b.model, mhwA = r.a.mhw, mhwB = r.b.mhw,
                     paint = r.width >= 5.5, sidewalk = r.width >= 5.5 && r.cls != "service" && r.cls != "access" && !r.cls.EndsWith("_link"), maxGrade = g,
                 };

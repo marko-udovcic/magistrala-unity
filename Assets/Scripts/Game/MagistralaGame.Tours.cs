@@ -109,16 +109,16 @@ namespace Magistrala.Game
         /// second) at ~40 km/h × 1.4 + 6 min per stop + 30 (Deadline's web clock gave a 24 km tour a whole day and more)
         static float TourDeadline(Job j) => j.tour == "" ? Deadline(j.km) : Mathf.Round(j.km * 1000 / 11f * ClockRate * 1.4f + Mathf.Max(0, j.legs.Count - 1) * StopWorkMin + 30);
 
-        public string OfferLine(Job j) => j.tour != "" ? $"{j.label} · {Eur(j.pay)} · {j.km:0.0} km · oko {Mathf.Max(1, Mathf.Round(WorkMin(j) / 30) / 2):0.#} h" : $"{j.label} – {j.cargo} · {j.km:0.0} km · {Eur(j.pay)}";
+        public string OfferLine(Job j) => j.tour != "" ? $"{j.label} · {Eur(j.pay)} · {Magistrala.HudStyle.Dec(j.km)} km · oko {Magistrala.HudStyle.Dec(Mathf.Max(1, Mathf.Round(WorkMin(j) / 30) / 2), "0.#")} h" : $"{j.label} – {j.cargo} · {Magistrala.HudStyle.Dec(j.km)} km · {Eur(j.pay)}";
 
         /// the phone's second line of a tour: pickup → first … last drop (→ the warehouse), km, deadline, the vehicle note
         public string OfferSub(Job j)
         {
-            if (j.tour == "") return $"{j.cargo} · {j.km:0.0} km · {Eur(j.pay)} · rok {Hm(S.clockMin + TourDeadline(j))}";
+            if (j.tour == "") return $"{j.cargo} · {Magistrala.HudStyle.Dec(j.km)} km · {Eur(j.pay)} · rok {Hm(S.clockMin + TourDeadline(j))}";
             var ds = j.legs.FindAll(l => l.K == 'd');
             string first = World.Stop(ds[0].stop)?.name, last = World.Stop(ds[ds.Count - 1].stop)?.name;
             // riva points (maxVehicle "mali"): the Atego is allowed there (Marko 2026-11-20: "smije, ide i u stvarnosti"), so no warning
-            return $"{World.Stop(j.from)?.name} → {first}{(ds.Count > 1 ? $" … {last}" : "")}{(TourReturns(j.tour) ? " → skladište (prazne gajbe, u cijeni)" : "")} · {j.km:0.0} km · rok {Hm(S.clockMin + TourDeadline(j))}";
+            return $"{World.Stop(j.from)?.name} → {first}{(ds.Count > 1 ? $" … {last}" : "")}{(TourReturns(j.tour) ? " → skladište (prazne gajbe, u cijeni)" : "")} · {Magistrala.HudStyle.Dec(j.km)} km · rok {Hm(S.clockMin + TourDeadline(j))}";
         }
 
         string LegVerb(Leg l)

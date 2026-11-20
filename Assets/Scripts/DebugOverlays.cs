@@ -16,6 +16,8 @@ namespace Magistrala
         Component graphyManager;
         Canvas[] consoleCanvases;
         bool graphyOn, consoleOn;
+        /// the F1 graph is shown (TruckHud: the fps readout and the key hints)
+        public static bool GraphOn { get; private set; }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Attach()
@@ -68,7 +70,7 @@ namespace Magistrala
 
         void SetGraphy(bool on)
         {
-            graphyOn = on;
+            graphyOn = on; GraphOn = on;
             if (!graphy && on && graphyPrefab)
             {
                 graphy = Spawn(graphyPrefab, typeof(Tayx.Graphy.GraphyManager),

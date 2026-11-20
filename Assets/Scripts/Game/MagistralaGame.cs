@@ -70,7 +70,6 @@ namespace Magistrala.Game
         string autoJob;
         Vector3 centreLocal; float truckLen = 8.4f;
         GameObject pallets, marker;
-        GUIStyle big, small, bold, bold2;
 
         static string Arg(string k) { var a = System.Environment.GetCommandLineArgs(); for (int i = 0; i < a.Length - 1; i++) if (a[i] == k) return a[i + 1]; return null; }
         static bool Has(string k) => System.Array.IndexOf(System.Environment.GetCommandLineArgs(), k) >= 0;
@@ -377,6 +376,7 @@ namespace Magistrala.Game
                 }
             }
             HelpKeys = help.Count > 0 ? string.Join(" · ", help) : null;
+            TickFuel(dt);
             routeT -= dt;
             if (routeT <= 0) { routeT = 1f; UpdateRoute(); }
             UpdateMarker();
@@ -446,60 +446,71 @@ namespace Magistrala.Game
             return root;
         }
 
-        // ------------------------------------------------------------------ HUD: job card + wallet (top left), prompt (centre)
-        void OnGUI()
+        // ------------------------------------------------------------------ HUD data (TruckHud draws the panel), prompt and banner (centre)
+        /// where the GPS leads: the current leg's stop, or the warehouse when free and away from it (null = nowhere)
+        public string DestName
         {
-            if (Magistrala.GpuSwitches.NoHud) return;
-            if (!Truck) return;
-            if (big == null)
+            get
             {
-                big = new GUIStyle(GUI.skin.label) { fontSize = 19, normal = { textColor = Color.white }, wordWrap = true };
-                small = new GUIStyle(big) { fontSize = 15 };
-                bold = new GUIStyle(big) { fontSize = 22, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1f, 0.85f, 0.3f) } };
+                string id = Current != null ? Current.to : State == Phase.Free && !atWarehouse ? Warehouse : null;
+                if (id == null) return null;
+                return id == Warehouse ? "Skladište u Lukšiću" : World.Stop(id)?.name;
             }
-            float x = 12, y = 12, w = 470;
-            var lines = new List<(string, GUIStyle)>();
-            lines.Add((DayLabel + (IsNight(S.clockMin) ? " · noć" : ""), bold2 ??= new GUIStyle(big) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.85f, 0.3f) } }));
-            lines.Add(($"Gotovina {Eur(Cash)}   ·   Račun obrta {Eur(Account)}   ·   ugled {S.rep:+0;-0;0}", small));
+        }
+        public bool AtWarehouse => atWarehouse;
+        /// damage of the running job's cargo, % (MagistralaGame.Payout.cs; 0 without a job)
+        public float CargoDamagePct => Current != null ? Current.cargoDamage : 0;
+
+        /// the lines of the job card above the HUD panel: (text, kind) kind 0 title, 1 text, 2 muted, 3 accent
+        public void JobCard(List<(string text, int kind)> l)
+        {
+            l.Clear();
             if (Current != null)
             {
                 if (Current.tour != "")
                 {
-                    lines.Add(($"Tura: {Current.label}", big));
-                    lines.Add(($"{LegVerb(Current.Leg)}: {World.Stop(Current.to)?.name}", small));
-                    lines.Add(($"{Current.km:0.0} km · ukupno {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", small));
+                    l.Add(($"Tura: {Current.label}", 0));
+                    l.Add(($"{LegVerb(Current.Leg)} · {Magistrala.HudStyle.Dec(Current.km)} km · {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
                 }
                 else
                 {
-                    lines.Add(($"Tura: {World.Stop(Current.from)?.name} → {Current.label}", big));
-                    lines.Add(($"{Current.cargo} · {Current.km:0.0} km · plaća {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", small));
+                    l.Add(($"Tura: {Current.label} – {Current.cargo}", 0));
+                    l.Add(($"{Magistrala.HudStyle.Dec(Current.km)} km · plaća {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
                 }
-                if (Current.cargoDamage > 0.5f) lines.Add(($"Šteta na teretu {Current.cargoDamage:0} %", small));
-                if (State == Phase.Driving) lines.Add(($"Do cilja {Dist(RouteMetres)}", big));
+                if (Current.cargoDamage > 0.5f) l.Add(($"Šteta na teretu {Current.cargoDamage:0} %", 3));
             }
             else if (atWarehouse && ToursOpen)
             {
-                lines.Add(("Zdravkove ture iz skladišta:", big));
+                l.Add(("Zdravkove ture iz skladišta", 0));
                 var of = Offers();
-                for (int k = 0; k < of.Count && k < 9; k++) lines.Add(($"{k + 1}  {OfferLine(of[k])}", small));
+                for (int k = 0; k < of.Count && k < 9; k++) l.Add(($"{k + 1}   {OfferLine(of[k])}", 1));
             }
             else if (atWarehouse)
-                lines.Add((S.closedDay == Day && FirmHours ? "Danas nema firmine ture." : !FirmHours ? (Hour < 6 && Day % 7 < 5 ? "Skladište otvara u 6:00. Zdravko zove." : "Smjena je gotova. Firma radi radnim danom 6–17 h.") : "Čeka se Zdravkov poziv.", big));
-            else lines.Add(($"Vrati se u skladište u Lukšiću · {Dist(RouteMetres)}", big));
-            float h = 10; foreach (var (t, st) in lines) h += st.CalcHeight(new GUIContent(t), w - 20) + 2;
-            GUI.Box(new Rect(x, y, w, h), GUIContent.none); GUI.Box(new Rect(x, y, w, h), GUIContent.none);
-            float cy = y + 5;
-            foreach (var (t, st) in lines) { float lh = st.CalcHeight(new GUIContent(t), w - 20); GUI.Label(new Rect(x + 10, cy, w - 20, lh), t, st); cy += lh + 2; }
-            if (prompt != null) Shadowed(new Rect(0, Screen.height * 0.62f, Screen.width, 40), prompt, bold);
-            if (bannerT > 0 && banner != null) Shadowed(new Rect(0, Screen.height * 0.18f, Screen.width, 40), banner, bold);
+                l.Add((S.closedDay == Day && FirmHours ? "Danas nema firmine ture." : !FirmHours ? (Hour < 6 && Day % 7 < 5 ? "Skladište otvara u 6:00. Zdravko zove." : "Smjena je gotova. Firma radi radnim danom 6–17 h.") : "Čeka se Zdravkov poziv.", 1));
+            else l.Add(("Vrati se u skladište u Lukšiću", 1));
+        }
+
+        void OnGUI()
+        {
+            if (Magistrala.GpuSwitches.NoHud || !Truck || Event.current.type != EventType.Repaint) return;
+            if (prompt != null) Pill(Screen.height * 0.62f, prompt, 1);
+            if (bannerT > 0 && banner != null) Pill(Screen.height * 0.16f, banner, Mathf.Clamp01(bannerT * 2));
             DrawCard();
         }
 
-        static string Dist(float m) => m >= 1000 ? (m / 1000f).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("hr-HR")) + " km" : $"{Mathf.Round(m / 10) * 10:0} m";
-        static void Shadowed(Rect r, string t, GUIStyle st)
+        /// a centred message on a dark pill (prompt / banner)
+        static void Pill(float y, string text, float alpha)
         {
-            var c = st.normal.textColor; st.normal.textColor = new Color(0, 0, 0, 0.8f);
-            GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), t, st); st.normal.textColor = c; GUI.Label(r, t, st);
+            var st = HudStyle.St(21, true, Color.white, TextAnchor.MiddleCenter);
+            float w = Mathf.Min(Screen.width - 2 * HudStyle.Margin, HudStyle.Width(st, text) + HudStyle.Px(44)), h = HudStyle.Px(44);
+            var r = new Rect((Screen.width - w) / 2, y, w, h);
+            HudStyle.PanelBg(r, 22, alpha);
+            HudStyle.Fill(new Rect(r.x + HudStyle.Px(18), r.yMax - HudStyle.Px(3), r.width - HudStyle.Px(36), HudStyle.Px(2)), new Color(HudStyle.Accent.r, HudStyle.Accent.g, HudStyle.Accent.b, 0.9f * alpha), 1);
+            var old = GUI.color; GUI.color = new Color(1, 1, 1, alpha);
+            HudStyle.Label(r, text, st);
+            GUI.color = old;
         }
+
+        static string Dist(float m) => HudStyle.Km(m);
     }
 }

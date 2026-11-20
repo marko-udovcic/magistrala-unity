@@ -231,11 +231,24 @@ namespace Magistrala.Game.Phone
             if (slide <= 0.001f) return;
             Styles();
             GUI.depth = -10;
+            // owner's mockup hud-mobitel.png: the phone ~0.66 of the screen height, at the right edge (HUD margin), vertically
+            // centred; drawn in its own 660 px frame scaled by GUI.matrix (Screen.height-based, like the HUD)
+            float s = UnityEngine.Screen.height / 1000f, vw = UnityEngine.Screen.width / s, vh = UnityEngine.Screen.height / s;
+            var oldM = GUI.matrix; GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
             float e = 1 - Mathf.Pow(1 - slide, 3);
-            float x = UnityEngine.Screen.width - W - 28, y0 = UnityEngine.Screen.height - H - 22;
-            float y = y0 + (1 - e) * (H + 40);
+            float x = vw - W - Magistrala.HudStyle.Margin / s, y0 = Mathf.Round((vh - H) / 2);
+            float y = y0 + (1 - e) * (vh - y0 + 40);
             bool ringingOnly = Ringing != null && !Open;
-            if (ringingOnly) y = y0 + (1 - e) * (H + 40) + H * 0.38f; // the incoming call peeks up
+            // the incoming call peeks up above the HUD panel (and what is stacked on it): its top ~345 px (caller, answer / decline)
+            bool clip = false;
+            if (ringingOnly)
+            {
+                float stack = Mathf.Min(Magistrala.HudStyle.StackTop, Magistrala.HudStyle.PanelTop);
+                float bottom = stack < UnityEngine.Screen.height ? stack / s - 12 : vh;
+                float yr = Mathf.Max(Magistrala.HudStyle.Margin / s, Mathf.Min(y0, bottom - 345));
+                y = yr + (1 - e) * (vh - yr + 40);
+                if (bottom < vh) { clip = true; GUI.BeginClip(new Rect(0, 0, vw, bottom)); }
+            }
             // device: thin black bezel, rounded corners, a pill notch
             Fill(new Rect(x - 2, y - 2, W + 4, H + 4), new Color(0.32f, 0.33f, 0.36f, 1), 56); // metal edge
             Fill(new Rect(x, y, W, H), Color.black, 54);
@@ -278,6 +291,8 @@ namespace Magistrala.Game.Phone
                 GUI.Label(new Rect(x - 330, y + H - 62, 316, 20), "PAUZA · sat stoji", hs);
             }
             else if (ringingOnly) GUI.Label(new Rect(x - 330, y + 30, 316, 20), "Y javi se · N odbij", St(14, true, new Color(1f, 0.86f, 0.35f), TextAnchor.MiddleRight, false));
+            if (clip) GUI.EndClip();
+            GUI.matrix = oldM;
         }
 
         float Title(Rect a, string t, string sub = null)

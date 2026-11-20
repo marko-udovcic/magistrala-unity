@@ -80,53 +80,44 @@ namespace Magistrala.Game
             Debug.Log($"[job] hit {c.collider.name}: {force / 1000:0} kN, strength {strength:0.00}, cargo damage {Current.cargoDamage:0.0} %");
         }
 
-        // ------------------------------------------------------------------ the card (Delivery.tsx, short)
-        GUIStyle cdLabel, cdTitle, cdSub, cdRow, cdTotal, cdQuip;
-        Texture2D cdBg, cdLine;
-
+        // ------------------------------------------------------------------ the card (Delivery.tsx, short), HUD style (HudStyle)
         void DrawCard()
         {
             if (card == null) return;
-            if (cdBg == null)
-            {
-                cdBg = Tex(new Color(0.05f, 0.06f, 0.07f, 0.93f)); cdLine = Tex(new Color(1, 1, 1, 0.18f));
-                cdLabel = new GUIStyle(GUI.skin.label) { fontSize = 12, fontStyle = FontStyle.Bold, normal = { textColor = new Color(0.45f, 0.85f, 0.5f) } };
-                cdTitle = new GUIStyle(GUI.skin.label) { fontSize = 30, fontStyle = FontStyle.Bold, normal = { textColor = Color.white } };
-                cdSub = new GUIStyle(GUI.skin.label) { fontSize = 13, wordWrap = true, normal = { textColor = new Color(0.72f, 0.74f, 0.77f) } };
-                cdRow = new GUIStyle(GUI.skin.label) { fontSize = 16, normal = { textColor = Color.white } };
-                cdTotal = new GUIStyle(GUI.skin.label) { fontSize = 34, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleRight, normal = { textColor = new Color(1f, 0.83f, 0.3f) } };
-                cdQuip = new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Italic, wordWrap = true, normal = { textColor = new Color(0.8f, 0.8f, 0.8f) } };
-            }
-            var p = card; float w = Mathf.Min(520, Screen.width - 24), x = (Screen.width - w) / 2;
+            var p = card; float K = HudStyle.K;
+            float w = Mathf.Min(HudStyle.Px(540), Screen.width - 2 * HudStyle.Margin), x = (Screen.width - w) / 2, pad = HudStyle.Px(24);
             int n = p.lines.Count + 1;
-            float h = 20 + 18 + 38 + 20 + 26 + 12 + n * 26 + 12 + 46 + 24;
-            float y = Mathf.Max(12, Screen.height * 0.42f - h / 2);
+            float h = (24 + 22 + 40 + 22 + 30 + 14 + n * 28 + 14 + 50 + 26 + 18) * K;
+            float y = Mathf.Max(HudStyle.Margin, Screen.height * 0.42f - h / 2);
             // rows appear one by one (Delivery.tsx count-up, shortened)
             float age = 10 - cardT;
-            GUI.DrawTexture(new Rect(x, y, w, h), cdBg);
-            float cy = y + 16;
-            GUI.Label(new Rect(x + 20, cy, w - 40, 18), p.late ? "ISPORUČENO – S KAŠNJENJEM" : "ISPORUČENO", cdLabel);
-            GUI.Label(new Rect(x + 20, cy - 6, w - 40, 30), new string('★', p.rating) + new string('☆', 5 - p.rating), new GUIStyle(cdLabel) { alignment = TextAnchor.UpperRight, fontSize = 24, normal = { textColor = new Color(1f, 0.83f, 0.3f) } });
-            cy += 18;
-            GUI.Label(new Rect(x + 20, cy, w - 40, 38), p.job.cargo.Substring(0, 1).ToUpper() + p.job.cargo.Substring(1), cdTitle); cy += 38;
-            string sub = p.job.tour != "" ? $"{p.job.label} · {p.job.km:0.0} km · {Mathf.Round(p.minutes):0} min u igri{(TourReturns(p.job.tour) ? " · prazne gajbe vraćene (u cijeni)" : "")}"
-                : $"{World.Stop(p.job.from)?.name} → {p.job.label} · {p.job.km:0.0} km · {Mathf.Round(p.minutes):0} min u igri";
-            GUI.Label(new Rect(x + 20, cy, w - 40, 20), sub, cdSub); cy += 20;
-            GUI.Label(new Rect(x + 20, cy, w - 40, 26), $"„{p.quip}“", cdQuip); cy += 26 + 12;
-            void Row(string l, float a, int i, bool money = true)
+            var box = new Rect(x, y, w, h);
+            HudStyle.Fill(box, new Color(HudStyle.Panel.r, HudStyle.Panel.g, HudStyle.Panel.b, HudStyle.Cover(0.92f)), HudStyle.Px(16));
+            HudStyle.Fill(new Rect(x, y, w, HudStyle.Px(4)), HudStyle.Accent, HudStyle.Px(2));
+            float cx = x + pad, cw = w - 2 * pad, cy = y + HudStyle.Px(22);
+            HudStyle.Label(new Rect(cx, cy, cw, 22 * K), p.late ? "ISPORUČENO – S KAŠNJENJEM" : "ISPORUČENO", HudStyle.St(13, true, p.late ? HudStyle.Highlight : HudStyle.Good));
+            HudStyle.Label(new Rect(cx, cy - 4 * K, cw, 28 * K), new string('★', p.rating) + new string('☆', 5 - p.rating), HudStyle.St(22, true, HudStyle.Accent, TextAnchor.MiddleRight));
+            cy += 22 * K;
+            HudStyle.Label(new Rect(cx, cy, cw, 40 * K), p.job.cargo.Substring(0, 1).ToUpper() + p.job.cargo.Substring(1), HudStyle.St(30, true, Color.white)); cy += 40 * K;
+            string sub = p.job.tour != "" ? $"{p.job.label} · {Magistrala.HudStyle.Dec(p.job.km)} km · {Mathf.Round(p.minutes):0} min u igri{(TourReturns(p.job.tour) ? " · prazne gajbe vraćene (u cijeni)" : "")}"
+                : $"{World.Stop(p.job.from)?.name} → {p.job.label} · {Magistrala.HudStyle.Dec(p.job.km)} km · {Mathf.Round(p.minutes):0} min u igri";
+            HudStyle.Label(new Rect(cx, cy, cw, 22 * K), sub, HudStyle.St(14, false, HudStyle.Muted)); cy += 22 * K;
+            HudStyle.Label(new Rect(cx, cy, cw, 30 * K), $"„{p.quip}“", HudStyle.St(15, false, new Color(1, 1, 1, 0.82f))); cy += 30 * K + 14 * K;
+            var row = HudStyle.St(17, false, Color.white);
+            void Row(string l, float a, int i)
             {
                 if (age < 0.4f + i * 0.3f) return;
-                GUI.Label(new Rect(x + 20, cy, w - 40, 24), l, cdRow);
-                var st = new GUIStyle(cdRow) { alignment = TextAnchor.UpperRight, normal = { textColor = a < 0 ? new Color(1f, 0.5f, 0.45f) : a > 0 && i > 0 ? new Color(0.5f, 0.9f, 0.55f) : Color.white } };
-                GUI.Label(new Rect(x + 20, cy, w - 40, 24), (i > 0 && a > 0 ? "+" : a < 0 ? "−" : "") + Eur(Mathf.Abs(a)), st);
+                HudStyle.Label(new Rect(cx, cy, cw, 26 * K), l, row);
+                var c = a < 0 ? HudStyle.Bad : a > 0 && i > 0 ? HudStyle.Good : Color.white;
+                HudStyle.Label(new Rect(cx, cy, cw, 26 * K), (i > 0 && a > 0 ? "+" : a < 0 ? "−" : "") + Eur(Mathf.Abs(a)), HudStyle.St(17, true, c, TextAnchor.MiddleRight));
             }
-            Row(p.job.tour != "" ? $"Zarada za turu ({p.job.drops} {Stajanja(p.job.drops)})" : "Osnovna zarada", p.base_, 0); cy += 26;
-            for (int i = 0; i < p.lines.Count; i++) { Row(p.lines[i].label, p.lines[i].amount, i + 1); cy += 26; }
-            cy += 4; GUI.DrawTexture(new Rect(x + 20, cy, w - 40, 1), cdLine); cy += 8;
+            Row(p.job.tour != "" ? $"Zarada za turu ({p.job.drops} {Stajanja(p.job.drops)})" : "Osnovna zarada", p.base_, 0); cy += 28 * K;
+            for (int i = 0; i < p.lines.Count; i++) { Row(p.lines[i].label, p.lines[i].amount, i + 1); cy += 28 * K; }
+            cy += 6 * K; HudStyle.Fill(new Rect(cx, cy, cw, Mathf.Max(1, HudStyle.Px(1))), HudStyle.Line); cy += 8 * K;
             float shown = age < 0.6f + n * 0.3f ? 0 : Mathf.Min(1, (age - 0.6f - n * 0.3f) / 0.8f) * p.total;
-            GUI.Label(new Rect(x + 20, cy + 8, w - 40, 30), "Ukupno – na ruke", new GUIStyle(cdRow) { fontSize = 20, fontStyle = FontStyle.Bold });
-            GUI.Label(new Rect(x + 20, cy, w - 40, 46), Eur(Mathf.Round(shown * 2) / 2), cdTotal); cy += 46;
-            GUI.Label(new Rect(x + 20, cy, w - 40, 20), p.late ? $"Rok je bio {Hm(p.job.startMin + p.job.deadlineMin)}." : $"Na vrijeme (rok {Hm(p.job.startMin + p.job.deadlineMin)}).   Enter – zatvori", cdSub);
+            HudStyle.Label(new Rect(cx, cy, cw, 50 * K), "Ukupno – na ruke", HudStyle.St(20, true, Color.white));
+            HudStyle.Label(new Rect(cx, cy, cw, 50 * K), Eur(Mathf.Round(shown * 2) / 2), HudStyle.St(34, true, HudStyle.Highlight, TextAnchor.MiddleRight)); cy += 50 * K;
+            HudStyle.Label(new Rect(cx, cy, cw, 26 * K), p.late ? $"Rok je bio {Hm(p.job.startMin + p.job.deadlineMin)}.   Enter – zatvori" : $"Na vrijeme (rok {Hm(p.job.startMin + p.job.deadlineMin)}).   Enter – zatvori", HudStyle.St(14, false, HudStyle.Muted));
         }
     }
 }

@@ -114,7 +114,7 @@ namespace Magistrala.EditorTools
                 {
                     long nid = PkNode0 + p.id; nodes[nid] = new N { id = nid, x = p.bx, y = p.by, z = p.bz };
                     var (P1, P2) = StreetsBuilder.SplitAt(best.pts, p.bx, p.by, p.bz);
-                    var e2 = new E { id = PkEdge0 + p.id, a = nid, b = best.b, oneway = best.oneway, name = best.name, rf = best.rf, lanes = best.lanes, spur = best.spur, pts = P2, length = PolyLen(P2) };
+                    var e2 = new E { id = PkEdge0 + p.id, a = nid, b = best.b, oneway = best.oneway, name = best.name, rf = best.rf, lanes = best.lanes, maxspeed = best.maxspeed, type = best.type, spur = best.spur, pts = P2, length = PolyLen(P2) };
                     best.b = nid; best.pts = P1; best.length = PolyLen(P1); edges[e2.id] = e2;
                     p.node = nid;
                 }

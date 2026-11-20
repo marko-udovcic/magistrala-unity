@@ -19,7 +19,9 @@ namespace Magistrala.Game
         int curEdge = -1; float nextQuery;
         string place = "", road = "", street = "", shownPlace = "", shownRoad = "", shownStreet = "";
         float fade = 1;
-        GUIStyle placeStyle, streetStyle, refStyle;
+        /// the speed limit of the road under the truck (GEdge.limit, km/h; 0 = unknown) and the place, for the HUD panel (TruckHud)
+        public static int SpeedLimit { get; private set; }
+        public static string Place { get; private set; } = "";
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -34,6 +36,7 @@ namespace Magistrala.Game
 
         void Start()
         {
+            useGUILayout = false;
             var t0 = Time.realtimeSinceStartup;
             segEdge = new int[w.pts.Length];
             for (int i = 0; i < segEdge.Length; i++) segEdge[i] = -1;
@@ -72,6 +75,7 @@ namespace Magistrala.Game
             curEdge = NearestEdge(at, drone ? 20f : MaxDy);
             var e = curEdge >= 0 ? w.edges[curEdge] : null;
             street = e != null ? e.name ?? "" : ""; road = e != null ? e.road ?? "" : "";
+            if (!drone) { Place = place; if (e != null && e.limit > 0) SpeedLimit = e.limit; else if (e == null) SpeedLimit = 0; }
         }
 
         int NearestEdge(Vector3 q, float maxDy)
@@ -106,48 +110,45 @@ namespace Magistrala.Game
         {
             if (GpuSwitches.NoHud) return;
             if (Event.current.type != EventType.Repaint) return;
+            if (MagistralaGame.I && MagistralaGame.I.Phone && MagistralaGame.I.Phone.Open) return; // the mockup: only the phone
             // cross-fade: fade out, swap the text, fade in
             bool changed = place != shownPlace || road != shownRoad || street != shownStreet;
             float dt = Mathf.Min(Time.unscaledDeltaTime, .1f);
             if (changed) { fade -= dt * 5f; if (fade <= 0) { fade = 0; shownPlace = place; shownRoad = road; shownStreet = street; } }
             else fade = Mathf.Min(1, fade + dt * 4f);
             if (shownPlace.Length == 0 && shownStreet.Length == 0 && shownRoad.Length == 0) return;
-            if (placeStyle == null)
-            {
-                placeStyle = new GUIStyle(GUI.skin.label) { fontSize = 19, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white }, padding = new RectOffset(0, 0, 0, 0) };
-                streetStyle = new GUIStyle(placeStyle) { fontSize = 14, fontStyle = FontStyle.Normal, normal = { textColor = new Color(.86f, .88f, .9f) } };
-                refStyle = new GUIStyle(placeStyle) { fontSize = 12, fontStyle = FontStyle.Bold };
-            }
-            var tex = Texture2D.whiteTexture;
+            float K = HudStyle.K;
+            var placeStyle = HudStyle.St(19, true, Color.white, TextAnchor.MiddleCenter);
+            var streetStyle = HudStyle.St(14, false, new Color(1, 1, 1, .8f), TextAnchor.MiddleCenter);
+            var refStyle = HudStyle.St(12, true, Color.white, TextAnchor.MiddleCenter);
             string top = shownPlace.Length > 0 ? shownPlace : shownStreet, bottom = shownPlace.Length > 0 ? shownStreet : "";
             bool refLine = shownPlace.Length > 0 && shownRoad.Length > 0;
-            Vector2 ts = placeStyle.CalcSize(new GUIContent(top));
-            Vector2 ss = bottom.Length > 0 ? streetStyle.CalcSize(new GUIContent(bottom)) : Vector2.zero;
-            Vector2 rs = refLine ? refStyle.CalcSize(new GUIContent(shownRoad)) + new Vector2(10, 0) : Vector2.zero;
-            float line2 = (refLine ? rs.x + (ss.x > 0 ? 8 : 0) : 0) + ss.x;
-            float bw = Mathf.Max(ts.x, line2) + 36, bh = line2 > 0 ? 50 : 30;
-            // above the HUD panel (8 px gap, 90 px high) and the game's key line (28 px) when it shows
-            var g = MagistralaGame.I;
-            float bottomY = Screen.height - 98 - 8 - (g && !string.IsNullOrEmpty(g.HelpKeys) ? 30 + 6 : 0);
-            var box = new Rect((Screen.width - bw) / 2, bottomY - bh, bw, bh);
+            float tw = HudStyle.Width(placeStyle, top);
+            float sw = bottom.Length > 0 ? HudStyle.Width(streetStyle, bottom) : 0;
+            float rw = refLine ? HudStyle.Width(refStyle, shownRoad) + 12 * K : 0;
+            float line2 = (refLine ? rw + (sw > 0 ? 8 * K : 0) : 0) + sw;
+            float bw = Mathf.Max(tw, line2) + 40 * K, bh = (line2 > 0 ? 54 : 34) * K;
+            // bottom centre, on the HUD's margin line (the panel is at the bottom right)
+            var box = new Rect(Mathf.Round((Screen.width - bw) / 2), Screen.height - HudStyle.Margin - bh, bw, bh);
+            if (HudStyle.PanelRect.width > 0 && box.xMax > HudStyle.PanelRect.x - 12 * K) box.x = Mathf.Max(HudStyle.Margin, HudStyle.PanelRect.x - 12 * K - bw);
             float a = fade;
             var old = GUI.color;
-            GUI.DrawTexture(box, tex, ScaleMode.StretchToFill, true, 0, new Color(.05f, .06f, .07f, .62f * a), 0, 10);
-            GUI.DrawTexture(new Rect(box.x + 14, box.y + 1, box.width - 28, 2), tex, ScaleMode.StretchToFill, true, 0, new Color(1f, .8f, .1f, .9f * a), 0, 1);
+            HudStyle.PanelBg(box, 12, a);
+            HudStyle.Fill(new Rect(box.x + 16 * K, box.y, box.width - 32 * K, Mathf.Max(2, 2 * K)), new Color(HudStyle.Accent.r, HudStyle.Accent.g, HudStyle.Accent.b, .95f * a), K);
             GUI.color = new Color(1, 1, 1, a);
-            GUI.Label(new Rect(box.x, box.y + 4, box.width, 24), top, placeStyle);
+            HudStyle.Label(new Rect(box.x, box.y + 5 * K, box.width, 26 * K), top, placeStyle);
             if (line2 > 0)
             {
-                float x = box.x + (box.width - line2) / 2, y = box.y + 29;
+                float x = box.x + (box.width - line2) / 2, y = box.y + 31 * K;
                 if (refLine)
                 {
                     bool d = shownRoad[0] == 'D' || shownRoad[0] == 'A';
-                    var rr = new Rect(x, y, rs.x, 17);
-                    GUI.DrawTexture(rr, tex, ScaleMode.StretchToFill, true, 0, (d ? new Color(.1f, .35f, .78f) : new Color(.85f, .62f, .1f)) * new Color(1, 1, 1, a), 0, 3);
-                    GUI.Label(rr, shownRoad, refStyle);
-                    x += rs.x + 8;
+                    var rr = new Rect(x, y, rw, 18 * K);
+                    HudStyle.Fill(rr, (d ? new Color(.1f, .35f, .78f) : HudStyle.Accent) * new Color(1, 1, 1, a), 3 * K);
+                    HudStyle.Label(rr, shownRoad, refStyle);
+                    x += rw + 8 * K;
                 }
-                if (ss.x > 0) GUI.Label(new Rect(x, y - 1, ss.x + 2, 19), bottom, streetStyle);
+                if (sw > 0) HudStyle.Label(new Rect(x, y - 1 * K, sw + 2, 20 * K), bottom, streetStyle);
             }
             GUI.color = old;
         }

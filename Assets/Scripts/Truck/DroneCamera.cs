@@ -19,7 +19,6 @@ public sealed class DroneCamera : MonoBehaviour
     const float Speed = 22f, FastK = 4f, Climb = 10f, MinClear = 3f, MaxAgl = 400f, Accel = 2.5f;
     TruckChaseCamera chase; Camera view; TruckController truck;
     Vector3 vel; float yaw, pitch, agl; bool startDron, weBrake; float autoFwd, startH = 45;
-    GUIStyle hintStyle; Texture2D white;
     readonly RaycastHit[] hits = new RaycastHit[32];
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -146,17 +145,13 @@ public sealed class DroneCamera : MonoBehaviour
     void OnGUI()
     {
         if (!Active || Magistrala.GpuSwitches.NoHud || Event.current.type != EventType.Repaint) return;
-        if (hintStyle == null)
-        {
-            hintStyle = new GUIStyle(GUI.skin.label) { fontSize = 13, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(1, 1, 1, .92f) } };
-            white = Texture2D.whiteTexture;
-        }
+        var st = Magistrala.HudStyle.St(14, false, Color.white, TextAnchor.MiddleCenter);
         string s = $"DRON {agl:0} m  ·  WASD let · E/Q gore/dolje · desni klik + miš ili Z/X R/T okret · Shift brže · F kamion";
-        float w = Mathf.Min(Screen.width - 32, hintStyle.CalcSize(new GUIContent(s)).x + 28);
-        // top centre, between the game's day panel (top left, ~480 px) and the minimap (top right); below the panel when narrow
-        float rx = (Screen.width - w) / 2;
-        var r = new Rect(rx, rx < 490 || rx + w > Screen.width - 280 ? 112 : 12, w, 26);
-        GUI.DrawTexture(r, white, ScaleMode.StretchToFill, true, 0, new Color(0, 0, 0, .55f), 0, 8);
-        GUI.Label(r, s, hintStyle);
+        float K = Magistrala.HudStyle.K, w = Mathf.Min(Screen.width - 2 * Magistrala.HudStyle.Margin, Magistrala.HudStyle.Width(st, s) + 36 * K);
+        // top centre, on the HUD margin (the HUD panel is at the bottom right)
+        var r = new Rect(Mathf.Round((Screen.width - w) / 2), Magistrala.HudStyle.Margin, w, 34 * K);
+        Magistrala.HudStyle.PanelBg(r, 12);
+        Magistrala.HudStyle.Fill(new Rect(r.x + 16 * K, r.yMax - Mathf.Max(2, 2 * K), r.width - 32 * K, Mathf.Max(2, 2 * K)), Magistrala.HudStyle.Accent, K);
+        Magistrala.HudStyle.Label(r, s, st);
     }
 }

@@ -39,6 +39,8 @@ namespace Magistrala.Game
         /// points p0 .. p0 + pn - 1 in GameWorld.pts, in travel order a → b
         public int p0, pn;
         public byte lanes;
+        /// speed limit km/h (GameDataBuilder.SpeedLimit: OSM maxspeed, else the town defaults), 0 = unknown
+        public byte limit;
     }
 
     public class GameWorld : ScriptableObject
@@ -57,6 +59,10 @@ namespace Magistrala.Game
         public byte[] placeGrid = new byte[0];
         public Vector2 placeOrigin; public float placeCell = 50; public int placeW, placeH;
 
+        /// sea under every seaCell m cell (GameDataBuilder.BakeSea: baked ground below the sea plane), one bit per cell, row-major
+        /// from Unity (seaOrigin.x, seaOrigin.y) = (x, z); for the HUD minimap
+        public byte[] seaBits = new byte[0];
+        public Vector2 seaOrigin; public float seaCell = 8; public int seaW, seaH;
         public const string ResourcePath = "MagistralaGame";
 
         public GStop Stop(string id) => Array.Find(stops, s => s.id == id);
@@ -68,6 +74,11 @@ namespace Magistrala.Game
             int i = Mathf.FloorToInt((u.x - placeOrigin.x) / placeCell), j = Mathf.FloorToInt((u.z - placeOrigin.y) / placeCell);
             if (i < 0 || j < 0 || i >= placeW || j >= placeH) return "";
             return placeNames[placeGrid[j * placeW + i]];
+        }
+        public bool SeaAt(int i, int j)
+        {
+            if (i < 0 || j < 0 || i >= seaW || j >= seaH) return false;
+            int k = j * seaW + i; return (seaBits[k >> 3] & (1 << (k & 7))) != 0;
         }
         public float RoadMetres(string from, string to)
         {

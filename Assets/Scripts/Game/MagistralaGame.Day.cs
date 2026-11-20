@@ -38,6 +38,8 @@ namespace Magistrala.Game
         public MagistralaGame.Job job;
         public List<string> toursDone = new List<string>();
         public PhoneSave phone = new PhoneSave();
+        /// diesel in the tank, % (MagistralaGame.Fuel.cs); a new game starts at 72 %
+        public float fuel = 72;
     }
 
     public partial class MagistralaGame

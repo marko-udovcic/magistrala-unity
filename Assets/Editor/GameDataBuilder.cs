@@ -28,7 +28,7 @@ namespace Magistrala.EditorTools
         public void OnPreprocessBuild(BuildReport report) { if (!File.Exists(OutPath)) Build(); }
 
         class N { public long id; public double x, y, z; }
-        class E { public long id, a, b; public bool oneway; public double length; public string name, rf; public List<double[]> pts; public int lanes; public string spur; public bool? closedOwn; }
+        class E { public long id, a, b; public bool oneway; public double length; public string name, rf; public List<double[]> pts; public int lanes, maxspeed; public string spur, type; public bool? closedOwn; }
 
         [MenuItem("Magistrala/Igra: podaci (stajališta, graf cesta)")]
         public static void Build()
@@ -77,11 +77,11 @@ namespace Magistrala.EditorTools
                 }
                 if (part == null) continue;
                 var (A, B) = StreetsBuilder.SplitAt(part.pts, nn.x, nn.y, nn.z);
-                var e2 = new E { id = sid++, a = nn.id, b = part.b, oneway = part.oneway, name = part.name, rf = part.rf, lanes = part.lanes, spur = part.spur, pts = B };
+                var e2 = new E { id = sid++, a = nn.id, b = part.b, oneway = part.oneway, name = part.name, rf = part.rf, lanes = part.lanes, maxspeed = part.maxspeed, type = part.type, spur = part.spur, pts = B };
                 splitOf[e2.id] = sp.edge; part.b = nn.id; part.pts = A;
                 part.length = PolyLen(A); e2.length = PolyLen(B); edges[e2.id] = e2;
             }
-            foreach (var st in net.streets) edges[st.id] = new E { id = st.id, a = st.a, b = st.b, oneway = st.oneway, name = st.name, lanes = st.lanes, pts = st.pts, length = PolyLen(st.pts) };
+            foreach (var st in net.streets) edges[st.id] = new E { id = st.id, a = st.a, b = st.b, oneway = st.oneway, name = st.name, lanes = st.lanes, maxspeed = st.maxspeed, type = st.cls.EndsWith("_link") ? "ramp" : st.cls, pts = st.pts, length = PolyLen(st.pts) };
             foreach (var kv in splitOf) if (closed.Contains(kv.Value)) closed.Add(kv.Key);
             Debug.Log("[igra] " + (net.log.Count > 0 ? net.log[0] : "outside streets: none"));
 
@@ -92,11 +92,11 @@ namespace Magistrala.EditorTools
             bool In(N n) => true;
             var nIndex = new Dictionary<long, int>(); var nList = new List<Vector3>();
             foreach (var n in nodes.Values) if (In(n)) { nIndex[n.id] = nList.Count; nList.Add(W.U(n.x, n.y, n.z)); }
-            var eList = new List<GEdge>(); var pts = new List<Vector3>();
+            var eList = new List<GEdge>(); var pts = new List<Vector3>(); var limitStats = new Dictionary<string, double>();
             foreach (var e in edges.Values)
             {
                 if (!nIndex.TryGetValue(e.a, out int ia) || !nIndex.TryGetValue(e.b, out int ib) || e.pts == null || e.pts.Count < 2) continue;
-                var ge = new GEdge { a = ia, b = ib, oneway = e.oneway, closed = closed.Contains(e.id), length = (float)e.length, name = e.name ?? "", road = RoadRef(e.rf), p0 = pts.Count, pn = e.pts.Count, lanes = (byte)Math.Max(1, e.lanes) };
+                var ge = new GEdge { a = ia, b = ib, oneway = e.oneway, closed = closed.Contains(e.id), length = (float)e.length, name = e.name ?? "", road = RoadRef(e.rf), p0 = pts.Count, pn = e.pts.Count, lanes = (byte)Math.Max(1, e.lanes), limit = (byte)SpeedLimit(e, limitStats) };
                 foreach (var p in e.pts) pts.Add(W.U(p[0], p[1], p[2]));
                 eList.Add(ge);
             }
@@ -142,6 +142,10 @@ namespace Magistrala.EditorTools
             bool fresh = !asset; if (fresh) asset = ScriptableObject.CreateInstance<GameWorld>();
             asset.stops = stops.ToArray(); asset.nodes = nList.ToArray(); asset.edges = eList.ToArray(); asset.pts = pts.ToArray(); asset.dist = dist; asset.tours = tourDefs.ToArray();
             BakePlaces(asset);
+            BakeSea(asset);
+            var lsb = new System.Text.StringBuilder(); double ltot = 0; foreach (var v in limitStats.Values) ltot += v;
+            foreach (var kv in limitStats) lsb.Append($" {kv.Key} {kv.Value / 1000:0.0} km ({kv.Value / Math.Max(1, ltot) * 100:0} %);");
+            Debug.Log("[igra] speed limits by source:" + lsb);
             asset.source = $"graph.json + {applied} override entries ({skipped} skipped), {closed.Count} closed edge ids, {net.streets.Count} outside streets ({net.splits.Count} splits), {DateTime.Now:yyyy-MM-dd HH:mm}";
             if (fresh) AssetDatabase.CreateAsset(asset, OutPath); else EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
@@ -169,6 +173,8 @@ namespace Magistrala.EditorTools
             if (o.ContainsKey("name")) e.name = o["name"] as string;
             if (o.ContainsKey("ref")) e.rf = o["ref"] as string;
             if (o.ContainsKey("lanes")) e.lanes = (int)MiniJson.D(o["lanes"]);
+            if (o.ContainsKey("maxspeed") && o["maxspeed"] != null) e.maxspeed = (int)MiniJson.D(o["maxspeed"]);
+            if (o.ContainsKey("type")) e.type = o["type"] as string;
             if (o.ContainsKey("spur")) e.spur = o["spur"] as string;
             if (o.ContainsKey("closed")) e.closedOwn = o["closed"] is bool cl ? cl : (bool?)null;
             if (o.ContainsKey("points"))
