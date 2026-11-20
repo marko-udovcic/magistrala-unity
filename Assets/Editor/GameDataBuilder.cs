@@ -28,7 +28,7 @@ namespace Magistrala.EditorTools
         public void OnPreprocessBuild(BuildReport report) { if (!File.Exists(OutPath)) Build(); }
 
         class N { public long id; public double x, y, z; }
-        class E { public long id, a, b; public bool oneway; public double length; public string name; public List<double[]> pts; public int lanes; public string spur; }
+        class E { public long id, a, b; public bool oneway; public double length; public string name, rf; public List<double[]> pts; public int lanes; public string spur; }
 
         [MenuItem("Magistrala/Igra: podaci (stajališta, graf cesta)")]
         public static void Build()
@@ -75,7 +75,7 @@ namespace Magistrala.EditorTools
                 }
                 if (part == null) continue;
                 var (A, B) = StreetsBuilder.SplitAt(part.pts, nn.x, nn.y, nn.z);
-                var e2 = new E { id = sid++, a = nn.id, b = part.b, oneway = part.oneway, name = part.name, lanes = part.lanes, spur = part.spur, pts = B };
+                var e2 = new E { id = sid++, a = nn.id, b = part.b, oneway = part.oneway, name = part.name, rf = part.rf, lanes = part.lanes, spur = part.spur, pts = B };
                 splitOf[e2.id] = sp.edge; part.b = nn.id; part.pts = A;
                 part.length = PolyLen(A); e2.length = PolyLen(B); edges[e2.id] = e2;
             }
@@ -94,7 +94,7 @@ namespace Magistrala.EditorTools
             foreach (var e in edges.Values)
             {
                 if (!nIndex.TryGetValue(e.a, out int ia) || !nIndex.TryGetValue(e.b, out int ib) || e.pts == null || e.pts.Count < 2) continue;
-                var ge = new GEdge { a = ia, b = ib, oneway = e.oneway, closed = closed.Contains(e.id), length = (float)e.length, name = e.name ?? "", p0 = pts.Count, pn = e.pts.Count, lanes = (byte)Math.Max(1, e.lanes) };
+                var ge = new GEdge { a = ia, b = ib, oneway = e.oneway, closed = closed.Contains(e.id), length = (float)e.length, name = e.name ?? "", road = RoadRef(e.rf), p0 = pts.Count, pn = e.pts.Count, lanes = (byte)Math.Max(1, e.lanes) };
                 foreach (var p in e.pts) pts.Add(W.U(p[0], p[1], p[2]));
                 eList.Add(ge);
             }
@@ -139,6 +139,7 @@ namespace Magistrala.EditorTools
             var asset = AssetDatabase.LoadAssetAtPath<GameWorld>(OutPath);
             bool fresh = !asset; if (fresh) asset = ScriptableObject.CreateInstance<GameWorld>();
             asset.stops = stops.ToArray(); asset.nodes = nList.ToArray(); asset.edges = eList.ToArray(); asset.pts = pts.ToArray(); asset.dist = dist; asset.tours = tourDefs.ToArray();
+            BakePlaces(asset);
             asset.source = $"graph.json + {applied} override entries ({skipped} skipped), {closed.Count} closed edge ids, {net.streets.Count} outside streets ({net.splits.Count} splits), {DateTime.Now:yyyy-MM-dd HH:mm}";
             if (fresh) AssetDatabase.CreateAsset(asset, OutPath); else EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
@@ -164,6 +165,7 @@ namespace Magistrala.EditorTools
             if (o.ContainsKey("oneway")) e.oneway = o["oneway"] is bool b && b;
             if (o.ContainsKey("length")) e.length = MiniJson.D(o["length"]);
             if (o.ContainsKey("name")) e.name = o["name"] as string;
+            if (o.ContainsKey("ref")) e.rf = o["ref"] as string;
             if (o.ContainsKey("lanes")) e.lanes = (int)MiniJson.D(o["lanes"]);
             if (o.ContainsKey("spur")) e.spur = o["spur"] as string;
             if (o.ContainsKey("points"))

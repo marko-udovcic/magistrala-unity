@@ -129,6 +129,7 @@ namespace Magistrala
                     (Mathf.PerlinNoise(t * .3f, 21.7f) - .5f) * 1.8f + (Mathf.PerlinNoise(t * 2.1f, 8.8f) - .5f) * .25f,
                     (Mathf.PerlinNoise(t * .4f, 31.3f) - .5f) * 1.4f + (Mathf.PerlinNoise(t * 3.1f, 2.2f) - .5f) * .15f);
             }
+            if (DroneCamera.Active) { euler = Vector3.zero; fovAdd = 0; } // the drone flies smooth, it is not on the truck
             if (euler.sqrMagnitude > 0) cam.transform.rotation *= Quaternion.Euler(euler);
             cam.fieldOfView += fovAdd;
             EyeAdaptation(dt);
