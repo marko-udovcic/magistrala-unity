@@ -12,8 +12,9 @@
 - Zgrade (niz tekstura `Assets/Textures/Buildings/facade_*.jpg`, 1k, boje svedene na tipologiju Kaštela): **White Plaster 02** — https://polyhaven.com/a/white_plaster_02 — Rob Tuytel (žbuka); **White Sandstone Blocks 02** — https://polyhaven.com/a/white_sandstone_blocks_02 — Rob Tuytel (klesani kamen); **Clay Roof Tiles** — https://polyhaven.com/a/clay_roof_tiles — Amal Kumar (kupa kanalica); **Large Red Bricks** — https://polyhaven.com/a/large_red_bricks — Rob Tuytel (opeka nedovršenih katova); **Concrete Wall 008** — https://polyhaven.com/a/concrete_wall_008 — Dario Barresi, Charlotte Baglioni (beton). Lamele škura, ravna boja i sobe iza prozora (`rooms.png`) su proceduralne (BuildingTextures.cs).
 - Asfalt: **Asphalt 02** — https://polyhaven.com/a/asphalt_02 — Rob Tuytel (diffuse, normal, roughness; sloj istrošenog / ispucanog asfalta)
 - Asfalt: **Asphalt Track** — https://polyhaven.com/a/asphalt_track — Dimitrios Savva (diffuse, normal GL, roughness; sitni agregat, osnovni sloj kolnika)
+- Rive (RivaBuilder): **Large Grey Tiles** — https://polyhaven.com/a/large_grey_tiles — Rob Tuytel (kamene ploče šetnice, `riva_ploce_*.jpg`, 1k, posvijetljene i manje zasićene prema dalmatinskom vapnencu); **Castle Wall Slates** — https://polyhaven.com/a/castle_wall_slates — Rob Tuytel (kamena obala / zid rive, `riva_zid_*.jpg`, 1k, posivljeno)
 
-Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg) i `Assets/Textures/Sky/*`.
+Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky/*`.
 
 ## Iz igre Magistrala (BalkanDriver repo, vlastiti sadržaj)
 - Modeli križanja i dionica (`client/public/assets/models/krizanja/*.glb`, Markov paket), njihov raspored (`model-junctions.json`)
@@ -24,7 +25,9 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg) i `Assets/Textures/Sky/*`.
 ## Državna geodetska uprava (Otvorena dozvola, data.gov.hr/otvorena-dozvola)
 - **Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni.**
   Boja tla oko Kaštel Lukšića (`Assets/Generated/Terrain/Macro/*`, izvedeno: zgrade i ceste maskirane i popunjene, boja
-  svedena na naše teksture; docs/dof-tlo.md). Ne predstavlja službeni geodetski dokument. Isti tekst je u igri (mobitel → O igri).
+  svedena na naše teksture; docs/dof-tlo.md), od 20. 11. 2026. i Kaštel Novi / Stari / zapadni Lukšić (pločice t_-9_-5, t_-8_-5, t_-7_-5).
+  Obris rive, obale, lukobrana i parkirališta te krošnje stabala uz rivu (`Assets/Editor/riva.json`, Tools/riva/riva_build.py) izvedeni su
+  s iste ortofotografije. Ne predstavlja službeni geodetski dokument. Isti tekst je u igri (mobitel → O igri).
 
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
