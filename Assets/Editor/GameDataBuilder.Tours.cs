@@ -10,7 +10,7 @@
 //   names     Assets/Editor/imena-firmi.json: real → fictional (no real company names in the game); a business point no key hits
 //             gets a generic name by its kind
 //   vehicle   maxVehicle "mali" (van or small truck) on the waterfront points ("(riva)" in the package: README "meant for the small
-//             truck or a van", BILJESKE "velikim kamionom ne možeš na rivu"); stored only, not enforced (the Atego's class is open)
+//             truck or a van", BILJESKE "velikim kamionom ne možeš na rivu"); stored only, not enforced; the Atego counts as allowed on the riva (Marko 2026-11-20), the rule is for bigger trucks later
 //   distances every pair with a package point: our graph's road metres (Dijkstra pad → pad, one-ways, closed edges skipped)
 // The tours themselves (which points, how many stops) are put together in the game (MagistralaGame.Tours.cs).
 using System;

@@ -106,8 +106,8 @@ namespace Magistrala.Game
             if (j.tour == "") return $"{j.cargo} · {j.km:0.0} km · {Eur(j.pay)} · rok {Hm(S.clockMin + TourDeadline(j))}";
             var ds = j.legs.FindAll(l => l.K == 'd');
             string first = World.Stop(ds[0].stop)?.name, last = World.Stop(ds[ds.Count - 1].stop)?.name;
-            bool small = ds.Exists(l => World.Stop(l.stop)?.maxVehicle == "mali");
-            return $"{World.Stop(j.from)?.name} → {first}{(ds.Count > 1 ? $" … {last}" : "")}{(TourReturns(j.tour) ? " → skladište (prazne gajbe, u cijeni)" : "")} · {j.km:0.0} km · rok {Hm(S.clockMin + TourDeadline(j))}{(small ? " · riva: kombi ili mali kamion" : "")}";
+            // riva points (maxVehicle "mali"): the Atego is allowed there (Marko 2026-11-20: "smije, ide i u stvarnosti"), so no warning
+            return $"{World.Stop(j.from)?.name} → {first}{(ds.Count > 1 ? $" … {last}" : "")}{(TourReturns(j.tour) ? " → skladište (prazne gajbe, u cijeni)" : "")} · {j.km:0.0} km · rok {Hm(S.clockMin + TourDeadline(j))}";
         }
 
         string LegVerb(Leg l)
