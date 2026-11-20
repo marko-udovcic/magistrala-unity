@@ -1,4 +1,4 @@
-// Yard walls of the detailed houses in the probe area (BuildingsFromTiles.Probe): the house's oriented footprint rectangle grown
+// Yard walls of the detailed houses (all of Kaštela since kuce2; the probe area BuildingsFromTiles.Probe first had them): the house's oriented footprint rectangle grown
 // by 2-4.5 m, sampled every metre; a sample is pulled back towards the house to keep 1.6 m off a carriageway (that run is the
 // street wall and gets a 3 m gate with two piers), and dropped when it is nearer another building than its own house, inside /
 // next to another building, on a model's ground, a package building or a stop's bay, or on a slope. Walls go into the house's
@@ -29,7 +29,7 @@ namespace Magistrala.EditorTools
 
         static (int, int) Key(double x, double z) => ((int)Math.Floor(x / CELL), (int)Math.Floor(z / CELL));
 
-        /// the probe's footprints (all tiles), carriageways and bays; call once before the houses
+        /// all footprints (all tiles), carriageways and bays; call once before the houses
         public static void Begin(List<ModelJ> m, List<double[]> packageRects)
         {
             models = m; rects = packageRects; gates.Clear();
@@ -52,8 +52,6 @@ namespace Magistrala.EditorTools
                         var P = new List<V>(); double cx = 0, cz = 0;
                         foreach (var p in pts) { var q = MiniJson.L(p); var v = new V(MiniJson.D(q[0]), MiniJson.D(q[1])); P.Add(v); cx += v.x; cz += v.z; }
                         cx /= P.Count; cz /= P.Count;
-                        bool near = false; foreach (var pr in BuildingsFromTiles.Probe) if ((cx - pr.x) * (cx - pr.x) + (cz - pr.z) * (cz - pr.z) < (pr.r + 80) * (pr.r + 80)) near = true;
-                        if (!near) continue;
                         int id = foot.Count; foot.Add(P);
                         double x0 = double.MaxValue, x1 = double.MinValue, z0 = double.MaxValue, z1 = double.MinValue;
                         foreach (var v in P) { x0 = Math.Min(x0, v.x); x1 = Math.Max(x1, v.x); z0 = Math.Min(z0, v.z); z1 = Math.Max(z1, v.z); }
@@ -79,6 +77,14 @@ namespace Magistrala.EditorTools
             if (roadGrid.TryGetValue(Key(x, z), out var l)) foreach (int i in l) { var r = roads[i]; best = Math.Min(best, SegDist(x, z, r.ax, r.az, r.bx, r.bz) - r.hw); }
             return best;
         }
+        /// metres from (x, z) to the nearest carriageway edge (negative: on it) and that carriageway's half width
+        public static (double clear, double hw) Clear(double x, double z)
+        {
+            double best = 1e9, hw = 0;
+            if (roadGrid != null && roadGrid.TryGetValue(Key(x, z), out var l))
+                foreach (int i in l) { var r = roads[i]; double d = SegDist(x, z, r.ax, r.az, r.bx, r.bz) - r.hw; if (d < best) { best = d; hw = r.hw; } }
+            return (best, hw);
+        }
         static double PolyDist(List<V> P, double x, double z)
         {
             if (BuildingsFromTiles.InPoly(P, x, z)) return 0;
@@ -98,8 +104,9 @@ namespace Magistrala.EditorTools
             return false;
         }
 
-        /// yard wall of one house (P: its game footprint, already emitted by HouseBuilder.AddHouse at LOD 0..2)
-        public static bool Build(HouseGeo[] hg, List<V> P, double baseY, int seed)
+        /// yard wall of one house (P: its game footprint, already emitted by HouseBuilder.AddHouse): near / mid levels and the
+        /// shadow / collision hull (level 2: no railings, no piers)
+        public static bool Build(HouseGeo near, HouseGeo mid, HouseGeo hull, List<V> P, double baseY, int seed)
         {
             var rnd = new System.Random(seed * 13 + 5);
             double d = 2.2 + 2.3 * rnd.NextDouble(); int kind = rnd.NextDouble() < .35 ? 0 : rnd.NextDouble() < .7 ? 1 : 2;
@@ -193,8 +200,21 @@ namespace Magistrala.EditorTools
             foreach (var run in runs)
             {
                 if (run.Count < 3) continue;
-                var pts = new List<Vector3>(); foreach (int q in run) pts.Add(W.U(S[q].x, ground[q], S[q].z));
-                for (int lod = 0; lod < 2; lod++) { HouseBuilder.Lod = lod; HouseBuilder.YardWall(hg[lod], pts, h, kind, post[run[0]], post[run[run.Count - 1]]); }
+                var raw = new List<Vector3>(); foreach (int q in run) raw.Add(W.U(S[q].x, ground[q], S[q].z));
+                // one segment per straight run (the samples are 1 m apart): drop the points on the line within 4 cm and 12 cm
+                // of the ground (~8 x fewer faces)
+                var pts = new List<Vector3> { raw[0] };
+                for (int k = 1; k + 1 < raw.Count; k++)
+                {
+                    Vector3 a = pts[pts.Count - 1], c = raw[k + 1], p = raw[k];
+                    Vector3 ac = c - a; float t = Mathf.Clamp01(Vector3.Dot(p - a, ac) / Mathf.Max(1e-4f, ac.sqrMagnitude));
+                    Vector3 on = a + ac * t; var dxz = new Vector2(p.x - on.x, p.z - on.z);
+                    if (dxz.magnitude > .04f || Mathf.Abs(p.y - on.y) > .12f) pts.Add(p);
+                }
+                pts.Add(raw[raw.Count - 1]);
+                HouseBuilder.Lod = 0; HouseBuilder.YardWall(near, pts, h, kind, post[run[0]], post[run[run.Count - 1]]);
+                HouseBuilder.Lod = 1; HouseBuilder.YardWall(mid, pts, h, kind, post[run[0]], post[run[run.Count - 1]]);
+                if (hull != null) { HouseBuilder.Lod = 2; HouseBuilder.YardWall(hull, pts, h, kind, false, false); }
                 HouseBuilder.Lod = 0; emitted++;
             }
             return emitted > 0;
@@ -209,7 +229,7 @@ namespace Magistrala.EditorTools
             sb.Append("],\"doors\":["); int nd = 0;
             foreach (var d in HouseBuilder.Doors)
             {
-                if (!BuildingsFromTiles.InProbe(d.p.x + W.OX, -d.p.z + W.OZ)) continue;
+                if (!BuildingsFromTiles.InProbe(d.p.x + W.OX, -d.p.z + W.OZ) && !BuildingsFromTiles.InShow(d.p.x + W.OX, -d.p.z + W.OZ)) continue;
                 sb.Append(nd++ > 0 ? "," : "").Append($"[{F(d.p.x)},{F(d.p.y)},{F(d.p.z)},{F(d.n.x)},{F(d.n.z)}]");
             }
             Directory.CreateDirectory(Path.GetDirectoryName(SpotsPath));

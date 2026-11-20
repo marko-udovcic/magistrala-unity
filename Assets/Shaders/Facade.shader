@@ -1,7 +1,8 @@
 // Buildings (HouseBuilder / BuildingsFromTiles): one material for walls, roofs, trims, shutters and the small clutter of a chunk.
 // Texture array layers (BuildingTextures): 0 plaster, 1 stone ashlar, 2 roof tiles (kupa kanalica), 3 brick, 4 concrete,
 // 5 shutter louvres, 6 plain (painted metal / plastic), 7 rubble (dry-stone yard walls). UV0 = world metres on the face.
-// UV2: x = baked occlusion 0..1 (window / door reveals, deeper = darker), y = drip mask under a window sill (1 at the sill).
+// UV2: x = baked occlusion 0..1 (window / door reveals, deeper = darker), y = drip mask under a window sill (1 at the sill),
+//      z = darkening of the untinted stone layers (0 none .. 1 black), w = their greying (0 as photographed .. 1 grey).
 //      Every mesh on this material must carry UV2 (zeros when unused): a missing stream reads garbage on Metal.
 // UV1: x = lower layer + 8 * upper layer, y = height above the building's ground (m), z = height below the wall top (m),
 //      w = dirt 0..1. COLOR: rgb = tint of the tintable layers (linear), a = height of the lower / upper layer boundary / 40 m
@@ -35,7 +36,7 @@ Shader "Magistrala/Facade"
         float _Wetness; // global (WeatherSystem)
 
         // metres per texture repeat, per layer; tintable layers take the vertex colour, the others keep their own colour
-        static const float TILE[8] = { 1.6, 2.0, 3.0, 2.0, 2.7, 0.55, 1.0, 2.2 };
+        static const float TILE[8] = { 1.6, 2.4, 3.0, 2.0, 2.7, 0.55, 1.0, 2.2 };
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
 
@@ -46,7 +47,7 @@ Shader "Magistrala/Facade"
             float4 tangentOS : TANGENT;
             float2 uv : TEXCOORD0;
             float4 data : TEXCOORD1;
-            float2 occ : TEXCOORD2;
+            float4 occ : TEXCOORD2;
             half4 color : COLOR;
             UNITY_VERTEX_INPUT_INSTANCE_ID
         };
@@ -60,7 +61,7 @@ Shader "Magistrala/Facade"
             float4 data : TEXCOORD4;
             half4 color : COLOR;
             half fog : TEXCOORD5;
-            half2 occ : TEXCOORD6;
+            half4 occ : TEXCOORD6;
             UNITY_VERTEX_INPUT_INSTANCE_ID
             UNITY_VERTEX_OUTPUT_STEREO
         };
@@ -106,6 +107,16 @@ Shader "Magistrala/Facade"
             half rough = ns.b; // photoscanned roughness (BuildingTextures packs it into blue)
             half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale; nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
             half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, TINTED[li]);
+            // the house's own stone (limestone from warm cream to grey, damp or sun-bleached): zeros keep the layer as it is
+            if (li == 1 || li == 7)
+            {
+                half lum = dot(albedo, half3(.3, .59, .11));
+                albedo = lerp(albedo, lum.xxx * half3(.98, .99, 1.02), input.occ.w) * (1 - input.occ.z);
+                // break the texture's repeat: block-sized tone patches (+-9 %) and a slow warm / grey drift across the wall
+                float2 bw = float2(dot(input.positionWS.xz, float2(.7071, .7071)) + input.positionWS.x * .3, input.positionWS.y);
+                albedo *= .91 + .18 * Noise(bw * float2(2.6, 3.4));
+                albedo = lerp(albedo, albedo * half3(1.04, 1.0, .93), Noise(bw * .23 + 3.1) * .6);
+            }
             half3 nWS = normalize(input.normalWS);
             half3 tWS = normalize(input.tangentWS.xyz);
             half3 bWS = cross(nWS, tWS) * input.tangentWS.w;

@@ -1,1 +1,1 @@
-{"name": "lonac-biljka", "fit": "y", "size": 0.512, "sat": 1, "gain": 1, "contrast": 1, "smooth": 0.1, "tex": 512, "lod0": 1500, "lod1": 500, "lod2": 150, "cull": 55, "collider": "box", "colShrink": 0.8}
+{"name": "lonac-biljka", "fit": "y", "size": 0.355, "sat": 1, "gain": 1, "contrast": 1, "smooth": 0.1, "tex": 512, "lod0": 1500, "lod1": 500, "lod2": 150, "cull": 55, "collider": "box", "colShrink": 0.8}
