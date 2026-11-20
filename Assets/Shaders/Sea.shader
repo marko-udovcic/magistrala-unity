@@ -19,6 +19,7 @@ Shader "Magistrala/Sea"
         _SunSpecPower("Sun Glint Exponent", Float) = 900
         [MainColor] _Tint("Body Colour Multiplier", Color) = (1,1,1,1)
         _FoamShore("Shore Foam (reserved)", Range(0,1)) = 0
+        _Swell("Soft Swell: slope, wavelength (m), speed (m/s), second-wave angle (rad)", Vector) = (0.035, 26, 1.6, 0.6)
     }
     SubShader
     {
@@ -49,6 +50,7 @@ Shader "Magistrala/Sea"
             float _SunSpec;
             float _SunSpecPower;
             float _FoamShore;
+            float4 _Swell;
         CBUFFER_END
         TEXTURE2D(_NormalMap); SAMPLER(sampler_NormalMap);
         struct Attributes
@@ -116,6 +118,12 @@ Shader "Magistrala/Sea"
             float2 xy = WaveXY(p, _NormalScale1, 0.35, _Speed1.xy, _NormalStrength * macro * fMid)
                       + WaveXY(p, _NormalScale2, -0.83, _Speed2.xy, _NormalStrength * fSmall)
                       + WaveXY(p, _NormalScale3, 1.21, _Speed3.xy, _NormalStrength * 0.8 * macro);
+            // soft swell: two long, slow sine wavelets (a light-breeze bay: visible movement, no real waves), fading far away
+            float2 d1 = float2(0.8, 0.6), d2 = float2(cos(_Swell.w) * 0.8 - sin(_Swell.w) * 0.6, sin(_Swell.w) * 0.8 + cos(_Swell.w) * 0.6);
+            float k1 = 6.2831853 / max(_Swell.y, 1.0), k2 = k1 * 1.37;
+            float fSwell = lerp(1.0, 0.25, smoothstep(_DetailFade.x, _DetailFade.y, dist));
+            xy += (d1 * cos(dot(d1, input.positionWS.xz) * k1 - _Time.y * _Swell.z * k1)
+                 + d2 * 0.7 * cos(dot(d2, input.positionWS.xz) * k2 - _Time.y * _Swell.z * 0.9 * k2)) * _Swell.x * fSwell;
             float3 normalTS = normalize(float3(xy, 1.0));
             float3 n = normalize(input.normalWS);
             // World X/Z mapping: +normal-map X points +world X, +Y points +world Z.
