@@ -22,6 +22,7 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
 - Modeli križanja i dionica (`client/public/assets/models/krizanja/*.glb`, Markov paket), njihov raspored (`model-junctions.json`)
 - Visine terena, stabla, tlocrti zgrada (`client/public/assets/world/split-kastela/tiles`, `ground`) — dijelom izvedeno iz podataka DGU
   (Sadrži podatke Državne geodetske uprave; podaci su izmijenjeni)
+- Oleander `Assets/Models/Props/Tripo/oleander.glb` (Tripo, Markov model; razdjelni pojas D8, roza i bijela varijanta)
 - Kamion `firm_truck.glb`, biljke `plants/*.glb` i njihovi impostori, teksture `tex/pbr/*` (stari teren / beton)
 
 ## Državna geodetska uprava (Otvorena dozvola, data.gov.hr/otvorena-dozvola)
@@ -30,6 +31,12 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   svedena na naše teksture; docs/dof-tlo.md), od 20. 11. 2026. i Kaštel Novi / Stari / zapadni Lukšić (pločice t_-9_-5, t_-8_-5, t_-7_-5).
   Obris rive, obale, lukobrana i parkirališta te krošnje stabala uz rivu (`Assets/Editor/riva.json`, Tools/riva/riva_build.py) izvedeni su
   s iste ortofotografije. Ne predstavlja službeni geodetski dokument. Isti tekst je u igri (mobitel → O igri).
+
+## Unity Asset Store (Standard Unity Asset Store EULA — korištenje u igri, sirove datoteke se ne dijele, paket nije u gitu)
+- **Coast & Dunes Environment – Dynamic Nature** (Beach, Sea, Islands, Dry Desert) — **NatureManufacture**, Unity Asset Store,
+  Standard Unity Asset Store EULA. U probi „priroda”: slojevi tla (suho tlo s makijom, smeđa zemlja, kamenito tlo), suha trava i
+  biljke za detalje terena, bor (preoblikovan prema alepskom boru), litice (zatamnjene u vapnenac), grm (tamnozeleno, bez cvijeta) u
+  razdjelnom pojasu D8, more (shader „Water Sea Offset”), vjetar. Mapa paketa `Assets/NatureManufacture Assets` je u .gitignore.
 
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies

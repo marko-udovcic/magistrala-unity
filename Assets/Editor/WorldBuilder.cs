@@ -333,6 +333,7 @@ namespace Magistrala.EditorTools
                 Layer("Rock", Tinted("PolyHaven/rock_face_03_diff.jpg", "rock_grey_d.jpg", new Color(.9f, .91f, .93f), new Color(.06f, .06f, .07f), 0f), Tex(PH + "rock_face_03_nor.jpg", true), 9),
                 Layer("Gravel", Tex(PH + "gravel_ground_01_diff.jpg"), Tex(PH + "gravel_ground_01_nor.jpg", true), 4),
             };
+            var natLayers = NaturePass.Layers(layers); // NatureManufacture ground sets on tiles touching the probe boxes (NaturePass)
             var terrMat = AssetDatabase.LoadAssetAtPath<Material>("Packages/com.unity.render-pipelines.universal/Runtime/Materials/TerrainLit.mat");
             Dir(GEN + "/Terrain");
             for (int tz = BZ0; tz <= BZ1; tz++)
@@ -376,7 +377,7 @@ namespace Magistrala.EditorTools
                         td.SetHoles(0, 0, holes);
                     }
                     // splat
-                    int ar = core ? 512 : 128; td.alphamapResolution = ar; td.terrainLayers = layers;
+                    int ar = core ? 512 : 128; td.alphamapResolution = ar; td.terrainLayers = core && NaturePass.TileIn(tx, tz) ? natLayers : layers;
                     var A = new float[ar, ar, 4];
                     double as_ = 1024.0 / ar;
                     for (int r = 0; r < ar; r++)
@@ -494,6 +495,7 @@ namespace Magistrala.EditorTools
             var protos = TreeProtos.Prefabs();
             var models = WorldData.Models();
             int total = 0;
+            NaturePass.Begin(protos.Count); // NatureManufacture pines / median hedge prototypes after ours
             var rec = new List<byte>();
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
@@ -538,6 +540,7 @@ namespace Magistrala.EditorTools
                         float h = (float)Tiles.Height(gx, gz);
                         int proto = TreeProtos.Species((int)f[3], gx, h, gz, f[4], out float s);
                         if (proto < 0 || proto >= protos.Count) continue;
+                        proto = NaturePass.TreeProto(proto, gx, gz, h, ref s);
                         if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5) || StreetsBuilder.Covered(gx, gz, 1.5) || RivaBuilder.NoTree(gx, gz)) continue;
                         var q = WorldData.ModelTerrain(models, gx, gz, 2, h); if (q.HasValue) h = (float)q.Value;
                         if (h < .4f) continue;
@@ -562,6 +565,7 @@ namespace Magistrala.EditorTools
                     if (nr > 0) Debug.Log($"[Magistrala] riva trees {tx},{tz}: {nr}");
                 }
             }
+            NaturePass.Extra(rec, models, ref total);
             File.WriteAllBytes(GEN + "/trees.bytes", rec.ToArray()); AssetDatabase.ImportAsset(GEN + "/trees.bytes");
             var root = Root("Vegetation");
             var tr = root.AddComponent<Magistrala.TreeRenderer>();
@@ -574,6 +578,7 @@ namespace Magistrala.EditorTools
             tr.drawDistance = new[] { 1400f, 1400f, 1000f, 1400f, 300f, 300f, 260f, 120f };
             tr.nearDistance = new[] { 110f, 110f, 90f, 110f, 45f, 45f, 40f, 120f };
             TreeProtos.Impostors(out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
+            NaturePass.Finish(tr);
             Debug.Log($"[Magistrala] trees: {total}");
         }
 
@@ -601,6 +606,7 @@ namespace Magistrala.EditorTools
             go.GetComponent<MeshFilter>().sharedMesh = mesh; go.transform.localScale = Vector3.one;
             var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = mat; mr.shadowCastingMode = ShadowCastingMode.Off;
             if (!go.GetComponent<Magistrala.SeaScroll>()) go.AddComponent<Magistrala.SeaScroll>();
+            NatureSea.Build(); // NatureManufacture sea beside ours (SeaMode switch -more nm|nase; nothing without the package)
         }
 
         static Texture2D WaterNormal()

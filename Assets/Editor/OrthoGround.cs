@@ -42,7 +42,7 @@ namespace Magistrala.EditorTools
             var px = t.GetPixels32(); double r = 0, g = 0, b = 0; int n = 0;
             for (int i = 0; i < px.Length; i += 7) { r += Lin(px[i].r / 255f); g += Lin(px[i].g / 255f); b += Lin(px[i].b / 255f); n++; }
             UnityEngine.Object.DestroyImmediate(t);
-            return new Vector3((float)(r / n), (float)(g / n), (float)(b / n)) * new Vector3(l.diffuseRemapMax.x, l.diffuseRemapMax.y, l.diffuseRemapMax.z).magnitude / Mathf.Sqrt(3);
+            return Vector3.Scale(new Vector3((float)(r / n), (float)(g / n), (float)(b / n)), new Vector3(l.diffuseRemapMax.x, l.diffuseRemapMax.y, l.diffuseRemapMax.z)); // per channel (NaturePass layers are tinted)
         }
 
         // ---------------------------------------------------------------- masks (Unity texture rows: row 0 = south edge)
@@ -80,6 +80,11 @@ namespace Magistrala.EditorTools
             for (int i = 0; i < N; i++) { int last = -99999; for (int r = 0; r < N; r++) { if (a[r * N + i]) last = r; b[r * N + i] = r - last <= k; } last = 99999; for (int r = N - 1; r >= 0; r--) { if (a[r * N + i]) last = r; if (last - r <= k) b[r * N + i] = true; } }
             return b;
         }
+
+        /// for NaturePass (weeds along wall bases): the footprint mask of tile tx, tz (N², 0.5 m, row 0 = south) and its dilation
+        public const int MaskN = N;
+        public static bool[] BuildingMask(int tx, int tz, double dil) => Buildings(tx, tz, dil);
+        public static bool[] Grow(bool[] m, double d) => Dilate(m, d);
 
         static bool[] Buildings(int tx, int tz, double dil = BDIL)
         {

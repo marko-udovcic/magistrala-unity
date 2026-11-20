@@ -155,9 +155,14 @@ namespace Magistrala.EditorTools
         {
             var mat = Mat("SeaDepth", "Magistrala/Sea"); if (!mat) { Debug.LogError("Sea shader missing"); return; }
             mat.SetTexture("_NormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/water_n.png"));
+            // softer sun: a glitter path, not a blinding streak (owner: too much glare at midday); gentle visible ripples + swell
+            mat.SetFloat("_SunSpec", 3.2f); mat.SetFloat("_SunSpecPower", 700); mat.SetFloat("_Smoothness", .9f); mat.SetFloat("_NormalStrength", .6f);
+            mat.SetVector("_Swell", new Vector4(.035f, 26, 1.6f, .6f));
             EditorUtility.SetDirty(mat);
             var root = WorldBuilder.Root("Sea");
-            Color shallow = new Color(.1f, .62f, .6f), mid = new Color(.04f, .33f, .46f), deep = new Color(.015f, .12f, .27f), foam = new Color(.85f, .88f, .86f);
+            // sunny Kaštela bay (owner 2026-11-20): lighter — turquoise-teal shallows over the riva (~#4fa3a8 on screen), clear mid-blue
+            // open water (~#2a6f9e…#3a7fae); vertex colours are linear body colours (the shader lights them at ~0.6–0.8)
+            Color shallow = new Color(.13f, .50f, .47f), mid = new Color(.045f, .25f, .45f), deep = new Color(.022f, .16f, .37f), foam = new Color(.55f, .72f, .68f);
             Color Tint(double h) { float d = (float)-h; if (d < .35f) return Color.Lerp(foam, shallow, Mathf.Clamp01((d + .2f) / .55f)); return d < 6 ? Color.Lerp(shallow, mid, Mathf.Clamp01(d / 6)) : Color.Lerp(mid, deep, Mathf.Clamp01((d - 6) / 20)); }
             // near grid: game x -9300 … 1200, z -6000 … -2800 (the bay), 25 m cells
             double x0 = -9300, x1 = 1200, z0 = -6000, z1 = -2800, cell = 25;
@@ -189,6 +194,7 @@ namespace Magistrala.EditorTools
             var fgo = new GameObject("sea far"); fgo.transform.SetParent(root.transform, false);
             fgo.AddComponent<MeshFilter>().sharedMesh = far; var fr = fgo.AddComponent<MeshRenderer>(); fr.sharedMaterial = mat; fr.shadowCastingMode = ShadowCastingMode.Off;
             AssetDatabase.SaveAssets();
+            NatureSea.Build(); // NatureManufacture sea beside ours (SeaMode switch; nothing without the package)
         }
 
         // ------------------------------------------------------------------ reflection probes along the D8 (asphalt catches sky, trees, houses)
@@ -260,6 +266,7 @@ namespace Magistrala.EditorTools
                 const int R = 256; // 4 m cells
                 td.SetDetailResolution(R, 16); td.detailPrototypes = protos;
                 var layers = new int[3][,]; for (int k = 0; k < 3; k++) layers[k] = new int[R, R];
+                var protoL = new List<DetailPrototype>(protos);
                 var A = td.GetAlphamaps(0, 0, td.alphamapWidth, td.alphamapHeight); int ar = td.alphamapWidth;
                 var rnd = new System.Random(tx * 31 + tz);
                 for (int r = 0; r < R; r++)
@@ -276,7 +283,11 @@ namespace Magistrala.EditorTools
                         layers[2][r, c] = rnd.NextDouble() < (grassW * .06 + rockW * .05) * (n + .3) ? 1 : 0;
                         total += layers[0][r, c] + layers[1][r, c] + layers[2][r, c];
                     }
-                for (int k = 0; k < 3; k++) td.SetDetailLayer(0, 0, k, layers[k]);
+                // NatureManufacture dry grass / garrigue / wall-base weeds in the probe boxes (NaturePass), our grass thinned there
+                var layerL = new List<int[,]>(layers);
+                NaturePass.Details(tx, tz, R, protoL, layerL, A, ar, models);
+                if (protoL.Count != protos.Length) td.detailPrototypes = protoL.ToArray();
+                for (int k = 0; k < layerL.Count; k++) td.SetDetailLayer(0, 0, k, layerL[k]);
                 t.detailObjectDistance = 140; t.detailObjectDensity = 1f;
                 EditorUtility.SetDirty(td);
             }

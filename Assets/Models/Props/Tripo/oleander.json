@@ -1,0 +1,2 @@
+{ "name": "oleander", "fit": "y", "size": 1.9, "sat": 0.95, "gain": 1.0, "contrast": 1.04, "smooth": 0.12, "bump": 0.6, "twoSided": true,
+  "tex": 1024, "lod0": 6000, "lod1": 1500, "lod2": 400, "cull": 140, "collider": "none", "shadows": true }

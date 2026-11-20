@@ -38,3 +38,7 @@ crashlytics-buildid.txt
 # rebuilt by the importer (menu Magistrala/Build world) — large
 /Assets/Generated/
 /Assets/Generated.meta
+
+# NatureManufacture Coast & Dunes (Unity Asset Store, Standard EULA): never commit the package files; unpack it locally (docs/priroda.md)
+/Assets/NatureManufacture Assets/
+/Assets/NatureManufacture Assets.meta
