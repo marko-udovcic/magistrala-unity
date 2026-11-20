@@ -1156,6 +1156,7 @@ namespace Magistrala.EditorTools
             log.Add(WriteCover());
             log.Add(ClearDetails());
             log.Add(ClearTrees());
+            log.Add(RivaBuilder.Build()); // (the riva: on the streets' colliders and their carved ground)
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             log.Add($"{sw.ElapsedMilliseconds / 1000.0:F1} s");
             var s2 = string.Join("\n", log); Debug.Log("[Magistrala] " + s2); return s2;

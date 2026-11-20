@@ -538,13 +538,28 @@ namespace Magistrala.EditorTools
                         float h = (float)Tiles.Height(gx, gz);
                         int proto = TreeProtos.Species((int)f[3], gx, h, gz, f[4], out float s);
                         if (proto < 0 || proto >= protos.Count) continue;
-                        if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5) || StreetsBuilder.Covered(gx, gz, 1.5)) continue;
+                        if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5) || StreetsBuilder.Covered(gx, gz, 1.5) || RivaBuilder.NoTree(gx, gz)) continue;
                         var q = WorldData.ModelTerrain(models, gx, gz, 2, h); if (q.HasValue) h = (float)q.Value;
                         if (h < .4f) continue;
                         var u = W.U(gx, h - .08, gz);
                         foreach (var v in new[] { u.x, u.y, u.z, (float)(rnd.NextDouble() * 360), s, proto }) rec.AddRange(BitConverter.GetBytes(v));
                         total++;
                     }
+                    // the riva's trees (RivaBuilder: photo crowns, the row along the kerb) on the paving / ground of this tile
+                    int nr = 0;
+                    foreach (var rt in RivaBuilder.Trees())
+                    {
+                        if (Math.Floor(rt.x / 1024) != tx || Math.Floor(rt.z / 1024) != tz) continue;
+                        int proto = TreeProtos.Species(rt.kind, rt.x, 0, rt.z, rt.scale, out float s);
+                        if (proto < 0 || proto >= protos.Count || WorldData.FootDist(models, rt.x, rt.z) < 3) continue;
+                        float h = RivaBuilder.SurfaceY(rt.x, rt.z);
+                        if (float.IsNaN(h)) { h = (float)Tiles.Height(rt.x, rt.z); if (StreetsBuilder.Covered(rt.x, rt.z, 0)) continue; }
+                        if (h < .4f) continue;
+                        var u = W.U(rt.x, h - .08, rt.z);
+                        foreach (var v in new[] { u.x, u.y, u.z, (float)(rnd.NextDouble() * 360), s, proto }) rec.AddRange(BitConverter.GetBytes(v));
+                        total++; nr++;
+                    }
+                    if (nr > 0) Debug.Log($"[Magistrala] riva trees {tx},{tz}: {nr}");
                 }
             }
             File.WriteAllBytes(GEN + "/trees.bytes", rec.ToArray()); AssetDatabase.ImportAsset(GEN + "/trees.bytes");

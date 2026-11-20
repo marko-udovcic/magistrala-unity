@@ -24,6 +24,7 @@ namespace Magistrala
     ///   -tpxz gx,gz,yaw[;gx,gz,yaw..]  instead of -tp: put the truck at game (x, z) heading yaw° (0 = north, 90 = east), every 12 s
     ///   -near M / -far M  camera clip planes (after TruckChaseCamera.Awake)
     ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
+    ///   -appath gx,gz;gx,gz;..  the autopilot drives this path from its first point ([gpu] truck y every second; -apkmh K cruise)
     ///   -dron       start in drone mode (DroneCamera; F toggles in game)   -dronlet S  the drone flies forward at S × speed (tests / clips)  -dronh H  start H m above the truck
     public class GpuSwitches : MonoBehaviour
     {
@@ -176,7 +177,7 @@ namespace Magistrala
             if (TryF("-capfps", out var cf)) { Time.captureFramerate = (int)cf; sb.Append($" capfps {cf}"); }
             if (Arg("-shots") is string sl) shots = System.Array.ConvertAll(sl.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture));
             if (Arg("-tp") is string tps) StartCoroutine(Tp(System.Array.ConvertAll(tps.Split(','), x => float.Parse(x, System.Globalization.CultureInfo.InvariantCulture))));
-            else if (Arg("-cor") != null || Arg("-tpxz") != null) StartCoroutine(Tp(new float[0]));
+            else if (Arg("-cor") != null || Arg("-tpxz") != null || Arg("-appath") != null) StartCoroutine(Tp(new float[0]));
             Debug.Log(sb.ToString());
         }
 
@@ -195,6 +196,29 @@ namespace Magistrala
                     Debug.Log($"[gpu] autopilot on corridor {ci} {c.name}, {pts.Length} samples");
                 }
             }
+            // -appath gx,gz;gx,gz;.. [-apkmh K]: the autopilot drives this path (game x / z, heights from the ground) from its first point
+            if (ap && Arg("-appath") is string app)
+            {
+                var pts = new System.Collections.Generic.List<Vector3>();
+                foreach (var t in app.Split(';'))
+                {
+                    var v = System.Array.ConvertAll(t.Split(','), q => float.Parse(q, System.Globalization.CultureInfo.InvariantCulture));
+                    var u = new Vector3(v[0] + 4200, 300, -(v[1] + 5300));
+                    if (Physics.Raycast(u, Vector3.down, out var hit, 600, ~0, QueryTriggerInteraction.Ignore)) u.y = hit.point.y; else u.y = 0;
+                    pts.Add(u);
+                }
+                if (pts.Count >= 2)
+                {
+                    var dense = new System.Collections.Generic.List<Vector3>();
+                    for (int i = 0; i + 1 < pts.Count; i++) { int n = Mathf.Max(1, Mathf.CeilToInt(Vector3.Distance(pts[i], pts[i + 1]) / 2)); for (int k = 0; k < n; k++) dense.Add(Vector3.Lerp(pts[i], pts[i + 1], k / (float)n)); }
+                    dense.Add(pts[pts.Count - 1]);
+                    var tr = FindFirstObjectByType<TruckController>(); var rb = tr ? tr.GetComponent<Rigidbody>() : null;
+                    if (tr) { var d = dense[1] - dense[0]; d.y = 0; var p0 = dense[0] + Vector3.up * 1.1f; tr.transform.SetPositionAndRotation(p0, Quaternion.LookRotation(d)); if (rb) { rb.position = p0; rb.rotation = tr.transform.rotation; rb.linearVelocity = Vector3.zero; } }
+                    ap.UsePath(dense.ToArray()); if (TryF("-apkmh", out var kmh)) ap.cruiseKmh = kmh; ap.drive = true;
+                    Debug.Log($"[gpu] appath {pts.Count} points, {dense.Count} samples");
+                    StartCoroutine(TrackY(tr));
+                }
+            }
             if (Arg("-tpxz") is string xz)
                 foreach (var t in xz.Split(';'))
                 {
@@ -211,6 +235,17 @@ namespace Magistrala
                     yield return new WaitForSeconds(12f);
                 }
             foreach (var x in gx) { if (ap) { ap.Teleport(x); Debug.Log($"[gpu] tp {x} at {Time.realtimeSinceStartup:F0}s"); } yield return new WaitForSeconds(12f); }
+        }
+
+        /// -appath: the truck's position every second (falls through the ground: [gpu] FALL)
+        System.Collections.IEnumerator TrackY(TruckController tr)
+        {
+            for (int i = 0; i < 90 && tr; i++)
+            {
+                yield return new WaitForSeconds(1f);
+                var p = tr.transform.position; bool ground = Physics.Raycast(p + Vector3.up * 3, Vector3.down, out var h, 40, ~0, QueryTriggerInteraction.Ignore);
+                Debug.Log($"[gpu] truck t={i + 1} x={p.x - 4200:F1} z={-p.z - 5300:F1} y={p.y:F2} v={tr.SpeedKmh:F0}" + (p.y < -1.5f ? " FALL" : ""));
+            }
         }
 
         void LateUpdate()

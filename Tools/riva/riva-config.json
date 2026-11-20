@@ -1,0 +1,25 @@
+{
+  "note": "Rive Kaštela (Tools/riva/riva_build.py): zone = where the photo-derived riva is built (game x0, z0, x1, z1); basins = sheltered harbour water forced to water (moored boats are not land); works = harbour works missing from coast.json (line + width, game x/z); parking = car parks digitised on the DGU DOF LiDAR 2022/23 mosaic (t_TX_TZ.png, game x/z), rows = bay rows (a -> b along the kerb, bays to the side 'side' (+1 = left of a->b in the game x/z plane), 2.5 m wide, 5 m deep)",
+  "zones": [
+    { "id": "novi-stari", "box": [-8760, -4720, -7610, -4290] },
+    { "id": "luksic-zapad", "box": [-6420, -4790, -6144, -4620] }
+  ],
+  "basins": [
+    { "id": "marina-stari", "pts": [[-7773.8, -4592.4], [-7687.4, -4621.2], [-7670.6, -4588.8], [-7680.2, -4533.6], [-7749.8, -4508.4], [-7812, -4528], [-7818, -4541], [-7766, -4553], [-7768, -4590]] },
+    { "id": "luka-novi", "pts": [[-8316, -4388.5], [-8180, -4390.5], [-8180, -4352], [-8192, -4350], [-8262, -4319], [-8316, -4321]] }
+  ],
+  "works": [
+    { "id": "novi-lukobran", "kind": "breakwater", "line": [[-8178, -4353], [-8192, -4347], [-8264, -4313.5]], "w": 6.5 }
+  ],
+  "parking": [
+    { "id": "stari-1836-3", "note": "javno parkiralište, k.č. 1836/3 k.o. Kaštel Stari (Grad Kaštela), uz Ulicu Grgura Ninskog",
+      "pts": [[-7953.0, -4665.0], [-7918.0, -4665.0], [-7918.0, -4622.5], [-7928.5, -4621.0], [-7929.5, -4600.5], [-7953.0, -4600.5]],
+      "rows": [
+        { "a": [-7953.0, -4663.0], "b": [-7953.0, -4603.0], "side": -1 },
+        { "a": [-7936.5, -4660.0], "b": [-7936.5, -4627.0], "side": 1 },
+        { "a": [-7936.5, -4660.0], "b": [-7936.5, -4627.0], "side": -1 },
+        { "a": [-7918.0, -4663.0], "b": [-7918.0, -4625.0], "side": 1 }
+      ] }
+  ],
+  "landmarks": { "konjanik": [-7955.0, -4564.5] }
+}

@@ -23,7 +23,7 @@ namespace Magistrala.EditorTools
 {
     public static class OrthoGround
     {
-        public static readonly (int tx, int tz)[] TILES = { (-8, -6), (-7, -6), (-6, -6) };
+        public static readonly (int tx, int tz)[] TILES = { (-8, -6), (-7, -6), (-6, -6), (-9, -5), (-8, -5), (-7, -5) };
         public static string Source = "lidar"; // Tools/dof/dof_mosaic.py --src (lidar = DOF LiDAR 2022./23., dof2526 = DOF 2025./26.)
         static string MOSAIC => W.BD + $"/tools/world/dgu/cache/dof/mosaic-{Source}/";
         const string OUT = WorldBuilder.GEN + "/Terrain/Macro";

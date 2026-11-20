@@ -320,7 +320,10 @@ namespace Magistrala.EditorTools
         static void Landmark(string prop, double lat, double lon, float yaw, string what)
         {
             if (!info.TryGetValue(prop, out var inf)) return;
-            var g2 = GameFromLatLon(lat, lon); var u = W.U(g2.x, 0, g2.y);
+            var g2 = GameFromLatLon(lat, lon);
+            // (the riva's survey of the spot on the orthophoto, when it has one: the horseman's plinth on the little mole at the sea end of Grgura Ninskog)
+            if (RivaBuilder.Landmark(prop) is Vector2 lm) g2 = lm;
+            var u = W.U(g2.x, 0, g2.y);
             // the nearest spot within 12 m where its base stands on land, off the road and out of buildings (the OSM point may be in
             // our sea where the coast differs)
             float hx = prop == "konjanik" ? 1.5f : .9f, hz = hx;
