@@ -34,6 +34,8 @@ namespace Magistrala.Game
         public int a, b; public bool oneway, closed;
         public float length;
         public string name;
+        /// road number shown with the name (GameDataBuilder.RoadRef): "D8", "Ž6137"; "" = none (local L roads are left out)
+        public string road = "";
         /// points p0 .. p0 + pn - 1 in GameWorld.pts, in travel order a → b
         public int p0, pn;
         public byte lanes;
@@ -49,12 +51,24 @@ namespace Magistrala.Game
         public float[] dist;
         public string source;
         public GTour[] tours = new GTour[0];
+        /// place under every 50 m cell (GameDataBuilder.Places.cs, OSM settlement boundaries): placeGrid[j * placeW + i] indexes
+        /// placeNames (0 = none, e.g. the open sea); cell (0, 0) starts at Unity (placeOrigin.x, placeOrigin.y) = (x, z)
+        public string[] placeNames = new string[0];
+        public byte[] placeGrid = new byte[0];
+        public Vector2 placeOrigin; public float placeCell = 50; public int placeW, placeH;
 
         public const string ResourcePath = "MagistralaGame";
 
         public GStop Stop(string id) => Array.Find(stops, s => s.id == id);
         public int StopIndex(string id) => Array.FindIndex(stops, s => s.id == id);
         public GTour Tour(string id) => Array.Find(tours, t => t.id == id);
+        public string PlaceAt(Vector3 u)
+        {
+            if (placeGrid == null || placeGrid.Length == 0) return "";
+            int i = Mathf.FloorToInt((u.x - placeOrigin.x) / placeCell), j = Mathf.FloorToInt((u.z - placeOrigin.y) / placeCell);
+            if (i < 0 || j < 0 || i >= placeW || j >= placeH) return "";
+            return placeNames[placeGrid[j * placeW + i]];
+        }
         public float RoadMetres(string from, string to)
         {
             int i = StopIndex(from), j = StopIndex(to);

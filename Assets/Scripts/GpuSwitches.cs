@@ -24,6 +24,7 @@ namespace Magistrala
     ///   -tpxz gx,gz,yaw[;gx,gz,yaw..]  instead of -tp: put the truck at game (x, z) heading yaw° (0 = north, 90 = east), every 12 s
     ///   -near M / -far M  camera clip planes (after TruckChaseCamera.Awake)
     ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
+    ///   -dron       start in drone mode (DroneCamera; F toggles in game)   -dronlet S  the drone flies forward at S × speed (tests / clips)  -dronh H  start H m above the truck
     public class GpuSwitches : MonoBehaviour
     {
         /// -nohud: no HUD panels, minimap or phone (clean video for marketing); -capfps N: fixed game time per frame (Time.captureFramerate) so -burst frames make a smooth N fps video

@@ -342,7 +342,7 @@ namespace Magistrala.Game
                         char lk = Current.Leg?.K ?? 'd';
                         prompt = lk == 'u' ? "E – Utovar" : lk == 'r' ? "E – Predaj prazne gajbe" : bayReversed ? "E – Istovari dizalicom (unazad +10 %)" : "E – Istovari dizalicom";
                         help.Add(lk == 'u' ? "E utovar" : lk == 'r' ? "E predaj" : "E istovar");
-                        if ((kb != null && kb.eKey.wasPressedThisFrame) || auto) StartLeg();
+                        if ((kb != null && kb.eKey.wasPressedThisFrame && !DroneCamera.Active) || auto) StartLeg(); // (E is "up" for the drone)
                     }
                     else if (inBay) prompt = "Stani za istovar";
                     else if (d < 35) prompt = "Parkiraj u označeno mjesto za istovar";
@@ -362,7 +362,7 @@ namespace Magistrala.Game
                     int off = Unload && !handCrates ? Unload.RowsOff : 0, rows = Unload && !handCrates ? Unload.SeqRows : 0;
                     prompt = handCrates ? $"Gajbe rukom… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : rows > 0 ? $"Istovar dizalicom… paleta {Mathf.Min(rows, off + 1)} / {rows} · {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : $"Istovar dizalicom… {Mathf.CeilToInt(phaseT)} s";
                     help.Add("W / S prekini istovar · J otkaži turu");
-                    bool drive = kb != null && (kb.wKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame);
+                    bool drive = kb != null && !DroneCamera.Active && (kb.wKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame);
                     // test: -jobabort s  the first unload is broken off after s seconds (as if the player drove off), the autopilot restarts it
                     if (abortAt > 0 && Unload && Unload.T >= abortAt) { abortAt = -1; drive = true; }
                     if (drive || Truck.SpeedKmh > 3)
