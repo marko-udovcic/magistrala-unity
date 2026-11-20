@@ -28,7 +28,7 @@ namespace Magistrala.EditorTools
         public void OnPreprocessBuild(BuildReport report) { if (!File.Exists(OutPath)) Build(); }
 
         class N { public long id; public double x, y, z; }
-        class E { public long id, a, b; public bool oneway; public double length; public string name, rf; public List<double[]> pts; public int lanes; public string spur; }
+        class E { public long id, a, b; public bool oneway; public double length; public string name, rf; public List<double[]> pts; public int lanes; public string spur; public bool? closedOwn; }
 
         [MenuItem("Magistrala/Igra: podaci (stajališta, graf cesta)")]
         public static void Build()
@@ -60,6 +60,8 @@ namespace Magistrala.EditorTools
             var closed = new HashSet<long>();
             var cf = W.REGION + "road-closures.json";
             if (File.Exists(cf)) foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(cf)))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
+            // (graphIndex.ts: an edge's own `closed` wins over the file — the models' closed arms, mag-11-20 c09's D8 to Trogir)
+            foreach (var e in edges.Values) if (e.closedOwn == true) closed.Add(e.id); else if (e.closedOwn == false) closed.Remove(e.id);
 
             // ---- streets outside the models (OutsideStreets, the same network StreetsBuilder draws): new nodes / edges, graph edges
             // split where a new street meets them (the split-off part keeps the closure of its edge)
@@ -168,6 +170,7 @@ namespace Magistrala.EditorTools
             if (o.ContainsKey("ref")) e.rf = o["ref"] as string;
             if (o.ContainsKey("lanes")) e.lanes = (int)MiniJson.D(o["lanes"]);
             if (o.ContainsKey("spur")) e.spur = o["spur"] as string;
+            if (o.ContainsKey("closed")) e.closedOwn = o["closed"] is bool cl ? cl : (bool?)null;
             if (o.ContainsKey("points"))
             {
                 e.pts = new List<double[]>();

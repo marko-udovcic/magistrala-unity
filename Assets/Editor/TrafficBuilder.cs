@@ -511,8 +511,19 @@ namespace Magistrala.EditorTools
             var roads = Roads(models);
             var m01 = models.Find(m => m.key == "krizanje-01");
             Piece Seed(int idx) => roads.Find(r => r.p == m01.roads[idx].p);
-            var east = Corridor("D8 istok (Split)", Chain(roads, Seed(0)), models);
-            var west = Corridor("D8 zapad (Trogir)", Chain(roads, Seed(2)), models);
+            var eastC = Chain(roads, Seed(0)); var westC = Chain(roads, Seed(2));
+            // mag-11-20: the D8 runs unbroken from the Štafilić interchange 41 and is closed towards Trogir in tile c09 (barriers a few metres
+            // inside its west edge, model x −48.6): both corridors stop 10 m short of the closure (east starts there, west ends there)
+            var c09 = models.Find(m => m.key == "dionica-c09");
+            if (c09 != null)
+            {
+                double cut = c09.x - 38 * (c09.lin?[0] ?? 1);
+                int k0 = eastC.FindIndex(q => q.x >= cut); if (k0 > 0) eastC = eastC.GetRange(k0, eastC.Count - k0);
+                int k1 = westC.FindLastIndex(q => q.x >= cut); if (k1 >= 0 && k1 < westC.Count - 1) westC = westC.GetRange(0, k1 + 1);
+                Debug.Log($"[traffic] D8 cut at the c09 closure (x {cut:F0}): east from {eastC[0].x:F0}, west to {westC[westC.Count - 1].x:F0}");
+            }
+            var east = Corridor("D8 istok (Split)", eastC, models);
+            var west = Corridor("D8 zapad (Trogir)", westC, models);
             var cors = new List<TrafficCorridor> { east, west };
             // the old road Štafilić → Lukšić (mag-11-19: s01 … s13, junctions 19 / 20 / 21): two-way, one corridor per direction on the same
             // chained axis, cut 4 m before the works closure in s13 (tile x 89, README_DIONICE.md: the road is not built beyond it)

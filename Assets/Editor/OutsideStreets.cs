@@ -27,7 +27,7 @@ namespace Magistrala.EditorTools
 {
     public static class OutsideStreets
     {
-        public const string SRC = "/Users/macair/Documents/mag-11-19/ceste_izvan_modela.json";
+        public const string SRC = "/Users/macair/Documents/mag-11-20/ceste_izvan_modela.json";
         public const long NODE0 = 9_000_000, EDGE0 = 9_200_000, SPLIT0 = 9_400_000;
 
         // ---- the graph as seen by both builders

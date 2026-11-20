@@ -42,7 +42,7 @@ namespace Magistrala.EditorTools
             public string type = "", rf = "", name = "", spur, verge, profile;
             public double laneW = double.NaN, shoulderW = double.NaN, innerStripW = double.NaN, medianWidth = double.NaN;
             public List<double[]> pts; public List<(string k, double f, double t)> spans = new List<(string, double, double)>();
-            public double[] cum; public Spec sp; public bool closed;
+            public double[] cum; public Spec sp; public bool closed; public bool? closedOwn; // closedOwn: the edge's own `closed` (model stubs, road editor)
             public double L => cum[cum.Length - 1];
             // streets outside the models (OutsideStreets): end trims at a through road that was not split, the models at the ends
             public bool outside, noPaint; public double trimA, trimB, mhwA = double.NaN, mhwB = double.NaN; public ModelJ mA, mB; public long splitOf = -1;
@@ -107,6 +107,7 @@ namespace Magistrala.EditorTools
             if (o.ContainsKey("spur")) e.spur = o["spur"] as string;
             if (o.ContainsKey("verge")) e.verge = o["verge"] as string;
             if (o.ContainsKey("roadProfile")) e.profile = o["roadProfile"] as string;
+            if (o.ContainsKey("closed")) e.closedOwn = o["closed"] is bool cl ? cl : (bool?)null;
             e.laneW = Num(o, "laneW", e.laneW); e.shoulderW = Num(o, "shoulderW", e.shoulderW); e.innerStripW = Num(o, "innerStripW", e.innerStripW); e.medianWidth = Num(o, "medianWidth", e.medianWidth);
             if (o.ContainsKey("spans"))
             {
@@ -175,7 +176,9 @@ namespace Magistrala.EditorTools
 
             nodes = ns.Values.ToList(); var ids = new HashSet<long>(ns.Keys);
             edges = es.Values.Where(e => e.pts != null && e.pts.Count >= 2 && ids.Contains(e.a) && ids.Contains(e.b)).ToList();
-            foreach (var e in edges) e.closed = closed.Contains(e.id);
+            // (graphIndex.ts setRoadClosures: an edge's own `closed` wins over the closures file)
+            foreach (var e in edges) e.closed = e.closedOwn ?? closed.Contains(e.id);
+            fileClosed = closed;
             Index();
             return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids";
         }
@@ -968,7 +971,7 @@ namespace Magistrala.EditorTools
         static List<(double x, double y, double z, double heading, double neg, double pos)> barriers;
         static void FindClosures()
         {
-            barriers = new List<(double, double, double, double, double, double)>(); barriersDropped = 0;
+            barriers = new List<(double, double, double, double, double, double)>(); barriersDropped = 0; ownClosures = 0;
             // (a model's paved end / closed arm that an outside street now continues: no barrier — mag-11-19 tiles' side stubs that our
             // graph lacks but ceste_izvan_modela.json has)
             var outEnds = edges.Where(e => e.outside).SelectMany(e => new[] { e.pts[0], e.pts[e.pts.Count - 1] }).ToList();
@@ -988,12 +991,29 @@ namespace Magistrala.EditorTools
                 var p = PointAt(ei, MiniJson.D(c["alongEdgeM"])); double ext = edges[ei].sp.halfWidth + .5;
                 barriers.Add((p.x, p.y, p.z, MiniJson.D(c["heading"]), ext, ext));
             }
+            // closures/Roadworks2.tsx: barriers at both ends (3 m in) of every edge closed by its own `closed` — inside a model's square only
+            // at the dead end of the model's closed arm (mag-11-20: c09's D8 to Trogir, 41's three arms, the tiles' side stubs; the GLB's own
+            // `barriers` are not drawn)
+            for (int ei = 0; ei < edges.Count; ei++)
+            {
+                var e = edges[ei]; if (e.closedOwn != true || fileClosed.Contains(e.id) || e.L < 8) continue;
+                foreach (bool atA in new[] { true, false })
+                {
+                    var p = PointAt(ei, atA ? 3 : e.L - 3); if (!InArea(p.x, p.z)) continue;
+                    var m = ModelOwnerAt(p.x, p.z);
+                    if (m != null && !(m.edges.Contains(e.id) && nodes[nIdx[atA ? e.a : e.b]].kind == "end")) continue;
+                    if (continued(p.x, p.z)) { barriersDropped++; continue; }
+                    double ext = e.sp.halfWidth + .5;
+                    barriers.Add((p.x, p.y, p.z, atA ? Math.Atan2(p.tz, p.tx) : Math.Atan2(-p.tz, -p.tx), ext, ext));
+                    ownClosures++;
+                }
+            }
             foreach (var m in models) foreach (var q in m.paveEnds)
                 if (!InArea(q[0], q[2])) continue;
                 else if (continued(q[0], q[2])) barriersDropped++;
                 else barriers.Add((q[0], q[1], q[2], q[3], q[4] / 2 + .3, q[4] / 2 + .3));
         }
-        static int barriersDropped;
+        static int barriersDropped, ownClosures; static HashSet<long> fileClosed = new HashSet<long>();
         static void BuildBarriers(GameObject root)
         {
             if (barriers.Count == 0) return;
