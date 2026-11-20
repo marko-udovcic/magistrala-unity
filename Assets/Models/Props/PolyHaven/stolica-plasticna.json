@@ -1,0 +1,1 @@
+{"name": "stolica-plasticna", "fit": "y", "size": 0.86, "sat": 1, "gain": 1, "contrast": 1, "smooth": 0.35, "tex": 512, "lod0": 1600, "lod1": 600, "lod2": 200, "cull": 60, "collider": "box", "colShrink": 0.85}

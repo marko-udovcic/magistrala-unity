@@ -23,6 +23,9 @@ namespace Magistrala.EditorTools
     public static class TripoPropImporter
     {
         public const string SRC = "Assets/Models/Props/Tripo";
+        /// Poly Haven CC0 models (glTF packed to one-material GLBs, CREDITS.md), imported the same way
+        public const string SRC_PH = "Assets/Models/Props/PolyHaven";
+        public static IEnumerable<string> Sources(string pattern) => Directory.GetFiles(SRC, pattern).Concat(Directory.Exists(SRC_PH) ? Directory.GetFiles(SRC_PH, pattern) : new string[0]);
         public const string OUT = "Assets/Generated/Props/Tripo";
         /// field of view the LOD distances are worked out for (the chase camera)
         const float FOV = 60;
@@ -53,7 +56,7 @@ namespace Magistrala.EditorTools
         public static string ImportAll(string only = null)
         {
             var sb = new System.Text.StringBuilder();
-            foreach (var glb in Directory.GetFiles(SRC, "*.glb").OrderBy(x => x))
+            foreach (var glb in Sources("*.glb").OrderBy(x => x))
             {
                 if (only != null && Path.GetFileNameWithoutExtension(glb) != only) continue;
                 var cfgPath = Path.ChangeExtension(glb, ".json");
@@ -139,6 +142,8 @@ namespace Magistrala.EditorTools
             var m0 = src <= cfg.lod0 ? Plain(raw, cfg.name + "_lod0") : Decimate(raw, cfg.lod0, cfg.name + "_lod0", .0005f);
             var m1 = Decimate(raw, Mathf.Min(cfg.lod1, Tris(m0) / 2), cfg.name + "_lod1", .002f * Mathf.Max(1, size.magnitude));
             var m2 = Decimate(raw, Mathf.Min(cfg.lod2, Tris(m1) / 2), cfg.name + "_lod2", .008f * Mathf.Max(1, size.magnitude));
+            // the simplifier can stall on dense scans (Poly Haven's pot: 4.8k tris for a 150 target): never coarser level heavier
+            if (Tris(m2) > Tris(m1)) { UnityEngine.Object.DestroyImmediate(m2); m2 = UnityEngine.Object.Instantiate(m1); m2.name = cfg.name + "_lod2"; }
             m0 = Save(m0, $"{dir}/{cfg.name}_lod0.asset"); m1 = Save(m1, $"{dir}/{cfg.name}_lod1.asset"); m2 = Save(m2, $"{dir}/{cfg.name}_lod2.asset");
             Mesh ped = null; Material pedMat = null;
             float top = 0;

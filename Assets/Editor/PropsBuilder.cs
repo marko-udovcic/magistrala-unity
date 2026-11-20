@@ -89,7 +89,7 @@ namespace Magistrala.EditorTools
             var sw = System.Diagnostics.Stopwatch.StartNew();
             log = new List<string>(); perProp = new Dictionary<string, int>(); placed = new List<(Vector2, Vector2, float)>(); nPlaced = nRejected = 0;
             info = new Dictionary<string, (Vector3, GameObject)>();
-            foreach (var f in Directory.GetFiles(TripoPropImporter.SRC, "*.json"))
+            foreach (var f in TripoPropImporter.Sources("*.json"))
             {
                 var n = Path.GetFileNameWithoutExtension(f); var pf = TripoPropImporter.Prefab(n); if (!pf) continue;
                 var b = new Bounds(); bool first = true;
@@ -128,6 +128,8 @@ namespace Magistrala.EditorTools
                 Wall(s, lay, s.name, 32, false);
             }
             Benches();
+            ProbeYards();
+            Terrace();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             int rend = root.GetComponentsInChildren<MeshRenderer>(true).Length, lg = root.GetComponentsInChildren<LODGroup>(true).Length, cols = root.GetComponentsInChildren<Collider>(true).Length;
             log.Insert(0, $"[rekviziti] {nPlaced} props placed ({lg} LOD groups, {rend} renderers, {cols} colliders), {nRejected} rejected; " +
@@ -361,6 +363,158 @@ namespace Magistrala.EditorTools
                 }
             }
             log.Add($"  benzinske: {n} aparata na otocima nadstrešnica paketa");
+        }
+
+        // ------------------------------------------------------------------ probe (Kaštel Lukšić): flower pots, a café terrace
+        // Poly Haven potted plant: the pot and its leaves are two prefabs (two textures); the leaves sit on the pot at this offset
+        // (prefab space, both scaled 1.5 x by their configs)
+        static readonly Vector3 LeavesOnPot = new Vector3(.07f, .3135f, -.148f);
+
+        static bool PottedPlant(Transform g, Vector3 p, float yaw)
+        {
+            // under the eaves / beside a yard wall the ray from above hits the house: the ground is the lowest hit, and only the pot's
+            // own volume must be clear of walls
+            float y = LowGround(p.x, p.z); if (float.IsNaN(y) || y < .3f) { nRejected++; return false; }
+            var c2 = new Vector2(p.x, p.z);
+            if (OnRoad(p, .3f)) { nRejected++; return false; }
+            foreach (var q in placed) if (Overlap(c2, new Vector2(.36f, .36f), yaw, q.c, q.h, q.yaw, .05f)) { nRejected++; return false; }
+            foreach (var col in Physics.OverlapBox(new Vector3(p.x, y + .45f, p.z), new Vector3(.34f, .35f, .34f), Quaternion.Euler(0, yaw, 0), ~0, QueryTriggerInteraction.Ignore))
+                if (!Ignored(col) && (HasAncestor(col.transform, "Buildings") || col is BoxCollider)) { nRejected++; return false; }
+            p.y = y;
+            if (!Put(g, "lonac-biljka", p, yaw, 1, false, false)) return false;
+            var pot = g.GetChild(g.childCount - 1);
+            if (info.TryGetValue("lonac-biljka-lisce", out var lv))
+            {
+                var go = (GameObject)PrefabUtility.InstantiatePrefab(lv.pf, g);
+                go.transform.SetPositionAndRotation(pot.position + pot.rotation * LeavesOnPot, pot.rotation); go.name = "lonac-biljka-lisce";
+                nPlaced++; perProp.TryGetValue("lonac-biljka-lisce", out int c); perProp["lonac-biljka-lisce"] = c + 1;
+            }
+            return true;
+        }
+
+        /// pots beside the yard gates (street side) and the front doors of the probe's houses (BuildingsFromTiles -> Yards.SpotsPath)
+        static void ProbeYards()
+        {
+            if (!File.Exists(Yards.SpotsPath)) { log.Add("  proba: nema " + Yards.SpotsPath); return; }
+            var j = MiniJson.O(MiniJson.Parse(File.ReadAllText(Yards.SpotsPath)));
+            var g = Group("proba-dvorista"); int gates = 0, doors = 0;
+            foreach (var o in MiniJson.L(j["gates"]))
+            {
+                var v = MiniJson.L(o); var p = new Vector3((float)MiniJson.D(v[0]), (float)MiniJson.D(v[1]), (float)MiniJson.D(v[2]));
+                var n = new Vector3((float)MiniJson.D(v[3]), 0, (float)MiniJson.D(v[4])).normalized; var t = Vector3.Cross(Vector3.up, n);
+                int h = Hash(p.x.ToString("F1") + p.z.ToString("F1"));
+                foreach (float side in new[] { -1f, 1f })
+                    if ((h >> (side > 0 ? 1 : 2) & 3) != 0 && PottedPlant(g, p + n * .55f + t * side * 2.05f, h % 360)) gates++;
+            }
+            foreach (var o in MiniJson.L(j["doors"]))
+            {
+                var v = MiniJson.L(o); var p = new Vector3((float)MiniJson.D(v[0]), (float)MiniJson.D(v[1]), (float)MiniJson.D(v[2]));
+                var n = new Vector3((float)MiniJson.D(v[3]), 0, (float)MiniJson.D(v[4])).normalized; var t = Vector3.Cross(Vector3.up, n);
+                int h = Hash(p.x.ToString("F1") + p.z.ToString("F1"));
+                if (h % 10 < 4) continue; // 60 % of the doors
+                // a big pot on one side, on 40 % also one on the other, small clay pots on the step
+                float side = (h & 1) == 0 ? -1 : 1;
+                if (PottedPlant(g, p - n * .35f + t * side * 1.3f, h % 360)) doors++;
+                if (h % 5 < 2 && PottedPlant(g, p - n * .35f - t * side * 1.3f, (h / 7) % 360)) doors++;
+                // a small clay pot on the step (the first hit from 1.6 m above the threshold: the step's top)
+                var sp = p - n * .62f + t * side * .42f;
+                if (h % 3 == 0 && Physics.Raycast(new Vector3(sp.x, p.y + 1.6f, sp.z), Vector3.down, out var hs, 3, ~0, QueryTriggerInteraction.Ignore) && !Ignored(hs.collider))
+                { sp.y = hs.point.y; if (Put(g, "teglica", sp, h % 90, 1, false, false)) doors++; }
+            }
+            log.Add($"  proba: {gates} lonaca uz kapije, {doors} uz ulazna vrata");
+        }
+
+        /// the lowest ground under a point (under a canopy, below the roof): the last non-prop hit from above
+        static float LowGround(float x, float z)
+        {
+            var hits = Physics.RaycastAll(new Vector3(x, 400, z), Vector3.down, 900, ~0, QueryTriggerInteraction.Ignore);
+            float y = float.NaN, best = -1;
+            foreach (var h in hits) if (!Ignored(h.collider) && h.distance > best) { best = h.distance; y = h.point.y; }
+            return y;
+        }
+
+        /// the restaurant by the warehouse (package d19:bld:8, its tiled terrace roof d19:canopy:10): 6 tables with monobloc chairs
+        /// under the roof, 2 with umbrellas in front of it
+        static void Terrace()
+        {
+            if (!info.ContainsKey("stol-kafic") || !info.ContainsKey("stolica-plasticna")) return;
+            const double cx = -6715.56, cz = -5620.79, a = 1.5509967835187874; // the canopy's centre and axis (model-buildings.json)
+            Vector3 T = new Vector3((float)Math.Cos(a), 0, (float)Math.Sin(a)), N = new Vector3(-T.z, 0, T.x);
+            Vector3 At(float u, float v) { var q = new Vector3((float)cx, 0, (float)cz) + N * u + T * v; return W.U(q.x, 0, q.z); }
+            var g = Group("proba-terasa-restoran"); var umb = Umbrella(); int n = 0;
+            float yawT = Quaternion.LookRotation(At(0, 1) - At(0, 0)).eulerAngles.y;
+            void Table(Vector3 c, bool umbrella, int seed)
+            {
+                float y = LowGround(c.x, c.z); if (float.IsNaN(y)) return;
+                c.y = y; Put(g, "stol-kafic", c, yawT + seed * 17, 1, false, false); n++;
+                var across = Quaternion.Euler(0, yawT, 0) * Vector3.right;
+                for (int k = 0; k < 4; k++)
+                {
+                    if (k >= 2 && !umbrella && seed % 2 == 0) break; // some tables only 2 chairs
+                    var dir = Quaternion.Euler(0, k * 90 + (seed * 7 % 11) - 5, 0) * across;
+                    var p = c + dir * .72f; p.y = LowGround(p.x, p.z); if (float.IsNaN(p.y)) continue;
+                    float yaw = Quaternion.LookRotation(-dir).eulerAngles.y + (seed * 13 + k * 29) % 21 - 10;
+                    Put(g, "stolica-plasticna", p, yaw, 1, false, false); n++;
+                }
+                if (umbrella && umb)
+                {
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(umb, g); go.transform.position = c; go.name = "suncobran"; n++;
+                }
+            }
+            int sd = 0;
+            foreach (float u in new[] { -3.1f, 0f, 3.1f }) foreach (float v in new[] { -1.3f, 1.3f }) Table(At(u, v), false, sd++);
+            // in front: the side of the roof that is free (not the restaurant, not the road)
+            foreach (float v in new[] { 4.9f, -4.9f })
+            {
+                var p0 = At(-2.2f, v); var p1 = At(2.2f, v);
+                if (!Free(p0, 1.4f, 1.4f, Quaternion.identity, out _, out _, true) || !Free(p1, 1.4f, 1.4f, Quaternion.identity, out _, out _, true)) continue;
+                Table(p0, true, 11); Table(p1, true, 12); break;
+            }
+            log.Add($"  proba: terasa restorana {n} komada");
+        }
+
+        /// a café umbrella (procedural: aluminium pole, 8-panel cream canvas, valance), 2.9 m across
+        static GameObject Umbrella()
+        {
+            const string dir = "Assets/Generated/Props/suncobran", pfPath = dir + "/suncobran.prefab";
+            if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets/Generated/Props", "suncobran");
+            var V = new List<Vector3>(); var Nn = new List<Vector3>(); var I0 = new List<int>(); var I1 = new List<int>();
+            void Tri(List<int> I, Vector3 a, Vector3 b, Vector3 c)
+            {
+                var n = Vector3.Cross(b - a, c - a).normalized; int i = V.Count;
+                V.Add(a); V.Add(b); V.Add(c); Nn.Add(n); Nn.Add(n); Nn.Add(n); I.Add(i); I.Add(i + 1); I.Add(i + 2);
+            }
+            const int S = 8; const float R = 1.45f, Y = 2.2f, Apex = 2.62f;
+            for (int k = 0; k < S; k++)
+            {
+                float a0 = k * Mathf.PI * 2 / S, a1 = (k + 1) * Mathf.PI * 2 / S, am = (a0 + a1) / 2;
+                Vector3 e0 = new Vector3(Mathf.Cos(a0) * R, Y, Mathf.Sin(a0) * R), e1 = new Vector3(Mathf.Cos(a1) * R, Y, Mathf.Sin(a1) * R);
+                // each panel sags a little between the ribs
+                Vector3 mid = new Vector3(Mathf.Cos(am) * R * .55f, (Y + Apex) / 2 - .05f, Mathf.Sin(am) * R * .55f), top = new Vector3(0, Apex, 0);
+                Vector3 m0 = Vector3.Lerp(top, e0, .55f), m1 = Vector3.Lerp(top, e1, .55f);
+                Tri(I0, top, m1, m0); Tri(I0, m0, m1, e0); Tri(I0, e0, m1, e1); Tri(I0, top, m0, m1); Tri(I0, m0, e0, m1); Tri(I0, e0, e1, m1);
+                // valance
+                Vector3 d = Vector3.down * .16f;
+                Tri(I0, e0, e1, e1 + d); Tri(I0, e0, e1 + d, e0 + d); Tri(I0, e0, e1 + d, e1); Tri(I0, e0, e0 + d, e1 + d);
+                // pole (8 sides)
+                Vector3 p0 = new Vector3(Mathf.Cos(a0) * .025f, 0, Mathf.Sin(a0) * .025f), p1 = new Vector3(Mathf.Cos(a1) * .025f, 0, Mathf.Sin(a1) * .025f);
+                Tri(I1, p0, p1 + Vector3.up * Apex, p1); Tri(I1, p0, p0 + Vector3.up * Apex, p1 + Vector3.up * Apex); Tri(I1, p0, p1, p1 + Vector3.up * Apex); Tri(I1, p0, p1 + Vector3.up * Apex, p0 + Vector3.up * Apex); // both sides (back-face culled)
+            }
+            var mesh = new Mesh { name = "suncobran" }; mesh.SetVertices(V); mesh.SetNormals(Nn); mesh.subMeshCount = 2; mesh.SetTriangles(I0, 0); mesh.SetTriangles(I1, 1); mesh.RecalculateBounds();
+            var old = AssetDatabase.LoadAssetAtPath<Mesh>(dir + "/suncobran.asset");
+            if (old) { old.Clear(); EditorUtility.CopySerialized(mesh, old); UnityEngine.Object.DestroyImmediate(mesh); mesh = old; } else AssetDatabase.CreateAsset(mesh, dir + "/suncobran.asset");
+            Material M(string name, Color c, float sm, float met)
+            {
+                var path = dir + "/" + name + ".mat"; var m = AssetDatabase.LoadAssetAtPath<Material>(path);
+                if (!m) { m = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(m, path); }
+                m.SetColor("_BaseColor", c); m.SetFloat("_Smoothness", sm); m.SetFloat("_Metallic", met); m.SetFloat("_Cull", 2); m.enableInstancing = true; EditorUtility.SetDirty(m); return m;
+            }
+            var canvas = M("platno", new Color(.78f, .74f, .64f), .08f, 0); var metal = M("aluminij", new Color(.62f, .63f, .64f), .5f, .8f);
+            var go = new GameObject("suncobran");
+            go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterials = new[] { canvas, metal };
+            var lg = go.AddComponent<LODGroup>(); lg.SetLODs(new[] { new LOD(.02f, new Renderer[] { go.GetComponent<MeshRenderer>() }) });
+            var pf = PrefabUtility.SaveAsPrefabAsset(go, pfPath); UnityEngine.Object.DestroyImmediate(go);
+            return pf;
         }
 
         // ------------------------------------------------------------------ riva benches

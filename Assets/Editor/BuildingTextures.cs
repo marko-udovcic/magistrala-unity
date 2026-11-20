@@ -12,18 +12,23 @@ namespace Magistrala.EditorTools
     {
         public const string Folder = "Assets/Textures/Buildings/";
         public const string AlbedoStrip = Folder + "facade_albedo.jpg", NormalStrip = Folder + "facade_normal.jpg", RoomAtlas = Folder + "rooms.png";
-        public const int Layers = 7, Size = 1024;
-        public const int Plaster = 0, Stone = 1, Roof = 2, Brick = 3, Concrete = 4, Louvre = 5, Plain = 6;
+        /// grime masks (ambientCG CC0 leaking decals, 512², linear): r dense rain streaks, g sparse runs, b single drips; 1 = dirty
+        public const string GrimeAtlas = Folder + "grime.png";
+        public const int Layers = 8, Size = 1024;
+        public const int Plaster = 0, Stone = 1, Roof = 2, Brick = 3, Concrete = 4, Louvre = 5, Plain = 6, Rubble = 7;
 
         // source (Poly Haven id) and the sRGB mean the layer is scaled to (null: grey, tinted per building)
-        static readonly (string id, Color? mean, float grey)[] Src =
+        // grey layers keep `contrast` of their detail (plaster 0.8: the trowel marks and blotches read at street level)
+        static readonly (string id, Color? mean, float grey, float contrast)[] Src =
         {
-            ("white_plaster_02", null, .95f),
-            ("white_sandstone_blocks_02", Hex("D9CDB2"), 0),
-            ("clay_roof_tiles", Hex("C8532F"), 0),
-            ("large_red_bricks", Hex("B5573D"), 0),
-            ("concrete_wall_008", null, .88f),
+            ("white_plaster_02", null, .86f, .8f),
+            ("white_sandstone_blocks_02", Hex("CBC2AE"), 0, 1),
+            ("clay_roof_tiles_02", Hex("A9573F"), 0, 1),
+            ("large_red_bricks", Hex("B5573D"), 0, 1),
+            ("concrete_wall_008", null, .8f, .7f),
         };
+        // layer 7 (after the procedural louvre / plain layers): dry-stone yard walls, Dalmatian limestone rubble
+        static readonly (string id, Color? mean, float grey, float contrast) RubbleSrc = ("old_stone_wall", Hex("C9BDA3"), 0, 1);
         static Color Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
 
         /// one-off: build the two strips from srcDir/{id}_diff_1k.jpg and {id}_nor_gl_1k.jpg, plus the room atlas
@@ -33,11 +38,15 @@ namespace Magistrala.EditorTools
             for (int l = 0; l < Layers; l++)
             {
                 Color32[] a, n;
-                if (l < Src.Length)
+                if (l < Src.Length || l == Rubble)
                 {
-                    a = Load(Path.Combine(srcDir, Src[l].id + "_diff_1k.jpg"));
-                    n = Load(Path.Combine(srcDir, Src[l].id + "_nor_gl_1k.jpg"));
-                    Normalise(a, Src[l].mean, Src[l].grey);
+                    var src = l == Rubble ? RubbleSrc : Src[l];
+                    a = Load(Path.Combine(srcDir, src.id + "_diff_1k.jpg"));
+                    n = Load(Path.Combine(srcDir, src.id + "_nor_gl_1k.jpg"));
+                    Normalise(a, src.mean, src.grey, src.contrast);
+                    // the normal strip's blue holds the roughness (z is rebuilt in the shader)
+                    var ro = Load(Path.Combine(srcDir, src.id + "_rough_1k.jpg"));
+                    for (int i = 0; i < n.Length; i++) n[i].b = ro[i].r;
                 }
                 else (a, n) = l == Louvre ? LouvreLayer() : PlainLayer();
                 // flipbook order: the first layer is the TOP row of the strip; Texture2D rows run bottom-up
@@ -51,9 +60,32 @@ namespace Magistrala.EditorTools
             var rooms = Rooms(512);
             var t = new Texture2D(2048, 1024, TextureFormat.RGBA32, false); t.SetPixels32(rooms); t.Apply();
             File.WriteAllBytes(RoomAtlas, t.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(t);
+            Grime(srcDir);
             AssetDatabase.Refresh();
             Configure();
             return "strips written";
+        }
+
+        /// grime atlas from srcDir/Leaking012A|016A|017A_1K-JPG_Color.jpg (white = clean): inverted, levelled, 512²
+        static void Grime(string srcDir)
+        {
+            const int G = 512; var px = new Color32[G * G];
+            string[] ids = { "Leaking012A", "Leaking016A", "Leaking017A" };
+            for (int ch = 0; ch < 3; ch++)
+            {
+                var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                t.LoadImage(File.ReadAllBytes(Path.Combine(srcDir, ids[ch] + "_1K-JPG_Color.jpg")));
+                var src = t.GetPixels32(); int w = t.width; UnityEngine.Object.DestroyImmediate(t);
+                int k = w / G; float max = 0; var v = new float[G * G];
+                for (int y = 0; y < G; y++) for (int x = 0; x < G; x++)
+                {
+                    float sum = 0; for (int j = 0; j < k; j++) for (int i = 0; i < k; i++) { var c = src[(y * k + j) * w + x * k + i]; sum += 1 - (c.r + c.g + c.b) / 765f; }
+                    v[y * G + x] = sum / (k * k); max = Mathf.Max(max, v[y * G + x]);
+                }
+                for (int i = 0; i < v.Length; i++) { byte b = B(Mathf.Pow(v[i] / Mathf.Max(.01f, max), .7f)); if (ch == 0) px[i].r = b; else if (ch == 1) px[i].g = b; else px[i].b = b; px[i].a = 255; }
+            }
+            var o = new Texture2D(G, G, TextureFormat.RGBA32, false); o.SetPixels32(px); o.Apply();
+            File.WriteAllBytes(GrimeAtlas, o.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(o);
         }
 
         static Color32[] Load(string file)
@@ -64,7 +96,7 @@ namespace Magistrala.EditorTools
             var p = t.GetPixels32(); UnityEngine.Object.DestroyImmediate(t); return p;
         }
 
-        static void Normalise(Color32[] p, Color? mean, float grey)
+        static void Normalise(Color32[] p, Color? mean, float grey, float contrast)
         {
             double r = 0, g = 0, b = 0;
             foreach (var c in p) { r += c.r; g += c.g; b += c.b; }
@@ -76,9 +108,9 @@ namespace Magistrala.EditorTools
                     p[i] = new Color32(B(c.r / 255.0 / r * m.r), B(c.g / 255.0 / g * m.g), B(c.b / 255.0 / b * m.b), 255);
                 else
                 {
-                    // grey, the detail kept at 50 % contrast: the tint is the building's colour
+                    // grey, the detail kept at `contrast`: the tint is the building's colour
                     double lum = (.3 * c.r / 255.0 / r + .59 * c.g / 255.0 / g + .11 * c.b / 255.0 / b);
-                    double v = grey * (1 + (lum - 1) * .5);
+                    double v = grey * (1 + (lum - 1) * contrast);
                     p[i] = new Color32(B(v), B(v), B(v), 255);
                 }
             }
@@ -99,14 +131,14 @@ namespace Magistrala.EditorTools
                     v *= .94f + .06f * grain[(x * 7 + (int)(y / (Size / 9f)) * 131) % Size];
                     a[y * Size + x] = new Color32(B(v), B(v), B(v), 255);
                     float ny = s < .12f ? -.6f : s > .9f ? .5f : -.25f;
-                    n[y * Size + x] = new Color32(128, B(ny * .5 + .5), B(Math.Sqrt(1 - ny * ny) * .5 + .5), 255);
+                    n[y * Size + x] = new Color32(128, B(ny * .5 + .5), B(.6), 255); // b: roughness (painted wood)
                 }
             return (a, n);
         }
         static (Color32[], Color32[]) PlainLayer()
         {
             var a = new Color32[Size * Size]; var n = new Color32[Size * Size]; var rnd = new System.Random(9);
-            for (int i = 0; i < a.Length; i++) { byte v = B(.9 + .03 * rnd.NextDouble()); a[i] = new Color32(v, v, v, 255); n[i] = new Color32(128, 128, 255, 255); }
+            for (int i = 0; i < a.Length; i++) { byte v = B(.9 + .03 * rnd.NextDouble()); a[i] = new Color32(v, v, v, 255); n[i] = new Color32(128, 128, B(.5), 255); }
             return (a, n);
         }
 
@@ -185,6 +217,8 @@ namespace Magistrala.EditorTools
             Strip(AlbedoStrip, true); Strip(NormalStrip, false);
             var ri = AssetImporter.GetAtPath(RoomAtlas) as TextureImporter;
             if (ri != null) { ri.sRGBTexture = true; ri.mipmapEnabled = true; ri.wrapMode = TextureWrapMode.Clamp; ri.maxTextureSize = 2048; ri.SaveAndReimport(); }
+            var gi = AssetImporter.GetAtPath(GrimeAtlas) as TextureImporter;
+            if (gi != null) { gi.sRGBTexture = false; gi.mipmapEnabled = true; gi.wrapMode = TextureWrapMode.Repeat; gi.maxTextureSize = 512; gi.textureCompression = TextureImporterCompression.Compressed; gi.SaveAndReimport(); }
         }
         static void Strip(string path, bool srgb)
         {
@@ -201,6 +235,7 @@ namespace Magistrala.EditorTools
         {
             m.SetTexture("_Albedo", AssetDatabase.LoadAssetAtPath<Texture2DArray>(AlbedoStrip));
             m.SetTexture("_Normal", AssetDatabase.LoadAssetAtPath<Texture2DArray>(NormalStrip));
+            m.SetTexture("_Grime", AssetDatabase.LoadAssetAtPath<Texture2D>(GrimeAtlas));
         });
         public static Material Glass() => Mat("Assets/Generated/Materials/BuildingGlass.mat", "Magistrala/WindowInterior", m =>
             m.SetTexture("_Rooms", AssetDatabase.LoadAssetAtPath<Texture2D>(RoomAtlas)));
