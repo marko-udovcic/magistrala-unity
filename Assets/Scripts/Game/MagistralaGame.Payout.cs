@@ -120,7 +120,7 @@ namespace Magistrala.Game
                 var st = new GUIStyle(cdRow) { alignment = TextAnchor.UpperRight, normal = { textColor = a < 0 ? new Color(1f, 0.5f, 0.45f) : a > 0 && i > 0 ? new Color(0.5f, 0.9f, 0.55f) : Color.white } };
                 GUI.Label(new Rect(x + 20, cy, w - 40, 24), (i > 0 && a > 0 ? "+" : a < 0 ? "−" : "") + Eur(Mathf.Abs(a)), st);
             }
-            Row(p.job.tour != "" && p.job.legs.Count > 1 ? $"Osnovna zarada (10 € + 3 €/km + {StopPay:0} € po stajanju)" : "Osnovna zarada (10 € + 3 €/km)", p.base_, 0); cy += 26;
+            Row(p.job.tour != "" ? $"Zarada za turu ({p.job.drops} {Stajanja(p.job.drops)})" : "Osnovna zarada", p.base_, 0); cy += 26;
             for (int i = 0; i < p.lines.Count; i++) { Row(p.lines[i].label, p.lines[i].amount, i + 1); cy += 26; }
             cy += 4; GUI.DrawTexture(new Rect(x + 20, cy, w - 40, 1), cdLine); cy += 8;
             float shown = age < 0.6f + n * 0.3f ? 0 : Mathf.Min(1, (age - 0.6f - n * 0.3f) / 0.8f) * p.total;

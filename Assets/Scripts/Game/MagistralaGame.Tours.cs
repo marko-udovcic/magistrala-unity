@@ -20,10 +20,14 @@ namespace Magistrala.Game
     public partial class MagistralaGame
     {
         public const float StopPay = 5f;
+        /// one shift (Marko 2026-11-20: "smjena do 8 sati rada"): a tour is cut to the drops that fit ShiftMin game minutes of
+        /// driving (~40 km/h on the game clock) + StopWorkMin per stop (reverse in, unload, paperwork)
+        public const float ShiftMin = 8 * 60, StopWorkMin = 15;
+        public static float WorkMin(Job j) => j.km * 1000 / 11f * ClockRate + Mathf.Max(0, j.legs.Count - 1) * StopWorkMin;
         /// the tours the game puts together: drops min..max, cargo mass, empties back to the warehouse
         static readonly (string id, int min, int max, float kg, bool ret, int count)[] TourKinds =
         {
-            ("pice", 4, 8, 2400, true, 2),
+            ("pice", 4, 6, 2400, true, 2),
             ("peciva", 3, 6, 600, false, 1),
             ("namjestaj", 1, 3, 1400, false, 1),
         };
@@ -77,14 +81,21 @@ namespace Magistrala.Game
                 for (int i = 0; i < chosen.Count; i++) { float d = D(cur, chosen[i].id); if (d >= 0 && d < bd) { bd = d; bi = i; } }
                 order.Add(chosen[bi]); cur = chosen[bi].id; chosen.RemoveAt(bi);
             }
-            var j = new Job { tour = k.id, from = pick.id, to = pick.id, cargo = def.cargo, kg = k.kg, drops = n, loaded = false };
-            j.legs.Add(new Leg { stop = pick.id, kind = "u" });
-            int R = Unload ? Unload.Rows : 4;
-            for (int i = 0; i < n; i++) j.legs.Add(new Leg { stop = order[i].id, kind = "d", rows = (i + 1) * R / n - i * R / n });
-            if (k.ret) j.legs.Add(new Leg { stop = Warehouse, kind = "r" });
-            float m = D(Warehouse, pick.id); string prev = pick.id;
-            foreach (var l in j.legs) { if (l.stop == pick.id && l.K == 'u') continue; float d = D(prev, l.stop); if (d < 0) return null; m += d; prev = l.stop; }
-            j.km = m / 1000f;
+            Job j = null;
+            for (; n >= 1; n--)
+            {
+                j = new Job { tour = k.id, from = pick.id, to = pick.id, cargo = def.cargo, kg = k.kg, drops = n, loaded = false };
+                j.legs.Add(new Leg { stop = pick.id, kind = "u" });
+                int R = Unload ? Unload.Rows : 4;
+                for (int i = 0; i < n; i++) j.legs.Add(new Leg { stop = order[i].id, kind = "d", rows = (i + 1) * R / n - i * R / n });
+                if (k.ret) j.legs.Add(new Leg { stop = Warehouse, kind = "r" });
+                float m = D(Warehouse, pick.id); string prev = pick.id;
+                foreach (var l in j.legs) { if (l.stop == pick.id && l.K == 'u') continue; float d = D(prev, l.stop); if (d < 0) return null; m += d; prev = l.stop; }
+                j.km = m / 1000f;
+                if (WorkMin(j) <= ShiftMin) break; // the last drops (farthest in the nearest-neighbour order) wait for another day
+            }
+            if (n < 1) return null;
+            order.RemoveRange(n, order.Count - n);
             j.pay = Mathf.Round((10 + 3 * j.km + StopPay * (n - 1)) * 2) / 2;
             j.label = $"{def.cargo} · {n} {Stajanja(n)}";
             j.key = $"{k.id}:{pick.id}:{order[0].id}";
@@ -96,9 +107,9 @@ namespace Magistrala.Game
         static Job Clone(Job j) => JsonUtility.FromJson<Job>(JsonUtility.ToJson(j));
         /// a single drop: Deadline(km) as before (web regions.ts); a tour: on this game's clock (ClockRate, 1/6 game min per real
         /// second) at ~40 km/h × 1.4 + 6 min per stop + 30 (Deadline's web clock gave a 24 km tour a whole day and more)
-        static float TourDeadline(Job j) => j.tour == "" ? Deadline(j.km) : Mathf.Round(j.km * 1000 / 11f * ClockRate * 1.4f + Mathf.Max(0, j.legs.Count - 1) * 6 + 30);
+        static float TourDeadline(Job j) => j.tour == "" ? Deadline(j.km) : Mathf.Round(j.km * 1000 / 11f * ClockRate * 1.4f + Mathf.Max(0, j.legs.Count - 1) * StopWorkMin + 30);
 
-        public string OfferLine(Job j) => j.tour != "" ? $"{j.label} · {Eur(j.pay)} · {j.km:0.0} km" : $"{j.label} – {j.cargo} · {j.km:0.0} km · {Eur(j.pay)}";
+        public string OfferLine(Job j) => j.tour != "" ? $"{j.label} · {Eur(j.pay)} · {j.km:0.0} km · oko {Mathf.Max(1, Mathf.Round(WorkMin(j) / 30) / 2):0.#} h" : $"{j.label} – {j.cargo} · {j.km:0.0} km · {Eur(j.pay)}";
 
         /// the phone's second line of a tour: pickup → first … last drop (→ the warehouse), km, deadline, the vehicle note
         public string OfferSub(Job j)
