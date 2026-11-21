@@ -244,7 +244,10 @@ namespace Magistrala
             {
                 yield return new WaitForSeconds(1f);
                 var p = tr.transform.position; bool ground = Physics.Raycast(p + Vector3.up * 3, Vector3.down, out var h, 40, ~0, QueryTriggerInteraction.Ignore);
-                Debug.Log($"[gpu] truck t={i + 1} x={p.x - 4200:F1} z={-p.z - 5300:F1} y={p.y:F2} v={tr.SpeedKmh:F0}" + (p.y < -1.5f ? " FALL" : ""));
+                // (gear, rpm, grade along the truck, wheels on the ground and what each stands on: a stall on a slope vs at a step)
+                var ws = new System.Text.StringBuilder();
+                foreach (var w in tr.GetComponentsInChildren<WheelCollider>()) ws.Append(w.GetGroundHit(out var wh) ? " " + wh.collider.name : " -");
+                Debug.Log($"[gpu] truck t={i + 1} x={p.x - 4200:F1} z={-p.z - 5300:F1} y={p.y:F2} v={tr.SpeedKmh:F0} g={tr.Gear} rpm={tr.EngineRpm:F0} grade={tr.transform.forward.y * 100:F0}% wheels={tr.Grounded}:{ws}" + (p.y < -1.5f ? " FALL" : ""));
             }
         }
 

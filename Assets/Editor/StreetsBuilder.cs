@@ -176,11 +176,38 @@ namespace Magistrala.EditorTools
 
             nodes = ns.Values.ToList(); var ids = new HashSet<long>(ns.Keys);
             edges = es.Values.Where(e => e.pts != null && e.pts.Count >= 2 && ids.Contains(e.a) && ids.Contains(e.b)).ToList();
+            int fitted = 0; double fitMax = 0;
+            foreach (var e in edges) fitted += FitEndHeights(e.pts, ns[e.a].y, ns[e.b].y, ref fitMax);
             // (graphIndex.ts setRoadClosures: an edge's own `closed` wins over the closures file)
             foreach (var e in edges) e.closed = e.closedOwn ?? closed.Contains(e.id);
             fileClosed = closed;
             Index();
-            return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids";
+            return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids, {fitted} edge ends brought to their node's height (max {fitMax:F2} m)";
+        }
+        /// an edge whose end is not at its node's height (mag-11-20's −7000000084514 starts 0.53 m over node 785, where the warehouse
+        /// spur and Bardejovska stay: a wall between the junction disc and the ribbon at the Lukšić warehouse exit): the difference
+        /// faded out linearly along the edge (≤ 2 % extra grade, at most the whole edge); the node — shared by the other arms — wins.
+        /// Differences over 3 m are left (a level crossing that is not one). Also GameDataBuilder (the GPS / traffic graph).
+        public static int FitEndHeights(List<double[]> pts, double yA, double yB, ref double maxD)
+        {
+            if (pts == null || pts.Count < 2) return 0;
+            var cum = new double[pts.Count];
+            for (int i = 1; i < pts.Count; i++) cum[i] = cum[i - 1] + Math.Sqrt(Sq(pts[i][0] - pts[i - 1][0]) + Sq(pts[i][2] - pts[i - 1][2]));
+            double L = cum[pts.Count - 1]; if (L < 1) return 0;
+            int n = 0;
+            foreach (bool atA in new[] { true, false })
+            {
+                double d = (atA ? yA : yB) - pts[atA ? 0 : pts.Count - 1][1];
+                if (Math.Abs(d) < .03 || Math.Abs(d) > 3) continue;
+                double F = Math.Min(L, Math.Max(10, Math.Abs(d) / .02));
+                for (int i = 0; i < pts.Count; i++)
+                {
+                    double s = atA ? cum[i] : L - cum[i]; if (s >= F) continue;
+                    var p = (double[])pts[i].Clone(); p[1] += d * (1 - s / F); pts[i] = p;
+                }
+                n++; maxD = Math.Max(maxD, Math.Abs(d));
+            }
+            return n;
         }
         /// node / edge indices, segment grid, lengths, road specs, the D8 one-way repair and the hidden ramps (after any change of nodes / edges)
         static void Index()
@@ -795,6 +822,9 @@ namespace Magistrala.EditorTools
                     Carve(la.x, la.z, la.y, lb.x, lb.z, lb.y, 1.6); Carve(ra.x, ra.z, ra.y, rb.x, rb.z, rb.y, 1.6);
                     // outside streets: the ground also raised to the street (it follows our ground only smoothed)
                     if (e.outside) carve.Add(new[] { ca.x, ca.z, Math.Min(la.y, ra.y), cb.x, cb.z, Math.Min(lb.y, rb.y), Math.Max(wA, wB) + 1.6, 1 });
+                    // our streets above the ground (override edges climbing to a model's road, mag-11-20 at the Lukšić warehouse: 1–1.9 m):
+                    // the ground raised to them too, an embankment a truck off the road drives back up (not under a bridge)
+                    else if (kind == null) carve.Add(new[] { ca.x, ca.z, Math.Min(la.y, ra.y), cb.x, cb.z, Math.Min(lb.y, rb.y), Math.Max(wA, wB) + 1.6, 2 });
                 }
             }
         }
@@ -898,10 +928,22 @@ namespace Magistrala.EditorTools
                 for (int k = 0; k <= KK; k++)
                 {
                     double a = a1 + sweep * k / KK; var g = new G(ccx + Math.Cos(a) * r, yA + (yB - yA) * k / KK, ccz + Math.Sin(a) * r);
-                    if (has) Tri(MAT_ASPHALT, p0, prev, g, Vector3.up, Drop.Owned, true);
+                    if (has)
+                    {
+                        Tri(MAT_ASPHALT, p0, prev, g, Vector3.up, Drop.Owned, true);
+                        // collider flaps off the arc like the ribbons' (towards the corner's centre, ≤ 0.9 m down at 30 %): the fillet's
+                        // edge stood 0.56 m over the ground beside the Lukšić warehouse exit (a wall for a truck cutting the corner)
+                        double fl = Math.Min(3, r * .8);
+                        G Out(G q) { double dx = ccx - q.x, dz = ccz - q.z, l = Math.Sqrt(dx * dx + dz * dz); if (l < 1e-6) l = 1; return new G(q.x + dx / l * fl, q.y - .3 * fl, q.z + dz / l * fl); }
+                        Quad(-1, prev, g, Out(g), Out(prev), Vector3.up, Drop.Owned, true);
+                    }
                     prev = g; has = true;
+                    // the ground under the fillet at its own heights: a spoke from the corner to each arc point (one flat capsule p → c at
+                    // the lower arm's height, r + 1.6 = 10.6 m round a site spur, dug a 1.7 m pit beside the warehouse exit's climbing arm),
+                    // and raised to it where it is lower (as the ribbons' embankments)
+                    Carve(p0.x, p0.z, p0.y, g.x, g.z, g.y, 1.6);
+                    carve.Add(new[] { p0.x, p0.z, p0.y, g.x, g.z, g.y, 1.6, 2 });
                 }
-                Carve(px, pz, Math.Min(yA, yB), ccx, ccz, Math.Min(yA, yB), r + 1.6);
             }
         }
         /// raised island of a collapsed roundabout (kerb ring, apron, planted centre — buildRoads.ts roundaboutIsland, simplified)
@@ -1244,7 +1286,7 @@ namespace Magistrala.EditorTools
         static string CarveTerrain()
         {
             wbModels = WorldData.Models(-1e9, 1e9);
-            int changed = 0, tiles = 0;
+            int changed = 0, tiles = 0, filled = 0;
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
                 var parts = t.name.Split(' ')[1].Split(','); int tx = int.Parse(parts[0]), tz = int.Parse(parts[1]);
@@ -1275,7 +1317,7 @@ namespace Magistrala.EditorTools
                 // outside streets' fills: the ground set to the street within reach, blended back over 6 m (raise or lower)
                 foreach (var q in carve)
                 {
-                    if (q.Length < 8) continue;
+                    if (q.Length < 8 || q[7] != 1) continue;
                     double reach = q[6], x0 = Math.Min(q[0], q[3]) - reach - 6, x1 = Math.Max(q[0], q[3]) + reach + 6, z0 = Math.Min(q[1], q[4]) - reach - 6, z1 = Math.Max(q[1], q[4]) + reach + 6;
                     if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;
                     double bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
@@ -1291,6 +1333,35 @@ namespace Magistrala.EditorTools
                             double sd = WorldData.SurfDist(wbModels, gx, gz); if (sd < 4) k *= Smooth((sd - 1.5) / 2.5);
                             double h = k >= 1 ? 0 : Ground(gx, gz, step);
                             Set(r, c, h + (ry - h) * k);
+                        }
+                }
+                // our streets' embankments (raise only, before the corridors below lower the ground under every street again): within
+                // reach the ground at the street's lower edge − 0.18 m, blended back to the baked ground at ≤ ~1:5 (the 0.9 m collider flaps
+                // ended in the air over the ground a 1–1.9 m street rides above: a truck off the road could not climb back). Not inside a
+                // court (its own flat ground), faded out at the models' paving, nothing over 3.5 m (a viaduct the graph does not mark).
+                const double FILLB = 20;
+                foreach (var q in carve)
+                {
+                    if (q.Length < 8 || q[7] != 2) continue;
+                    double reach = q[6], x0 = Math.Min(q[0], q[3]) - reach - FILLB, x1 = Math.Max(q[0], q[3]) + reach + FILLB, z0 = Math.Min(q[1], q[4]) - reach - FILLB, z1 = Math.Max(q[1], q[4]) + reach + FILLB;
+                    if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;
+                    double bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
+                    var nearCourts = courts.Where(b => { double R = Math.Sqrt(b.hl * b.hl + b.hw * b.hw) + 1; return b.x + R > x0 && b.x - R < x1 && b.z + R > z0 && b.z - R < z1; }).ToList();
+                    for (int r = Math.Max(0, (int)Math.Floor((oz1 - z1) / step)); r <= Math.Min(res - 1, (int)Math.Ceiling((oz1 - z0) / step)); r++)
+                        for (int c = Math.Max(0, (int)Math.Floor((x0 - ox) / step)); c <= Math.Min(res - 1, (int)Math.Ceiling((x1 - ox) / step)); c++)
+                        {
+                            double gx = ox + c * step, gz = oz1 - r * step;
+                            double tt = l2 < 1e-9 ? 0 : Math.Max(0, Math.Min(1, ((gx - q[0]) * bx + (gz - q[1]) * bz) / l2));
+                            double dd = Math.Sqrt(Sq(gx - q[0] - bx * tt) + Sq(gz - q[1] - bz * tt)); if (dd > reach + FILLB) continue;
+                            double ry = q[2] + (q[5] - q[2]) * tt - .18; float cur = Get(r, c);
+                            if (cur >= ry - .02) continue;
+                            double h = Ground(gx, gz, step), rise = ry - h; if (rise <= .02 || rise > 3.5) continue;
+                            double B = Math.Max(6, Math.Min(FILLB, rise * 7.5)); if (dd > reach + B) continue;
+                            double k = dd <= reach ? 1 : Smooth(1 - (dd - reach) / B);
+                            double sd = WorldData.SurfDist(wbModels, gx, gz); if (sd < 4) k *= Smooth((sd - 1.5) / 2.5);
+                            double target = h + rise * k; if (target <= cur + .005) continue;
+                            if (nearCourts.Any(b => { double dx = gx - b.x, dz = gz - b.z; return Math.Abs(dx * b.fx + dz * b.fz) <= b.hl + 1 && Math.Abs(dx * b.fz - dz * b.fx) <= b.hw + 1; })) continue;
+                            Set(r, c, target); filled++;
                         }
                 }
                 foreach (var q in carve)
@@ -1313,7 +1384,7 @@ namespace Magistrala.EditorTools
                 if (changed > n0) { td.SetHeights(0, 0, H); EditorUtility.SetDirty(td); tiles++; }
             }
             AssetDatabase.SaveAssets();
-            return $"terrain: {changed} height samples lowered / flattened on {tiles} tiles";
+            return $"terrain: {changed} height samples lowered / flattened on {tiles} tiles ({filled} raised to a street above the ground)";
         }
 
         // ------------------------------------------------------------------ cover mask (2 m cells over the area): details / trees stay off
