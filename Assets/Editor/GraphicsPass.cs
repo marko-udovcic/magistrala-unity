@@ -156,8 +156,14 @@ namespace Magistrala.EditorTools
             var mat = Mat("SeaDepth", "Magistrala/Sea"); if (!mat) { Debug.LogError("Sea shader missing"); return; }
             mat.SetTexture("_NormalMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/water_n.png"));
             // softer sun: a glitter path, not a blinding streak (owner: too much glare at midday); gentle visible ripples + swell
-            mat.SetFloat("_SunSpec", 3.2f); mat.SetFloat("_SunSpecPower", 700); mat.SetFloat("_Smoothness", .9f); mat.SetFloat("_NormalStrength", .6f);
-            mat.SetVector("_Swell", new Vector4(.035f, 26, 1.6f, .6f));
+            mat.SetFloat("_SunSpec", 2.2f); mat.SetFloat("_SunSpecPower", 800); mat.SetFloat("_Smoothness", .9f); mat.SetFloat("_NormalStrength", .6f);
+            // moving water (owner 2026-11-21: "more je statično"): every ripple layer is two crossing copies scrolling in different
+            // directions (the pattern changes shape instead of sliding as one sheet), at ~0.8–1.4 m/s (light-breeze wind waves);
+            // a light swell (3 long wavelets, ~20 m, ~5.5 m/s: deep-water speed for that length)
+            mat.SetFloat("_NormalScale1", 38); mat.SetVector("_Speed1", new Vector4(.030f, .018f, 0, 0)); mat.SetVector("_Speed1b", new Vector4(-.022f, .027f, 0, 0));
+            mat.SetFloat("_NormalScale2", 11); mat.SetVector("_Speed2", new Vector4(-.055f, .07f, 0, 0)); mat.SetVector("_Speed2b", new Vector4(.08f, .03f, 0, 0));
+            mat.SetFloat("_NormalScale3", 97); mat.SetVector("_Speed3", new Vector4(.011f, -.008f, 0, 0));
+            mat.SetVector("_Swell", new Vector4(.06f, 20, 5.5f, .6f));
             EditorUtility.SetDirty(mat);
             var root = WorldBuilder.Root("Sea");
             // sunny Kaštela bay (owner 2026-11-20): lighter — turquoise-teal shallows over the riva (~#4fa3a8 on screen), clear mid-blue
@@ -168,12 +174,25 @@ namespace Magistrala.EditorTools
             double x0 = -9300, x1 = 1200, z0 = -6000, z1 = -2800, cell = 25;
             int nx = (int)((x1 - x0) / cell), nz = (int)((z1 - z0) / cell);
             var vs = new List<Vector3>(); var cs = new List<Color>(); var ts = new List<int>();
-            for (int j = 0; j <= nz; j++) for (int i = 0; i <= nx; i++) { double gx = x0 + i * cell, gz = z0 + j * cell; vs.Add(W.U(gx, 0, gz)); cs.Add(Tint(Tiles.Height(gx, gz))); }
+            // harbours (mandrači) inside the riva zones: the DEM has them as land, so their quads were skipped and the far plane's deep
+            // navy showed through (owner 2026-11-21: the harbour much darker than the open sea); a 25 m vertex next to riva photo sea
+            // takes the colour of ~3.5 m water (between the turquoise shallows and the open-sea blue)
+            bool Harbour(double gx, double gz, double r)
+            {
+                for (int k = 0; k < 9; k++) if (RivaBuilder.Class(gx + (k % 3 - 1) * r, gz + (k / 3 - 1) * r) == 3) return true;
+                return false;
+            }
+            for (int j = 0; j <= nz; j++) for (int i = 0; i <= nx; i++)
+                {
+                    double gx = x0 + i * cell, gz = z0 + j * cell; vs.Add(W.U(gx, 0, gz));
+                    double h = Tiles.Height(gx, gz); cs.Add(h > -.35 && Harbour(gx, gz, cell * .5) ? Tint(-3.5) : Tint(h));
+                }
             for (int j = 0; j < nz; j++) for (int i = 0; i < nx; i++)
                 {
                     int a = j * (nx + 1) + i;
-                    // skip quads wholly on land (well above sea level)
-                    if (Tiles.Height(x0 + i * cell + cell / 2, z0 + j * cell + cell / 2) > 4 && Tiles.Height(x0 + i * cell, z0 + j * cell) > 3 && Tiles.Height(x0 + (i + 1) * cell, z0 + (j + 1) * cell) > 3) continue;
+                    // skip quads wholly on land (well above sea level), unless a harbour basin is in them
+                    if (Tiles.Height(x0 + i * cell + cell / 2, z0 + j * cell + cell / 2) > 4 && Tiles.Height(x0 + i * cell, z0 + j * cell) > 3 && Tiles.Height(x0 + (i + 1) * cell, z0 + (j + 1) * cell) > 3
+                        && !Harbour(x0 + i * cell + cell / 2, z0 + j * cell + cell / 2, cell * .4)) continue;
                     ts.AddRange(new[] { a, a + 1, a + nx + 1, a + 1, a + nx + 2, a + nx + 1 });
                 }
             var mesh = new Mesh { name = "SeaNear", indexFormat = IndexFormat.UInt32 };

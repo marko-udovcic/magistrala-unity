@@ -1,4 +1,4 @@
-# Priroda (proba): NatureManufacture Coast & Dunes u Kaštelima
+# Priroda: NatureManufacture Coast & Dunes u Kaštelima
 
 Paket **Coast & Dunes Environment – Dynamic Nature** (NatureManufacture, Unity Asset Store, Standard EULA) — u igri smije, sirove
 datoteke se ne dijele. Mapa `Assets/NatureManufacture Assets` je u `.gitignore`; bez nje svi kukovi ostavljaju našu gradnju kakva je bila.
@@ -13,17 +13,26 @@ datoteke se ne dijele. Mapa `Assets/NatureManufacture Assets` je u `.gitignore`;
   prolazu) ~13 min, poslije iz cachea.
 
 ## Kukovi u graditeljima (redoslijed gradnje ostaje isti)
-- `NaturePass.Boxes` — pravokutnici (igra x/z) gdje vrijedi; proširenje = veći / dodatni pravokutnik.
-- Build terrain: pločice koje dodiruju pravokutnik (sada (-8,-7)…(-6,-6)) dobiju 4 sloja paketa u našem redu (suho tlo s makijom `ground_sand_07`,
+- `NaturePass.Boxes` — pravokutnici (igra x/z) gdje vrijedi; od 21. 11. jedan = cijela Kaštela (jezgra pločica WorldBuilder
+  TX0…TX1 × TZ0…TZ1, x −10240…0, z −7168…−4096); Split = dodatni pravokutnik.
+- Build terrain: pločice koje dodiruju pravokutnik (sve jezgrene) dobiju 4 sloja paketa u našem redu (suho tlo s makijom `ground_sand_07`,
   smeđa→crvenica `cliff_clay_02`, naš vapnenac, kamenito tlo / šljunak `ground_sand_09`). Ortofoto tint (OrthoGround) računa
   prosjek boje sloja iz same teksture, pa radi i s njima (Grafika: ortofoto tlo poslije Build terrain).
 - Build trees: borovi u pravokutniku → borovi paketa, mreža spljoštena prema alepskom boru (visina × 0,82, krošnja × 1,22),
   kora sivosmeđa; LOD2 blizu, križni billboard daleko (TreeRenderer). Dodatni borovi u skupinama na padini iznad 60 m.
-  Razdjelni pojas D8 (`MedianHedge`): oleander (Tripo, 70 % roza / 30 % bijeli), tamnozeleni grm, suha trava.
+  Razdjelni pojas D8 (`MedianHedge`): oleander (Tripo, 70 % roza / 30 % bijeli), tamnozeleni grm, suha trava — cijela D8 od
+  čvora 41 (Štafilić) do 05 (Sućurac): rešetka 0,5 m u komadima od 200 m po x, u pojasu ±45 m oko crte D8 (središta modela
+  dionica d01–d25 i križanja na D8, `D8Keys`); prekidi na križanjima / prijelazima sami (asfalt).
 - Grafika: detalji terena: suha trava, žednjak, pelin, broćika i staračac (terenski prefabi paketa, njihov vjetar) u
   pravokutniku, korov uz podnožje zidova (maska tlocrta iz OrthoGround), naša zelena trava tamo na trećinu.
-- Priroda: postavi (novi korak, poslije Rekviziti): vjetar paketa, litice paketa (siva/bijela kopija materijala) na nagibima ≥ 29° (u probi ih je 19 — teren kod 47 nema pravi usjek).
-- More: paket (`NatureSea`, `-more nm`) ostaje samo kao A/B; zadano je naše more (Grafika: more).
+- Priroda: postavi (novi korak, poslije Rekviziti): vjetar paketa, litice paketa (siva/bijela kopija materijala) na nagibima ≥ 29°:
+  razmak 5,5 m do 120 m visine, 14 m iznad, ništa iznad 420 m; ne na obali / rivi (teren je tamo spušten pod more) ni uz kuće
+  u modelima.
+- More: paket (`NatureSea`, `-more nm`) ostaje samo kao A/B; zadano je naše more (Grafika: more). Od 21. 11. (Marko: „more je
+  statično”): svaki sloj valića su dvije kopije koje klize u križnim smjerovima (uzorak se mijenja, ne klizi kao plahta),
+  ~0,8–1,4 m/s, lagano mreškanje (3 duga vala ~20 m, ~5,5 m/s), slabiji odsjaj sunca (2,2); dubina-normale ravne (SSAO više ne
+  tamni vodu). Mandrači u zonama rive (Stari / Novi, Lukšić zapad): DEM ih ima kao kopno, pa je kroz rupu u bliskoj mreži
+  sjalo tamno daleko more — sad su u mreži, boja ~3,5 m vode. Poslije promjene: `Grafika: more` (nije u redoslijedu gradnje).
 
 ## Zamke
 - `_BC` teksture paketa nose alfu (visina / sjaj): kao terenski sloj bez mask mape URP je čita kao glatkoću → tlo je izgledalo
