@@ -1,1 +1,1 @@
-{ "fit": "xz", "size": 1.2, "cull": 70, "smooth": 0.3 }
+{ "fit": "x", "size": 1.55, "cull": 70, "smooth": 0.3, "sy": 1.2, "sz": 0.55 }
