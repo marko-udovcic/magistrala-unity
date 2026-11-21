@@ -28,7 +28,7 @@ using UnityEngine.Rendering;
 
 namespace Magistrala.EditorTools
 {
-    public static class StreetsBuilder
+    public static partial class StreetsBuilder
     {
         public const double AX0 = -10240, AX1 = 0, AZ0 = -7168, AZ1 = -4096; // (AX0: mag-11-19 Štafilić, = WorldBuilder.TX0)
         const string OUT = WorldBuilder.GEN + "/Streets";
@@ -311,11 +311,14 @@ namespace Magistrala.EditorTools
             }
             foreach (var st in net.streets)
             {
+                // sidewalk candidates: the outside streets' own rule (≥ 5.5 m, not service / access / links) or a village street of
+                // ≥ 5 m (tertiary / unclassified / residential); BuildEdge keeps them only on built-up land, never on trunk roads / the D8
+                bool walk = st.cls != "trunk" && st.cls != "motorway" && (st.sidewalk || st.width >= 5 && (st.cls == "tertiary" || st.cls == "unclassified" || st.cls == "residential" || st.cls == "living_street"));
                 var e = new E
                 {
                     id = st.id, a = st.a, b = st.b, oneway = st.oneway, lanes = st.lanes, name = st.name ?? "",
                     type = st.cls == "primary" || st.cls == "secondary" || st.cls == "tertiary" ? st.cls : "residential", pts = st.pts,
-                    shoulderW = .25, verge = st.sidewalk ? "urban_kerb" : null, profile = st.sidewalk ? "urban_local" : null, dual = false,
+                    shoulderW = .25, verge = walk ? "urban_kerb" : null, profile = walk ? "urban_local" : null, dual = false,
                     outside = true, trimA = st.trimA, trimB = st.trimB, mA = st.modelA, mB = st.modelB, mhwA = st.mhwA, mhwB = st.mhwB, noPaint = !st.paint,
                 };
                 e.laneW = Math.Max(1.6, st.oneway ? (st.width - .5) / st.lanes : (st.width / 2 - .25) / st.lanes);
@@ -710,7 +713,7 @@ namespace Magistrala.EditorTools
             bool VergeOK(double s) => !((clearA > 0 && s < clearA - 9) || (clearB > 0 && s > L - (clearB - 9)));
             bool Junction(double s) => (clearA > 0 && s < clearA) || (clearB > 0 && s > L - clearB);
             bool d8 = Regex.IsMatch(e.rf, @"^D\s?8$");
-            bool sidewalkEdge = e.spur == null && e.profile != null && !d8 && e.verge == "urban_kerb";
+            bool sidewalkEdge = e.spur == null && !d8 && e.verge == "urban_kerb"; // (OSM sidewalk tags or not: built-up land decides, below)
             int lanesTot = sp.oneway ? sp.lanes : 2 * sp.lanes;
             // position of lateral u (half width w) at frame F, height offset dy, with the arm snap
             // an outside street ending on a model: the cross-section tilted onto the model's edge over the last 10 m
@@ -752,6 +755,60 @@ namespace Magistrala.EditorTools
             bool Hangs(long nid) => mc?.arm == null && models.Any(m => m.footprint && m.nodes.Contains(nid) && !m.edges.Contains(e.id));
             bool hangA = !e.outside && Hangs(e.a), hangB = !e.outside && Hangs(e.b);
 
+            // sidewalks, decided per side every ~2 m (StreetsSidewalks.cs): built-up land (±30 m), the junction corner on that side
+            // only (SideClear: the far side of a T runs on), other streets / driveways at the kerb, the footway narrowed to the
+            // footprints / guardrails (dropped under 1 m), runs under 8 m dropped; lowered kerbs (2 cm) at the run ends
+            bool walkEdge = sidewalkEdge && !IsD8(e) && e.type != "motorway" && e.type != "ramp";
+            int NS = walkEdge ? Math.Max(2, (int)Math.Ceiling(L / 2) + 1) : 0; double DS = NS > 1 ? L / (NS - 1) : 1;
+            var swOk = new bool[2][]; var swW = new double[2][]; var swK = new double[2][]; var swCap = new bool[2][];
+            // built-up: a building on either side (a street through a village has its footways on both sides, also along a car park)
+            var builtAny = new bool[NS];
+            for (int k = 0; k < NS && walkEdge; k++)
+            {
+                double s = k * DS; var F = FrameAt(s); double w = Shape(s).w;
+                foreach (int sd in new[] { -1, 1 }) if (!builtAny[k] && BuiltUp(F.x + F.rx * sd * w, F.z + F.rz * sd * w, F.rx * sd, F.rz * sd)) builtAny[k] = true;
+            }
+            var bu = Dilate(builtAny, (int)Math.Ceiling(30 / Math.Max(.5, DS)));
+            if (walkEdge)
+                foreach (int side in new[] { -1, 1 })
+                {
+                    int si = side < 0 ? 0 : 1;
+                    var ok = new bool[NS]; var stop = new bool[NS]; var wd = new double[NS];
+                    double cA = SideClear(ei, true, side), cB = SideClear(ei, false, side);
+                    for (int k = 0; k < NS; k++)
+                    {
+                        double s = k * DS; var F = FrameAt(s); double w = Shape(s).w;
+                        double rx = F.rx * side, rz = F.rz * side, ex = F.x + rx * w, ez = F.z + rz * w;
+                        if (e.oneway && side != 1) { stop[k] = true; continue; }
+                        // (neutral: outside the area, a furniture tile, cut away by a model — the run ends there without a ramp)
+                        if (!InArea(F.x, F.z) || inFurnTile(F.x, F.z) || (!e.outside && mc != null && CutAway(mc, ei, Math.Max(0, s - 1), Math.Min(L, s + 1)))) continue;
+                        if ((cA > 0 && s < cA) || (cB > 0 && s > L - cB) || Blocked(F, side * (w + .25), 1.1) || Blocked(F, side * (w + 1.3), .5)) { stop[k] = true; continue; }
+                        wd[k] = FitWidth(ex, ez, rx, rz); if (wd[k] <= 0) { stop[k] = true; continue; }
+                        ok[k] = true;
+                    }
+                    for (int k = 0; k < NS; k++) if (ok[k] && !bu[k]) { ok[k] = false; stop[k] = true; }
+                    for (int k = 0; k < NS;)
+                    {
+                        if (!ok[k]) { k++; continue; }
+                        int k0 = k; while (k < NS && ok[k]) k++;
+                        if ((k - 1 - k0) * DS < 8) for (int q = k0; q < k; q++) { ok[q] = false; stop[q] = true; }
+                    }
+                    var w2 = new double[NS]; var kh = new double[NS]; var cap = new bool[NS];
+                    for (int k = 0; k < NS; k++) { double mw = wd[k]; if (k > 0 && ok[k - 1]) mw = Math.Min(mw, wd[k - 1]); if (k + 1 < NS && ok[k + 1]) mw = Math.Min(mw, wd[k + 1]); w2[k] = mw; }
+                    bool openA = cA == 0 && degA >= 2, openB = cB == 0 && degB >= 2;
+                    for (int k = 0; k < NS;)
+                    {
+                        if (!ok[k]) { k++; continue; }
+                        int k0 = k; while (k < NS && ok[k]) k++; int k1 = k - 1;
+                        // a run end at a stop (junction corner, driveway, field, wall, dead end): lowered kerb; at a neutral sample or an
+                        // edge end that runs on into the next edge: full height (+ an end cap where nothing continues)
+                        bool rampA = k0 == 0 ? !openA : stop[k0 - 1], rampB = k1 == NS - 1 ? !openB : stop[k1 + 1];
+                        for (int q = k0; q <= k1; q++) { double d = Math.Min(rampA ? (q - k0) * DS : 1e9, rampB ? (k1 - q) * DS : 1e9); kh[q] = .02 + .13 * Smooth(d / 1.5); }
+                        cap[k0] = !(k0 == 0 && openA); cap[k1] = !(k1 == NS - 1 && openB);
+                    }
+                    swOk[si] = ok; swW[si] = w2; swK[si] = kh; swCap[si] = cap;
+                }
+
             for (int i = 0; i + 1 < n; i++)
             {
                 int j = i + 1;
@@ -789,22 +846,46 @@ namespace Magistrala.EditorTools
                 // sides: urban sidewalk (kerb 0.15 m) or a gravel verge
                 foreach (int side in new[] { -1, 1 })
                 {
-                    bool walk = sidewalkEdge && kind == null && (!e.oneway || side == 1) && !Junction(A.s) && !Junction(B.s) && !inFurnTile(mx, mz);
-                    if (walk) { var M = FrameAt((A.s + B.s) / 2); double u = side * (hw + .25); walk = !Blocked(A, u, 1.1) && !Blocked(M, u, 1.1) && !Blocked(B, u, 1.1); }
+                    int si = side < 0 ? 0 : 1;
+                    var ok = walkEdge && kind == null ? swOk[si] : null;
                     var outA = new Vector3((float)(A.rx * side), 0, (float)(-A.rz * side));
-                    if (walk)
+                    if (ok == null)
                     {
-                        const double K = .15, KW = .18, SW = 1.6;
-                        G S(Fr F, double w, double du, double dy) => Pos(F, side * (w + du), w, dy);
-                        Quad(MAT_KERB, S(A, wA, 0, 0), S(B, wB, 0, 0), S(B, wB, 0, K), S(A, wA, 0, K), -outA, Drop.OnModel, false);
-                        Quad(MAT_KERB, S(A, wA, 0, K), S(B, wB, 0, K), S(B, wB, KW, K), S(A, wA, KW, K), Vector3.up, Drop.OnModel, false);
-                        Quad(MAT_WALK, S(A, wA, KW, K), S(B, wB, KW, K), S(B, wB, SW, K), S(A, wA, SW, K), Vector3.up, Drop.OnModel, false);
-                        Quad(MAT_KERB, S(A, wA, SW, K), S(B, wB, SW, K), S(B, wB, SW, -.4), S(A, wA, SW, -.4), outA, Drop.OnModel, false);
-                        Quad(-1, S(A, wA, 0, K), S(B, wB, 0, K), S(B, wB, SW, K), S(A, wA, SW, K), Vector3.up, Drop.OnModel, true);
-                        sidewalkSegs++;
+                        if (verge) Quad(MAT_VERGE, Pos(A, side * wA, wA, -.01), Pos(B, side * wB, wB, -.01), Pos(B, side * (wB + 1.6), wB, -.4), Pos(A, side * (wA + 1.6), wA, -.4), Vector3.up, own, false);
+                        continue;
                     }
-                    else if (verge)
-                        Quad(MAT_VERGE, Pos(A, side * wA, wA, -.01), Pos(B, side * wB, wB, -.01), Pos(B, side * (wB + 1.6), wB, -.4), Pos(A, side * (wA + 1.6), wA, -.4), Vector3.up, own, false);
+                    // pieces between the 2 m samples, each corner on the straight asphalt edge A → B (lerped, as the ribbon's quad)
+                    const double KW = .18;
+                    G S(double f, double du, double dy) { var a = Pos(A, side * (wA + du), wA, dy); var b = Pos(B, side * (wB + du), wB, dy); return new G(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f); }
+                    var br = new List<double> { A.s };
+                    for (int k = (int)Math.Floor(A.s / DS) + 1; k * DS < B.s - 1e-6; k++) if (k * DS > A.s + 1e-6) br.Add(k * DS);
+                    br.Add(B.s);
+                    double span = B.s - A.s; bool drew = false;
+                    var tg = Vector3.Normalize(new Vector3((float)(B.x - A.x), 0, (float)(-(B.z - A.z))));
+                    for (int p = 0; p + 1 < br.Count; p++)
+                    {
+                        double sa = br[p], sb = br[p + 1]; int k0 = Math.Max(0, Math.Min(NS - 2, (int)Math.Floor((sa + sb) / 2 / DS))), k1 = k0 + 1;
+                        double fa = (sa - A.s) / span, fb = (sb - A.s) / span;
+                        if (ok[k0] && ok[k1])
+                        {
+                            double ta = Math.Max(0, Math.Min(1, (sa - k0 * DS) / DS)), tb = Math.Max(0, Math.Min(1, (sb - k0 * DS) / DS));
+                            var sw = swW[si]; var kh = swK[si];
+                            double Wa = sw[k0] + (sw[k1] - sw[k0]) * ta, Wb = sw[k0] + (sw[k1] - sw[k0]) * tb, Ka = kh[k0] + (kh[k1] - kh[k0]) * ta, Kb = kh[k0] + (kh[k1] - kh[k0]) * tb;
+                            Quad(MAT_KERB, S(fa, 0, 0), S(fb, 0, 0), S(fb, 0, Kb), S(fa, 0, Ka), -outA, Drop.OnModel, false);
+                            Quad(MAT_KERB, S(fa, 0, Ka), S(fb, 0, Kb), S(fb, KW, Kb), S(fa, KW, Ka), Vector3.up, Drop.OnModel, false);
+                            Quad(MAT_WALK, S(fa, KW, Ka), S(fb, KW, Kb), S(fb, Wb, Kb), S(fa, Wa, Ka), Vector3.up, Drop.OnModel, false);
+                            Quad(MAT_KERB, S(fa, Wa, Ka), S(fb, Wb, Kb), S(fb, Wb, -.4), S(fa, Wa, -.4), outA, Drop.OnModel, false);
+                            Quad(-1, S(fa, 0, Ka), S(fb, 0, Kb), S(fb, Wb, Kb), S(fa, Wa, Ka), Vector3.up, Drop.OnModel, true);
+                            // end caps where the run stops
+                            if (ta < 1e-6 && swCap[si][k0] && (k0 == 0 || !ok[k0 - 1])) Quad(MAT_KERB, S(fa, 0, 0), S(fa, Wa, -.4), S(fa, Wa, Ka), S(fa, 0, Ka), -tg, Drop.OnModel, false);
+                            if (tb > 1 - 1e-6 && swCap[si][k1] && (k1 == NS - 1 || !ok[k1 + 1])) Quad(MAT_KERB, S(fb, 0, 0), S(fb, Wb, -.4), S(fb, Wb, Kb), S(fb, 0, Kb), tg, Drop.OnModel, false);
+                            var c0 = S(fa, Wa / 2, 0); var c1 = S(fb, Wb / 2, 0); CountWalk(walkOurs, c0.x, c0.z, Math.Sqrt(Sq(c1.x - c0.x) + Sq(c1.z - c0.z)));
+                            drew = true;
+                        }
+                        else if (verge)
+                            Quad(MAT_VERGE, S(fa, 0, -.01), S(fb, 0, -.01), S(fb, 1.6, -.4), S(fa, 1.6, -.4), Vector3.up, own, false);
+                    }
+                    if (drew) sidewalkSegs++;
                 }
                 // markings (tiles/materials.ts), not on driveways
                 if (e.spur == null && !e.noPaint)
@@ -1209,6 +1290,7 @@ namespace Magistrala.EditorTools
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var log = new List<string>();
             log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts();
+            log.Add(LoadFeet()); walkOurs = new Dictionary<string, double>();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
             tris = dropped = segsDrawn = sidewalkSegs = discs = nCourts = 0; kmDrawn = 0;
@@ -1222,6 +1304,8 @@ namespace Magistrala.EditorTools
             }
             for (int ni = 0; ni < nodes.Count; ni++) BuildJunction(ni);
             BuildCourts(log);
+            log.Add(BuildModelWalks());
+            log.Add(WalkStats());
             FindClosures();
 
             var root = WorldBuilder.Root("Streets");
