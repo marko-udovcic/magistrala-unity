@@ -305,6 +305,11 @@ namespace Magistrala.EditorTools
                 // NatureManufacture dry grass / garrigue / wall-base weeds in the probe boxes (NaturePass), our grass thinned there
                 var layerL = new List<int[,]>(layers);
                 NaturePass.Details(tx, tz, R, protoL, layerL, A, ar, models);
+                // no grass on the pitches, car parks, pools, courts and playgrounds (GroundCover)
+                for (int r = 0; r < R; r++)
+                    for (int c = 0; c < R; c++)
+                        if (GroundCover.Hard(tx * 1024 + (c + .5) * 4, (tz + 1) * 1024 - (r + .5) * 4, 1.5))
+                            foreach (var L in layerL) L[r, c] = 0;
                 if (protoL.Count != protos.Length) td.detailPrototypes = protoL.ToArray();
                 for (int k = 0; k < layerL.Count; k++) td.SetDetailLayer(0, 0, k, layerL[k]);
                 t.detailObjectDistance = 140; t.detailObjectDensity = 1f;

@@ -241,8 +241,10 @@ namespace Magistrala.EditorTools
             cache[key] = t; return t;
         }
 
+        /// ground height (game frame): the baked tiles' height, levelled under the sports pitches (GroundCover.Level)
+        public static double Height(double gx, double gz) => GroundCover.Level(gx, gz, Raw(gx, gz));
         /// baked ground height (game frame), bilinear on the 8 m grid; sea bed (-6) outside the data
-        public static double Height(double gx, double gz)
+        public static double Raw(double gx, double gz)
         {
             int tx = (int)Math.Floor(gx / 1024), tz = (int)Math.Floor(gz / 1024);
             var t = Get(tx, tz); if (t?.heights == null) return -6;
