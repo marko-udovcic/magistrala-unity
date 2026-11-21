@@ -4,7 +4,7 @@
 // every file of junction-overrides.index.json; entries merged by id, a later file wins), like
 // client/src/world2/format/junctionOverrides.ts: per entry the anchor signature (arm count) is checked, then node / edge
 // patches, addNodes / addEdges, removeEdges. road-closures.json marks closed edges (no routing through them).
-// Also runs before a player build when the asset is missing.
+// Also runs before a player build when the asset is missing. At the end it bakes the full-screen map (KartaBaker.cs).
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,7 +25,11 @@ namespace Magistrala.EditorTools
         const double MinX = WorldData.MIN_X, MaxX = 300, MinZ = -7000, MaxZ = -3000; // (mag-11-19: Štafilić)
 
         public int callbackOrder => 0;
-        public void OnPreprocessBuild(BuildReport report) { if (!File.Exists(OutPath)) Build(); }
+        public void OnPreprocessBuild(BuildReport report)
+        {
+            if (!File.Exists(OutPath)) Build();
+            else if (KartaBaker.Missing) KartaBaker.Bake(AssetDatabase.LoadAssetAtPath<GameWorld>(OutPath));
+        }
 
         /// (control / appr: the node's traffic control and per arriving edge id its approach control — priority / give_way / stop /
         /// signals — as graph.json and the override layers give them; SignsBuilder reads them through MergedGraph)
@@ -186,6 +190,8 @@ namespace Magistrala.EditorTools
             if (fresh) AssetDatabase.CreateAsset(asset, OutPath); else EditorUtility.SetDirty(asset);
             AssetDatabase.SaveAssets();
             Debug.Log($"[igra] {OutPath}: {stops.Count} stops, {nList.Count} nodes, {eList.Count} edges ({eList.FindAll(e => e.closed).Count} closed), {pts.Count} points; {asset.source}");
+            // the full-screen map (M) is baked from the same data: Magistrala/Karta: ispeci (KartaBaker.cs)
+            try { KartaBaker.Bake(asset); } catch (Exception e) { Debug.LogError("[karta] bake failed: " + e); }
         }
 
         static N ReadNode(Dictionary<string, object> o, N into = null)

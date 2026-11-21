@@ -110,7 +110,7 @@ namespace Magistrala.Game
         {
             if (GpuSwitches.NoHud) return;
             if (Event.current.type != EventType.Repaint) return;
-            if (MagistralaGame.I && MagistralaGame.I.Phone && MagistralaGame.I.Phone.Open) return; // the mockup: only the phone
+            if ((MagistralaGame.I && MagistralaGame.I.Phone && MagistralaGame.I.Phone.Open) || WorldMap.IsOpen) return; // the mockup: only the phone (or the map)
             // cross-fade: fade out, swap the text, fade in
             bool changed = place != shownPlace || road != shownRoad || street != shownStreet;
             float dt = Mathf.Min(Time.unscaledDeltaTime, .1f);

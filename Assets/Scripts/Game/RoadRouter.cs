@@ -1,6 +1,6 @@
 // GPS on the drivable graph (GameWorld): from the truck's place on the nearest edge to a node (a stop's pad end), Dijkstra on
 // road metres, one-ways respected, closed edges skipped. Like the web GPS (world2/nav/navigator.ts) a turn-around costs extra
-// (the truck avoids it where a sensible route exists).
+// (the truck avoids it where a sensible route exists). RouteTo leads to a point on an edge (the owner's map waypoint).
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -57,15 +57,67 @@ namespace Magistrala.Game
             metres = 0;
             var sp = Nearest(pos, fwd);
             if (sp.edge < 0 || target < 0) return null;
+            Search(sp, fwd, target, -1, out var dist, out var prevE, out var prevFwd);
+            if (dist[target] == float.MaxValue) return null;
+            var line = Assemble(sp, target, prevE, prevFwd);
+            if (tail.HasValue) line.Add(tail.Value);
+            for (int i = 1; i < line.Count; i++) metres += Vector3.Distance(line[i - 1], line[i]);
+            return line;
+        }
+
+        /// route polyline from pos to a point on an edge (`goal` from Nearest: the owner's waypoint, WorldMap), arriving along
+        /// the goal edge from whichever end is nearer by road (a one-way edge only from its start); null = no route
+        public List<Vector3> RouteTo(Vector3 pos, Vector3 fwd, Spot goal, out float metres)
+        {
+            metres = 0;
+            var sp = Nearest(pos, fwd);
+            if (sp.edge < 0 || goal.edge < 0) return null;
+            var ge = w.edges[goal.edge];
+            float glen = 0; for (int k = 0; k + 1 < ge.pn; k++) glen += Flat(w.pts[ge.p0 + k], w.pts[ge.p0 + k + 1]);
+            // the truck already on the goal edge, heading towards it: straight along the edge
+            if (sp.edge == goal.edge)
+            {
+                var se = w.edges[sp.edge];
+                Vector3 dirAB = w.pts[se.p0 + Mathf.Min(sp.seg + 1, se.pn - 1)] - w.pts[se.p0 + sp.seg]; dirAB.y = 0;
+                bool headingAB = Vector3.Dot(dirAB, fwd) >= 0;
+                bool fwdOk = goal.s >= sp.s && (headingAB || se.oneway), backOk = !se.oneway && goal.s <= sp.s && !headingAB;
+                if (fwdOk || backOk)
+                {
+                    var l = new List<Vector3> { sp.p };
+                    if (fwdOk) for (int k = sp.seg + 1; k <= goal.seg; k++) l.Add(w.pts[ge.p0 + k]);
+                    else for (int k = sp.seg; k > goal.seg; k--) l.Add(w.pts[ge.p0 + k]);
+                    l.Add(goal.p);
+                    for (int i = 1; i < l.Count; i++) metres += Vector3.Distance(l[i - 1], l[i]);
+                    return l;
+                }
+            }
+            Search(sp, fwd, ge.a, ge.oneway ? -1 : ge.b, out var dist, out var prevE, out var prevFwd);
+            float viaA = dist[ge.a] == float.MaxValue ? float.MaxValue : dist[ge.a] + goal.s;
+            float viaB = ge.oneway || dist[ge.b] == float.MaxValue ? float.MaxValue : dist[ge.b] + glen - goal.s;
+            if (viaA == float.MaxValue && viaB == float.MaxValue) return null;
+            bool fromA = viaA <= viaB;
+            var line = Assemble(sp, fromA ? ge.a : ge.b, prevE, prevFwd);
+            if (fromA) for (int k = 1; k <= goal.seg; k++) line.Add(w.pts[ge.p0 + k]);
+            else for (int k = ge.pn - 2; k > goal.seg; k--) line.Add(w.pts[ge.p0 + k]);
+            line.Add(goal.p);
+            for (int i = 1; i < line.Count; i++) metres += Vector3.Distance(line[i - 1], line[i]);
+            return line;
+        }
+
+        static float Flat(Vector3 a, Vector3 b) { float dx = a.x - b.x, dz = a.z - b.z; return Mathf.Sqrt(dx * dx + dz * dz); }
+
+        /// Dijkstra from the truck's spot (both ends of its edge seeded, a turn-around costs extra) until `tA` (and `tB`) are settled
+        void Search(Spot sp, Vector3 fwd, int tA, int tB, out float[] dist, out int[] prevE, out bool[] prevFwd)
+        {
             var ge = w.edges[sp.edge];
             float elen = EdgeLen(ge);
             Vector3 dirAB = w.pts[ge.p0 + Mathf.Min(sp.seg + 1, ge.pn - 1)] - w.pts[ge.p0 + sp.seg]; dirAB.y = 0;
             bool headingAB = Vector3.Dot(dirAB, fwd) >= 0;
             int n = w.nodes.Length;
-            var dist = new float[n]; var prevE = new int[n]; var prevFwd = new bool[n];
-            for (int i = 0; i < n; i++) { dist[i] = float.MaxValue; prevE[i] = -1; }
+            var d = dist = new float[n]; var pe = prevE = new int[n]; var pf = prevFwd = new bool[n];
+            for (int i = 0; i < n; i++) { d[i] = float.MaxValue; pe[i] = -1; }
             var open = new SortedSet<(float d, int i)>();
-            void Seed(int node, float d) { if (d < dist[node]) { dist[node] = d; open.Add((d, node)); } }
+            void Seed(int node, float v) { if (v < d[node]) { d[node] = v; open.Add((v, node)); } }
             Seed(ge.b, elen - sp.s + (headingAB ? 0 : UTurnCost));
             if (!ge.oneway) Seed(ge.a, sp.s + (headingAB ? UTurnCost : 0));
             var done = new bool[n];
@@ -73,24 +125,28 @@ namespace Magistrala.Game
             {
                 var top = open.Min; open.Remove(top); int u = top.i;
                 if (done[u]) continue; done[u] = true;
-                if (u == target) break;
+                if (u == tA && (tB < 0 || done[tB])) break;
+                if (u == tB && done[tA]) break;
                 foreach (var (e, f) in adj[u])
                 {
                     var x = w.edges[e]; int v = f ? x.b : x.a;
                     // turning straight back onto the edge we came from = a turn-around
-                    float extra = prevE[u] == e ? UTurnCost : 0;
-                    float nd = dist[u] + EdgeLen(x) + extra;
-                    if (nd < dist[v]) { if (dist[v] < float.MaxValue) open.Remove((dist[v], v)); dist[v] = nd; prevE[v] = e; prevFwd[v] = f; open.Add((nd, v)); }
+                    float extra = pe[u] == e ? UTurnCost : 0;
+                    float nd = d[u] + EdgeLen(x) + extra;
+                    if (nd < d[v]) { if (d[v] < float.MaxValue) open.Remove((d[v], v)); d[v] = nd; pe[v] = e; pf[v] = f; open.Add((nd, v)); }
                 }
             }
-            if (dist[target] == float.MaxValue) return null;
-            // walk back the chain of edges
+        }
+
+        /// the polyline: along the start edge to its first node, then the chain of edges to `target`
+        List<Vector3> Assemble(Spot sp, int target, int[] prevE, bool[] prevFwd)
+        {
+            var ge = w.edges[sp.edge];
             var chain = new List<(int e, bool f)>();
             for (int v = target; prevE[v] >= 0;) { var e = prevE[v]; bool f = prevFwd[v]; chain.Add((e, f)); v = f ? w.edges[e].a : w.edges[e].b; if (chain.Count > 4000) break; }
             chain.Reverse();
             int startNode = chain.Count > 0 ? (chain[0].f ? w.edges[chain[0].e].a : w.edges[chain[0].e].b) : target;
             var line = new List<Vector3> { sp.p };
-            // along the start edge to the first node
             if (startNode == ge.b) for (int k = sp.seg + 1; k < ge.pn; k++) line.Add(w.pts[ge.p0 + k]);
             else for (int k = sp.seg; k >= 0; k--) line.Add(w.pts[ge.p0 + k]);
             foreach (var (e, f) in chain)
@@ -99,8 +155,6 @@ namespace Magistrala.Game
                 if (f) for (int k = 1; k < x.pn; k++) line.Add(w.pts[x.p0 + k]);
                 else for (int k = x.pn - 2; k >= 0; k--) line.Add(w.pts[x.p0 + k]);
             }
-            if (tail.HasValue) line.Add(tail.Value);
-            for (int i = 1; i < line.Count; i++) metres += Vector3.Distance(line[i - 1], line[i]);
             return line;
         }
 

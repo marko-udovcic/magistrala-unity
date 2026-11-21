@@ -122,7 +122,7 @@ namespace Magistrala.Game.Phone
                 var r = Ringing; Ringing = null; Log(r.caller, 1);
                 Debug.Log($"[phone] missed call {r.caller}"); r.onMissed?.Invoke(); changed?.Invoke();
             }
-            if (kb == null) { ApplyPause(); return; }
+            if (kb == null || WorldMap.IsOpen) { ApplyPause(); return; } // (the full-screen map takes the keys)
             if (Ringing != null && !Open)
             {
                 if (kb.yKey.wasPressedThisFrame) Answer();

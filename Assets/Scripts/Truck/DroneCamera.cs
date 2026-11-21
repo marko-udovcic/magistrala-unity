@@ -62,7 +62,7 @@ public sealed class DroneCamera : MonoBehaviour
         }
     }
 
-    static bool PhoneOpen() { var g = Magistrala.Game.MagistralaGame.I; return g && g.Phone && g.Phone.Open; }
+    static bool PhoneOpen() { var g = Magistrala.Game.MagistralaGame.I; return (g && g.Phone && g.Phone.Open) || Magistrala.Game.WorldMap.IsOpen; }
 
     void Enter()
     {

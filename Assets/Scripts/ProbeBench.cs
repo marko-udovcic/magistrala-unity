@@ -86,7 +86,7 @@ namespace Magistrala
                 acc = 0; frames = 0; worst = 0;
             }
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (!Application.isEditor && kb != null && kb.escapeKey.wasPressedThisFrame) Application.Quit();
+            if (!Application.isEditor && kb != null && kb.escapeKey.wasPressedThisFrame && !Magistrala.Game.WorldMap.EscTaken) Application.Quit(); // (Esc closes the map first)
         }
     }
 }

@@ -45,7 +45,7 @@ public sealed class TruckHud : MonoBehaviour
     {
         if (GpuSwitches.NoHud || Event.current.type != EventType.Repaint) return;
         var g = MagistralaGame.I;
-        bool phone = g && g.Phone && g.Phone.Open;
+        bool phone = (g && g.Phone && g.Phone.Open) || WorldMap.IsOpen;
         if (phone) { HudStyle.PanelTop = Screen.height; HudStyle.PanelRect = Rect.zero; return; }
         float K = HudStyle.K, M = HudStyle.Margin;
         float pw = Mathf.Round(PW * K), ph = Mathf.Round(PH * K);

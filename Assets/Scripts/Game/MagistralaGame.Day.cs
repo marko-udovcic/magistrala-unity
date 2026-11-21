@@ -40,6 +40,8 @@ namespace Magistrala.Game
         public PhoneSave phone = new PhoneSave();
         /// diesel in the tank, % (MagistralaGame.Fuel.cs); a new game starts at 72 %
         public float fuel = 72;
+        /// the owner's map waypoint (WorldMap, Unity x / z on the road), wpOn = set
+        public bool wpOn; public float wpX, wpZ;
     }
 
     public partial class MagistralaGame

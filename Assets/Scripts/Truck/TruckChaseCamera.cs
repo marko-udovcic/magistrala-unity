@@ -45,7 +45,7 @@ public sealed class TruckChaseCamera : MonoBehaviour
             initialized = false;
             headYaw = headPitch = 0;
         }
-        Mouse mouse = Mouse.current;
+        Mouse mouse = Magistrala.Game.WorldMap.IsOpen ? null : Mouse.current; // the full-screen map (M) takes the mouse
         bool dragging = mouse != null && (mouse.leftButton.isPressed || mouse.rightButton.isPressed);
         if (dragging)
         {

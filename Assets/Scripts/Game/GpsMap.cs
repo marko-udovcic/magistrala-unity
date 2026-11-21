@@ -104,7 +104,7 @@ namespace Magistrala.Game
 
         void LateUpdate()
         {
-            if (GpuSwitches.NoHud || wantW < 8 || wantH < 8 || g == null || !g.Truck || g.World == null) return;
+            if (GpuSwitches.NoHud || WorldMap.IsOpen || wantW < 8 || wantH < 8 || g == null || !g.Truck || g.World == null) return;
             if (!mat)
             {
                 var sh = Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
