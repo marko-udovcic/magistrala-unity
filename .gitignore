@@ -42,3 +42,4 @@ crashlytics-buildid.txt
 # NatureManufacture Coast & Dunes (Unity Asset Store, Standard EULA): never commit the package files; unpack it locally (docs/priroda.md)
 /Assets/NatureManufacture Assets/
 /Assets/NatureManufacture Assets.meta
+Assets/Models/Vehicles/Kandidati/
