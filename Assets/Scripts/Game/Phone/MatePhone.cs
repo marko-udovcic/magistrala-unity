@@ -419,6 +419,7 @@ namespace Magistrala.Game.Phone
             "Magistrala — Kaštela, Split.\n\n" +
             "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni " +
             "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
+            "Street-level imagery: Mapillary contributors (CC BY-SA 4.0) — boje fasada i položaji svjetiljki.\n\n" +
             "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).";
         void DrawAbout(Rect a)
         {

@@ -172,6 +172,7 @@ namespace Magistrala
             }
             if (TryF("-tbase", out var tb)) foreach (var t in FindObjectsByType<Terrain>(FindObjectsSortMode.None)) { t.basemapDistance = tb; sb.Append($" tbase {tb}"); }
             if (Arg("-golden") == "1") { var lp = FindFirstObjectByType<LightPreset>(); if (lp) { lp.SetGolden(true); sb.Append(" golden"); } }
+            if (Arg("-night") == "1") { var lp = FindFirstObjectByType<LightPreset>(); if (lp) { lp.SetNight(true); sb.Append(" night"); } }
             if (TryF("-camhigh", out var ch)) { camHigh = ch; sb.Append($" camhigh {ch}"); }
             shot = Arg("-shot"); if (TryF("-shotat", out var sa)) shotAt = sa; if (TryF("-burst", out var bu)) burst = (int)bu;
             if (TryF("-capfps", out var cf)) { Time.captureFramerate = (int)cf; sb.Append($" capfps {cf}"); }
@@ -251,8 +252,20 @@ namespace Magistrala
             }
         }
 
+        // -campose gx,gz,h,yaw,pitch: the camera fixed there (game x / z, h m above the ground, Unity yaw, pitch down in degrees;
+        // screenshots of facades / lamps from a chosen spot)
+        float[] camPose; float camPoseY = float.NaN;
         void LateUpdate()
         {
+            if (camPose == null && Arg("-campose") is string cps) camPose = System.Array.ConvertAll(cps.Split(','), q => float.Parse(q, System.Globalization.CultureInfo.InvariantCulture));
+            if (camPose != null && camPose.Length >= 5 && Camera.main)
+            {
+                var ch2 = Camera.main.GetComponent<TruckChaseCamera>(); if (ch2) ch2.enabled = false;
+                var u = new Vector3(camPose[0] + 4200, 0, -(camPose[1] + 5300));
+                if (float.IsNaN(camPoseY) && Physics.Raycast(u + Vector3.up * 300, Vector3.down, out var hit, 600, ~0, QueryTriggerInteraction.Ignore)) camPoseY = hit.point.y;
+                if (!float.IsNaN(camPoseY)) Camera.main.transform.SetPositionAndRotation(u + Vector3.up * (camPoseY + camPose[2]), Quaternion.Euler(camPose[4], camPose[3], 0));
+                return;
+            }
             if (camHigh <= 0 || !Camera.main) return;
             var tr = FindFirstObjectByType<TruckController>(); if (!tr) return;
             var chase = Camera.main.GetComponent<TruckChaseCamera>(); if (chase) chase.enabled = false;

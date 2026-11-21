@@ -132,6 +132,7 @@ namespace Magistrala.EditorTools
             Benches();
             ProbeYards();
             Terrace();
+            log.Add(Lamps());                // street lamps (StreetLights.cs): before the cars, which keep off the poles
             ParkedCars();                    // last: the cars keep off every prop placed before
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             int rend = root.GetComponentsInChildren<MeshRenderer>(true).Length, lg = root.GetComponentsInChildren<LODGroup>(true).Length, cols = root.GetComponentsInChildren<Collider>(true).Length;

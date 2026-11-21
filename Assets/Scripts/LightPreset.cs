@@ -10,6 +10,13 @@ namespace Magistrala
     /// Magistrala ▸ Grafika: zalazak (GraphicsPass.Sunset).
     public class LightPreset : MonoBehaviour
     {
+        [Header("noć (Shift+G, -night 1): the sunset sky darkened, a faint cool moonlight, the street lamps on")]
+        public float nightSky = .06f, nightSun = .06f, nightAmb = .12f, nightExposure = -.2f, nightReflect = .12f;
+        public Color moon = new Color(.62f, .72f, 1f);
+        bool night; Material nightSky0; float dayRefl = 1;
+        /// the street lamps' level (StreetLights): sunset .55 (they come on at dusk), night 1, day 0
+        public float LampLevel => night ? 1 : golden ? .55f : 0;
+        public bool Night => night;
         [Header("zalazak (GraphicsPass.Sunset)")]
         public Material sunsetSky;
         public ReflectionProbe[] probes;
@@ -34,7 +41,7 @@ namespace Magistrala
         public void Init()
         {
             if (ready) return; ready = true;
-            sun = GetComponent<Light>();
+            sun = GetComponent<Light>(); dayRefl = RenderSettings.reflectionIntensity;
             var vol = FindFirstObjectByType<Volume>();
             var prof = vol.profile; // runtime instance (never the asset)
             prof.TryGet(out ca); prof.TryGet(out wb); prof.TryGet(out bloom); prof.TryGet(out vig);
@@ -68,8 +75,29 @@ namespace Magistrala
             };
         }
 
+        S NightS()
+        {
+            var g = Gold();
+            // a cool moon high in the south-east (soft long shadows), the sunset sky almost black, ambient a dark blue
+            g.rot = Quaternion.Euler(38, 150, 0); g.temp = 9000; g.intensity = nightSun; g.sun = moon; g.shadowStr = .5f;
+            g.sky = new Color(.16f, .2f, .32f) * nightAmb; g.eq = new Color(.12f, .14f, .2f) * nightAmb; g.ground = new Color(.05f, .05f, .06f) * nightAmb;
+            g.fog = new Color(.03f, .035f, .05f); g.fogD = .00016f;
+            g.exposure = day.exposure + nightExposure; g.contrast = day.contrast + 8; g.sat = day.sat - 10; g.wb = day.wb - 4;
+            g.bloomT = .9f; g.bloomI = .9f; g.vig = .28f;
+            g.splitS = new Color(.42f, .46f, .6f); g.splitH = new Color(.62f, .55f, .45f);
+            if (g.skybox)
+            {
+                if (!nightSky0) { nightSky0 = new Material(g.skybox) { name = "SkyNight (runtime)" }; }
+                if (nightSky0.HasProperty("_Exposure")) nightSky0.SetFloat("_Exposure", nightSky);
+                if (nightSky0.HasProperty("_Tint")) nightSky0.SetColor("_Tint", new Color(.35f, .4f, .55f));
+                g.skybox = nightSky0;
+            }
+            return g;
+        }
+
         void Apply(S s)
         {
+            RenderSettings.reflectionIntensity = night ? nightReflect * dayRefl : dayRefl;
             transform.rotation = s.rot; sun.colorTemperature = s.temp; sun.intensity = s.intensity; sun.color = s.sun; sun.shadowStrength = s.shadowStr;
             RenderSettings.fogDensity = s.fogD; RenderSettings.fogColor = s.fog;
             RenderSettings.ambientSkyColor = s.sky; RenderSettings.ambientEquatorColor = s.eq; RenderSettings.ambientGroundColor = s.ground;
@@ -84,13 +112,19 @@ namespace Magistrala
             DynamicGI.UpdateEnvironment();
         }
 
-        public void SetGolden(bool on) { Init(); golden = on; Apply(golden ? Gold() : day); }
+        public void SetGolden(bool on) { Init(); golden = on; night = false; Apply(golden ? Gold() : day); }
+        /// night: also Golden (truck / traffic headlights follow Golden)
+        public void SetNight(bool on) { Init(); night = on; golden = on; Apply(on ? NightS() : day); }
         public bool Golden => golden;
 
         void Update()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.gKey.wasPressedThisFrame) SetGolden(!golden);
+            if (kb != null && kb.gKey.wasPressedThisFrame)
+            {
+                if (kb.shiftKey.isPressed) SetNight(!night);
+                else SetGolden(!golden);
+            }
         }
         void OnDisable() { if (golden && ready) Apply(day); }
     }
