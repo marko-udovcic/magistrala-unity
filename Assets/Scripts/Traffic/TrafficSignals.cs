@@ -14,7 +14,9 @@ namespace Magistrala.Traffic
             public int corridor = -1, stop;
             /// TrafficData.plans key ("krizanje-01") and signal group ("SG1") of the head
             public string planKey, group;
-            public Renderer red, amber, green;
+            /// the lit lenses' poses (red, amber, green): the dark lenses are part of the signs' static mesh, the lit ones are
+            /// drawn over them — every lit lens of the world in three instanced draws (one per colour)
+            public Matrix4x4 mRed, mAmber, mGreen;
             [System.NonSerialized] public int plan; [System.NonSerialized] public bool resolved;
         }
 
@@ -30,8 +32,10 @@ namespace Magistrala.Traffic
         public static event System.Action<string> RanRed;
         Transform truck; Vector3 prevPos; bool havePrev; float findT;
         public Material redOn, amberOn, greenOn, lensOff;
+        public Mesh lens;
         float next;
         int[] shown;
+        readonly System.Collections.Generic.List<Matrix4x4> litR = new System.Collections.Generic.List<Matrix4x4>(), litA = new System.Collections.Generic.List<Matrix4x4>(), litG = new System.Collections.Generic.List<Matrix4x4>();
 
         void FixedUpdate()
         {
@@ -57,19 +61,40 @@ namespace Magistrala.Traffic
 
         void Update()
         {
-            if (!traffic || heads == null || Time.time < next) return;
-            next = Time.time + .1f;
-            if (shown == null || shown.Length != heads.Length) { shown = new int[heads.Length]; for (int i = 0; i < shown.Length; i++) shown[i] = -1; }
-            for (int i = 0; i < heads.Length; i++)
+            if (!traffic || heads == null) return;
+            if (Time.time >= next)
             {
-                var h = heads[i];
-                if (h.corridor < 0 && !h.resolved) { h.plan = traffic.PlanIndex(h.planKey); h.resolved = true; }
-                int s = h.corridor >= 0 ? traffic.LightState(h.corridor, h.stop) : traffic.LightFor(h.plan, h.group);
-                if (s == shown[i]) continue; shown[i] = s;
-                if (h.red) h.red.sharedMaterial = s >= 2 ? redOn : lensOff;
-                if (h.amber) h.amber.sharedMaterial = s == 1 || s == 3 ? amberOn : lensOff;
-                if (h.green) h.green.sharedMaterial = s == 0 ? greenOn : lensOff;
+                next = Time.time + .1f;
+                if (shown == null || shown.Length != heads.Length) { shown = new int[heads.Length]; for (int i = 0; i < shown.Length; i++) shown[i] = -1; }
+                bool changed = false;
+                for (int i = 0; i < heads.Length; i++)
+                {
+                    var h = heads[i];
+                    if (h.corridor < 0 && !h.resolved) { h.plan = traffic.PlanIndex(h.planKey); h.resolved = true; }
+                    int s = h.corridor >= 0 ? traffic.LightState(h.corridor, h.stop) : traffic.LightFor(h.plan, h.group);
+                    if (s != shown[i]) { shown[i] = s; changed = true; }
+                }
+                if (changed)
+                {
+                    litR.Clear(); litA.Clear(); litG.Clear();
+                    for (int i = 0; i < heads.Length; i++)
+                    {
+                        int s = shown[i];
+                        if (s >= 2) litR.Add(heads[i].mRed);
+                        if (s == 1 || s == 3) litA.Add(heads[i].mAmber);
+                        if (s == 0) litG.Add(heads[i].mGreen);
+                    }
+                }
             }
+            if (!lens) return;
+            Draw(litR, redOn); Draw(litA, amberOn); Draw(litG, greenOn);
+        }
+
+        void Draw(System.Collections.Generic.List<Matrix4x4> m, Material mat)
+        {
+            if (m.Count == 0 || !mat) return;
+            var rp = new RenderParams(mat) { shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off, receiveShadows = false, worldBounds = new Bounds(Vector3.zero, Vector3.one * 30000) };
+            Graphics.RenderMeshInstanced(rp, lens, 0, m);
         }
     }
 }

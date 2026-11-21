@@ -143,10 +143,9 @@ namespace Magistrala.EditorTools
 
         // ------------------------------------------------------------------ signal heads
         static Mesh lens;
-        static Material mOff;
+        static Rect rLens;
         static List<TrafficSignals.Head> heads;
-        static Transform headRoot;
-        static Mesh Lens()
+        public static Mesh LensMesh()
         {
             string p = SignAtlas.DIR + "/Lens.asset";
             var m = AssetDatabase.LoadAssetAtPath<Mesh>(p);
@@ -160,14 +159,14 @@ namespace Magistrala.EditorTools
             AssetDatabase.CreateAsset(m, p);
             return m;
         }
-        static Renderer LensAt(Vector3 c, Vector3 t, float d)
+        /// an unlit lens: a dark disc baked into the chunk mesh; the lit one is drawn over it by TrafficSignals (instanced)
+        static Matrix4x4 LensAt(Vector3 c, Vector3 t, float d)
         {
-            var go = new GameObject("lens"); go.transform.SetParent(headRoot, false);
-            go.transform.SetPositionAndRotation(c, Quaternion.LookRotation(t, Vector3.up)); go.transform.localScale = Vector3.one * d;
-            go.AddComponent<MeshFilter>().sharedMesh = lens;
-            var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mOff; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            r.receiveShadows = false; go.isStatic = false;
-            return r;
+            var k = At(c); var n = -t; var right = Vector3.Cross(Vector3.up, t); int b0 = k.v.Count; const int N = 12;
+            k.v.Add(c); k.n.Add(n); k.uv.Add(rLens.center);
+            for (int i = 0; i < N; i++) { float a = i * Mathf.PI * 2 / N; k.v.Add(c + (right * Mathf.Cos(a) + Vector3.up * Mathf.Sin(a)) * d / 2); k.n.Add(n); k.uv.Add(rLens.center); }
+            for (int i = 0; i < N; i++) Tri(k, b0, b0 + 1 + i, b0 + 1 + (i + 1) % N, n);
+            return Matrix4x4.TRS(c - t * .004f, Quaternion.LookRotation(t, Vector3.up), Vector3.one * d);
         }
         /// a signal head at c facing traffic travelling along t: vertical (red on top) or horizontal (red on the driver's left)
         static void Head(Vector3 c, Vector3 t, bool vertical, float lensD, string plan, string group)
@@ -182,7 +181,7 @@ namespace Magistrala.EditorTools
             Box(c + t * (depth / 2 + .035f), q, size + new Vector3(.1f, .1f, -depth + .02f), rBlack);
             Vector3 Off(int i) => vertical ? Vector3.up * (1 - i) * pitch : -right * (1 - i) * pitch; // i 0 red, 1 amber, 2 green
             var front = c - t * (depth / 2 + .006f);
-            var h = new TrafficSignals.Head { corridor = -1, planKey = plan, group = group, red = LensAt(front + Off(0), t, lensD), amber = LensAt(front + Off(1), t, lensD), green = LensAt(front + Off(2), t, lensD) };
+            var h = new TrafficSignals.Head { corridor = -1, planKey = plan, group = group, mRed = LensAt(front + Off(0), t, lensD), mAmber = LensAt(front + Off(1), t, lensD), mGreen = LensAt(front + Off(2), t, lensD) };
             // visors
             for (int i = 0; i < 3; i++) Box(front + Off(i) + Vector3.up * lensD * .55f - t * .09f, q, new Vector3(lensD * 1.05f, .02f, .18f), rBlack);
             heads.Add(h); Count("glave semafora");
@@ -418,7 +417,7 @@ namespace Magistrala.EditorTools
                 {
                     int i = Mathf.Clamp(Mathf.RoundToInt(st.s / c.step), 0, c.axis.Length - 2);
                     var p = c.axis[i]; var fwd = c.axis[i + 1] - c.axis[i]; fwd.y = 0; fwd.Normalize();
-                    if (heads.Exists(h => h.planKey == st.model && h.group == st.group && h.red && (h.red.transform.position - p).magnitude < 45 && Vector3.Dot(h.red.transform.forward, fwd) > .7f)) continue;
+                    if (heads.Exists(h => h.planKey == st.model && h.group == st.group && ((Vector3)h.mRed.GetColumn(3) - p).magnitude < 45 && Vector3.Dot(((Vector3)h.mRed.GetColumn(2)).normalized, fwd) > .7f)) continue;
                     float hi = -99; for (int k = 0; k < c.maxLanes; k++) { float o = c.laneOff[i * c.maxLanes + k]; if (!float.IsNaN(o)) hi = Mathf.Max(hi, o); }
                     var b = p + c.right[i] * (hi + 1.75f + .9f) + fwd * 1.0f; b.y = Ground(b, p.y, out _);
                     Pole(b, 3.45f, .07f);
@@ -833,10 +832,10 @@ namespace Magistrala.EditorTools
         {
             counts.Clear(); log.Clear(); placed.Clear();
             chunks = new Dictionary<Vector2Int, Chunk>(); cols = new List<(Vector3, Quaternion, Vector3)>();
-            heads = new List<TrafficSignals.Head>(); headRoot = signalsRoot; mOff = lensOff;
+            heads = new List<TrafficSignals.Head>();
             if (!AssetDatabase.IsValidFolder(SignAtlas.DIR)) AssetDatabase.CreateFolder(GEN, "Signs");
             if (!AssetDatabase.IsValidFolder(SignAtlas.DIR + "/Meshes")) AssetDatabase.CreateFolder(SignAtlas.DIR, "Meshes");
-            lens = Lens();
+            lens = LensMesh();
             A = new SignAtlas { font = SignFont.Load() };
             var models = WorldData.Models();
             var sigs = Sigs();
@@ -850,9 +849,9 @@ namespace Magistrala.EditorTools
             for (int pass = 0; pass < 2; pass++)
             {
                 chunks.Clear(); cols.Clear(); heads.Clear(); placed.Clear(); counts.Clear(); log.Clear(); where.Clear();
-                foreach (Transform ch in signalsRoot.Cast<Transform>().ToList()) UnityEngine.Object.DestroyImmediate(ch.gameObject);
                 A.Solid("steel", SignAtlas.Steel); A.Solid("black", SignAtlas.Dark); A.Solid("white", SignAtlas.White); A.BollardStripes();
-                rSteel = R("solid:steel"); rBlack = R("solid:black"); rWhite = R("solid:white"); rBollard = R("bollard");
+                A.Solid("lens", SignAtlas.Hex("121212"));
+                rSteel = R("solid:steel"); rBlack = R("solid:black"); rWhite = R("solid:white"); rBollard = R("bollard"); rLens = R("solid:lens");
                 BuildSignals(models, sigs, groupStops);
                 FallbackHeads(ts.data);
                 BuildApproachSigns(models, sigs);

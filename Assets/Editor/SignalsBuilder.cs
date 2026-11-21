@@ -39,7 +39,7 @@ namespace Magistrala.EditorTools
             string report = SignsBuilder.Build(ts, off, out var heads, root.transform);
             var comp = root.AddComponent<TrafficSignals>();
             comp.traffic = ts; comp.heads = heads.ToArray(); comp.redOn = red; comp.amberOn = amber; comp.greenOn = green; comp.lensOff = off;
-            comp.lines = SignsBuilder.StopLines().ToArray();
+            comp.lines = SignsBuilder.StopLines().ToArray(); comp.lens = SignsBuilder.LensMesh();
 
             // every stop line the AI cars stop at must have a head of its group facing it nearby (else they'd stop at an unseen red)
             var data = ts.data; int ok = 0; var miss = new List<string>();
@@ -50,8 +50,8 @@ namespace Magistrala.EditorTools
                 {
                     int i = Mathf.Clamp(Mathf.RoundToInt(st.s / c.step), 0, c.axis.Length - 2);
                     var p = c.axis[i]; var fwd = c.axis[i + 1] - c.axis[i]; fwd.y = 0; fwd.Normalize();
-                    bool seen = heads.Exists(h => h.planKey == st.model && h.group == st.group && h.red && (h.red.transform.position - p).magnitude < 45
-                        && Vector3.Dot(h.red.transform.forward, fwd) > .7f);
+                    bool seen = heads.Exists(h => h.planKey == st.model && h.group == st.group && ((Vector3)h.mRed.GetColumn(3) - p).magnitude < 45
+                        && Vector3.Dot(((Vector3)h.mRed.GetColumn(2)).normalized, fwd) > .7f);
                     if (seen) ok++; else miss.Add($"{c.name} {st.model} {st.group} s {st.s:F0}");
                 }
             }
