@@ -94,6 +94,7 @@ namespace Magistrala.Game
             if (Arg("-jobabort") is string ja) float.TryParse(ja, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out abortAt);
             LoadSave();
             SetupPhone();
+            Magistrala.Traffic.TrafficSignals.RanRed += OnRanRed;
             // the truck's box centre in its own frame (delivery-bay check) and length
             var b = new Bounds(); bool any = false;
             foreach (var r in Truck.GetComponentsInChildren<Renderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); }
@@ -278,6 +279,8 @@ namespace Magistrala.Game
 
         void SetPallets(bool on) { if (pallets) pallets.SetActive(on); if (Unload) Unload.SetLoaded(on); }
         void Banner(string s) { banner = s; bannerT = 6; }
+        void OnRanRed(string s) => Banner(s);
+        void OnDestroy() { Magistrala.Traffic.TrafficSignals.RanRed -= OnRanRed; }
         public static string Eur(float v) => v.ToString("0.00", System.Globalization.CultureInfo.GetCultureInfo("hr-HR")) + " €";
 
         // ------------------------------------------------------------------ per frame

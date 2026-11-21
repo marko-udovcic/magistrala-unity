@@ -411,7 +411,9 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ signals
-        static (List<TrafficPlan>, List<(Vector2 p, Vector2 dir, int plan, string group, string model)>) Signals(List<ModelJ> models)
+        /// allArms: every group edge's stop line (SignalsBuilder: which group each painted stop line belongs to), else only the D8's
+        /// and the old road's (the AI corridors)
+        internal static (List<TrafficPlan>, List<(Vector2 p, Vector2 dir, int plan, string group, string model)>) Signals(List<ModelJ> models, bool allArms = false)
         {
             var plans = new List<TrafficPlan>(); var stops = new List<(Vector2, Vector2, int, string, string)>();
             var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "model-junctions.json")));
@@ -434,7 +436,8 @@ namespace Magistrala.EditorTools
                 foreach (var p in MiniJson.L(plan["phases"]))
                 {
                     var po = MiniJson.O(p); if (!(MiniJson.G(po, "group") is string g)) continue;
-                    var f = new TrafficPhase { group = g, g0 = -1, g1 = -1, y0 = -1, y1 = -1 };
+                    var f = new TrafficPhase { group = g, g0 = -1, g1 = -1, y0 = -1, y1 = -1, r0 = -1, r1 = -1 };
+                    if (MiniJson.G(po, "redYellow") is List<object> ry) { f.r0 = (float)MiniJson.D(ry[0]); f.r1 = (float)MiniJson.D(ry[1]); }
                     if (MiniJson.G(po, "green") is List<object> gr) { f.g0 = (float)MiniJson.D(gr[0]); f.g1 = (float)MiniJson.D(gr[1]); }
                     if (MiniJson.G(po, "yellow") is List<object> yl) { f.y0 = (float)MiniJson.D(yl[0]); f.y1 = (float)MiniJson.D(yl[1]); }
                     ph.Add(f);
@@ -447,7 +450,7 @@ namespace Magistrala.EditorTools
                         if (!edges.TryGetValue((long)MiniJson.D(eid), out var e)) continue;
                         // (the D8's approaches, and the old road's — mag-11-19 19 / 20 / 21 / s04 — whose corridors run along Cesta dr. F. Tuđmana)
                         bool d8 = MiniJson.G(e, "ref") is string rf && rf.Contains("D8"), oldRoad = MiniJson.G(e, "name") is string nm && nm.Contains("Tuđmana");
-                        if (!d8 && !oldRoad) continue;
+                        if (!d8 && !oldRoad && !allArms) continue;
                         var pts = MiniJson.L(e["points"]).Select(q => MiniJson.L(q)).Select(q => new Vector2((float)MiniJson.D(q[0]), (float)MiniJson.D(q[2]))).ToList();
                         // the edge runs into the junction at b: its painted stop line is the one nearest to b − stopLine.b along the edge
                         // whose heading (atan2 z, x) runs the edge's way. (A two-way edge of the old road may run into it at a — the
@@ -469,7 +472,7 @@ namespace Magistrala.EditorTools
                                 if (Vector2.Dot(sd, dr) > .5f && d < bd) { bd = d; bi = q; dir = dr; }
                             }
                         }
-                        if (bi < 0) { Debug.LogWarning($"[traffic] {key} {kv.Key}: no stop line for edge {eid}"); continue; }
+                        if (bi < 0) { if (!allArms) Debug.LogWarning($"[traffic] {key} {kv.Key}: no stop line for edge {eid}"); continue; }
                         var best = stopLines[bi].p; dir = new Vector2(Mathf.Cos(stopLines[bi].a), Mathf.Sin(stopLines[bi].a));
                         stops.Add((best, dir, pi, kv.Key, key));
                     }
@@ -524,6 +527,7 @@ namespace Magistrala.EditorTools
             }
             var east = Corridor("D8 istok (Split)", eastC, models);
             var west = Corridor("D8 zapad (Trogir)", westC, models);
+            west.deadEnd = c09 != null;
             var cors = new List<TrafficCorridor> { east, west };
             // the old road Štafilić → Lukšić (mag-11-19: s01 … s13, junctions 19 / 20 / 21): two-way, one corridor per direction on the same
             // chained axis, cut 4 m before the works closure in s13 (tile x 89, README_DIONICE.md: the road is not built beyond it)
@@ -534,6 +538,7 @@ namespace Magistrala.EditorTools
                 if (s13 != null) { double cut = s13.x + 85 * (s13.lin?[0] ?? 1); int k = old.FindIndex(q => q.x > cut); if (k > 1) old = old.GetRange(0, k); }
                 var back = new List<(double x, double z, double w, int n, Piece pc)>(old); back.Reverse();
                 cors.Add(Corridor("Stara cesta istok (Lukšić)", old, models, true));
+                cors[cors.Count - 1].deadEnd = s13 != null;
                 cors.Add(Corridor("Stara cesta zapad (Štafilić)", back, models, true));
             }
             var (plans, stops) = Signals(models);

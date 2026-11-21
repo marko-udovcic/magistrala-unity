@@ -58,11 +58,14 @@ namespace Magistrala.Traffic
         /// curve speed cap (m/s) and the posted limit (m/s)
         public float[] vmax;
         public TrafficStop[] stops;
+        /// the corridor ends at a closure (works barrier, mag-11-20 c09's D8 to Trogir, s13's old road): cars stop before its end
+        /// like at a red light and are recycled only out of sight — they never vanish in front of the player
+        public bool deadEnd;
         public float Length => (axis.Length - 1) * step;
     }
 
     [Serializable]
-    public class TrafficPhase { public string group; public float g0, g1, y0, y1; }
+    public class TrafficPhase { public string group; public float g0, g1, y0, y1; /** red + amber before green (−1 none) */ public float r0 = -1, r1 = -1; }
 
     [Serializable]
     public class TrafficPlan { public string key; public float cycle; public TrafficPhase[] phases; }

@@ -42,5 +42,7 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
 
 ## Fontovi (SIL Open Font License 1.1)
-- **Inter** (Regular, SemiBold) — The Inter Project Authors, https://github.com/rsms/inter (v4.1) — tekst Matina mobitela.
+- **Inter** (Regular, SemiBold) — The Inter Project Authors, https://github.com/rsms/inter (v4.1) — tekst Matina mobitela i natpisi na prometnim znakovima
+  (ploče portala, putokazi, nazivi mjesta i ulica: Inter SemiBold rasteriziran u `Assets/Generated/Signs/SignAtlas.png` pri
+  gradnji, `Assets/Editor/SignArt.cs`).
   Datoteke: `Assets/Resources/Fonts/Inter-*.ttf`, licenca `Assets/Resources/Fonts/Inter-LICENSE.txt`.

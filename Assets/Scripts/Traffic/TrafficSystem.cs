@@ -311,18 +311,25 @@ namespace Magistrala.Traffic
         }
 
         // ------------------------------------------------------------------ signals
-        float LightAt(TrafficStop st)
+        float LightAt(TrafficStop st) => Mathf.Min(2, Light(st.plan, st.group));
+        /// 0 green, 1 amber, 2 red, 3 red + amber (just before green: the cars treat it as red)
+        int Light(int plan, string group)
         {
-            // 0 green, 1 amber, 2 red
-            var p = data.plans[st.plan]; float u = ((clock % p.cycle) + p.cycle) % p.cycle;
+            var p = data.plans[plan]; float u = ((clock % p.cycle) + p.cycle) % p.cycle;
             foreach (var ph in p.phases)
             {
-                if (ph.group != st.group) continue;
+                if (ph.group != group) continue;
                 if (u >= ph.g0 && u < ph.g1) return 0;
                 if (u >= ph.y0 && u < ph.y1) return 1;
+                if (u >= ph.r0 && u < ph.r1) return 3;
             }
             return 2;
         }
+        /// signal plan index of a junction model (TrafficData.plans key, e.g. "krizanje-01"), −1 = none
+        public int PlanIndex(string key) { if (data?.plans != null) for (int i = 0; i < data.plans.Length; i++) if (data.plans[i].key == key) return i; return -1; }
+        /// the state a signal head of group `group` of plan `plan` shows (0 green, 1 amber, 2 red, 3 red + amber) — the same clock
+        /// the cars' stop lines use
+        public int LightFor(int plan, string group) => data == null || plan < 0 || plan >= data.plans.Length ? 2 : Light(plan, group);
         public int LightState(int ci, int si) => (int)LightAt(data.corridors[ci].stops[si]);
         public string LightName(int ci, int si) => LightAt(data.corridors[ci].stops[si]) switch { 0 => "green", 1 => "amber", _ => "red" };
 
@@ -407,6 +414,8 @@ namespace Magistrala.Traffic
                             if (stop && d < gap) { gap = Mathf.Max(d, 0); lv = 0; }
                             break;
                         }
+                    // a closure at the corridor's end: a standing obstacle 1 m before it (the cars queue at the barrier)
+                    if (cor.deadEnd) { float d = cor.Length - 1 - (car.s + car.len / 2); if (d < gap) { gap = Mathf.Max(d, 0); lv = 0; } }
                     float acc = gap > 500 ? car.a * (1 - Mathf.Pow(car.v / Mathf.Max(v0, .1f), 4)) : Idm(car, v0, gap, car.v - lv);
                     acc = Mathf.Clamp(acc, -9f, car.a);
                     car.braking = acc < -1.2f || (car.v < .5f && gap < 6);
@@ -530,7 +539,7 @@ namespace Magistrala.Traffic
             float sp = pSc[ci];
             float d = warmStart ? 40 + (float)rng.NextDouble() * (spawnMax - 40) : spawnMin + (float)rng.NextDouble() * (spawnMax - spawnMin);
             float s = sp + side * d;
-            if (s < 30 || s > cor.Length - 30) { SpawnFails[0]++; return false; }
+            if (s < 30 || s > cor.Length - (cor.deadEnd ? 300 : 30)) { SpawnFails[0]++; return false; }
             int n = LanesAt(cor, s);
             // prefer the right lane
             int lane = n <= 1 ? 0 : rng.NextDouble() < .62 ? 0 : 1 + rng.Next(n - 1);
@@ -600,7 +609,11 @@ namespace Magistrala.Traffic
             {
                 var c = cars[i]; var cor = data.corridors[c.c];
                 float d = Mathf.Abs(c.s - pSc[c.c]); d = Mathf.Sqrt(d * d + pFar[c.c] * pFar[c.c]); // (a corridor away from the player: real distance)
-                bool gone = d > despawnDist || c.s > cor.Length - 8 || c.s < 2;
+                bool gone = d > despawnDist || c.s < 2 || (!cor.deadEnd && c.s > cor.Length - 8);
+                // a closed end: recycled only where nobody sees it — at the barrier, or already on the last 150 m when unseen and
+                // not right by the player (the queue never grows in front of a camera that turns away)
+                if (!gone && cor.deadEnd && c.s > cor.Length - 150 && !InView(c.pos) && (c.pos - PlayerPos).magnitude > 60) gone = true;
+                if (!gone && cor.deadEnd && c.s > cor.Length - 8 && (!InView(c.pos) || (c.pos - (cam ? cam.transform.position : PlayerPos)).magnitude > 350)) gone = true;
                 // stuck far away (a jam that never clears behind a parked truck): recycle
                 if (!gone && c.stopT > 60 && (c.pos - PlayerPos).magnitude > 150 && !InView(c.pos)) gone = true;
                 // boxed in for good behind a standing truck (it blocks every lane it can go round by): recycle when unseen

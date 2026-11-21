@@ -27,8 +27,38 @@ namespace Magistrala.EditorTools
         public int callbackOrder => 0;
         public void OnPreprocessBuild(BuildReport report) { if (!File.Exists(OutPath)) Build(); }
 
-        class N { public long id; public double x, y, z; }
-        class E { public long id, a, b; public bool oneway; public double length; public string name, rf; public List<double[]> pts; public int lanes, maxspeed; public string spur, type; public bool? closedOwn; }
+        /// (control / appr: the node's traffic control and per arriving edge id its approach control — priority / give_way / stop /
+        /// signals — as graph.json and the override layers give them; SignsBuilder reads them through MergedGraph)
+        internal class N { public long id; public double x, y, z; public string control; public Dictionary<long, string> appr; }
+        internal class E { public long id, a, b; public bool oneway; public double length, width; public string name, rf; public List<double[]> pts; public int lanes, maxspeed; public string spur, type; public bool? closedOwn; }
+
+        /// graph.json with the junction override layers applied (as Build, before the outside streets), and the closed edges
+        internal static void MergedGraph(out Dictionary<long, N> nodes, out Dictionary<long, E> edges, out HashSet<long> closed)
+        {
+            var g = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "graph.json")));
+            nodes = new Dictionary<long, N>(); edges = new Dictionary<long, E>();
+            foreach (var o in MiniJson.L(g["nodes"])) { var n = ReadNode(MiniJson.O(o)); nodes[n.id] = n; }
+            foreach (var o in MiniJson.L(g["edges"])) { var e = ReadEdge(MiniJson.O(o), null); edges[e.id] = e; }
+            var files = new List<string> { "junction-overrides.json" };
+            var idx = W.REGION + "junction-overrides.index.json";
+            if (File.Exists(idx)) foreach (var f in MiniJson.L(MiniJson.Parse(File.ReadAllText(idx)))) files.Add((string)f);
+            var order = new List<string>(); var byId = new Dictionary<string, Dictionary<string, object>>();
+            foreach (var f in files)
+            {
+                var path = W.REGION + f; if (!File.Exists(path)) continue;
+                foreach (var eo in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(path)))["overrides"]))
+                {
+                    var en = MiniJson.O(eo); var id = (string)en["id"];
+                    if (!byId.ContainsKey(id)) order.Add(id);
+                    byId[id] = en;
+                }
+            }
+            foreach (var id in order) Apply(byId[id], nodes, edges);
+            closed = new HashSet<long>();
+            var cf = W.REGION + "road-closures.json";
+            if (File.Exists(cf)) foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(cf)))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
+            foreach (var e in edges.Values) if (e.closedOwn == true) closed.Add(e.id); else if (e.closedOwn == false) closed.Remove(e.id);
+        }
 
         [MenuItem("Magistrala/Igra: podaci (stajališta, graf cesta)")]
         public static void Build()
@@ -165,6 +195,12 @@ namespace Magistrala.EditorTools
             if (o.ContainsKey("x")) n.x = MiniJson.D(o["x"]);
             if (o.ContainsKey("y")) n.y = MiniJson.D(o["y"]);
             if (o.ContainsKey("z")) n.z = MiniJson.D(o["z"]);
+            if (o.ContainsKey("control")) n.control = o["control"] as string;
+            if (MiniJson.G(o, "approaches") is Dictionary<string, object> ap)
+            {
+                n.appr = new Dictionary<long, string>();
+                foreach (var kv in ap) if (long.TryParse(kv.Key, out long eid) && kv.Value is string c) n.appr[eid] = c;
+            }
             return n;
         }
 
@@ -176,6 +212,7 @@ namespace Magistrala.EditorTools
             if (o.ContainsKey("b")) e.b = (long)MiniJson.D(o["b"]);
             if (o.ContainsKey("oneway")) e.oneway = o["oneway"] is bool b && b;
             if (o.ContainsKey("length")) e.length = MiniJson.D(o["length"]);
+            if (o.ContainsKey("width") && o["width"] != null) e.width = MiniJson.D(o["width"]);
             if (o.ContainsKey("name")) e.name = o["name"] as string;
             if (o.ContainsKey("ref")) e.rf = o["ref"] as string;
             if (o.ContainsKey("lanes")) e.lanes = (int)MiniJson.D(o["lanes"]);

@@ -1,6 +1,6 @@
-// Signal heads at the D8 stop lines of the traffic corridors (Magistrala ▸ Build signals; run after Build traffic):
-// a galvanised pole on the right verge with a head at 3 m, and a mast arm over the lanes with a second head above
-// them. Lamps swap materials from TrafficSignals, following the same signal plans the AI cars obey.
+// Magistrala ▸ Build signals (run after Igra: podaci and Build traffic): the signal furniture of the junction models and every
+// road sign (SignsBuilder.cs), and the TrafficSignals component that switches the heads' lenses on the signal plans' clock —
+// the same one the AI cars obey. Checks that every AI stop line has a visible head of its group.
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -24,79 +24,42 @@ namespace Magistrala.EditorTools
             EditorUtility.SetDirty(m); return m;
         }
 
-        static GameObject Prim(string mesh, Transform parent, Vector3 pos, Quaternion rot, Vector3 scale, Material mat, bool shadows = true)
-        {
-            var go = new GameObject(mesh); go.transform.SetParent(parent, false);
-            go.transform.SetPositionAndRotation(pos, rot); go.transform.localScale = scale;
-            go.AddComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>(mesh + ".fbx");
-            var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mat;
-            r.shadowCastingMode = shadows ? UnityEngine.Rendering.ShadowCastingMode.On : UnityEngine.Rendering.ShadowCastingMode.Off;
-            return go;
-        }
-
         [MenuItem("Magistrala/Build signals")]
         public static string Build()
         {
             var ts = Object.FindFirstObjectByType<TrafficSystem>();
             if (!ts || !ts.data) return "no TrafficSystem / data: run Magistrala/Build traffic first";
-            var pole = Mat("pole", new Color(.55f, .57f, .58f), .7f, .45f);
-            var body = Mat("head", new Color(.04f, .04f, .045f), 0f, .35f);
             var off = Mat("lens_off", new Color(.07f, .07f, .07f), 0f, .9f);
             var red = Mat("red_on", new Color(1f, .1f, .05f), 0f, .9f, new Color(1f, .06f, .02f) * 9f);
             var amber = Mat("amber_on", new Color(1f, .55f, .05f), 0f, .9f, new Color(1f, .42f, .0f) * 8f);
             var green = Mat("green_on", new Color(.1f, 1f, .5f), 0f, .9f, new Color(.08f, 1f, .45f) * 6f);
 
+            // the heads, their poles / gantries and every road sign: SignsBuilder (from the owner's props and the graph)
             var root = WorldBuilder.Root("Signals");
-            var heads = new List<TrafficSignals.Head>();
-            var data = ts.data;
+            string report = SignsBuilder.Build(ts, off, out var heads, root.transform);
+            var comp = root.AddComponent<TrafficSignals>();
+            comp.traffic = ts; comp.heads = heads.ToArray(); comp.redOn = red; comp.amberOn = amber; comp.greenOn = green; comp.lensOff = off;
+            comp.lines = SignsBuilder.StopLines().ToArray();
 
-            void HeadAt(Transform parent, Vector3 pos, Vector3 facing, int ci, int si)
-            {
-                var rot = Quaternion.LookRotation(facing, Vector3.up); // lamps on the +facing side
-                var h = Prim("Cube", parent, pos, rot, new Vector3(.36f, 1.02f, .26f), body);
-                h.isStatic = true;
-                Renderer Lamp(float dy)
-                {
-                    var l = Prim("Sphere", parent, pos + Vector3.up * dy + facing * .12f, rot, new Vector3(.22f, .22f, .07f), off, false);
-                    return l.GetComponent<Renderer>();
-                }
-                heads.Add(new TrafficSignals.Head { corridor = ci, stop = si, red = Lamp(.32f), amber = Lamp(0), green = Lamp(-.32f) });
-            }
-
-            int n = 0;
+            // every stop line the AI cars stop at must have a head of its group facing it nearby (else they'd stop at an unseen red)
+            var data = ts.data; int ok = 0; var miss = new List<string>();
             for (int ci = 0; ci < data.corridors.Length; ci++)
             {
                 var c = data.corridors[ci]; if (c.stops == null) continue;
-                for (int si = 0; si < c.stops.Length; si++)
+                foreach (var st in c.stops)
                 {
-                    int i = Mathf.Clamp(Mathf.RoundToInt(c.stops[si].s / c.step), 0, c.axis.Length - 2);
-                    var fwd = c.axis[i + 1] - c.axis[i]; fwd.y = 0; fwd.Normalize();
-                    var right = c.right[i];
-                    float lo = float.MaxValue, hi = float.MinValue, y = c.axis[i].y;
-                    for (int k = 0; k < c.maxLanes; k++)
-                    {
-                        float o = c.laneOff[i * c.maxLanes + k]; if (float.IsNaN(o)) continue;
-                        if (o < lo) lo = o; if (o > hi) { hi = o; y = c.laneY[i * c.maxLanes + k]; }
-                    }
-                    if (lo > hi) continue;
-                    var g = new GameObject($"signal {c.name} {c.stops[si].model} {c.stops[si].group}").transform; g.SetParent(root.transform, false);
-                    // pole just past the stop line on the right verge, so a driver at the line still sees the arm head ahead
-                    var basePos = c.axis[i] + right * (hi + 1.75f + 1.1f) + fwd * 1.5f; basePos.y = y;
-                    const float H = 6.3f;
-                    Prim("Cylinder", g, basePos + Vector3.up * H * .5f, Quaternion.identity, new Vector3(.18f, H * .5f, .18f), pole).isStatic = true;
-                    float armLen = (hi + 1.75f + 1.1f) - (lo + hi) * .5f + 1.2f;
-                    var armMid = basePos - right * armLen * .5f + Vector3.up * (H - .15f);
-                    Prim("Cube", g, armMid, Quaternion.LookRotation(fwd, Vector3.up), new Vector3(armLen, .14f, .14f), pole).isStatic = true;
-                    HeadAt(g, basePos + Vector3.up * 3.1f - fwd * .2f, -fwd, ci, si);
-                    HeadAt(g, basePos - right * (armLen - 1.2f) + Vector3.up * (H - .75f) - fwd * .2f, -fwd, ci, si);
-                    n++;
+                    int i = Mathf.Clamp(Mathf.RoundToInt(st.s / c.step), 0, c.axis.Length - 2);
+                    var p = c.axis[i]; var fwd = c.axis[i + 1] - c.axis[i]; fwd.y = 0; fwd.Normalize();
+                    bool seen = heads.Exists(h => h.planKey == st.model && h.group == st.group && h.red && (h.red.transform.position - p).magnitude < 45
+                        && Vector3.Dot(h.red.transform.forward, fwd) > .7f);
+                    if (seen) ok++; else miss.Add($"{c.name} {st.model} {st.group} s {st.s:F0}");
                 }
             }
-            var comp = root.AddComponent<TrafficSignals>();
-            comp.traffic = ts; comp.heads = heads.ToArray(); comp.redOn = red; comp.amberOn = amber; comp.greenOn = green; comp.lensOff = off;
+            string msg = $"[Magistrala] semafori: {heads.Count} glava; stop-crte AI-ja s vidljivom glavom svoje skupine: {ok}, bez: {miss.Count}" + (miss.Count > 0 ? " (" + string.Join("; ", miss) + ")" : "");
+            Debug.Log(msg); System.IO.File.AppendAllText("Logs/znakovi-izvjestaj.txt", msg + "\n");
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene()); EditorSceneManager.SaveOpenScenes();
-            string msg = $"[Magistrala] {n} semafora ({heads.Count} glava)"; Debug.Log(msg); return msg;
+            return msg + "\n" + report;
         }
     }
 }
