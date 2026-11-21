@@ -419,7 +419,8 @@ namespace Magistrala.Game.Phone
             "Magistrala — Kaštela, Split.\n\n" +
             "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni " +
             "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
-            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).";
+            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).\n" +
+            "Auto: „Zastava 101 (Stojadin)” — Tomislav Tomljenović, Sketchfab, CC BY 4.0, izmijenjeno.";
         void DrawAbout(Rect a)
         {
             float y = Title(a, "O igri", "Izvori podataka");

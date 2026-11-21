@@ -535,11 +535,32 @@ namespace Magistrala.Traffic
             return GeometryUtility.TestPlanesAABB(planes, b);
         }
 
+        /// spawn weights per kind: the data's, or overridden from the command line for measuring (-kindw zastava=0,golub=40;
+        /// -kindw only=zastava: nothing else)
+        float[] kindW;
+        float[] KindW()
+        {
+            if (kindW != null && kindW.Length == data.kinds.Length) return kindW;
+            kindW = System.Array.ConvertAll(data.kinds, k => k.weight);
+            var a = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-kindw")
+                foreach (var kv in a[i + 1].Split(','))
+                {
+                    var p = kv.Split('='); if (p.Length != 2) continue;
+                    if (p[0] == "only") { for (int k = 0; k < kindW.Length; k++) if (data.kinds[k].name != p[1]) kindW[k] = 0; }
+                    else if (float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var w))
+                        for (int k = 0; k < kindW.Length; k++) if (data.kinds[k].name == p[0]) kindW[k] = w;
+                    Debug.Log("[traffic] -kindw " + kv);
+                }
+            return kindW;
+        }
+
         int PickKind()
         {
-            float tot = 0; foreach (var k in data.kinds) tot += k.weight;
+            var W = KindW();
+            float tot = 0; foreach (var w in W) tot += w;
             float x = (float)rng.NextDouble() * tot;
-            for (int i = 0; i < data.kinds.Length; i++) { x -= data.kinds[i].weight; if (x <= 0) return i; }
+            for (int i = 0; i < W.Length; i++) { x -= W[i]; if (W[i] > 0 && x <= 0) return i; }
             return 0;
         }
 

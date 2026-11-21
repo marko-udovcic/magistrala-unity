@@ -18,6 +18,15 @@
 
 Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky/*`.
 
+- Prljavština i sitne ogrebotine na prometnim autima (`Assets/Textures/Vehicles/auto_grime.png`, r = mikro nepravilnosti, g = mrlje):
+  ambientCG **SurfaceImperfections014** i **Smear007** — https://ambientcg.com (licenca CC0 1.0, https://docs.ambientcg.com/license/)
+
+## CC BY 4.0 (Creative Commons Attribution 4.0, https://creativecommons.org/licenses/by/4.0/)
+- **"Zastava 101 (Stojadin)"** — Tomislav Tomljenović — https://sketchfab.com/3d-models/x-52c885cfc52a4ac1acb14f84a3feacfa — CC BY 4.0.
+  **Izmijenjeno:** uklonjeni natpisi i oznake proizvođača, materijali pretvoreni u naš shader za aute (boja po primjerku, prljavština,
+  zatamnjena stakla), dodane izmišljene registarske tablice, razine detalja (LOD) i pojednostavljeni daleki model.
+  U igri kao prometni auto „zastava” (`Assets/Editor/auti-kandidati.json`, `Assets/Editor/KandidatImporter.cs`).
+
 ## Iz igre Magistrala (BalkanDriver repo, vlastiti sadržaj)
 - Modeli križanja i dionica (`client/public/assets/models/krizanja/*.glb`, Markov paket), njihov raspored (`model-junctions.json`)
 - Visine terena, stabla, tlocrti zgrada (`client/public/assets/world/split-kastela/tiles`, `ground`) — dijelom izvedeno iz podataka DGU
@@ -42,6 +51,9 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
 
 ## Fontovi (SIL Open Font License 1.1)
+- **D-DIN Condensed Bold** — Datto Inc., https://www.datto.com/fonts/d-din (SIL OFL 1.1) — slova izmišljenih registarskih tablica
+  (`Tools/vehicles/tablice.sh` → `Assets/Textures/Vehicles/Plates/tablice.png`; font i licenca u `Tools/vehicles/fonts/`).
+  Na tablici je umjesto grba logo igre Magistrala (vlastiti, prebojan).
 - **Inter** (Regular, SemiBold) — The Inter Project Authors, https://github.com/rsms/inter (v4.1) — tekst Matina mobitela i natpisi na prometnim znakovima
   (ploče portala, putokazi, nazivi mjesta i ulica: Inter SemiBold rasteriziran u `Assets/Generated/Signs/SignAtlas.png` pri
   gradnji, `Assets/Editor/SignArt.cs`).
