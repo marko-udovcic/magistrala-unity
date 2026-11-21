@@ -41,4 +41,4 @@ Koordinate: pločica (tx,tz) = igra x [tx·1024, +1024), z [tz·1024, +1024); Un
   Perlin borovi na padini (14k) zamijenjeni nakupinama iz maske.
 - Grafika: detalji terena: pod gustim krošnjama i u maslinicima nema naše zelene trave, suhih busena 35 % (golo tlo).
 - Razdjelni pojas (MedianHedge): oleander 1,9–2,2 m (s 1,0–1,16), krošnja sužena na 60 % (~1,2 m), svakih 0,85 m, dva reda u
-  cik-cak kad pojas to dopušta; lišće tamnije (albedo, cvjetovi ostaju), LOD1 do 45 m, LOD2 (400 tris, pun grm) do 380 m.
+  cik-cak kad pojas to dopušta; lišće tamnije (albedo, cvjetovi ostaju), LOD1 do 30 m, LOD2 (565 tris, pun grm) do 300 m; tamno tijelo živice (grm-zivica, preuski grm ruže 1,7–1,9 m, 153 tris daleko) do 380 m. Crnika puni model do 45 m.

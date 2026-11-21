@@ -47,6 +47,7 @@ namespace Magistrala.EditorTools
         // ------------------------------------------------------------------ prototypes
         public static void Protos(List<NaturePass.Proto> list)
         {
+            narrow.Clear();
             // oleander (Tripo, TripoPropImporter: oleander.json, LOD0 6k / LOD1 1.5k / LOD2 400 tris): LOD1 near, LOD2 far
             var ol = TripoPropImporter.Prefab("oleander");
             if (!ol) { TripoPropImporter.ImportAll("oleander"); ol = TripoPropImporter.Prefab("oleander"); }
@@ -56,12 +57,12 @@ namespace Magistrala.EditorTools
                 MeshRenderer R(int i) => lods == null ? ol.GetComponentInChildren<MeshRenderer>() : lods[Mathf.Min(i, lods.Length - 1)].renderers.OfType<MeshRenderer>().FirstOrDefault();
                 var near = R(1); var far = R(2);
                 // the real D8 median: a solid ~2 m dark-green hedge. Leaves of the albedo darkened (flowers kept), the crown narrowed to
-                // 60 % so a 2 m tall plant is ~1.2 m wide (fits the median, rows overlap at 0.85 m); LOD1 (1.5k tris) to 45 m,
-                // LOD2 (400 tris, still a full bush, no card) to 380 m so from the cab it reads as one hedge far ahead
+                // 60 % so a 2 m tall plant is ~1.2 m wide (fits the median, rows overlap at 0.85 m); LOD1 (1.5k tris) to 30 m,
+                // LOD2 (565 tris, still a full bush, no card) to 300 m; the dark body (grm-zivica, 153 tris far) carries on to 380 m so from the cab it reads as one hedge far ahead
                 var pink = DarkLeaves(near.sharedMaterial);
                 var white = WhiteFlowers(pink);
-                list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { pink }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = pink, draw = 380, near = 45 });
-                list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { white }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = white, draw = 380, near = 45 });
+                list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { pink }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = pink, draw = 300, near = 30 });
+                list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { white }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = white, draw = 300, near = 30 });
             }
             else Debug.LogWarning("[priroda] no oleander prefab (Assets/Models/Props/Tripo/oleander.glb + .json)");
             // dense dark-green filler: the package's rose bush without flowers, tinted to a dark Mediterranean evergreen
@@ -74,7 +75,7 @@ namespace Magistrala.EditorTools
                 var mats = near.sharedMaterials.Select(m => Tint(m, "tamni", new Color(.5f, .62f, .45f, 1))).ToArray();
                 // the hedge's body: the same bush narrowed and darker, ~1.7–1.9 m, one every 0.85 m under the oleanders — no see-through
                 var dark = new Color(.36f, .48f, .33f, 1);
-                list.Add(new NaturePass.Proto { id = "grm-zivica", mesh = Narrow(near, "grm_zivica", .72f), mats = near.sharedMaterials.Select(m => Tint(m, "zivica", dark)).ToArray(), imp = far && far != near ? Narrow(far, "grm_zivica_far", .72f) : null, impMat = far && far != near ? Tint(far.sharedMaterial, "zivica", dark) : null, draw = 380, near = 45 });
+                list.Add(new NaturePass.Proto { id = "grm-zivica", mesh = Narrow(near, "grm_zivica", .72f), mats = near.sharedMaterials.Select(m => Tint(m, "zivica", dark)).ToArray(), imp = far && far != near ? Narrow(far, "grm_zivica_far", .72f) : null, impMat = far && far != near ? Tint(far.sharedMaterial, "zivica", dark) : null, draw = 380, near = 30 });
                 list.Add(new NaturePass.Proto { id = "grm-tamni", mesh = Flat(near, bush.transform, "grm_tamni"), mats = mats, imp = far && far != near ? Flat(far, bush.transform, "grm_tamni_far") : null, impMat = far && far != near ? Tint(far.sharedMaterial, "tamni", new Color(.5f, .62f, .45f, 1)) : null, draw = 200, near = 25 });
             }
             var grass = Load<GameObject>(CE + "Foliage and Grass/Prefabs/Prefab_beach_grass_02_2.prefab");
