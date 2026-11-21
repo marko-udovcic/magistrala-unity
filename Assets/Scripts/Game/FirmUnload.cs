@@ -171,8 +171,12 @@ namespace Magistrala.Game
             copy.name = "isporuceno_" + row.name;
             copy.transform.localScale = row.lossyScale;
             // settle on whatever is below (yard, road), ignoring the truck
-            Vector3 c = row.position; float bottomWorld = row.parent.TransformPoint(new Vector3(0, rowBottom[k] + row.localPosition.y, 0)).y;
-            foreach (var h in Physics.RaycastAll(new Vector3(c.x, bottomWorld + 1.5f, c.z), Vector3.down, 4, ~0, QueryTriggerInteraction.Ignore))
+            // rowBottom is already in the model frame; load_pallets has a -0.93 m
+            // offset. Applying its transform again left delivered pallets floating 0.93 m.
+            Vector3 c = row.position; float bottomWorld = lift.parent.TransformPoint(new Vector3(0, rowBottom[k] + row.localPosition.y, 0)).y;
+            var hits = Physics.RaycastAll(new Vector3(c.x, bottomWorld + 1.5f, c.z), Vector3.down, 4, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var h in hits)
                 if (!h.transform.IsChildOf(transform.root)) { copy.transform.position += Vector3.up * (h.point.y - bottomWorld); break; }
             dropped.Add(copy);
             row.gameObject.SetActive(false); row.localPosition = Vector3.zero;
