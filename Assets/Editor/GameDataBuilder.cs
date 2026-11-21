@@ -88,6 +88,9 @@ namespace Magistrala.EditorTools
             // ---- mag-11-19 delivery points: each snapped onto its street (the edge split there, GameDataBuilder.Tours.cs)
             var pk = SnapPackage(nodes, edges, closed, out var tourDefs);
 
+            // ---- stops whose spur / access edge a model override removed: re-joined to the nearest open street
+            var reAccess = ReattachStops(nodes, edges, closed);
+
             // ---- clip to the Unity world, index
             bool In(N n) => true;
             var nIndex = new Dictionary<long, int>(); var nList = new List<Vector3>();
@@ -119,6 +122,7 @@ namespace Magistrala.EditorTools
                 st.bayHw = MiniJson.G(bay, "hw") is object hw ? MiniJson.F(hw) : 2.6f;
                 if (MiniJson.G(s, "spur") is Dictionary<string, object> sp && nIndex.TryGetValue((long)MiniJson.D(sp["padNode"]), out int pn)) st.padNode = pn;
                 if (MiniJson.G(s, "access") is Dictionary<string, object> ac && ac.ContainsKey("node") && nIndex.TryGetValue((long)MiniJson.D(ac["node"]), out int an)) st.accessNode = an;
+                if (reAccess.TryGetValue(st.id, out long ran) && nIndex.TryGetValue(ran, out int rai)) st.accessNode = rai;
                 stops.Add(st);
             }
 
@@ -222,5 +226,95 @@ namespace Magistrala.EditorTools
             return true;
         }
         static bool Fail(string id, string why) { Debug.LogWarning($"[igra] override {id}: {why}"); return false; }
+
+        // ------------------------------------------------------------------ stops cut off by the models
+        const long ReNode0 = 9_700_000, ReEdge0 = 9_750_000;
+        const double ReMax = 40;
+        /// A model override (mag-11-19 tiles) replaces the graph edges around it, also the spur and access edge of a stop of stops.json
+        /// whose street it rebuilt: ducan_stari's Fuležina (3514 / 3515 / 3516, s07, its stub now a closed side street), dvor_basica /
+        /// kastela_kafana (s13), banka_stari. Such a stop's pad node is left without edges: no GPS route to or from it, no job. The pad
+        /// is joined again to the nearest open street that the warehouse reaches and is reached from (the edge split there, a straight
+        /// spur of the stop's name); StreetsBuilder.BuildCourts draws its court up to that street's paving. A stop without a spur only
+        /// gets the new access node. Returns stop id → new access node.
+        static Dictionary<string, long> ReattachStops(Dictionary<long, N> nodes, Dictionary<long, E> edges, HashSet<long> closed)
+        {
+            var res = new Dictionary<string, long>();
+            var stopsJ = MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "stops.json")))["stops"]);
+            var deg = new Dictionary<long, int>();
+            foreach (var e in edges.Values) { deg.TryGetValue(e.a, out int da); deg[e.a] = da + 1; deg.TryGetValue(e.b, out int db); deg[e.b] = db + 1; }
+            bool Has(long n) => deg.TryGetValue(n, out int d) && d > 0;
+            // the warehouse's part of the open graph, both ways
+            long home = -1;
+            foreach (var so in stopsJ) { var s = MiniJson.O(so); if ((string)s["id"] == MagistralaGame.Warehouse && MiniJson.G(s, "spur") is Dictionary<string, object> sp) home = (long)MiniJson.D(sp["padNode"]); }
+            if (home < 0 || !Has(home)) { Debug.LogWarning("[igra] reattach: no warehouse pad in the graph"); return res; }
+            HashSet<long> Reach(bool back)
+            {
+                var adj = new Dictionary<long, List<long>>();
+                void Add(long u, long v) { if (!adj.TryGetValue(u, out var l)) adj[u] = l = new List<long>(); l.Add(v); }
+                foreach (var e in edges.Values)
+                {
+                    if (closed.Contains(e.id) || e.pts == null || e.pts.Count < 2) continue;
+                    if (!back) Add(e.a, e.b); else Add(e.b, e.a);
+                    if (!e.oneway) { if (!back) Add(e.b, e.a); else Add(e.a, e.b); }
+                }
+                var seen = new HashSet<long> { home }; var st = new Stack<long>(); st.Push(home);
+                while (st.Count > 0) { var u = st.Pop(); if (adj.TryGetValue(u, out var l)) foreach (var v in l) if (seen.Add(v)) st.Push(v); }
+                return seen;
+            }
+            var fwd = Reach(false); var bwd = Reach(true);
+            int k = 0;
+            foreach (var so in stopsJ)
+            {
+                var s = MiniJson.O(so); string id = (string)s["id"], kind = (string)s["kind"];
+                double sx = MiniJson.D(s["x"]), sz = MiniJson.D(s["z"]);
+                if (kind == "radar" || sx < MinX || sx > MaxX || sz < MinZ || sz > MaxZ) continue;
+                long pad = MiniJson.G(s, "spur") is Dictionary<string, object> sp ? (long)MiniJson.D(sp["padNode"]) : -1;
+                long acc = MiniJson.G(s, "access") is Dictionary<string, object> ac && ac.ContainsKey("node") ? (long)MiniJson.D(ac["node"]) : -1;
+                if (pad >= 0 ? Has(pad) || !nodes.ContainsKey(pad) : acc < 0 || Has(acc)) continue;
+                // the nearest point of an open, ordinary street both ends of which the warehouse reaches and is reached from
+                double ox = pad >= 0 ? nodes[pad].x : sx, oz = pad >= 0 ? nodes[pad].z : sz;
+                E best = null; double bd = double.MaxValue; int bi = 0; double bt = 0, bs = 0;
+                foreach (var e in edges.Values)
+                {
+                    if (closed.Contains(e.id) || e.pts == null || e.pts.Count < 2 || e.spur != null || e.type == "motorway" || e.type == "ramp") continue;
+                    if (!(fwd.Contains(e.a) && bwd.Contains(e.a) && fwd.Contains(e.b) && bwd.Contains(e.b))) continue;
+                    double pen = (e.name ?? "").StartsWith("D8") || (e.oneway && e.lanes >= 2) ? D8Penalty : 0, acc0 = 0;
+                    for (int i = 0; i + 1 < e.pts.Count; i++)
+                    {
+                        var a = e.pts[i]; var b = e.pts[i + 1]; double bx = b[0] - a[0], bz = b[2] - a[2], l2 = bx * bx + bz * bz, L = Math.Sqrt(l2);
+                        double t = l2 < 1e-12 ? 0 : Math.Max(0, Math.Min(1, ((ox - a[0]) * bx + (oz - a[2]) * bz) / l2));
+                        double d = Math.Sqrt(Sq(ox - a[0] - bx * t) + Sq(oz - a[2] - bz * t)) + pen;
+                        if (d < bd) { bd = d; best = e; bi = i; bt = t; bs = acc0 + L * t; }
+                        acc0 += L;
+                    }
+                }
+                if (best == null || bd > ReMax) { Debug.LogWarning($"[igra] reattach {id}: no open street within {ReMax:0} m (nearest {bd:0} m)"); continue; }
+                var A = best.pts[bi]; var B = best.pts[bi + 1];
+                double px = A[0] + (B[0] - A[0]) * bt, py = A[1] + (B[1] - A[1]) * bt, pz = A[2] + (B[2] - A[2]) * bt;
+                long nid; double len = PolyLen(best.pts);
+                if (bs < 2.5) nid = best.a;
+                else if (len - bs < 2.5) nid = best.b;
+                else
+                {
+                    nid = ReNode0 + k; nodes[nid] = new N { id = nid, x = px, y = py, z = pz };
+                    var (P1, P2) = StreetsBuilder.SplitAt(best.pts, px, py, pz);
+                    var e2 = new E { id = ReEdge0 + k, a = nid, b = best.b, oneway = best.oneway, name = best.name, rf = best.rf, lanes = best.lanes, maxspeed = best.maxspeed, type = best.type, spur = best.spur, pts = P2, length = PolyLen(P2) };
+                    best.b = nid; best.pts = P1; best.length = PolyLen(P1); edges[e2.id] = e2;
+                    if (closed.Contains(best.id)) closed.Add(e2.id);
+                }
+                k++;
+                res[id] = nid;
+                string how = "access node only";
+                if (pad >= 0)
+                {
+                    var pn = nodes[pad]; var an = nodes[nid];
+                    var sp2 = new List<double[]> { new[] { an.x, an.y, an.z }, new[] { pn.x, pn.y, pn.z } };
+                    edges[ReEdge0 + 500 + k] = new E { id = ReEdge0 + 500 + k, a = nid, b = pad, name = (string)s["name"], type = "service", spur = id, lanes = 1, maxspeed = 20, pts = sp2, length = PolyLen(sp2) };
+                    how = $"spur {PolyLen(sp2):0.0} m to the pad";
+                }
+                Debug.Log($"[igra] reattach {id}: its spur / access edge is gone (model override) → {best.name} ({best.id}) {bd:0.0} m away, {how}");
+            }
+            return res;
+        }
     }
 }

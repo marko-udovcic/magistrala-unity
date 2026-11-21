@@ -920,8 +920,25 @@ namespace Magistrala.EditorTools
 
         // ------------------------------------------------------------------ stop courts + bays
         static int nCourts;
+        // the models' road colliders (World/Roads, as WorldBuilder.FixHoles): asphalt, sidewalks, islands of Marko's models
+        static List<Collider> paveCols;
+        /// height of a model's paving (road or sidewalk) at game (x, z) within 3 m of `nearY`, NaN = none
+        static double PaveY(double gx, double gz, double nearY)
+        {
+            var o = W.U(gx, nearY + 20, gz); var ray = new Ray(o, Vector3.down); double best = double.NaN;
+            foreach (var cl in paveCols)
+            {
+                var bb = cl.bounds; if (o.x < bb.min.x || o.x > bb.max.x || o.z < bb.min.z || o.z > bb.max.z) continue;
+                if (cl.Raycast(ray, out var h, 60) && Math.Abs(h.point.y - nearY) < 3) best = double.IsNaN(best) ? h.point.y : Math.Max(best, h.point.y);
+            }
+            return best;
+        }
         static void BuildCourts(List<string> log)
         {
+            paveCols = new List<Collider>();
+            var roads = GameObject.Find("World")?.transform.Find("Roads");
+            if (roads) foreach (var cl in roads.GetComponentsInChildren<MeshCollider>()) if (cl.transform.parent == roads) paveCols.Add(cl);
+            Physics.SyncTransforms();
             foreach (var so in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "stops.json")))["stops"]))
             {
                 var s = MiniJson.O(so); string kind = (string)s["kind"];
@@ -932,20 +949,56 @@ namespace Magistrala.EditorTools
                 double fx = Math.Sin(yaw), fz = Math.Cos(yaw), ax = fz, az = -fx; // forward, across (DeliverySite.tsx: local z → (fx, fz), local x → (fz, −fx))
                 if (SurfaceDist(models, x, z) < .5) { log.Add($"{s["id"]}: on a model's paving, no court"); continue; }
                 courtAsphalt = (site.ContainsKey("surface") ? site["surface"] as string : "") != "concrete";
-                // rounded rectangle (r 2 m), surround × 1.04 (kerb concrete)
-                var ring = new List<(double lx, double lz)>();
+                // rounded rectangle (r 2 m), surround × 1.04 (kerb concrete); straight sides cut into ≤ 1 m pieces
+                var ring0 = new List<(double lx, double lz)>();
                 double rr = Math.Min(2, Math.Min(hw, hl) * .5);
                 foreach (var (cxl, czl, a0) in new[] { (hw - rr, hl - rr, 0.0), (-hw + rr, hl - rr, Math.PI / 2), (-hw + rr, -hl + rr, Math.PI), (hw - rr, -hl + rr, Math.PI * 1.5) })
-                    for (int k = 0; k <= 4; k++) { double a = a0 + k * Math.PI / 8; ring.Add((cxl + Math.Cos(a) * rr, czl + Math.Sin(a) * rr)); }
-                G W2(double lx, double lz, double yy, double sc = 1) => new G(x + (ax * lx + fx * lz) * sc, yy, z + (az * lx + fz * lz) * sc);
+                    for (int k = 0; k <= 4; k++) { double a = a0 + k * Math.PI / 8; ring0.Add((cxl + Math.Cos(a) * rr, czl + Math.Sin(a) * rr)); }
+                var ring = new List<(double lx, double lz)>();
+                for (int k = 0; k < ring0.Count; k++)
+                {
+                    var p = ring0[k]; var q = ring0[(k + 1) % ring0.Count]; int nk = Math.Max(1, (int)Math.Ceiling(Math.Sqrt(Sq(q.lx - p.lx) + Sq(q.lz - p.lz))));
+                    for (int i = 0; i < nk; i++) ring.Add((p.lx + (q.lx - p.lx) * i / nk, p.lz + (q.lz - p.lz) * i / nk));
+                }
+                // a court beside a model's road (mag-11-19 tiles: the stop's own street replaced by the model, e.g. ducan_stari on s07's
+                // old road): the court ends 0.2 m short of the model's paving (each ring point pulled in towards the centre, so the
+                // paving's edge is followed, not a fan of wedges dropped on it); a court whose spur the model removed (GameDataBuilder.
+                // ReattachStops joins it to that road) also sits at the paving's height (its y is the old graph's) — the truck rolls from
+                // the court straight onto the sidewalk / road
+                var sc = Enumerable.Repeat(1.0, ring.Count).ToArray(); var kerbSc = Enumerable.Repeat(1.04, ring.Count).ToArray();
+                var contact = new List<double>(); int pulled = 0;
+                if (paveCols.Count > 0 && double.IsNaN(PaveY(x, z, y)))
+                    for (int k = 0; k < ring.Count; k++)
+                    {
+                        double len = Math.Sqrt(Sq(ring[k].lx) + Sq(ring[k].lz)); if (len < 1e-6) continue;
+                        double ux = (ax * ring[k].lx + fx * ring[k].lz) / len, uz = (az * ring[k].lx + fz * ring[k].lz) / len;
+                        for (double d = .5; d <= len * 1.04 + .3; d += .1)
+                        {
+                            double py = PaveY(x + ux * d, z + uz * d, y); if (double.IsNaN(py)) continue;
+                            sc[k] = Math.Max(.3, Math.Min(1, (d - .2) / len)); kerbSc[k] = Math.Max(sc[k], Math.Min(1.04, (d - .02) / len));
+                            if (d - .2 < len) { contact.Add(py); pulled++; }
+                            break;
+                        }
+                    }
+                // (only a stop cut off from its own spur / access edge: one that still has it keeps the height that edge was built to)
+                long spurE = MiniJson.G(s, "spur") is Dictionary<string, object> spo && spo.ContainsKey("edge") ? (long)MiniJson.D(spo["edge"]) : long.MinValue;
+                long accE = MiniJson.G(s, "access") is Dictionary<string, object> aco && aco.ContainsKey("edge") ? (long)MiniJson.D(aco["edge"]) : long.MinValue;
+                bool cutOff = !eIdx.ContainsKey(spurE) && !eIdx.ContainsKey(accE);
+                if (contact.Count > 0 && cutOff)
+                {
+                    contact.Sort(); double py = contact[contact.Count / 2];
+                    if (Math.Abs(py - y) < 2) { log.Add($"{s["id"]}: court at the model paving's height {py:F2} (stop y {y:F2}), {pulled} of {ring.Count} edge points pulled in off it"); y = py - .02; }
+                }
+                double dyBay = y - MiniJson.D(MiniJson.G(s, "y") ?? 0.0);
+                G W2(double lx, double lz, double yy, double sc1 = 1) => new G(x + (ax * lx + fx * lz) * sc1, yy, z + (az * lx + fz * lz) * sc1);
                 var c = W2(0, 0, y + .03);
                 for (int k = 0; k < ring.Count; k++)
                 {
-                    var p = ring[k]; var q = ring[(k + 1) % ring.Count];
-                    Tri(MAT_COURT, c, W2(p.lx, p.lz, y + .03), W2(q.lx, q.lz, y + .03), Vector3.up, Drop.OnModel, false);
-                    Tri(-1, new G(x, y + .01, z), W2(p.lx, p.lz, y + .01), W2(q.lx, q.lz, y + .01), Vector3.up, Drop.OnModel, true);
-                    Quad(MAT_KERB, W2(p.lx, p.lz, y + .02), W2(p.lx, p.lz, y + .02, 1.04), W2(q.lx, q.lz, y + .02, 1.04), W2(q.lx, q.lz, y + .02), Vector3.up, Drop.OnModel, false);
-                    var o = W2(p.lx, p.lz, 0, 1.04); var oq = W2(q.lx, q.lz, 0, 1.04);
+                    int k1 = (k + 1) % ring.Count; var p = ring[k]; var q = ring[k1];
+                    Tri(MAT_COURT, c, W2(p.lx, p.lz, y + .03, sc[k]), W2(q.lx, q.lz, y + .03, sc[k1]), Vector3.up, Drop.OnModel, false);
+                    Tri(-1, new G(x, y + .01, z), W2(p.lx, p.lz, y + .01, sc[k]), W2(q.lx, q.lz, y + .01, sc[k1]), Vector3.up, Drop.OnModel, true);
+                    Quad(MAT_KERB, W2(p.lx, p.lz, y + .02, sc[k]), W2(p.lx, p.lz, y + .02, kerbSc[k]), W2(q.lx, q.lz, y + .02, kerbSc[k1]), W2(q.lx, q.lz, y + .02, sc[k1]), Vector3.up, Drop.OnModel, false);
+                    var o = W2(p.lx, p.lz, 0, kerbSc[k]); var oq = W2(q.lx, q.lz, 0, kerbSc[k1]);
                     var dir = new Vector3((float)((p.lx + q.lx) * ax + (p.lz + q.lz) * fx), 0, (float)-((p.lx + q.lx) * az + (p.lz + q.lz) * fz));
                     Quad(MAT_KERB, new G(o.x, y + .02, o.z), new G(oq.x, y + .02, oq.z), new G(oq.x, y - .35, oq.z), new G(o.x, y - .35, o.z), dir, Drop.OnModel, false);
                 }
@@ -953,7 +1006,7 @@ namespace Magistrala.EditorTools
                 // bay lines (DeliverySite: ±(halfWid + 0.25), 0.12 wide, along the court)
                 foreach (var bo in MiniJson.L(MiniJson.G(s, "bays")) ?? new List<object>())
                 {
-                    var b = MiniJson.O(bo); double bx = MiniJson.D(b["x"]), bz = MiniJson.D(b["z"]), by = MiniJson.D(MiniJson.G(b, "y") ?? y);
+                    var b = MiniJson.O(bo); double bx = MiniJson.D(b["x"]), bz = MiniJson.D(b["z"]), by = MiniJson.D(MiniJson.G(b, "y") ?? MiniJson.G(s, "y") ?? 0.0) + dyBay;
                     double bhl = MiniJson.G(b, "hl") is object o1 ? MiniJson.D(o1) : 9.5, bhw = MiniJson.G(b, "hw") is object o2 ? MiniJson.D(o2) : 2.6;
                     foreach (int sd in new[] { -1, 1 })
                     {
@@ -1213,7 +1266,10 @@ namespace Magistrala.EditorTools
                             double outd = Math.Max(lx, lz) <= 0 ? 0 : Math.Sqrt(Sq(Math.Max(0, lx)) + Sq(Math.Max(0, lz)));
                             if (outd > 8) continue;
                             double w = outd <= step ? 1 : 1 - (outd - step) / (8 - step); double k = Smooth(w);
-                            double h = Tiles.Height(gx, gz); Set(r, c, h + (b.y - .06 - h) * k); // (from the baked ground: a rebuild gives the same court)
+                            // (a court beside a model's road: faded out towards its asphalt, from the models' ground — not raised over the
+                            // model's road: ducan_stari's flat 8 m blend at the old graph's y had put the grass 0.6 m over s07's road)
+                            double sd = WorldData.SurfDist(wbModels, gx, gz); if (sd < 4) k *= Smooth((sd - 1.5) / 2.5);
+                            double h = Ground(gx, gz, step); Set(r, c, h + (b.y - .06 - h) * k); // (from the baked ground: a rebuild gives the same court)
                         }
                 }
                 // outside streets' fills: the ground set to the street within reach, blended back over 6 m (raise or lower)
