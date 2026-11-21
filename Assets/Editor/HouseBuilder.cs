@@ -37,6 +37,7 @@ namespace Magistrala.EditorTools
         public int bare; // C houses without paint: 1 grey concrete / cement render, 2 bare brick (opeka)
         public float stoneDark, stoneGrey; // per-house tone of the (untinted) stone layer: darker / greyer
         public float flatRoll, gableRoll; // roof draws (HouseBuilder decides with the footprint)
+        public float roofFade; // roof tiles: 0 the texture's terracotta x roof, 1 its luminance x roof (a free colour: OrthoRoofs)
 
         static Color H(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
         /// the plaster / concrete layers are grey ~#DCDCDC (linear .71): the tint that makes the wall show `hex`
@@ -50,6 +51,10 @@ namespace Magistrala.EditorTools
         static readonly string[] Pastel = { "B4BA9F", "C2AEA2", "C8BC96", "AEB3AE", "C6A797", "A9705A" };
         // grey concrete / unpainted cement render
         static readonly string[] Bare = { "9E9B93", "A6A297", "A9A395", "958F84", "ACA89D" };
+        // zgrade (orthophoto pass): pale yellows, ochres and stone-like greiges of the Dalmatian coast (general palette)
+        static readonly string[] PaleYellow = { "CFC59E", "D2C8A4", "C9BC93", "D5CCAD", "CCC09A" };
+        static readonly string[] Ochre = { "C4A57A", "BE9F74", "C6A980", "B99B70", "C2A682" };
+        static readonly string[] Greige = { "B8B2A2", "AFA899", "BDB5A3", "B3AC9B" };
         static readonly string[] Derelict = { "6E6A58", "807A64", "77725E", "817D67" };
         static Color Pick(System.Random r, string[] a) => E(a[r.Next(a.Length)]);
         public static Color Desat(Color c, float k) { float l = .3f * c.r + .59f * c.g + .11f * c.b; return Color.Lerp(c, new Color(l, l, l, c.a), k); }
@@ -66,11 +71,12 @@ namespace Magistrala.EditorTools
             k.flatRoll = (float)r.NextDouble(); k.gableRoll = (float)r.NextDouble();
             k.family = ind ? 4 : apt ? 3 : height > 13 ? 2 : f < pOld * .6 ? 0 : f < pOld ? 1 : 2;
             k.derelict = !ind && c > .955;
-            // 38 % off-white, 17 % beige, 26 % warm, 7 % pastel (the rest of the draw falls on the warm end too)
+            // 34 % off-white, 16 % beige, 14 % warm, 10 % pale yellow, 8 % ochre, 6 % pastel, 5 % greige (the rest off-white)
             k.wall = ind ? Color.Lerp(E("9F9D96"), E("BDBAB2"), (float)d) : k.derelict ? Pick(r, Derelict)
-                : c < .45 ? Pick(r, OffWhite) : c < .66 ? Pick(r, Beige) : c < .84 ? Pick(r, Warm) : c < .9 ? Pick(r, Pastel) : Pick(r, OffWhite);
-            // per-house tone: +-7 % brightness, a little hue drift (repainted / sun-bleached / damp)
-            float tb = .93f + .14f * (float)tone; k.wall = new Color(k.wall.r * tb, k.wall.g * tb, k.wall.b * tb * (.98f + .04f * (float)q));
+                : c < .34 ? Pick(r, OffWhite) : c < .5 ? Pick(r, Beige) : c < .64 ? Pick(r, Warm) : c < .74 ? Pick(r, PaleYellow)
+                : c < .82 ? Pick(r, Ochre) : c < .88 ? Pick(r, Pastel) : c < .93 ? Pick(r, Greige) : Pick(r, OffWhite);
+            // per-house tone: +-9 % brightness, a little hue drift (repainted / sun-bleached / damp)
+            float tb = .91f + .18f * (float)tone; k.wall = new Color(k.wall.r * tb, k.wall.g * tb, k.wall.b * tb * (.98f + .04f * (float)q));
             k.dirt = (float)(k.derelict ? .9 : k.family <= 1 ? .45 + .45 * d : ind ? .35 + .35 * d : .2 + .55 * d);
             int P = BuildingTextures.Plaster, S = BuildingTextures.Stone;
             k.wallCode = k.family == 0 ? S + 8 * S : k.family == 1 ? S + 8 * P : ind ? BuildingTextures.Concrete * 9 : P * 9;
@@ -135,7 +141,7 @@ namespace Magistrala.EditorTools
             // tints are authored in sRGB; vertex colours are read as linear; the roof tint is a multiplier (kept linear)
             if (Lod >= 3 && s == Slot.Wall) t = Color.Lerp(t, new Color(.3f, .32f, .34f), .15f);
             Color lin = s == Slot.Roof ? t : t.linear;
-            lin.a = s == Slot.Wall ? look.split / 40f : 0; return lin;
+            lin.a = s == Slot.Wall ? look.split / 40f : s == Slot.Roof ? look.roofFade : 0; return lin;
         }
 
         // UV2 of the next faces: reveal depth (occlusion grows into the opening) and the drip mask under a sill
@@ -281,7 +287,17 @@ namespace Magistrala.EditorTools
         /// Options of one AddHouse call (BuildingsFromTiles). lookSeed: the seed of the paint (an annex shares its main
         /// house's look); roof -1 auto, 0 flat, 1 hip, 2 gable; terrace: a flat roof with a railing all round (roof terrace
         /// of an annex); core: the house stands in an old town core (more bare stone).
-        public struct Opts { public int lookSeed, roof; public bool terrace, core, noStairs; }
+        public struct Opts { public int lookSeed, roof; public bool terrace, core, noStairs; public OrthoRoofs.Rec ortho; }
+
+        /// the roof tint (linear, Magistrala/Facade with COLOR.a = 1) that shows sRGB albedo `c`: the tiles' luminance x 2.03 has mean 0.40
+        public static Color RoofTint(Color c) { var l = c.linear; return new Color(Mathf.Clamp01(l.r / .40f), Mathf.Clamp01(l.g / .40f), Mathf.Clamp01(l.b / .40f)); }
+        /// the Balcony-slot tint (sRGB, made linear by Tint) on the concrete layer (mean 0.605 linear) that shows sRGB albedo `c`
+        public static Color ConcreteTint(Color c) { var l = c.linear; return new Color(Mathf.Clamp01(l.r / .605f), Mathf.Clamp01(l.g / .605f), Mathf.Clamp01(l.b / .605f)).gamma; }
+        // the flat roof's slab tint of the house being emitted (null: the old dark weathered concrete) and tiles on it
+        static Color? flatSlab; static bool flatTiles;
+        /// counters of the last BuildingsFromTiles.Build (ortho roofs decided / panels)
+        public static int nOrthoPitched, nOrthoFlat, nOrthoTiledFlat, nSolar, nSolarPanels;
+
 
         /// per facade (Unity world a -> b, on the ground): the height (absolute y) below which a neighbour covers it
         /// (-inf: free) and whether a neighbour stands against part of it (blind wall: no openings). Null: all free.
@@ -335,6 +351,16 @@ namespace Magistrala.EditorTools
             bool apartment = string.Equals(kind, "apartment", StringComparison.OrdinalIgnoreCase);
             float bottom = (float)bottomY, ground = (float)baseY, top = (float)topY;
             look = Look.Pick(new System.Random(o.lookSeed * 31 + 7), kind, ground, top - ground, o.core); gY = ground; tY = top;
+            var orr = o.ortho; flatSlab = null; flatTiles = false;
+            if (OrthoRoofs.Enabled)
+            {
+                // roof colours from the orthophoto (else a draw from the same palette); flat roofs: light membranes / greys
+                var pr = new System.Random(o.lookSeed * 13 + 5);
+                Color rcol = orr != null && orr.hasRoof ? orr.roof : OrthoRoofs.RoofPalette((float)pr.NextDouble(), (float)pr.NextDouble(), (float)pr.NextDouble());
+                look.roof = RoofTint(rcol); look.roofFade = 1;
+                double f0 = pr.NextDouble(), f1 = pr.NextDouble();
+                flatSlab = ConcreteTint(orr != null && orr.hasFlat ? orr.flat : OrthoRoofs.FlatPalette(f0, f1));
+            }
             var clutter = new System.Random(seed * 17 + 3); // the clutter's own draws (identical in every level)
             bool hasAc = !industrial && clutter.NextDouble() < .7, hasDish = !industrial && clutter.NextDouble() < .35;
             bool hasCable = !industrial && clutter.NextDouble() < .9;
@@ -364,6 +390,13 @@ namespace Magistrala.EditorTools
                 : look.family == 2 && look.flatRoll < .32f && Math.Abs(signedArea) > 45 ? 0
                 : fill > .9f && look.gableRoll < (look.family <= 1 ? .5f : .38f) ? 2 : 1;
             if (roof > 0 && !canPitch) roof = 0;
+            // the orthophoto's roof where it is clear (tiles: pitched, or tiles on the slab of a footprint a hip roof cannot cover)
+            if (o.roof < 0 && orr != null && orr.decide == 1)
+            {
+                if (canPitch) roof = fill > .9f && look.gableRoll < (look.family <= 1 ? .5f : .38f) ? 2 : 1; else { roof = 0; flatTiles = true; }
+                if (Lod == 0) { if (flatTiles) nOrthoTiledFlat++; else nOrthoPitched++; }
+            }
+            else if (o.roof < 0 && orr != null && orr.decide == 2) { roof = 0; if (Lod == 0) nOrthoFlat++; }
             // shop fronts: the ground floor of the facades along a main street (blocks always, houses often)
             bool shopHouse = !industrial && floors >= 2 && (apartment || rShop < (o.core ? .7 : .5));
             var shopF = new bool[N];
@@ -508,6 +541,13 @@ namespace Magistrala.EditorTools
             // (no foundation: the underside is never seen)
             bool chim = clutter.NextDouble() < .85, chim2 = clutter.NextDouble() < .3, antenna = clutter.NextDouble() < .45;
             double ra = clutter.NextDouble(), rb = clutter.NextDouble(), rc = clutter.NextDouble(), rd = clutter.NextDouble();
+            // solar panels where the orthophoto shows them (the measured spot: game metres from the centroid)
+            solarN = 0;
+            if (orr != null && orr.solar >= 2f && Lod <= 2 && !industrial)
+            {
+                solarN = Mathf.Clamp(Mathf.RoundToInt(orr.solar / 1.65f), 1, 24); solarAt = new Vector3(orr.sdx, 0, -orr.sdz);
+                if (Lod == 0) { nSolar++; nSolarPanels += solarN; }
+            }
             if (hip)
                 HipRoof(g, points, top, chim, chim2, antenna, (float)ra, roof == 2, rect);
             else
@@ -515,6 +555,7 @@ namespace Magistrala.EditorTools
                 hiddenEdge = visible; for (int i = 0; i < N; i++) visible[i] = hideBelow[i] < top + .3f;
                 FlatRoof(g, points, triangles, top, signedArea);
                 hiddenEdge = null;
+                if (solarN > 0) SolarFlat(g, points, top);
                 if (!industrial && Lod < 2 && N <= 24)
                     RoofClutter(g, points, triangles, top, signedArea, o.terrace || rb < .5, !o.terrace && rc < .35, !o.terrace && rd < .3, ra < .3, look.unfinished, !o.terrace && !apartment && rChim < .6);
             }
@@ -843,6 +884,66 @@ namespace Magistrala.EditorTools
             }
         }
 
+        // ---- solar panels (orthophoto): 1.0 x 1.65 m modules, dark blue glass, 4 cm thick (top face only in the far level)
+        static int solarN; static Vector3 solarAt;
+        static void Panel(HouseGeo g, Vector3 o, Vector3 x, Vector3 n, Vector3 d)
+        {
+            detailTint = new Color(.07f, .1f, .17f);
+            if (Lod >= 2) { Face(g, Slot.Detail, o + n * .04f, o + n * .04f + x, o + n * .04f + x + d * 1.65f, o + n * .04f + d * 1.65f, n); return; }
+            Box3(g, Slot.Detail, o, x, n, d, 1f, .04f, 1.65f);
+        }
+        /// on the roof slope facing most south (Unity -z), a grid round the measured spot, 8 cm above the tiles
+        static void SolarSlope(HouseGeo g, Vector3 centre, Vector3 u, Vector3 v, float halfLength, float halfWidth, float ridgeHalf, float rise, bool gable)
+        {
+            float s = v.z > 0 ? -1 : 1; Vector3 outw = v * s;
+            Vector3 eave = centre + outw * halfWidth, ridge = centre + Vector3.up * rise;
+            Vector3 dUp = (ridge - eave).normalized; float L = Vector3.Distance(ridge, eave);
+            Vector3 n = Vector3.Cross(dUp, u).normalized; if (n.y < 0) n = -n;
+            float usable = 2 * (gable ? halfLength - .6f : ridgeHalf + halfWidth * .45f - .4f);
+            int cols = Mathf.FloorToInt(usable / 1.05f), rows = Mathf.FloorToInt((L - .7f) / 1.7f);
+            if (cols < 1 || rows < 1) return;
+            int k = Mathf.Min(solarN, cols * rows); int cu = Mathf.Min(cols, k), ru = Mathf.CeilToInt(k / (float)cu);
+            float gw = cu * 1.05f - .05f, gl = ru * 1.7f - .05f;
+            float off = Mathf.Clamp(Vector3.Dot(solarAt, u), -(usable - gw) / 2, (usable - gw) / 2);
+            float t0 = (L - gl) / 2;
+            for (int i = 0; i < k; i++)
+            {
+                int r = i / cu, c = i % cu;
+                Vector3 o = eave + u * (off - gw / 2 + c * 1.05f) + dUp * (t0 + r * 1.7f) + n * .08f;
+                Panel(g, o, u, n, dUp);
+            }
+        }
+        /// flat roofs: rows of modules tilted 25 deg to the south on low frames, round the measured spot, inside the parapet
+        static void SolarFlat(HouseGeo g, List<Vector3> points, float top)
+        {
+            Vector3 c = Vector3.zero; foreach (var p in points) c += p; c /= points.Count; c += solarAt; c.y = top + .25f;
+            Vector3 d = new Vector3(0, Mathf.Sin(25 * Mathf.Deg2Rad), Mathf.Cos(25 * Mathf.Deg2Rad)), n = new Vector3(0, d.z, -d.y);
+            int cols = Mathf.Min(6, solarN), rows = Mathf.CeilToInt(solarN / (float)cols), placed = 0;
+            for (int r = 0; r < rows && placed < solarN; r++)
+                for (int k = 0; k < cols && placed < solarN; k++)
+                {
+                    Vector3 o = c + new Vector3((k - cols / 2f) * 1.05f, 0, (r - rows / 2f) * 2.3f);
+                    bool inside = true;
+                    foreach (var q in new[] { o, o + Vector3.right, o + d * 1.65f, o + Vector3.right + d * 1.65f })
+                        if (!InRing(points, q.x, q.z, .35f)) { inside = false; break; }
+                    if (!inside) continue;
+                    Panel(g, o, Vector3.right, n, d); placed++;
+                }
+        }
+        /// (x, z) inside the ring (Unity xz) and at least `margin` from its edges
+        static bool InRing(List<Vector3> r, float x, float z, float margin)
+        {
+            bool hit = false;
+            for (int i = 0, j = r.Count - 1; i < r.Count; j = i++)
+            {
+                if ((r[i].z > z) != (r[j].z > z) && x < (r[j].x - r[i].x) * (z - r[i].z) / (r[j].z - r[i].z) + r[i].x) hit = !hit;
+                Vector3 a = r[j], b = r[i], e = b - a; float L2 = e.x * e.x + e.z * e.z;
+                float t = L2 < 1e-6f ? 0 : Mathf.Clamp01(((x - a.x) * e.x + (z - a.z) * e.z) / L2);
+                float qx = a.x + e.x * t - x, qz = a.z + e.z * t - z; if (qx * qx + qz * qz < margin * margin) return false;
+            }
+            return hit;
+        }
+
         static void HipRoof(HouseGeo g, List<Vector3> points, float top, bool chimney, bool chimney2, bool antenna, float rnd, bool gable, MRect mr)
         {
             Vector3 origin = mr.origin, u = mr.u, v = mr.v;
@@ -905,6 +1006,7 @@ namespace Magistrala.EditorTools
                     Face(g, Slot.Trim, d0 + down - v * .5f, c + down - v * .5f, c + down, d0 + down, Vector3.down);
                 }
             }
+            if (solarN > 0) SolarSlope(g, centre, u, v, halfLength, halfWidth, ridgeHalf, rise, gable);
             if (Lod > 1) return;
             // chimneys: plastered / stone stacks a little above the ridge, with a concrete cap
             if (chimney) Chimney(g, centre + u * (ridgeHalf * .5f + halfLength * .15f) * (rnd < .5 ? 1 : -1) + v * .7f, u, v, top, rise);
@@ -947,8 +1049,8 @@ namespace Magistrala.EditorTools
         {
             // the roof slab: dark, weathered concrete / bitumen (not the light balcony concrete), the parapet a light coping
             var keep = look.balcony; float keepDirt = look.dirt;
-            look.balcony = new Color(.55f, .54f, .51f); look.dirt = Mathf.Max(.7f, look.dirt);
-            Surface(g, points, triangles, top, Slot.Balcony, Vector3.up);
+            look.balcony = flatSlab ?? new Color(.55f, .54f, .51f); look.dirt = Mathf.Max(.7f, look.dirt);
+            Surface(g, points, triangles, top, flatTiles ? Slot.Roof : Slot.Balcony, Vector3.up);
             look.balcony = keep; look.dirt = keepDirt;
             var inner = Inset(points, area, .16f);
             Vector3 low = Vector3.up * top, high = Vector3.up * (top + .4f);

@@ -40,7 +40,7 @@ namespace Magistrala.EditorTools
         sealed class Bld
         {
             public List<Vector2d> P, orig; public string kind; public double h, baseY, bottom, top, cx, cz; public int seed, lookSeed, roof = -1;
-            public bool core, terrace, annex, yard; public long cell, chunk;
+            public bool core, terrace, annex, yard; public long cell, chunk; public OrthoRoofs.Rec ortho;
         }
 
         /// old town cores (game x, z, radius m) round the castles: more bare stone, more shop fronts
@@ -113,20 +113,52 @@ namespace Magistrala.EditorTools
             }
             catch (Exception e) { Debug.LogError("[Magistrala] model buildings: " + e); }
 
-            // 1. every footprint (and the annex splits), with its heights
+            // the carriageways (the orthophoto shift must not push a footprint onto one) and the footprints for the yards
+            Yards.Begin(models, rects);
+            OrthoRoofs.Reset(); HouseBuilder.nOrthoPitched = HouseBuilder.nOrthoFlat = HouseBuilder.nOrthoTiledFlat = HouseBuilder.nSolar = HouseBuilder.nSolarPanels = 0;
+            int nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0;
+            // 1. every footprint (and the annex splits), with its heights; then the houses only the orthophoto shows
             var B = new List<Bld>(); int n = 0, skipped = 0, nAnnex = 0;
+            var feed = new List<(List<Vector2d> P, Dictionary<string, object> b, OrthoRoofs.Rec rec)>();
             for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++)
                 for (int tx = WorldBuilder.TX0; tx <= WorldBuilder.TX1; tx++)
                 {
                     var tile = Tiles.Get(tx, tz); if (tile?.buildingsJson == null) continue;
-                    foreach (var bo in MiniJson.L(MiniJson.Parse(tile.buildingsJson)))
+                    var list = MiniJson.L(MiniJson.Parse(tile.buildingsJson));
+                    for (int bi0 = 0; bi0 < list.Count; bi0++)
                     {
-                        var b = MiniJson.O(bo);
+                        var b = MiniJson.O(list[bi0]);
                         var pts = MiniJson.L(b["pts"]); if (pts.Count < 3) continue;
                         var P = new List<Vector2d>();
                         foreach (var p in pts) { var q = MiniJson.L(p); P.Add(new Vector2d(MiniJson.D(q[0]), MiniJson.D(q[1]))); }
                         if (P[0].x == P[P.Count - 1].x && P[0].z == P[P.Count - 1].z) P.RemoveAt(P.Count - 1);
                         if (P.Count < 3) continue;
+                        double ox = 0, oz = 0; foreach (var p in P) { ox += p.x; oz += p.z; } ox /= P.Count; oz /= P.Count;
+                        var rec = OrthoRoofs.Get(tx, tz, bi0, ox, oz);
+                        if (rec != null && (rec.shx != 0 || rec.shz != 0))
+                        {
+                            // OSM footprints of a zone that sits consistently off the roofs (audit): moved, unless that brings
+                            // a corner nearer a carriageway than 0.5 m (or nearer than it already was)
+                            double before = 1e9, after = 1e9;
+                            foreach (var p in P) { before = Math.Min(before, Yards.Clear(p.x, p.z).clear); after = Math.Min(after, Yards.Clear(p.x + rec.shx, p.z + rec.shz).clear); }
+                            if (after >= Math.Min(before, .5)) { for (int i = 0; i < P.Count; i++) P[i] = new Vector2d(P[i].x + rec.shx, P[i].z + rec.shz); nShifted++; }
+                            else nShiftRoad++;
+                        }
+                        feed.Add((P, b, rec));
+                    }
+                }
+            // the orthophoto's houses that neither OSM nor the cadastre has: off the carriageways and the models
+            foreach (var a in OrthoRoofs.Missing())
+            {
+                bool road = false; foreach (var p in a.P) if (Yards.Clear(p.x, p.z).clear < .8) { road = true; break; }
+                if (road) { skipped++; continue; }
+                var b = new Dictionary<string, object> { { "kind", "house" }, { "h", a.h } };
+                feed.Add((a.P, b, new OrthoRoofs.Rec { decide = 1, cls = 1, hasRoof = true, roof = a.roof })); nAdded++;
+                Yards.AddFoot(a.P);
+            }
+            {
+                    foreach (var (P, b, rec) in feed)
+                    {
                         double cx = 0, cz = 0; foreach (var p in P) { cx += p.x; cz += p.z; } cx /= P.Count; cz /= P.Count;
                         if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
@@ -141,12 +173,12 @@ namespace Magistrala.EditorTools
                         if (house) h = Math.Max(2.6, h + (Hash01(cx, cz, 1) - .5) * .7);
                         int seed = (int)(Math.Abs(cx * 7.31 + cz * 3.17) % 100000);
                         var bl = new Bld { P = P, orig = P, kind = kind, h = h, baseY = baseY, bottom = bottom, top = baseY + h, cx = cx, cz = cz, seed = seed, lookSeed = seed,
-                            core = InCore(cx, cz), yard = house && h < 13, cell = Key(cx, cz, CELL), chunk = Key(cx, cz, CHUNK) };
-                        n++;
+                            core = InCore(cx, cz), yard = house && h < 13, cell = Key(cx, cz, CELL), chunk = Key(cx, cz, CHUNK), ortho = rec };
+                        n++; if (rec != null) nOrtho++;
                         // annexes: a large near-rectangular house becomes a main block and a lower wing (one storey less, roof
                         // terrace) across its long axis; the footprint stays exactly the cadastre's
                         double area = 0; for (int i = 0; i < P.Count; i++) { var a = P[i]; var c = P[(i + 1) % P.Count]; area += a.x * c.z - c.x * a.z; } area = Math.Abs(area) / 2;
-                        if (InShow(cx, cz) && house && h >= 5.6 && area >= 100 && area < 600 && P.Count <= 8 && Hash01(cx, cz, 2) < .42)
+                        if (InShow(cx, cz) && house && h >= 5.6 && area >= 100 && area < 600 && P.Count <= 8 && Hash01(cx, cz, 2) < .42 && !(rec != null && rec.decide == 1))
                         {
                             // the longest edge's direction is the long axis of a near-rectangle
                             double ux = 1, uz = 0, best = 0;
@@ -164,7 +196,7 @@ namespace Magistrala.EditorTools
                                 {
                                     bl.P = main; n++; nAnnex++;
                                     B.Add(new Bld { P = wing, orig = P, kind = kind, h = wh, baseY = baseY, bottom = bottom, top = baseY + wh, cx = cx, cz = cz, seed = seed + 1, lookSeed = seed,
-                                        roof = 0, terrace = Hash01(cx, cz, 5) < .75, annex = true, core = bl.core, cell = bl.cell, chunk = bl.chunk });
+                                        roof = 0, terrace = Hash01(cx, cz, 5) < .75, annex = true, core = bl.core, cell = bl.cell, chunk = bl.chunk, ortho = rec });
                                 }
                             }
                         }
@@ -221,7 +253,6 @@ namespace Magistrala.EditorTools
                 return (float.NegativeInfinity, false);
             };
             // 3. streets (shop fronts): from the facade's midpoint along its outward normal
-            Yards.Begin(models, rects);
             HouseBuilder.StreetQuery = (m, ow) =>
             {
                 Vector2 g0 = W.G(m + ow * .3f), g1 = W.G(m + ow * 2.3f);
@@ -249,7 +280,7 @@ namespace Magistrala.EditorTools
                     {
                         if (!legacy.TryGetValue(bl.chunk, out var lg)) legacy[bl.chunk] = lg = new[] { new HouseGeo(), new HouseGeo(), new HouseGeo() };
                         var lfp = new List<Vector2>(); foreach (var p in bl.P) lfp.Add(new Vector2((float)p.x, (float)p.z));
-                        var lopt = new HouseBuilder.Opts { lookSeed = bl.lookSeed, roof = bl.roof, terrace = bl.terrace, core = bl.core, noStairs = bl.annex };
+                        var lopt = new HouseBuilder.Opts { lookSeed = bl.lookSeed, roof = bl.roof, terrace = bl.terrace, core = bl.core, noStairs = bl.annex, ortho = bl.ortho };
                         try
                         {
                             for (int lod = 0; lod < 3; lod++) { HouseBuilder.Lod = lod; HouseBuilder.AddHouse(lg[lod], lfp, bl.kind, bl.bottom, bl.baseY, bl.top, bl.seed, lopt); }
@@ -270,7 +301,7 @@ namespace Magistrala.EditorTools
                 if (!cells.TryGetValue(bl.cell, out var cg)) cells[bl.cell] = cg = new[] { new HouseGeo(), new HouseGeo() };
                 if (!chunks.TryGetValue(bl.chunk, out var kg)) chunks[bl.chunk] = kg = new[] { new HouseGeo(), new HouseGeo(), new HouseGeo() };
                 var fp = new List<Vector2>(); foreach (var p in bl.P) fp.Add(new Vector2((float)p.x, (float)p.z));
-                var opts = new HouseBuilder.Opts { lookSeed = bl.lookSeed, roof = bl.roof, terrace = bl.terrace, core = bl.core, noStairs = bl.annex };
+                var opts = new HouseBuilder.Opts { lookSeed = bl.lookSeed, roof = bl.roof, terrace = bl.terrace, core = bl.core, noStairs = bl.annex, ortho = bl.ortho };
                 try
                 {
                     // the ring is triangulated before anything is appended: a bad footprint throws in level 0 and adds nothing
@@ -360,6 +391,7 @@ namespace Magistrala.EditorTools
             // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
             Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
+            Debug.Log($"[Magistrala] orthophoto roofs ({OrthoRoofs.PATH}): {nOrtho} footprints with a record, pitched {HouseBuilder.nOrthoPitched} + tiled slab {HouseBuilder.nOrthoTiledFlat}, flat {HouseBuilder.nOrthoFlat}, solar on {HouseBuilder.nSolar} roofs ({HouseBuilder.nSolarPanels} modules), OSM shifted {nShifted} ({nShiftRoad} kept: carriageway), added {nAdded}");
             Yards.WriteSpots();
         }
 

@@ -39,6 +39,8 @@ Shader "Magistrala/Facade"
         static const float TILE[8] = { 1.6, 2.4, 3.0, 2.0, 2.7, 0.55, 1.0, 2.2 };
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
+        // roof layer: mean luminance 0.197 (linear) -> 0.40 (HouseBuilder.RoofTint)
+        static const half ROOF_GREY = 2.03;
 
         struct Attributes
         {
@@ -107,6 +109,10 @@ Shader "Magistrala/Facade"
             half rough = ns.b; // photoscanned roughness (BuildingTextures packs it into blue)
             half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale; nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
             half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, TINTED[li]);
+            // roof tiles with a free colour (HouseBuilder, colour measured on the orthophoto): COLOR.a lerps the tiles to their
+            // own luminance x ROOF_GREY (mean 0.40 linear) before the tint, so the tint alone sets the roof's colour
+            // (a = 0: the tile texture's own terracotta x tint, as the package buildings use it)
+            if (li == 2) albedo = lerp(albedo, dot(tex, half3(.3, .59, .11)) * ROOF_GREY * input.color.rgb, input.color.a);
             // the house's own stone (limestone from warm cream to grey, damp or sun-bleached): zeros keep the layer as it is
             if (li == 1 || li == 7)
             {
