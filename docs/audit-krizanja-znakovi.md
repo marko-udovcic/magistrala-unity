@@ -77,8 +77,9 @@ crveno → natpis „Prošao si kroz crveno!“ (bez kazne – to je odluka za M
 | ploča s imenom ulice | 155 | svaka imenovana ulica koja se spaja s drugom (ne D8) |
 
 Natpisi: Inter SemiBold (SIL OFL 1.1, već u projektu za mobitel) rasterizira se pri gradnji u atlas
-`Assets/Generated/Signs/SignAtlas.png` (4096 × 4096, BC7, 288 lica, čćžšđ ispravno). Jedan materijal, mreže po 256 m
-(93 komada, 23 k trokuta), 525 box-sudarača na stupovima / stupovima portala / stupićima.
+`Assets/Generated/Signs/SignAtlas.png` (4096 × 4096, BC7, 289 lica, čćžšđ ispravno). Jedan materijal, mreže po 256 m
+(86 komada, 26 k trokuta), 510 box-sudarača na stupovima / stupovima portala / stupićima. Ugašene leće su dio te mreže;
+upaljene crta `TrafficSignals` instancirano – tri poziva crtanja za sve semafore svijeta.
 
 Preskočeno (u izvještaju gradnje): stupovi koji bi pali na kolnik a ne mogu se odmaknuti ≤ 3 m (ulice 124, trokuti 10,
 ograničenja 17, pješački 23), duplikati, sve izvan svijeta.
@@ -91,6 +92,18 @@ ograničenja 17, pješački 23), duplikati, sve izvan svijeta.
 - **Čvor 41 bez AI-ja**: AI vozi samo uzdužne koridore (D8 oba smjera kroz 41, stara cesta); rampe 41 (D409 ↔ D8) nisu
   koridori – trebalo bi spajanje / razdvajanje koridora (prelazak auta s rampe u traku D8). **Nije riješeno** (vidi 5).
 - AI poštuje samo stop-crte na svojim koridorima (SG1 kroz D8 / staru cestu); bočne prilaze nitko od AI-ja ne vozi.
+
+## 4a. Učinak (fps)
+
+Mjereno u playeru (1600×900, srednja kvaliteta, kamion stoji pred 01 A / 20 A) – **nepouzdano**: istodobno su radila
+tri Unity editora i build drugih agenata (isti player je između dva pokretanja skakao 15 ↔ 40 fps). Brojači crtanja
+(ProbeBench `[perf]`) kod 01: prije ~4000 batcheva / ~4800 draw calla, poslije ~3550 / ~4400 (promet varira); kod 20
+prije ~2000 / 2140, poslije ~2080 / 2225 (+4 %). Trokuta +0,5 %. Znakovi dakle ne bi trebali prijeći −5 %; treba
+ponoviti mjerenje na mirnom stroju (`-nojob -tpxz -6106,-5595,96 -nohud`, 75 s).
+
+Snimke: `prije-01-A-ulica`, `prije-01-B-ulica`, `prije-20-A-ulica`, `prije-01-dron`, `prije-42-ulica`;
+`poslije-*` iste pozicije; `poslije-01-B-semafor-faze.jpg` (crveno → žuto → zeleno), `poslije2-01-B-semafor_t0*.png`
+(instancirane leće), `poslije-c09-zapreka_t0*.png` (c09), `orto-<model>.jpg` (17 križanja na ortofotu).
 
 ## 5. Što je ostalo (po važnosti)
 
