@@ -25,7 +25,7 @@ using UnityEngine;
 
 namespace Magistrala.EditorTools
 {
-    public static class PropsBuilder
+    public static partial class PropsBuilder
     {
         // ------------------------------------------------------------------ layouts
         /// u: along the wall (m, right of the wall's normal), d: the item's back from the wall (m), yaw: deg (0 = front away from the
@@ -127,9 +127,12 @@ namespace Magistrala.EditorTools
                 if ((h / 7) % 2 == 1) lay = lay.Select(x => { x.u = -x.u; return x; }).ToArray();
                 Wall(s, lay, s.name, 32, false);
             }
+            GroundCover.Build(log);          // pitches, car parks, pools (World/Tlo): their fences / goals first, the benches avoid them
+            PitchBenches(); ParkBenches();
             Benches();
             ProbeYards();
             Terrace();
+            ParkedCars();                    // last: the cars keep off every prop placed before
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             int rend = root.GetComponentsInChildren<MeshRenderer>(true).Length, lg = root.GetComponentsInChildren<LODGroup>(true).Length, cols = root.GetComponentsInChildren<Collider>(true).Length;
             log.Insert(0, $"[rekviziti] {nPlaced} props placed ({lg} LOD groups, {rend} renderers, {cols} colliders), {nRejected} rejected; " +

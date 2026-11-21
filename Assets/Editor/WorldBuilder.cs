@@ -495,7 +495,7 @@ namespace Magistrala.EditorTools
             var protos = TreeProtos.Prefabs();
             var models = WorldData.Models();
             int total = 0;
-            VegetationMask.Reset(); NaturePass.Begin(protos.Count); // NatureManufacture pines / median hedge prototypes after ours
+            VegetationMask.Reset(); GroundCover.Reset(); VegetationMask.YardKept = VegetationMask.YardDropped = 0; NaturePass.Begin(protos.Count); // NatureManufacture pines / median hedge prototypes after ours
             var rec = new List<byte>();
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
@@ -541,7 +541,8 @@ namespace Magistrala.EditorTools
                         float h = (float)Tiles.Height(gx, gz);
                         int proto = TreeProtos.Species((int)f[3], gx, h, gz, f[4], out float s);
                         if (proto < 0 || proto >= protos.Count) continue;
-                        if (!VegetationMask.TileTree(ref proto, ref s, gx, gz, dens, models)) continue;
+                        if (!VegetationMask.TileTree(ref proto, ref s, gx, gz, dens, models, f[3] >= 10 && f[3] <= 13)) continue;
+                        if (GroundCover.Hard(gx, gz, 1)) continue; // pitches, car parks, pools, courts (GroundCover)
                         if (proto >= protos.Count) { if (WorldData.FootDist(models, gx, gz) < 4 || StreetsBuilder.Covered(gx, gz, 1.5) || RivaBuilder.NoTree(gx, gz) || h < .4f) continue; var u2 = W.U(gx, h - .12, gz); foreach (var v in new[] { u2.x, u2.y, u2.z, (float)(rnd.NextDouble() * 360), s, proto }) rec.AddRange(BitConverter.GetBytes(v)); total++; continue; }
                         proto = NaturePass.TreeProto(proto, gx, gz, h, ref s);
                         if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5) || StreetsBuilder.Covered(gx, gz, 1.5) || RivaBuilder.NoTree(gx, gz)) continue;
@@ -582,7 +583,7 @@ namespace Magistrala.EditorTools
             tr.nearDistance = new[] { 110f, 110f, 90f, 110f, 45f, 45f, 40f, 120f };
             TreeProtos.Impostors(out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
             NaturePass.Finish(tr);
-            Debug.Log($"[Magistrala] trees: {total}");
+            Debug.Log($"[Magistrala] trees: {total} (yard crowns kept {VegetationMask.YardKept}, dropped {VegetationMask.YardDropped})");
         }
 
         // ------------------------------------------------------------------ sea

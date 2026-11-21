@@ -59,7 +59,7 @@ namespace Magistrala.EditorTools
 
         /// a tile tree after TreeProtos.Species (our prototypes 0 pine_a, 1 pine_b, 2 olive, 3 cypress, 4–6 shrubs, 7 rock): false =
         /// drop it; pines / cypresses may become an olive or a holm oak (crnika)
-        public static bool TileTree(ref int proto, ref float s, double gx, double gz, Dictionary<long, int> dens, List<ModelJ> models)
+        public static bool TileTree(ref int proto, ref float s, double gx, double gz, Dictionary<long, int> dens, List<ModelJ> models, bool crown = false)
         {
             if (!On || !NaturePass.In(gx, gz)) return true;
             int v = At(gx, gz);
@@ -68,6 +68,7 @@ namespace Magistrala.EditorTools
             if ((v & CLUMP) != 0 || (v & ORCHARD) != 0) return false;                 // the clump / grove plants replace them
             float r = NaturePass.R01(gx, gz, 61);
             bool built = (v & BUILT) != 0, near = (v & D8NEAR) != 0;
+            if (crown && built && YardTrees) return YardTree(ref proto, ref s, gx, gz);
             if (proto >= 4) return r < (built ? .3f : .6f);                           // shrubs: fewer
             dens.TryGetValue(Key(gx, gz), out int n);
             float perHa = Math.Max(1, n) / .1024f;
@@ -81,6 +82,64 @@ namespace Magistrala.EditorTools
                 if (r2 < .62f && c >= 0) { proto = c; s = CrnikaScale(gx, gz, 1); } else { proto = 2; s = .75f + .2f * r2; }
             }
             return true;
+        }
+
+        // ------------------------------------------------------------------ yards (docs/audit-stari.md)
+        /// the photo's single crowns between the houses (the ground build's trees, kinds 10–13) stay in built-up land: 60–90 crowns
+        /// per ha in the towns, not ~10 (they were thinned with the open land's tile trees); off the pitches / car parks / pools and
+        /// 1 m off the tile buildings' footprints; a third of the olive-sized crowns become dark evergreen broadleaves (citrus,
+        /// carob, fig, holm oak read as crnika), half of the big pine-sized ones too, half of the cypress-sized ones become small olives
+        public static bool YardTrees = true;
+        public static int YardKept, YardDropped;
+        static bool YardTree(ref int proto, ref float s, double gx, double gz)
+        {
+            if (GroundCover.Hard(gx, gz, 1.5) || NearBuilding(gx, gz)) { YardDropped++; return false; }
+            float r2 = NaturePass.R01(gx, gz, 64); int c = NaturePass.Index("crnika");
+            if (c >= 0 && ((proto == 2 && r2 < .33f) || (proto <= 1 && r2 < .5f))) { proto = c; s = CrnikaScale(gx, gz, proto <= 1 ? 1.15f : .9f); }
+            else if (proto == 3 && r2 < .55f) { proto = 2; s = .7f + .25f * r2; }   // the photo's narrow crowns: about half are cypresses (the rest small olives / fruit trees)
+            YardKept++;
+            return true;
+        }
+
+        static readonly Dictionary<(int, int), bool[]> footMask = new Dictionary<(int, int), bool[]>();
+        /// within 1 m of a building footprint (the tiles' buildings + the package's, OrthoGround's 0.5 m mask)
+        public static bool NearBuilding(double gx, double gz)
+        {
+            int tx = (int)Math.Floor(gx / 1024), tz = (int)Math.Floor(gz / 1024);
+            if (!footMask.TryGetValue((tx, tz), out var m))
+            {
+                try { m = OrthoGround.Grow(OrthoGround.BuildingMask(tx, tz, 0), 1.0); } catch (Exception e) { Debug.LogWarning("[vegetacija] footprints " + e.Message); m = null; }
+                footMask[(tx, tz)] = m;
+            }
+            if (m == null) return false;
+            int N = OrthoGround.MaskN; int r = (int)Math.Floor(((tz + 1) * 1024 - gz) / .5), i = (int)Math.Floor((gx - tx * 1024) / .5);
+            return r >= 0 && i >= 0 && r < N && i < N && m[r * N + i];
+        }
+
+        /// yard hedges (the ground build's thin green strips along plot edges + OSM barrier=hedge): the dark hedge body (grm-zivica)
+        /// every 0.8 m at the strip's height, an oleander now and then
+        public static int PlaceHedges(PutFn put)
+        {
+            int z = NaturePass.Index("grm-zivica"), ol = NaturePass.Index("oleander-roza"), ow = NaturePass.Index("oleander-bijeli"); if (z < 0 || !On) return 0;
+            float hz = NaturePass.Height("grm-zivica"), ho = ol >= 0 ? NaturePass.Height("oleander-roza") : 0; if (hz <= 0) hz = 1.8f;
+            int n = 0;
+            foreach (var h in GroundCover.Hedges)
+            {
+                double ax = h[0], az = h[1], bx = h[2], bz = h[3]; float H = (float)Math.Max(1.1, Math.Min(2.4, h[4]));
+                double L = Math.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)); if (L < 1) continue;
+                float yaw = (float)(Math.Atan2(bx - ax, -(bz - az)) * 180 / Math.PI);
+                for (double t = .4; t < L; t += .8)
+                {
+                    double x = ax + (bx - ax) * t / L, zz = az + (bz - az) * t / L;
+                    if (StreetsBuilder.Covered(x, zz, .5) || GroundCover.Hard(x, zz, .3) || NearBuilding(x, zz) || RivaBuilder.NoTree(x, zz)) continue;
+                    double y = Tiles.Height(x, zz); if (y < .6) continue;
+                    float r = NaturePass.R01(x, zz, 81);
+                    if (ol >= 0 && ho > 0 && r < .12f) put(x, y - .05, zz, yaw + r * 300, H * 1.05f / ho, r < .07f ? ol : ow);
+                    else put(x, y - .05, zz, yaw + (r - .5f) * 30, H / hz * (.95f + .1f * r), z);
+                    n++;
+                }
+            }
+            return n;
         }
 
         static float CrnikaScale(double gx, double gz, float k)
@@ -108,7 +167,7 @@ namespace Magistrala.EditorTools
             {
                 h = Tiles.Height(x, z);
                 if (h < .6 || (At(x, z) & D8CLEAR) != 0) return false;
-                if (WorldData.FootDist(models, x, z) < 3 || WorldData.SurfDist(models, x, z) < 1.5 || StreetsBuilder.Covered(x, z, 1.5) || RivaBuilder.NoTree(x, z)) return false;
+                if (WorldData.FootDist(models, x, z) < 3 || WorldData.SurfDist(models, x, z) < 1.5 || StreetsBuilder.Covered(x, z, 1.5) || RivaBuilder.NoTree(x, z) || GroundCover.Hard(x, z, 1)) return false;
                 var q = WorldData.ModelTerrain(models, x, z, 2, h); if (q.HasValue) h = q.Value;
                 return h >= .6;
             }

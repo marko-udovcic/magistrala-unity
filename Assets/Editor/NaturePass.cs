@@ -236,6 +236,8 @@ namespace Magistrala.EditorTools
             total += np;
             int nh = MedianHedge.Place((gx, y, gz, yaw, s, id) => { int pi = Index(id); if (pi >= 0) Put(gx, y, gz, yaw, s, pi); }, models);
             total += nh;
+            int nyh = VegetationMask.PlaceHedges((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto));   // yard hedges (docs/audit-stari.md)
+            total += nyh; Debug.Log($"[priroda] yard hedge plants {nyh}");
             Debug.Log($"[priroda] extra pines {np}, median hedge plants {nh}");
         }
 
