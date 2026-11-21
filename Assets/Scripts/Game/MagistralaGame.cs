@@ -46,6 +46,9 @@ namespace Magistrala.Game
             /// mag-11-19 tours: the tour type ("" = a single drop from the warehouse), its legs, the current one, the cargo mass,
             /// pallets in the box, rows already delivered, drops reversed into
             public string tour = "", key = ""; public List<Leg> legs = new List<Leg>(); public int leg, drops, rowsOff, reversed; public float kg = 2400; public bool loaded;
+            /// a fatureta (MagistralaGame.Faturete.cs): its id, the customer, the agreed price is `pay`, "ruke" (cash) or "racun"
+            /// (invoice, the trade account), the deadline is the end of the customer's window
+            public bool fatureta; public string fatId = "", customer = "", payMode = "ruke"; public float loadSec = 15, unloadSec = 15;
             public Leg Leg => leg < legs.Count ? legs[leg] : null;
         }
         /// one stop of a tour: 'u' load, 'd' drop (`rows` pallet rows off, −1 all), 'r' back to the warehouse with the empties
@@ -108,8 +111,12 @@ namespace Magistrala.Game
             if (Unload && !Unload.Ok) Unload = null;
             SetPallets(false);
             Truck.Hit += OnTruckHit;
+            SetupVehicles(); // the Galeb (MagistralaGame.Vehicles.cs)
             // start of the day: in the warehouse bay in Lukšić, backed in, facing out (unless a measuring run drives the D8)
-            if (!Has("-autopilot") && Arg("-tp") == null && !Has("-bench")) { PlaceAtWarehouse(); RestoreFromSave(); }
+            bool placed = !Has("-autopilot") && Arg("-tp") == null && !Has("-bench");
+            if (placed) PlaceAtWarehouse();
+            ChooseVehicle(placed);
+            if (placed) RestoreFromSave();
             if (S.wpOn) SetWaypoint(new Vector3(S.wpX, 0, S.wpZ), false);
             if (Arg("-kartaoznaka") is string ko)
             {
@@ -119,6 +126,7 @@ namespace Magistrala.Game
                     SetWaypoint(new Vector3(gx + 4200, 0, -gz - 5300));
             }
             StartDay();
+            StartFaturete();
             if (autoJob != null) StartCoroutine(AutoStart());
             // test: -camorbit yaw,pitch  the chase camera's mouse orbit (degrees) at start, e.g. 30,-18 to watch the tail lift
             if (Arg("-camorbit") is string co && FindFirstObjectByType<TruckChaseCamera>() is TruckChaseCamera cam)
@@ -236,6 +244,7 @@ namespace Magistrala.Game
             if (!force && !atWarehouse) { Banner("Ture se preuzimaju u skladištu u Lukšiću."); return; }
             if (!force && Truck.SpeedKmh > 3) { Banner("Stani u skladištu pa biraj turu."); return; }
             if (!force && !ToursOpen) { Banner(FirmHours ? "Zdravko još nije dao ture." : "Firma radi radnim danom 6–17 h."); return; }
+            if (!force && InGaleb) { Banner(NearOther ? "Ture firme voziš Ategom. E – uzmi Atego." : "Ture firme voziš Ategom firme, ne Galebom."); return; }
             j.startMin = S.clockMin; j.deadlineMin = TourDeadline(j);
             Current = j; State = Phase.Loading; phaseT = force ? 0.1f : 3f; loadingKind = 'a';
             if (j.loaded) { Truck.SetCargo(j.kg); SetPallets(true); } // four euro pallets of drinks ≈ 2.4 t
@@ -248,9 +257,11 @@ namespace Magistrala.Game
         {
             if (Current == null) return;
             Debug.Log($"[job] cancelled {Current.to}");
+            if (Current.fatureta) FaturetaCancelled(Current);
             if (State == Phase.Unloading) StopUnload(false);
             Truck.parkLock = false;
-            Current = null; State = Phase.Free; Truck.SetCargo(0); SetPallets(false); Banner("Tura otkazana");
+            bool fat = Current.fatureta;
+            Current = null; State = Phase.Free; Truck.SetCargo(0); SetPallets(false); Banner(fat ? "Fatureta otkazana" : "Tura otkazana");
             SaveNow("job cancelled");
         }
 
@@ -260,8 +271,9 @@ namespace Magistrala.Game
             Truck.parkLock = true; // parking brake on while the tail lift works (web: airBrake)
             int rows = Current.Leg?.rows ?? -1;
             handCrates = Unload == null || rows == 0;
-            if (!handCrates) { Unload.Begin(rows); phaseT = Unload.Duration; } else phaseT = Unload == null ? 4f : 5f;
-            Banner(handCrates && Unload ? "Ručna povučena. Gajbe rukom, potpis na otpremnici…" : "Ručna povučena. Rampa dolje, transpaleta van…");
+            if (Current.fatureta) handCrates = true;
+            if (!handCrates) { Unload.Begin(rows); phaseT = Unload.Duration; } else phaseT = Current.fatureta ? (auto && nearStart == 0 ? 2 : Current.unloadSec) : Unload == null ? 4f : 5f;
+            Banner(Current.fatureta ? $"Ručna povučena. Istovar: {Current.cargo}…" : handCrates && Unload ? "Ručna povučena. Gajbe rukom, potpis na otpremnici…" : "Ručna povučena. Rampa dolje, transpaleta van…");
             Debug.Log($"[job] unload started at {Current.to} ({(unloadReversed ? "reversed in" : "nose in")}), {phaseT:0.0} s");
         }
 
@@ -276,12 +288,14 @@ namespace Magistrala.Game
             var j = Current; StopUnload(true);
             bool rev = j.tour == "" ? unloadReversed : j.drops > 0 && j.reversed >= j.drops;
             var p = ComputePayout(j, S.clockMin - j.startMin, rev);
-            S.cash += p.total; S.delivered++; S.deliveredJobs.Add($"{Day}|{Hm(S.clockMin)}|{(j.tour != "" ? j.tour + ":" + j.legs.Count : j.to)}|{p.total:0.0}");
-            if (j.tour != "") S.toursDone.Add(Day + ":" + j.key);
+            if (j.fatureta) FaturetaPaid(j, p); else S.cash += p.total;
+            S.delivered++; S.deliveredJobs.Add($"{Day}|{Hm(S.clockMin)}|{(j.tour != "" ? j.tour + ":" + j.legs.Count : j.to)}|{p.total:0.0}");
+            if (j.tour != "" && !j.fatureta) S.toursDone.Add(Day + ":" + j.key);
             card = p; cardT = 10;
             Debug.Log($"[job] delivered {(j.tour != "" ? $"tour {j.tour} ({j.drops} drops)" : j.to)}: base {j.pay:0.0} € {string.Join(" ", p.lines.ConvertAll(l => $"[{l.label} {l.amount:+0.0;-0.0}]"))} = {p.total:0.0} €, rating {p.rating}, {p.minutes:0} game min (deadline {j.deadlineMin:0}), cash {Cash:0.0} €, delivered {Delivered}");
             Current = null; State = Phase.Free; Truck.SetCargo(0);
             if (pallets) pallets.SetActive(false); // (the rows stay at the stop: FirmUnload dropped them)
+            NextQueuedFatureta();
             SaveNow("delivered");
             if (auto) { var ap = Truck.GetComponent<Autopilot>(); if (ap) ap.drive = false; Truck.externalInput = false; }
         }
@@ -325,9 +339,18 @@ namespace Magistrala.Game
                 if (cardT <= 0 || (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))) card = null;
                 else help.Add("Enter zatvori");
             }
+            // the other vehicle close by: E takes it (MagistralaGame.Vehicles.cs)
+            // (with a fatureta waiting to be loaded only towards the Galeb: at the yard both stand close and E there means "load")
+            bool swap = CanSwitch && card == null && (State == Phase.Free || (Current != null && Current.fatureta && !InGaleb));
+            if (swap)
+            {
+                prompt = $"E – uzmi {Other.acc}"; help.Add($"E uzmi {Other.acc}");
+                if (kb != null && kb.eKey.wasPressedThisFrame && !DroneCamera.Active) { SwitchVehicle(); kb = null; }
+            }
             switch (State)
             {
                 case Phase.Free:
+                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? "Ture firme voziš Ategom" : null; HomeEndDay(kb, help, ringing); break; }
                     if (atWarehouse)
                     {
                         if (ToursOpen)
@@ -343,10 +366,11 @@ namespace Magistrala.Game
                             if (prompt != null) { help.Add("N kraj dana"); if (kb != null && !ringing && kb.nKey.wasPressedThisFrame && Truck.SpeedKmh < 3) EndDay(); }
                         }
                     }
+                    else HomeEndDay(kb, help, ringing);
                     break;
                 case Phase.Loading:
                     phaseT -= dt;
-                    prompt = loadingKind == 'u' ? $"Utovar u {World.Stop(Current.to)?.name}… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : loadingKind == 'r' ? $"Predaja praznih gajbi i otpremnica… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : Current.loaded ? "Utovar paleta…" : "Preuzimanje naloga…";
+                    prompt = loadingKind == 'u' ? $"Utovar{(Current.fatureta ? $" ({Current.cargo})" : $" u {World.Stop(Current.to)?.name}")}… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : loadingKind == 'r' ? $"Predaja praznih gajbi i otpremnica… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : Current.loaded ? "Utovar paleta…" : "Preuzimanje naloga…";
                     if (loadingKind != 'a') { help.Add("J otkaži turu"); if (kb != null && kb.jKey.wasPressedThisFrame) { Cancel(); break; } }
                     if (phaseT <= 0)
                     {
@@ -359,16 +383,25 @@ namespace Magistrala.Game
                     var s = World.Stop(Current.to);
                     inBay = InBay(s, out bayReversed);
                     float d = Vector3.Distance(Flat(TruckCentre()), Flat(s.bay));
-                    if (inBay && Truck.SpeedKmh < 1.5f)
+                    if (swap) { }
+                    else if (Current.fatureta && !InGaleb && d < 40) prompt = "Faturete se voze Galebom – GPS te vodi do njega";
+                    else if (inBay && Truck.SpeedKmh < 1.5f && Current.fatureta)
+                    {
+                        char lk = Current.Leg?.K ?? 'd';
+                        prompt = lk == 'u' ? $"E – Utovar ({Current.cargo})" : "E – Istovar";
+                        help.Add(lk == 'u' ? "E utovar" : "E istovar");
+                        if ((kb != null && kb.eKey.wasPressedThisFrame && !DroneCamera.Active) || auto) StartLeg();
+                    }
+                    else if (inBay && Truck.SpeedKmh < 1.5f)
                     {
                         char lk = Current.Leg?.K ?? 'd';
                         prompt = lk == 'u' ? "E – Utovar" : lk == 'r' ? "E – Predaj prazne gajbe" : bayReversed ? "E – Istovari dizalicom (unazad +10 %)" : "E – Istovari dizalicom";
                         help.Add(lk == 'u' ? "E utovar" : lk == 'r' ? "E predaj" : "E istovar");
                         if ((kb != null && kb.eKey.wasPressedThisFrame && !DroneCamera.Active) || auto) StartLeg(); // (E is "up" for the drone)
                     }
-                    else if (inBay) prompt = "Stani za istovar";
-                    else if (d < 35) prompt = "Parkiraj u označeno mjesto za istovar";
-                    help.Add("J otkaži turu");
+                    else if (inBay) prompt = Current.Leg?.K == 'u' ? "Stani za utovar" : "Stani za istovar";
+                    else if (d < 35) prompt = Current.Leg?.K == 'u' ? "Parkiraj u označeno mjesto za utovar" : "Parkiraj u označeno mjesto za istovar";
+                    help.Add(Current.fatureta ? "J otkaži faturetu" : "J otkaži turu");
                     if (kb != null && kb.jKey.wasPressedThisFrame) Cancel();
                     // test: the autopilot stuck on a tight town corner (it cannot reverse) for 20 s → jump into the bay, logged
                     if (auto && Current != null && Current.tour != "" && nearStart != 0)
@@ -382,7 +415,7 @@ namespace Magistrala.Game
                 {
                     phaseT -= dt;
                     int off = Unload && !handCrates ? Unload.RowsOff : 0, rows = Unload && !handCrates ? Unload.SeqRows : 0;
-                    prompt = handCrates ? $"Gajbe rukom… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : rows > 0 ? $"Istovar dizalicom… paleta {Mathf.Min(rows, off + 1)} / {rows} · {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : $"Istovar dizalicom… {Mathf.CeilToInt(phaseT)} s";
+                    prompt = Current.fatureta ? $"Istovar… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : handCrates ? $"Gajbe rukom… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : rows > 0 ? $"Istovar dizalicom… paleta {Mathf.Min(rows, off + 1)} / {rows} · {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : $"Istovar dizalicom… {Mathf.CeilToInt(phaseT)} s";
                     help.Add("W / S prekini istovar · J otkaži turu");
                     bool drive = kb != null && !DroneCamera.Active && (kb.wKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame);
                     // test: -jobabort s  the first unload is broken off after s seconds (as if the player drove off), the autopilot restarts it
@@ -398,11 +431,13 @@ namespace Magistrala.Game
                     break;
                 }
             }
+            if (swap && prompt == null && Other != null) prompt = $"E – uzmi {Other.acc}";
             HelpKeys = help.Count > 0 ? string.Join(" · ", help) : null;
             if (Waypoint is Vector3 wpt && Vector3.Distance(Flat(TruckCentre()), Flat(wpt)) < WaypointReach)
             {
                 ClearWaypoint("reached"); Banner("Stigao si do oznake.");
             }
+            TickFaturete();
             TickFuel(dt);
             routeT -= dt;
             if (routeT <= 0) { routeT = 1f; UpdateRoute(); }
@@ -453,6 +488,20 @@ namespace Magistrala.Game
                 Route = Router.RouteTo(TruckCentre(), Truck.transform.forward, wpSpot, out float wm);
                 RouteMetres = Route != null ? wm : Vector3.Distance(TruckCentre(), wp);
                 return;
+            }
+            // a fatureta not yet loaded, driving the Atego: first to the parked Galeb
+            if (Current != null && Current.fatureta && !Current.loaded && !InGaleb && OtherAt is Vector3 gp)
+            {
+                var sp = Router.Nearest(gp, Vector3.zero);
+                if (sp.edge >= 0) { Target = gp; Route = Router.RouteTo(TruckCentre(), Truck.transform.forward, sp, out float gm); RouteMetres = Route != null ? gm : Vector3.Distance(TruckCentre(), gp); return; }
+            }
+            // free in the Galeb after work: home to the yard (the warehouse only on a working day before 17 h)
+            if (State == Phase.Free && InGaleb && !(FirmHours && S.closedDay != Day))
+            {
+                var yd = World.Stop(Yard);
+                if (yd == null || Vector3.Distance(Flat(TruckCentre()), Flat(yd.bay)) < 30) { Route = null; Target = null; RouteMetres = 0; return; }
+                Target = yd.bay; Route = Router.Route(TruckCentre(), Truck.transform.forward, yd.padNode >= 0 ? yd.padNode : yd.accessNode, yd.bay, out float ym);
+                RouteMetres = Route != null ? ym : Vector3.Distance(TruckCentre(), yd.bay); return;
             }
             GStop goal = State == Phase.Free ? (atWarehouse ? null : World.Stop(Warehouse)) : Current != null ? World.Stop(Current.to) : null;
             if (goal == null) { Route = null; Target = null; RouteMetres = 0; return; }
@@ -510,6 +559,8 @@ namespace Magistrala.Game
             get
             {
                 if (Waypoint != null) return "Oznaka";
+                if (Current != null && Current.fatureta && !Current.loaded && !InGaleb && OtherAt != null) return "Galeb";
+                if (Current == null && State == Phase.Free && InGaleb && !(FirmHours && S.closedDay != Day)) return Target != null ? "Dvor Bašića" : null;
                 string id = Current != null ? Current.to : State == Phase.Free && !atWarehouse ? Warehouse : null;
                 if (id == null) return null;
                 return id == Warehouse ? "Skladište u Lukšiću" : World.Stop(id)?.name;
@@ -525,7 +576,12 @@ namespace Magistrala.Game
             l.Clear();
             if (Current != null)
             {
-                if (Current.tour != "")
+                if (Current.fatureta)
+                {
+                    l.Add(($"Fatureta: {Current.label}", 0));
+                    l.Add(($"{(Current.loaded ? "Istovar: " + World.Stop(Current.legs[Current.legs.Count - 1].stop)?.name : InGaleb ? "Utovar: " + World.Stop(Current.legs[0].stop)?.name : "Prvo po Galeba")} · {Eur(Current.pay)} {(Current.payMode == "racun" ? "(račun)" : "(na ruke)")} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
+                }
+                else if (Current.tour != "")
                 {
                     l.Add(($"Tura: {Current.label}", 0));
                     l.Add(($"{LegVerb(Current.Leg)} · {Magistrala.HudStyle.Dec(Current.km)} km · {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
@@ -554,6 +610,7 @@ namespace Magistrala.Game
             if (prompt != null) Pill(Screen.height * 0.62f, prompt, 1);
             if (bannerT > 0 && banner != null) Pill(Screen.height * 0.16f, banner, Mathf.Clamp01(bannerT * 2));
             DrawCard();
+            DrawFade();
         }
 
         /// a centred message on a dark pill (prompt / banner)

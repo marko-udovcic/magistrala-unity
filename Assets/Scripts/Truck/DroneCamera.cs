@@ -45,7 +45,7 @@ public sealed class DroneCamera : MonoBehaviour
 
     void Update()
     {
-        if (!truck) truck = chase && chase.target ? chase.target : FindFirstObjectByType<TruckController>();
+        if (!truck || !truck.isActiveAndEnabled) truck = chase && chase.target && chase.target.isActiveAndEnabled ? chase.target : FindFirstObjectByType<TruckController>();
         if (!truck || !truck.IsReady) return;
         // (-dron waits 2.5 s: the test switch -tpxz moves the truck after 1 s)
         if (startDron && Time.timeSinceLevelLoad > 2.5f) { startDron = false; Enter(); Debug.Log("[dron] -dron: start in drone mode"); }

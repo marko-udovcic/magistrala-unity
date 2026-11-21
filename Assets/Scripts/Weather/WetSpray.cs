@@ -83,7 +83,7 @@ namespace Magistrala
             float k = Mathf.InverseLerp(.25f, 1f, wet);
             mat.SetColor("_Color", dbgRed ? new Color(3, 0, 0) : RenderSettings.fogColor.linear * 1.8f); // brighter than the sky-grey wet road it hangs over, or it vanishes into it
             // truck: the two outermost rear wheels
-            if (!truck) { truck = FindFirstObjectByType<TruckController>(); rear = null; }
+            if (!truck || !truck.isActiveAndEnabled) { truck = FindFirstObjectByType<TruckController>(); rear = null; }
             if (truck && truck.IsReady && rear == null)
             {
                 var ws = truck.GetComponentsInChildren<WheelCollider>();

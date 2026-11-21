@@ -33,11 +33,34 @@ public sealed class TruckController : MonoBehaviour
     public float BrakeLevel => brakePressure;
     public Vector3 CabinEyeLocal { get; private set; } = new Vector3(-0.55f, 1.3f, 2.75f);
 
-    // truckPhysics.ts firm_truck: 6300 kg already agrees with the real empty box + tail-lift mass.
-    const float Mass = 6300f, Radius = 0.46f, FinalDrive = 4.4f;
-    const float Idle = 600f, Redline = 2450f, ShiftTime = 0.6f;
-    const float Travel = 0.30f, Sag = 0.13f, SpringTarget = 0.3f; // (bench vs web: 0.09 m sag rolled only 1.6° at 0.4 g, web 2.5°)
-    static readonly float[] Ratios = { 6.75f, 3.6f, 2.13f, 1.39f, 1f, 0.78f };
+    /// a vehicle's physics parameter set (Atego defaults = the firm truck as before; Galeb = the family van, MagistralaGame.Vehicles.cs).
+    /// Set before the GameObject is activated (Awake builds the wheels from it).
+    public sealed class Spec
+    {
+        public string id = "atego";
+        // truckPhysics.ts firm_truck: 6300 kg already agrees with the real empty box + tail-lift mass.
+        public float mass = 6300f, radius = 0.46f, finalDrive = 4.4f, torqueNm = 800f, topKmh = 95f, reverseKmh = 14f;
+        public float idle = 600f, redline = 2450f, shiftTime = 0.6f, rpmScale = 1f; // rpmScale: the shift points / torque curve (built for a 2450 rpm diesel) scaled
+        public float travel = 0.30f, sag = 0.13f, sagLoaded = 0.16f, springTarget = 0.3f, damping = 0.65f; // (bench vs web: 0.09 m sag rolled only 1.6° at 0.4 g, web 2.5°)
+        public float[] ratios = { 6.75f, 3.6f, 2.13f, 1.39f, 1f, 0.78f };
+        public float reverseRatio = 6.06f, dragArea = 5.2f, steerRate = 1.3f, wheelMassFront = 65f, wheelMassRear = 100f;
+        /// centre of mass above the axles / along rear → front axle (0..1); payload centre above the axles; payload that fully loads the springs
+        public float comAboveAxle = 0.6f, comFront = 2.6f / 4.3f, cargoAboveAxle = 1.55f, cargoRefKg = 6000f;
+        /// brake deceleration per unit pressure (m/s², empty → at cargoRefKg), engine-brake factor
+        public float brakeEmpty = 5.8f, brakeLoaded = 4.5f, engineBrake = 0.32f;
+        /// generic body colliders (models without named body_* parts): lowest point of the cab / box above the ground
+        public float cabFloor = 0.8f, boxFloor = 1f;
+        /// the driver's eye in the raw model's frame (before modelYawDegrees)
+        public Vector3 eyeModel = new Vector3(0.55f, 1.3f, -2.75f);
+        /// anti-roll bars (N per unit of travel difference); < 0 keeps the component's own (the scene's Atego: 18000 / 14000)
+        public float antiRollFront = -1f, antiRollRear = -1f;
+    }
+    [System.NonSerialized] public Spec spec = new Spec();
+    public string VehicleId => spec.id;
+    float Mass => spec.mass; float Radius => spec.radius; float FinalDrive => spec.finalDrive;
+    float Idle => spec.idle; float Redline => spec.redline; float ShiftTime => spec.shiftTime;
+    float Travel => spec.travel; float Sag => spec.sag; float SpringTarget => spec.springTarget;
+    float[] Ratios => spec.ratios;
     static readonly float[] CurveRpm = { 500, 800, 1200, 1600, 1900, 2200, 2500 };
     static readonly float[] CurveTorque = { 0.42f, 0.68f, 1, 1, 0.95f, 0.87f, 0.3f };
     readonly WheelCollider[] wheels = new WheelCollider[4]; // FL, FR, RL, RR
@@ -86,7 +109,9 @@ public sealed class TruckController : MonoBehaviour
         }
         model.localRotation = Quaternion.AngleAxis(modelYawDegrees, Vector3.up) * model.localRotation;
         // glTFast mirrors X. Before yaw: eye (+.55, 1.3, -2.75); after 180 yaw it is the left seat.
-        CabinEyeLocal = transform.InverseTransformPoint(model.TransformPoint(new Vector3(0.55f, 1.3f, -2.75f)));
+        CabinEyeLocal = transform.InverseTransformPoint(model.TransformPoint(spec.eyeModel));
+        if (spec.antiRollFront >= 0) AntiRollFront = spec.antiRollFront;
+        if (spec.antiRollRear >= 0) AntiRollRear = spec.antiRollRear;
         Transform[] nodes = model.GetComponentsInChildren<Transform>(true);
         var candidates = new List<Transform>();
         foreach (Transform node in nodes)
@@ -129,7 +154,7 @@ public sealed class TruckController : MonoBehaviour
         wheelbase = Mathf.Max(1f, front - rear);
         float axleY = (centres[0].y + centres[1].y + centres[2].y + centres[3].y) * 0.25f;
         // Web CoM is y=.12 (1.05 above ground). Lower the Unity probe to .25 above axle for stability.
-        body.centerOfMass = new Vector3(0, axleY + 0.6f, Mathf.Lerp(rear, front, 2.6f / 4.3f)); // ≈ 1.05 m above ground like the web spec (comEmpty y .12 on a 0.98 m body origin)
+        body.centerOfMass = new Vector3(0, axleY + spec.comAboveAxle, Mathf.Lerp(rear, front, spec.comFront)); // ≈ 1.05 m above ground like the web spec (comEmpty y .12 on a 0.98 m body origin)
         comEmpty = body.centerOfMass; axleYc = axleY;
         float frontShare = Mathf.Clamp((body.centerOfMass.z - rear) / wheelbase, 0.3f, 0.7f);
         CreateBodyColliders(renderers, axleY - Radius);
@@ -143,12 +168,12 @@ public sealed class TruckController : MonoBehaviour
             WheelCollider w = child.AddComponent<WheelCollider>();
             wheels[i] = w;
             w.radius = Radius;
-            w.mass = i < 2 ? 65f : 100f;
+            w.mass = i < 2 ? spec.wheelMassFront : spec.wheelMassRear;
             w.suspensionDistance = Travel;
             loadShare[i] = (i < 2 ? frontShare : 1f - frontShare) * 0.5f;
             w.sprungMass = Mass * loadShare[i];
             float spring = w.sprungMass * 9.81f / Sag;
-            w.suspensionSpring = new JointSpring { spring = spring, damper = 2f * 0.65f * Mathf.Sqrt(spring * w.sprungMass), targetPosition = SpringTarget };
+            w.suspensionSpring = new JointSpring { spring = spring, damper = 2f * spec.damping * Mathf.Sqrt(spring * w.sprungMass), targetPosition = SpringTarget };
             w.forceAppPointDistance = 0.05f; // tyre forces near the contact patch: realistic roll moment (0.32 m hid most of the body roll)
             w.wheelDampingRate = 1f;
             w.forwardFriction = Friction(0.35f, 1.1f, 0.8f, 0.8f);
@@ -228,15 +253,15 @@ public sealed class TruckController : MonoBehaviour
                 if (!wheel) Include(ref all, ref any, RendererBounds(r));
             }
             float split = Mathf.Lerp(all.min.z, all.max.z, 0.75f);
-            if (!hasCab) cab.SetMinMax(new Vector3(all.min.x, ground + 0.8f, split), all.max);
-            if (!hasBox) box.SetMinMax(new Vector3(all.min.x, ground + 1f, all.min.z), new Vector3(all.max.x, all.max.y, split));
+            if (!hasCab) cab.SetMinMax(new Vector3(all.min.x, ground + spec.cabFloor, split), all.max);
+            if (!hasBox) box.SetMinMax(new Vector3(all.min.x, ground + spec.boxFloor, all.min.z), new Vector3(all.max.x, all.max.y, split));
             if (!hasChassis) chassis = new Bounds(new Vector3(0, ground + 0.65f, all.center.z), new Vector3(1.6f, 0.35f, all.size.z * 0.9f));
         }
         // Replace imported solid colliders to avoid hidden low geometry grounding the body.
         foreach (Collider c in GetComponentsInChildren<Collider>(true))
             if (c.attachedRigidbody == body && !c.isTrigger) c.enabled = false;
-        AddBox("TruckCabCollider", cab, ground + 0.65f);
-        AddBox("TruckCargoCollider", box, ground + 0.85f);
+        AddBox("TruckCabCollider", cab, ground + Mathf.Min(0.65f, spec.cabFloor));
+        AddBox("TruckCargoCollider", box, ground + Mathf.Min(0.85f, spec.boxFloor));
         cargoCentre = box.center;
         AddBox("TruckChassisCollider", chassis, ground + 0.4f);
     }
@@ -322,42 +347,43 @@ public sealed class TruckController : MonoBehaviour
         if ((Gear > 0 && speed < -0.6f && gas > 0) || (Gear < 0 && speed > 0.6f && gas > 0)) { brake = Mathf.Max(brake, gas); gas = 0; }
         shiftTimer = Mathf.Max(0, shiftTimer - dt);
         sinceUp += dt;
-        float ratio = Gear < 0 ? 6.06f : Ratios[Gear - 1];
+        float ratio = Gear < 0 ? spec.reverseRatio : Ratios[Gear - 1];
+        float k = spec.rpmScale; int top6 = Ratios.Length;
         float roadRpm = Mathf.Abs(speed) / Radius * ratio * FinalDrive * 60f / (2f * Mathf.PI);
-        float desiredRpm = Mathf.Max(Idle, roadRpm, Gear <= 1 ? Idle + gas * 600f : 0);
+        float desiredRpm = Mathf.Max(Idle, roadRpm, Gear <= 1 ? Idle + gas * 600f * k : 0);
         EngineRpm = Mathf.Lerp(EngineRpm, Mathf.Min(Redline + 100f, desiredRpm), Mathf.Min(1, dt * 10f));
         if (Gear > 0 && shiftTimer <= 0 && speed > 0)
         {
-            float up = gas > 0.6f ? 2100 : 1600, down = gas > 0.6f ? 1150 : 850;
+            float up = (gas > 0.6f ? 2100 : 1600) * k, down = (gas > 0.6f ? 1150 : 850) * k;
             float afterSpeed = Mathf.Max(0, speed - Mathf.Max(0, 9.81f * (forward.y + 0.0065f)) * ShiftTime);
-            float nextRpm = Gear < 6 ? afterSpeed / Radius * Ratios[Gear] * FinalDrive * 60f / (2f * Mathf.PI) : 0;
-            float nextRatio = Gear < 6 ? Ratios[Gear] * FinalDrive : 0;
-            float nextForce = 800f * TorqueFraction(nextRpm) * (0.5f + 0.375f * boost) * nextRatio * 0.85f / Radius;
+            float nextRpm = Gear < top6 ? afterSpeed / Radius * Ratios[Gear] * FinalDrive * 60f / (2f * Mathf.PI) : 0;
+            float nextRatio = Gear < top6 ? Ratios[Gear] * FinalDrive : 0;
+            float nextForce = spec.torqueNm * TorqueFraction(nextRpm / k) * (0.5f + 0.375f * boost) * nextRatio * 0.85f / Radius;
             float resistance = body.mass * 9.81f * (forward.y + 0.0065f);
             bool pulls = forward.y <= 0.02f || nextForce > resistance || roadRpm > Redline + 50;
-            if (Gear < 6 && pulls && ((roadRpm > up && nextRpm > down + 60) || (roadRpm > Redline - 40 && nextRpm > Idle + 250)))
+            if (Gear < top6 && pulls && ((roadRpm > up && nextRpm > down + 60 * k) || (roadRpm > Redline - 40 * k && nextRpm > Idle + 250 * k)))
             { Gear++; shiftTimer = ShiftTime; sinceUp = 0; }
-            else if (Gear > 1 && EngineRpm < down && kmh > 1 && (sinceUp > ShiftTime + 1.5f || EngineRpm < Idle + 120) && (gas < 0.6f || acceleration < 0.05f))
+            else if (Gear > 1 && EngineRpm < down && kmh > 1 && (sinceUp > ShiftTime + 1.5f || EngineRpm < Idle + 120 * k) && (gas < 0.6f || acceleration < 0.05f))
             {
                 float lowerRpm = roadRpm * Ratios[Gear - 2] / ratio;
-                if (lowerRpm < 1950) { Gear--; shiftTimer = ShiftTime * 0.8f; }
+                if (lowerRpm < 1950 * k) { Gear--; shiftTimer = ShiftTime * 0.8f; }
             }
             ratio = Ratios[Gear - 1];
         }
-        float boostWant = shiftTimer > 0 ? 0 : gas * Mathf.Min(1f, EngineRpm / 1100f);
+        float boostWant = shiftTimer > 0 ? 0 : gas * Mathf.Min(1f, EngineRpm / (1100f * k));
         float tau = boostWant > boost ? 1.6f : (shiftTimer > 0 && gas > 0.05f ? 1.2f : 0.35f);
         boost = Mathf.Lerp(boost, boostWant, Mathf.Min(1, dt / tau));
-        float force = shiftTimer > 0 ? 0 : 800f * TorqueFraction(EngineRpm) * gas * (0.5f + 0.5f * boost) * ratio * FinalDrive * 0.85f / Radius;
+        float force = shiftTimer > 0 ? 0 : spec.torqueNm * TorqueFraction(EngineRpm / k) * gas * (0.5f + 0.5f * boost) * ratio * FinalDrive * 0.85f / Radius;
         float gradeForce = body.mass * 9.81f * Mathf.Max(0, (Gear < 0 ? -forward.y : forward.y) + 0.0065f);
         if (force > gradeForce) force = gradeForce + (force - gradeForce) / (1f + 0.0022f * Mathf.Pow(ratio * FinalDrive, 2));
         if (EngineRpm > Redline) force *= 0.1f;
-        float top = Gear < 0 ? 14f : 95f;
+        float top = Gear < 0 ? spec.reverseKmh : spec.topKmh;
         force *= Mathf.Clamp01((top + 3f - kmh) / 3f);
         brakePressure = Mathf.Lerp(brakePressure, brake, Mathf.Min(1, dt / 0.25f));
-        float engineBrake = gas < 0.05f && kmh > 3 && shiftTimer <= 0 ? Mass * 0.32f * Mathf.Min(1, EngineRpm / Redline) * 1.4f * Radius / 2f : 0;
+        float engineBrake = gas < 0.05f && kmh > 3 && shiftTimer <= 0 ? Mass * spec.engineBrake * Mathf.Min(1, EngineRpm / Redline) * 1.4f * Radius / 2f : 0;
         float v2 = speed * speed;
         float limit = v2 < 0.0001f || benchFullLock ? 0.72f : Mathf.Min(0.72f, Mathf.Atan(wheelbase * (4f + 1.5f / (1f + v2 / 36f)) / v2));
-        steerAngle = Mathf.MoveTowards(steerAngle, steerInput * limit, 1.3f * dt);
+        steerAngle = Mathf.MoveTowards(steerAngle, steerInput * limit, spec.steerRate * dt);
         for (int i = 0; i < 4; i++)
         {
             WheelCollider w = wheels[i];
@@ -371,7 +397,7 @@ public sealed class TruckController : MonoBehaviour
             }
             w.steerAngle = i < 2 ? steer * Mathf.Rad2Deg : 0;
             w.motorTorque = i >= 2 ? force * Radius * 0.5f * (Gear < 0 ? -1 : 1) : 0;
-            w.brakeTorque = brakePressure * body.mass * Mathf.Lerp(5.8f, 4.5f, CargoKg / 6000f) * Radius * loadShare[i] + (i >= 2 ? engineBrake : 0);
+            w.brakeTorque = brakePressure * body.mass * Mathf.Lerp(spec.brakeEmpty, spec.brakeLoaded, CargoKg / spec.cargoRefKg) * Radius * loadShare[i] + (i >= 2 ? engineBrake : 0);
             if (handbrake && i >= 2) w.brakeTorque += Mass * 6f * Radius * 0.5f;
             // PhysX locks a slow wheel under ANY brake torque: the asymptotic brakePressure lerp (1e-41 Nm) held the truck still
             if (w.brakeTorque < 1f) w.brakeTorque = 0f;
@@ -379,7 +405,7 @@ public sealed class TruckController : MonoBehaviour
         AntiRoll(0, 1, AntiRollFront * antiRollScale);
         AntiRoll(2, 3, AntiRollRear * antiRollScale);
         Vector3 velocity = body.linearVelocity;
-        body.AddForce(-0.5f * 1.225f * 5.2f * velocity.magnitude * velocity);
+        body.AddForce(-0.5f * 1.225f * spec.dragArea * velocity.magnitude * velocity);
         // Rolling resistance only at tyre contacts; cap it so it cannot reverse a near-stationary body.
         if (Grounded > 0 && Mathf.Abs(speed) > 0.001f)
             body.AddForce(-forward * Mathf.Sign(speed) * Mathf.Min(body.mass * 9.81f * 0.0065f, body.mass * Mathf.Abs(speed) / dt));
@@ -426,7 +452,7 @@ public sealed class TruckController : MonoBehaviour
         CargoKg = Mathf.Max(0, kg);
         body.mass = Mass + CargoKg;
         // payload on the box floor, its centre ~0.55 m above the floor
-        Vector3 cc = new Vector3(0, axleYc + 1.55f, cargoCentre.z);
+        Vector3 cc = new Vector3(0, axleYc + spec.cargoAboveAxle, cargoCentre.z);
         body.centerOfMass = (comEmpty * Mass + cc * CargoKg) / body.mass;
         float front = (wheels[0].transform.localPosition.z + wheels[1].transform.localPosition.z) * .5f, rear = (wheels[2].transform.localPosition.z + wheels[3].transform.localPosition.z) * .5f;
         float frontShare = Mathf.Clamp((body.centerOfMass.z - rear) / Mathf.Max(1, front - rear), 0.2f, 0.7f);
@@ -436,9 +462,9 @@ public sealed class TruckController : MonoBehaviour
             loadShare[i] = (i < 2 ? frontShare : 1f - frontShare) * 0.5f;
             w.sprungMass = body.mass * loadShare[i];
             // progressive springs: loaded sag 0.12 m instead of the empty 0.09 m (no bottoming on the 0.28 m travel)
-            float sag = Mathf.Lerp(Sag, 0.16f, CargoKg / 6000f);
+            float sag = Mathf.Lerp(Sag, spec.sagLoaded, CargoKg / spec.cargoRefKg);
             float spring = w.sprungMass * 9.81f / sag;
-            w.suspensionSpring = new JointSpring { spring = spring, damper = 2f * 0.65f * Mathf.Sqrt(spring * w.sprungMass), targetPosition = SpringTarget };
+            w.suspensionSpring = new JointSpring { spring = spring, damper = 2f * spec.damping * Mathf.Sqrt(spring * w.sprungMass), targetPosition = SpringTarget };
         }
         antiRollScale = body.mass / Mass;
         body.ResetInertiaTensor();

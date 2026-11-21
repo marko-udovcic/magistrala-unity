@@ -40,6 +40,7 @@ namespace Magistrala.Traffic
         void FixedUpdate()
         {
             if (!traffic || lines == null || lines.Length == 0) return;
+            if (truck && !truck.gameObject.activeInHierarchy) truck = null; // vehicle switched (MagistralaGame.Vehicles)
             if (!truck && Time.time > findT) { findT = Time.time + 2; var tc = FindFirstObjectByType<TruckController>(); if (tc) truck = tc.transform; havePrev = false; }
             if (!truck) return;
             var pos = truck.position;

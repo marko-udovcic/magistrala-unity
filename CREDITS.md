@@ -32,6 +32,14 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   Obris rive, obale, lukobrana i parkirališta te krošnje stabala uz rivu (`Assets/Editor/riva.json`, Tools/riva/riva_build.py) izvedeni su
   s iste ortofotografije. Ne predstavlja službeni geodetski dokument. Isti tekst je u igri (mobitel → O igri).
 
+## Creative Commons Attribution 4.0 (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/)
+- **Galeb (kombi GALEB TRANSPORT)**: "Mercedes Benz Sprinter 2006" by Max (https://sketchfab.com/Max-5532), CC BY 4.0 – izmijenjeno (uklonjene oznake, nova boja).
+  Izvor: https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73.
+  Izmjene (`Tools/vehicles/galeb/make_galeb.py`): znak na maski i vratima, natpisi na bočnicama guma i registarska pločica
+  preslikani u neutralno (izmišljena pločica), karoserija posvijetljena u bijelo, kotači razdvojeni po glavčinama, imena čvorova bez
+  marke; bočna traka „GALEB TRANSPORT“ je naša (`galeb_livery.png`, `Tools/vehicles/galeb/livery.py`, font Inter).
+  Datoteke: `Assets/Resources/Vehicles/Galeb/galeb.glb`, `galeb_livery.png`. U igri: mobitel → O igri (autor, licenca, izmijenjeno).
+
 ## Unity Asset Store (Standard Unity Asset Store EULA — korištenje u igri, sirove datoteke se ne dijele, paket nije u gitu)
 - **Coast & Dunes Environment – Dynamic Nature** (Beach, Sea, Islands, Dry Desert) — **NatureManufacture**, Unity Asset Store,
   Standard Unity Asset Store EULA. U probi „priroda”: slojevi tla (suho tlo s makijom, smeđa zemlja, kamenito tlo), suha trava i

@@ -12,10 +12,14 @@ namespace Magistrala.Game
     {
         public const float TankLitres = 120, LitresPer100Empty = 22, LitresPer100Full = 30, FullLoadKg = 3000;
         /// fuel in the tank, 0–100 %
-        public float FuelPct => S.fuel;
-        public float FuelLitres => S.fuel * TankLitres / 100f;
+        /// the Galeb (MagistralaGame.Vehicles.cs): 75 l tank, 10 l/100 km empty → 14 with 3 t (SaveData.fuelG)
+        public const float GalebTank = 75, GalebPer100Empty = 10, GalebPer100Full = 14;
+        public float FuelPct => InGaleb ? S.fuelG : S.fuel;
+        float Tank => InGaleb ? GalebTank : TankLitres;
+        public float FuelLitres => FuelPct * Tank / 100f;
         /// l/100 km at the current load
-        public float Consumption => Mathf.Lerp(LitresPer100Empty, LitresPer100Full, Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / FullLoadKg));
+        public float Consumption => InGaleb ? Mathf.Lerp(GalebPer100Empty, GalebPer100Full, Mathf.Clamp01(Truck.CargoKg / FullLoadKg))
+            : Mathf.Lerp(LitresPer100Empty, LitresPer100Full, Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / FullLoadKg));
 
         void TickFuel(float dt)
         {
@@ -23,14 +27,16 @@ namespace Magistrala.Game
             float km = Truck.SpeedKmh / 3600f * dt;
             if (km <= 0) return;
             float litres = km * Consumption / 100f;
-            S.fuel = Mathf.Max(0, S.fuel - litres / TankLitres * 100f);
+            if (InGaleb) S.fuelG = Mathf.Max(0, S.fuelG - litres / GalebTank * 100f);
+            else S.fuel = Mathf.Max(0, S.fuel - litres / TankLitres * 100f);
         }
 
         /// TODO (pumpa): call from the Pumpa Kaštela refuelling; returns the litres actually taken
         public float Refuel(float litres)
         {
-            float room = TankLitres - FuelLitres, l = Mathf.Clamp(litres, 0, room);
-            S.fuel = Mathf.Min(100, S.fuel + l / TankLitres * 100f);
+            float room = Tank - FuelLitres, l = Mathf.Clamp(litres, 0, room);
+            if (InGaleb) S.fuelG = Mathf.Min(100, S.fuelG + l / GalebTank * 100f);
+            else S.fuel = Mathf.Min(100, S.fuel + l / TankLitres * 100f);
             return l;
         }
     }

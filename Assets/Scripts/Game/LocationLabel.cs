@@ -65,7 +65,7 @@ namespace Magistrala.Game
         {
             if (Time.unscaledTime < nextQuery) return;
             nextQuery = Time.unscaledTime + Every;
-            if (!truck) truck = FindFirstObjectByType<TruckController>();
+            if (!truck || !truck.isActiveAndEnabled) truck = FindFirstObjectByType<TruckController>();
             Vector3 at;
             bool drone = DroneCamera.Active;
             if (drone) at = DroneCamera.GroundPoint;
