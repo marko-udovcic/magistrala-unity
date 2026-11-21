@@ -18,7 +18,7 @@ public sealed class DroneCamera : MonoBehaviour
 
     const float Speed = 22f, FastK = 4f, Climb = 10f, MinClear = 3f, MaxAgl = 400f, Accel = 2.5f;
     TruckChaseCamera chase; Camera view; TruckController truck;
-    Vector3 vel; float yaw, pitch, agl; bool startDron, weBrake; float autoFwd, startH = 45;
+    Vector3 vel; float yaw, pitch, agl; bool startDron, weBrake; float autoFwd, startH = 45, startP = -1;
     readonly RaycastHit[] hits = new RaycastHit[32];
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -36,6 +36,7 @@ public sealed class DroneCamera : MonoBehaviour
         {
             if (a[i] == "-dron") startDron = true;
             if (a[i] == "-dronh" && i + 1 < a.Length) float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out startH);
+            if (a[i] == "-dronp" && i + 1 < a.Length) float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out startP);
             if (a[i] == "-dronlet" && i + 1 < a.Length) float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out autoFwd);
         }
     }
@@ -69,8 +70,10 @@ public sealed class DroneCamera : MonoBehaviour
         if (chase) chase.enabled = false;
         Transform t = truck.transform;
         Vector3 f = t.forward; f.y = 0; if (f.sqrMagnitude < 1e-4f) f = Vector3.forward; f.Normalize();
-        yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg; pitch = 32f;
-        transform.SetPositionAndRotation(t.position + Vector3.up * startH - f * startH * 1.2f, Quaternion.Euler(pitch, yaw, 0));
+        yaw = Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg; pitch = startP >= 0 ? startP : 32f;
+        // -dronp P: start pitch; at >= 80 deg the drone starts straight above the truck (top view for map comparisons)
+        Vector3 back = startP >= 80 ? Vector3.zero : f * startH * 1.2f;
+        transform.SetPositionAndRotation(t.position + Vector3.up * startH - back, Quaternion.Euler(pitch, yaw, 0));
         view.fieldOfView = 60f;
         Debug.Log("[dron] on");
     }
