@@ -279,7 +279,14 @@ namespace Magistrala.Game
 
         void SetPallets(bool on) { if (pallets) pallets.SetActive(on); if (Unload) Unload.SetLoaded(on); }
         void Banner(string s) { banner = s; bannerT = 6; }
-        void OnRanRed(string s) => Banner(s);
+        /// running a red light: fine from the trade account (račun obrta) and −1 reputation; tune RedFine here
+        public const float RedFine = 100f;
+        void OnRanRed(string s)
+        {
+            S.account -= RedFine; S.rep -= 1;
+            Banner($"{s} Kazna {RedFine:0} € (račun obrta)");
+            Debug.Log($"[kazna] crveno: −{RedFine:0} €, račun {S.account:0.0} €, ugled {S.rep}");
+        }
         void OnDestroy() { Magistrala.Traffic.TrafficSignals.RanRed -= OnRanRed; }
         public static string Eur(float v) => v.ToString("0.00", System.Globalization.CultureInfo.GetCultureInfo("hr-HR")) + " €";
 
