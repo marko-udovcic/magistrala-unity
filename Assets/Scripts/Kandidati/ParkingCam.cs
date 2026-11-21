@@ -23,6 +23,9 @@ namespace Magistrala.Kandidati
             var roots = new List<GameObject>(gameObject.scene.GetRootGameObjects());
             var probe = new GameObject("probe"); DontDestroyOnLoad(probe); roots.AddRange(probe.scene.GetRootGameObjects()); Destroy(probe);
             foreach (var g in roots) if (g && g != probe && System.Array.IndexOf(Keep, g.name) < 0) Destroy(g);
+            // game scripts that attach themselves to Camera.main (chase cam, camera feel, drone…)
+            foreach (var c in GetComponents<Component>())
+                if (!(c is Transform || c is Camera || c is ParkingCam || c is AudioListener || c.GetType().Name == "UniversalAdditionalCameraData")) Destroy(c);
         }
 
         void LateUpdate() { if (cleanFrames-- > 0) Clean(); }
@@ -54,7 +57,9 @@ namespace Magistrala.Kandidati
             if (kb.aKey.isPressed) mv -= transform.right;
             if (kb.eKey.isPressed) mv += Vector3.up;
             if (kb.qKey.isPressed) mv -= Vector3.up;
-            transform.position += mv * speed * (kb.leftShiftKey.isPressed ? 3f : 1f) * Time.deltaTime;
+            var p = transform.position + mv * speed * (kb.leftShiftKey.isPressed ? 3f : 1f) * Time.deltaTime;
+            p.y = Mathf.Max(p.y, 0.4f); // never under the asphalt
+            transform.position = p;
 
             if (kb.digit0Key.wasPressedThisFrame) Look(homePos, homeRot);
             Key[] keys = { Key.Digit1, Key.Digit2, Key.Digit3, Key.Digit4, Key.Digit5, Key.Digit6, Key.Digit7, Key.Digit8, Key.Digit9 };
