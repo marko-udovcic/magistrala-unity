@@ -190,6 +190,46 @@ namespace Magistrala.EditorTools
             return n;
         }
 
+        /// the D8 median's centre line (street lamps, PropsBuilder.Lamps): the same scan as the hedge (a strip off the asphalt with
+        /// a carriageway north and south of it within MAXW), one column every `step` m along x: (x, centre z, half width)
+        public static List<(double x, double zc, double half)> MedianLine(List<ModelJ> all, double step = 1)
+        {
+            var res = new List<(double, double, double)>();
+            var line = all.Where(m => D8Keys.Contains(m.key)).Select(m => (x: m.x, z: m.z)).OrderBy(p => p.x).ToList();
+            if (line.Count < 2) return res;
+            double Zc(double x)
+            {
+                if (x <= line[0].x) return line[0].z; if (x >= line[line.Count - 1].x) return line[line.Count - 1].z;
+                int k = 1; while (line[k].x < x) k++;
+                double t = (x - line[k - 1].x) / Math.Max(1e-6, line[k].x - line[k - 1].x); return line[k - 1].z + (line[k].z - line[k - 1].z) * t;
+            }
+            for (double cx = X0; cx < X1; cx += CHUNK)
+            {
+                double cx1 = Math.Min(X1, cx + CHUNK);
+                double Z0 = Math.Min(Math.Min(Zc(cx), Zc(cx1)), Zc((cx + cx1) / 2)) - HALF, Z1 = Math.Max(Math.Max(Zc(cx), Zc(cx1)), Zc((cx + cx1) / 2)) + HALF;
+                var models = all.FindAll(m => m.x + m.half + 25 > cx && m.x - m.half - 25 < cx1 && m.z + m.half + 25 > Z0 && m.z - m.half - 25 < Z1);
+                int nz = (int)((Z1 - Z0) / STEP); 
+                for (double x = cx + step / 2; x < cx1; x += step)
+                {
+                    var asph = new bool[nz];
+                    for (int j = 0; j < nz; j++) asph[j] = LaneProfile.OnAsphalt(models, x, Z0 + (j + .5) * STEP);
+                    for (int j = 0; j < nz; j++)
+                    {
+                        if (asph[j]) continue;
+                        int j1 = j; while (j1 + 1 < nz && !asph[j1 + 1]) j1++;
+                        int a = j - 1, b = j1 + 1;
+                        if (a >= 0 && b < nz && (b - a) * STEP <= MAXW && (b - a) * STEP >= 1.2)
+                        {
+                            int ka = 0, kb = 0; while (a - ka > 0 && asph[a - ka] && ka < 12) ka++; while (b + kb < nz - 1 && asph[b + kb] && kb < 12) kb++;
+                            if (ka >= 10 && kb >= 10) res.Add((x, Z0 + ((j + j1) / 2.0 + .5) * STEP, (j1 - j + 1) * STEP / 2));
+                        }
+                        j = j1;
+                    }
+                }
+            }
+            return res;
+        }
+
         static int Chunk(PutFn put, List<ModelJ> all, double X0, double X1, double Z0, double Z1, System.Random rnd, ref double lastMain, ref int cells)
         {
             var models = all.FindAll(m => m.x + m.half + 25 > X0 && m.x - m.half - 25 < X1 && m.z + m.half + 25 > Z0 && m.z - m.half - 25 < Z1);

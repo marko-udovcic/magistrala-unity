@@ -16,6 +16,12 @@ namespace Magistrala.EditorTools
         public const string GrimeAtlas = Folder + "grime.png";
         public const int Layers = 8, Size = 1024;
         public const int Plaster = 0, Stone = 1, Roof = 2, Brick = 3, Concrete = 4, Louvre = 5, Plain = 6, Rubble = 7;
+        /// the plaster variants (Poly Haven CC0 2K plasters, 1024 per layer; Tools/zbuke.py from assets-src/polyhaven-zbuke): a second
+        /// texture array the plaster / concrete layers switch to (Look.variant 1..9 = layer 0..8, 0 = layer 0 above), plus the near micro grain
+        public const string PlasterFolder = "Assets/Textures/PolyHaven/zbuke/";
+        public const string PlasterAlbedo = PlasterFolder + "zbuke_albedo.jpg", PlasterNormal = PlasterFolder + "zbuke_normal.jpg", Micro = PlasterFolder + "mikro.png";
+        public const int PlasterLayers = 9;
+        public const int PConcreteWall = 1, PWhiteRough = 2, PCracked = 3, PPreconcrete = 4, PBeige = 5, PPainted = 6, PYellow = 7, PRedWeathered = 8, PGrey = 9;
 
         // source (Poly Haven id) and the sRGB mean the layer is scaled to (null: grey, tinted per building)
         // grey layers keep `contrast` of their detail (plaster 0.8: the trowel marks and blotches read at street level)
@@ -238,17 +244,20 @@ namespace Magistrala.EditorTools
         public static void Configure()
         {
             Strip(AlbedoStrip, true); Strip(NormalStrip, false);
+            if (File.Exists(PlasterAlbedo)) { Strip(PlasterAlbedo, true, PlasterLayers); Strip(PlasterNormal, false, PlasterLayers); }
+            if (AssetImporter.GetAtPath(Micro) is TextureImporter mi)
+            { mi.sRGBTexture = false; mi.mipmapEnabled = true; mi.wrapMode = TextureWrapMode.Repeat; mi.maxTextureSize = 512; mi.anisoLevel = 4; mi.textureCompression = TextureImporterCompression.Compressed; mi.SaveAndReimport(); }
             var ri = AssetImporter.GetAtPath(RoomAtlas) as TextureImporter;
             if (ri != null) { ri.sRGBTexture = true; ri.mipmapEnabled = true; ri.wrapMode = TextureWrapMode.Clamp; ri.maxTextureSize = 2048; ri.SaveAndReimport(); }
             var gi = AssetImporter.GetAtPath(GrimeAtlas) as TextureImporter;
             if (gi != null) { gi.sRGBTexture = false; gi.mipmapEnabled = true; gi.wrapMode = TextureWrapMode.Repeat; gi.maxTextureSize = 512; gi.textureCompression = TextureImporterCompression.Compressed; gi.SaveAndReimport(); }
         }
-        static void Strip(string path, bool srgb)
+        static void Strip(string path, bool srgb, int layers = Layers)
         {
             var im = AssetImporter.GetAtPath(path) as TextureImporter;
             if (im == null) throw new InvalidOperationException("missing " + path);
             var st = new TextureImporterSettings(); im.ReadTextureSettings(st);
-            st.textureShape = TextureImporterShape.Texture2DArray; st.flipbookRows = Layers; st.flipbookColumns = 1;
+            st.textureShape = TextureImporterShape.Texture2DArray; st.flipbookRows = layers; st.flipbookColumns = 1;
             st.sRGBTexture = srgb; st.mipmapEnabled = true; st.wrapMode = TextureWrapMode.Repeat; st.filterMode = FilterMode.Trilinear; st.aniso = 4;
             im.SetTextureSettings(st); im.maxTextureSize = 8192; im.textureCompression = TextureImporterCompression.Compressed;
             im.SaveAndReimport();
@@ -259,6 +268,10 @@ namespace Magistrala.EditorTools
             m.SetTexture("_Albedo", AssetDatabase.LoadAssetAtPath<Texture2DArray>(AlbedoStrip));
             m.SetTexture("_Normal", AssetDatabase.LoadAssetAtPath<Texture2DArray>(NormalStrip));
             m.SetTexture("_Grime", AssetDatabase.LoadAssetAtPath<Texture2D>(GrimeAtlas));
+            var pa = AssetDatabase.LoadAssetAtPath<Texture2DArray>(PlasterAlbedo);
+            if (!pa && File.Exists(PlasterAlbedo)) { Configure(); pa = AssetDatabase.LoadAssetAtPath<Texture2DArray>(PlasterAlbedo); }
+            m.SetTexture("_Plaster", pa); m.SetTexture("_PlasterN", AssetDatabase.LoadAssetAtPath<Texture2DArray>(PlasterNormal));
+            m.SetTexture("_Micro", AssetDatabase.LoadAssetAtPath<Texture2D>(Micro));
         });
         public static Material Glass() => Mat("Assets/Generated/Materials/BuildingGlass.mat", "Magistrala/WindowInterior", m =>
             m.SetTexture("_Rooms", AssetDatabase.LoadAssetAtPath<Texture2D>(RoomAtlas)));

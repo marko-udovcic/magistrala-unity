@@ -38,6 +38,9 @@ namespace Magistrala.EditorTools
         public float stoneDark, stoneGrey; // per-house tone of the (untinted) stone layer: darker / greyer
         public float flatRoll, gableRoll; // roof draws (HouseBuilder decides with the footprint)
         public float roofFade; // roof tiles: 0 the texture's terracotta x roof, 1 its luminance x roof (a free colour: OrthoRoofs)
+        /// plaster variant (BuildingTextures.P*: the Poly Haven plaster array, 0 = the old layer), old = weathered render (peeled
+        /// patches, cracks: Magistrala/Facade); concrete / measured: from Mapillary (MapillaryFacades)
+        public int variant; public bool old, concrete, measured;
 
         static Color H(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
         /// the plaster / concrete layers are grey ~#DCDCDC (linear .71): the tint that makes the wall show `hex`
@@ -58,6 +61,33 @@ namespace Magistrala.EditorTools
         static readonly string[] Derelict = { "6E6A58", "807A64", "77725E", "817D67" };
         static Color Pick(System.Random r, string[] a) => E(a[r.Next(a.Length)]);
         public static Color Desat(Color c, float k) { float l = .3f * c.r + .59f * c.g + .11f * c.b; return Color.Lerp(c, new Color(l, l, l, c.a), k); }
+
+        /// the plaster variant and weathering by age / type, after Pick (and MapillaryFacades.Apply); own draws (seed), so the
+        /// other draws of the house stay as they were; folds them into wallCode (Magistrala/Facade UV1.x)
+        public static void Finish(ref Look k, int seed, bool core)
+        {
+            var r = new System.Random(seed * 97 + 13); double a = r.NextDouble(), b = r.NextDouble();
+            int V(params (int v, double p)[] t) { double acc = 0; foreach (var e in t) { acc += e.p; if (a < acc) return e.v; } return t[t.Length - 1].v; }
+            float warm = k.wall.r - k.wall.b; // sRGB: yellow / ochre walls are clearly warmer
+            if (k.family == 0) { k.variant = 0; k.old = false; }
+            else if (k.derelict) { k.variant = V((BuildingTextures.PCracked, .4), (BuildingTextures.PRedWeathered, .3), (BuildingTextures.PWhiteRough, .3)); k.old = true; }
+            else if (k.family == 4) { k.variant = V((BuildingTextures.PGrey, .5), (BuildingTextures.PCracked, .25), (0, .25)); k.old = false; }
+            else if (k.concrete || k.bare == 1) { k.variant = V((BuildingTextures.PGrey, .6), (BuildingTextures.PCracked, .25), (BuildingTextures.PConcreteWall, .15)); k.old = false; }
+            else if (k.family == 1 || (core && k.family == 2))
+            {
+                k.variant = warm > .12f && a < .5 ? BuildingTextures.PRedWeathered
+                    : V((BuildingTextures.PConcreteWall, .4), (BuildingTextures.PWhiteRough, .25), (BuildingTextures.PCracked, .2), (BuildingTextures.PRedWeathered, .15));
+                k.old = b < (k.family == 1 ? .6 : .45);
+            }
+            else if (k.family == 3) { k.variant = V((BuildingTextures.PPainted, .4), (BuildingTextures.PGrey, .3), (BuildingTextures.PPreconcrete, .3)); k.old = false; }
+            else
+            {
+                k.variant = warm > .1f ? V((BuildingTextures.PYellow, .55), (BuildingTextures.PBeige, .45))
+                    : V((BuildingTextures.PPainted, .4), (BuildingTextures.PBeige, .35), (BuildingTextures.PPreconcrete, .15), (BuildingTextures.PConcreteWall, .1));
+                k.old = k.dirt > .6f && b < .2 && (k.variant == BuildingTextures.PPreconcrete || k.variant == BuildingTextures.PConcreteWall);
+            }
+            k.wallCode = k.wallCode % 64 + 64 * k.variant + (k.old ? 1024 : 0);
+        }
 
         /// ground = the building's ground height (m above sea): old cores lie by the shore; core = in an old town core
         public static Look Pick(System.Random r, string kind, float ground, float height, bool core = false)
@@ -132,6 +162,7 @@ namespace Magistrala.EditorTools
             float code = s == Slot.Wall ? look.wallCode : s == Slot.Roof ? BuildingTextures.Roof * 9 : s == Slot.Trim ? look.trimLayer * 9
                 : s == Slot.Balcony ? BuildingTextures.Concrete * 9 : s == Slot.Shutter ? BuildingTextures.Louvre * 9
                 : s == Slot.Yard ? BuildingTextures.Rubble * 9 : BuildingTextures.Plain * 9;
+            if (rustOn && s == Slot.Wall) code += 2048;
             return new Vector4(code, y - gY, tY - y, s == Slot.Detail ? look.dirt * .4f : look.dirt);
         }
         static Color Tint(Slot s)
@@ -287,7 +318,7 @@ namespace Magistrala.EditorTools
         /// Options of one AddHouse call (BuildingsFromTiles). lookSeed: the seed of the paint (an annex shares its main
         /// house's look); roof -1 auto, 0 flat, 1 hip, 2 gable; terrace: a flat roof with a railing all round (roof terrace
         /// of an annex); core: the house stands in an old town core (more bare stone).
-        public struct Opts { public int lookSeed, roof; public bool terrace, core, noStairs; public OrthoRoofs.Rec ortho; }
+        public struct Opts { public int lookSeed, roof; public bool terrace, core, noStairs; public OrthoRoofs.Rec ortho; public MapillaryFacades.Rec mly; }
 
         /// the roof tint (linear, Magistrala/Facade with COLOR.a = 1) that shows sRGB albedo `c`: the tiles' luminance x 2.03 has mean 0.40
         public static Color RoofTint(Color c) { var l = c.linear; return new Color(Mathf.Clamp01(l.r / .40f), Mathf.Clamp01(l.g / .40f), Mathf.Clamp01(l.b / .40f)); }
@@ -351,6 +382,7 @@ namespace Magistrala.EditorTools
             bool apartment = string.Equals(kind, "apartment", StringComparison.OrdinalIgnoreCase);
             float bottom = (float)bottomY, ground = (float)baseY, top = (float)topY;
             look = Look.Pick(new System.Random(o.lookSeed * 31 + 7), kind, ground, top - ground, o.core); gY = ground; tY = top;
+            MapillaryFacades.Apply(ref look, o.mly, industrial, Lod == 0); Look.Finish(ref look, o.lookSeed, o.core);
             var orr = o.ortho; flatSlab = null; flatTiles = false;
             if (OrthoRoofs.Enabled)
             {
@@ -513,6 +545,17 @@ namespace Magistrala.EditorTools
                             // newer houses: often one long balcony along the whole facade
                             bool longB = look.family >= 2 && rLong < .4 && f.length >= 6;
                             if (Lod < 2) Balcony(g, f, longB ? f.length / 2 : centre, floorY, longB ? f.length - .8f : balconyWidth, laundry, pots, clutter.Next());
+                            // rust runs from the slab's ends where they meet a pier (not over a window of the floor below)
+                            if (Lod == 0)
+                            {
+                                float bw = longB ? f.length - .8f : balconyWidth, bc = longB ? f.length / 2 : centre;
+                                foreach (float ex in new[] { bc - bw / 2 + .12f, bc + bw / 2 - .12f })
+                                {
+                                    bool pier = ex > .3f && ex < f.length - .3f;
+                                    for (int kk = 0; kk < columns && pier; kk++) { float cc = (kk + .5f) * spacing; if (Mathf.Abs(ex - cc) < width / 2 + .35f) pier = false; }
+                                    if (pier) Streak(g, f, ex, floorY - .16f, .4f, .9f);
+                                }
+                            }
                         }
                         // an AC unit between this window and the next (70 % of houses, ~1-3 each)
                         bool ac = hasAc && k < columns - 1 && clutter.NextDouble() < .22 && !(doorCol >= 0 && (k == doorCol || k + 1 == doorCol)) && !behindStair;
@@ -838,8 +881,28 @@ namespace Magistrala.EditorTools
         /// TreeRenderer) instead of boxes: AcSpots gets the unit's bottom-centre against the wall (Unity) and its outward normal
         public static bool AcModel;
         public static readonly List<(Vector3 p, Vector3 n)> AcSpots = new List<(Vector3, Vector3)>();
+        /// rust / dirt run down the wall from (x, yTop): the wall's own quad again 1 cm off it (same layer, tint, UVs: it matches the
+        /// wall), flagged for Magistrala/Facade's rust mask; UV2.x = across profile (0 at the sides, 1 in the middle), UV2.y = 1 at the top
+        static bool rustOn;
+        static void Streak(HouseGeo g, Facade f, float x, float yTop, float w, float len)
+        {
+            float y0 = Mathf.Max(gY + .3f, yTop - len); if (yTop - y0 < .2f || Lod > 0) return;
+            int start = g.o.Count; rustOn = true;
+            var f2 = f; f2.origin += f.outward * .01f;
+            Wall(g, f2, Slot.Wall, x - w / 2, x, y0, yTop); Wall(g, f2, Slot.Wall, x, x + w / 2, y0, yTop);
+            rustOn = false;
+            var c = f2.P(x, 0);
+            for (int i = start; i < g.o.Count; i++)
+            {
+                var p = g.v[i]; var o = g.o[i];
+                float across = 1 - Mathf.Clamp01(Mathf.Abs(Vector3.Dot(p - c, f.along)) / (w / 2));
+                g.o[i] = new Vector4(across, Mathf.Clamp01((p.y - y0) / (yTop - y0)), o.z, o.w);
+            }
+        }
         static void AcUnit(HouseGeo g, Facade f, float x, float y)
         {
+            // condensate / rust run under the unit (most units have one)
+            if (Lod == 0 && ((int)(x * 13.7f + y * 7.1f) & 3) != 0) Streak(g, f, x + .05f, y, .55f, 1.1f + .6f * Mathf.Repeat(x * 3.3f, 1));
             if (AcModel)
             {
                 if (Lod == 0) AcSpots.Add((f.P(x, y, 0), f.outward));

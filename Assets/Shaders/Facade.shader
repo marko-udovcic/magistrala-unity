@@ -4,7 +4,9 @@
 // UV2: x = baked occlusion 0..1 (window / door reveals, deeper = darker), y = drip mask under a window sill (1 at the sill),
 //      z = darkening of the untinted stone layers (0 none .. 1 black), w = their greying (0 as photographed .. 1 grey).
 //      Every mesh on this material must carry UV2 (zeros when unused): a missing stream reads garbage on Metal.
-// UV1: x = lower layer + 8 * upper layer, y = height above the building's ground (m), z = height below the wall top (m),
+// UV1: x = lower layer + 8 * upper layer + 64 * plaster variant (0 = layer 0 / 4 as they are, 1..9 = _Plaster layer 0..8, used by
+//      the plaster and concrete layers) + 1024 * old (peeled patches showing the stone, hairline cracks) + 2048 * rust overlay
+//      (a coplanar quad 1 cm off the wall under an AC unit / balcony: UV2.x = across profile 0..1..0, UV2.y = 1 at the top .. 0), y = height above the building's ground (m), z = height below the wall top (m),
 //      w = dirt 0..1. COLOR: rgb = tint of the tintable layers (linear), a = height of the lower / upper layer boundary / 40 m
 //      (a horizontal line: stone ground floor under plaster, plaster under an unfinished brick top floor).
 Shader "Magistrala/Facade"
@@ -14,6 +16,9 @@ Shader "Magistrala/Facade"
         _Albedo("Albedo array", 2DArray) = "" {}
         _Normal("Normal xy + roughness b array (linear)", 2DArray) = "" {}
         _Grime("Grime masks (r streaks, g runs, b drips)", 2D) = "black" {}
+        _Plaster("Plaster variants array (Poly Haven)", 2DArray) = "" {}
+        _PlasterN("Plaster variants normal xy + roughness b", 2DArray) = "" {}
+        _Micro("Near micro grain (r detail, gb normal xy)", 2D) = "grey" {}
         _NormalScale("Normal strength", Range(0,2)) = .8
         _Smoothness("Smoothness", Range(0,1)) = 0.12
     }
@@ -33,12 +38,18 @@ Shader "Magistrala/Facade"
         TEXTURE2D_ARRAY(_Albedo); SAMPLER(sampler_Albedo);
         TEXTURE2D_ARRAY(_Normal);
         TEXTURE2D(_Grime); SAMPLER(sampler_Grime);
+        TEXTURE2D_ARRAY(_Plaster); SAMPLER(sampler_Plaster);
+        TEXTURE2D_ARRAY(_PlasterN);
+        TEXTURE2D(_Micro); SAMPLER(sampler_Micro);
         float _Wetness; // global (WeatherSystem)
 
         // metres per texture repeat, per layer; tintable layers take the vertex colour, the others keep their own colour
         static const float TILE[8] = { 1.6, 2.4, 3.0, 2.0, 2.7, 0.55, 1.0, 2.2 };
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
+        // the plaster variants: metres per repeat (Poly Haven's real sizes, the 1 m ones a little larger against visible repeats)
+        static const float PTILE[9] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2 };
+        static const float PGLOSS[9] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08 };
         // roof layer: mean luminance 0.197 (linear) -> 0.40 (HouseBuilder.RoofTint)
         static const half ROOF_GREY = 2.03;
 
@@ -100,15 +111,57 @@ Shader "Magistrala/Facade"
             UNITY_SETUP_INSTANCE_ID(input);
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
             float code = round(input.data.x);
-            float lower = fmod(code, 8), upper = floor(code / 8);
+            float flags = floor(code / 1024), vcode = fmod(code, 1024);
+            float variant = floor(vcode / 64), base = fmod(vcode, 64);
+            bool old = fmod(flags, 2) > .5, rustQuad = flags > 1.5;
+            float lower = fmod(base, 8), upper = floor(base / 8);
             float layer = input.data.y < input.color.a * 40 ? lower : upper;
             int li = (int)layer;
-            float2 uv = input.uv / TILE[li];
-            half3 tex = SAMPLE_TEXTURE2D_ARRAY(_Albedo, sampler_Albedo, uv, layer).rgb;
-            half3 ns = SAMPLE_TEXTURE2D_ARRAY(_Normal, sampler_Albedo, uv, layer).rgb;
+            float3 wp0 = input.positionWS;
+            float camDist = distance(wp0, _WorldSpaceCameraPos);
+            // plaster / concrete with a variant: the Poly Haven plaster array instead of layer 0 / 4
+            bool pl = variant > .5 && (li == 0 || li == 4);
+            int pi = (int)variant - 1;
+            float2 uv = input.uv / (pl ? PTILE[max(pi, 0)] : TILE[li]);
+            half3 tex, ns;
+            UNITY_BRANCH if (pl)
+            {
+                tex = SAMPLE_TEXTURE2D_ARRAY(_Plaster, sampler_Plaster, uv, pi).rgb;
+                ns = SAMPLE_TEXTURE2D_ARRAY(_PlasterN, sampler_Plaster, uv, pi).rgb;
+            }
+            else
+            {
+                tex = SAMPLE_TEXTURE2D_ARRAY(_Albedo, sampler_Albedo, uv, layer).rgb;
+                ns = SAMPLE_TEXTURE2D_ARRAY(_Normal, sampler_Albedo, uv, layer).rgb;
+            }
+            // old plastered houses: patches where the render has come off (the stone layer shows, a dark broken edge) and hairline
+            // cracks; only near (they alias far off and cost a sample)
+            half peel = 0, crack = 0, peelRim = 0;
+            UNITY_BRANCH if (old && pl && camDist < 70)
+            {
+                float2 pw = float2(input.uv.x, input.uv.y);
+                // small patches (~0.3-1 m), more of them low on the wall (splash, damp) than up high
+                float pn = Noise(pw * float2(1.3, 1.7) + 17.3) * .6 + Noise(pw * 4.1 + 4.1) * .4 + .1 * saturate(1 - input.data.y / 2.5);
+                float near = saturate((70 - camDist) / 20);
+                peel = saturate((pn - .8) * 22) * near;
+                peelRim = saturate(1 - abs(pn - .8) * 30) * near;
+                UNITY_BRANCH if (peel > 0.01)
+                {
+                    float2 suv = input.uv / TILE[1];
+                    half3 st = SAMPLE_TEXTURE2D_ARRAY(_Albedo, sampler_Albedo, suv, 1).rgb * half3(.92, .9, .86);
+                    half3 sn = SAMPLE_TEXTURE2D_ARRAY(_Normal, sampler_Albedo, suv, 1).rgb;
+                    tex = lerp(tex, st, peel); ns = lerp(ns, sn, peel);
+                }
+                // cracks: iso-lines of a value noise, only where a second, slow noise allows (a few per wall)
+                float cn = Noise(pw * float2(1.7, 1.1) + 9.7);
+                float cl = abs(cn - .5);
+                float allow = saturate((Noise(pw * .21 + 2.2) - .55) * 6);
+                crack = saturate(1 - cl * 90) * allow * saturate((40 - camDist) / 15);
+            }
             half rough = ns.b; // photoscanned roughness (BuildingTextures packs it into blue)
             half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale; nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
-            half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, TINTED[li]);
+            half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, pl ? lerp(1, 0, peel) : TINTED[li]);
+            albedo *= 1 - .45 * peelRim * (1 - peel) - .55 * crack;
             // roof tiles with a free colour (HouseBuilder, colour measured on the orthophoto): COLOR.a lerps the tiles to their
             // own luminance x ROOF_GREY (mean 0.40 linear) before the tint, so the tint alone sets the roof's colour
             // (a = 0: the tile texture's own terracotta x tint, as the package buildings use it)
@@ -122,6 +175,14 @@ Shader "Magistrala/Facade"
                 float2 bw = float2(dot(input.positionWS.xz, float2(.7071, .7071)) + input.positionWS.x * .3, input.positionWS.y);
                 albedo *= .91 + .18 * Noise(bw * float2(2.6, 3.4));
                 albedo = lerp(albedo, albedo * half3(1.04, 1.0, .93), Noise(bw * .23 + 3.1) * .6);
+            }
+            // near micro grain (the walls are not plastic up close): fades in from 25 m, full within 12 m
+            half micro = saturate((25 - camDist) / 13);
+            UNITY_BRANCH if (micro > 0.01 && li != 2 && li != 5 && li != 6)
+            {
+                half3 mg = SAMPLE_TEXTURE2D(_Micro, sampler_Micro, input.uv / .45).rgb;
+                albedo *= 1 + (mg.r - .5) * .5 * micro;
+                nt.xy += (mg.gb * 2 - 1) * .55 * micro; nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
             }
             half3 nWS = normalize(input.normalWS);
             half3 tWS = normalize(input.tangentWS.xyz);
@@ -144,16 +205,28 @@ Shader "Magistrala/Facade"
             // drips from the window sills: the streak noise, narrower and stronger right under the sill
             half drip = input.occ.y * input.occ.y * saturate(leak.g * 1.6 + leak.b * 1.2 + .12);
             half grime = vertical * saturate(dirt * saturate(blot * .5 + streak * eave * 2.0 + foot * .6) + drip * (.35 + .5 * dirt));
+            // rising damp: a darker, slightly green-brown band at the foot of the wall, its top edge ragged (old houses higher)
+            float dampTop = (.3 + .45 * Noise(float2(along * .6, 3.7)) + .2 * Noise(float2(along * 2.9, 8.1))) * (old ? 1.5 : .8) * (.5 + dirt);
+            half damp = vertical * saturate((dampTop - input.data.y) / .35) * (li == 2 ? 0 : 1) * .7;
+            // rust runs under an AC unit / balcony slab (the overlay quad): the drip masks, narrowing downwards
+            half rust = 0;
+            if (rustQuad)
+            {
+                half prof = saturate(input.occ.x), top = saturate(input.occ.y);
+                rust = saturate((leak.g * 1.5 + leak.b * 1.8 + .15) * prof * prof) * top * saturate(top * 3) * vertical;
+            }
             if (li == 2) // roof: ±12 % tone patches, darker old tiles
                 albedo *= .86 + .28 * Noise(wp.xz * .35) - .12 * dirt * Noise(wp.xz * 1.7 + 7);
             else // walls: broad ±8 % tone variation (repairs, sun-bleached patches) also on clean houses
                 albedo *= .94 + .12 * blot * vertical + .06 * (1 - vertical);
             albedo *= 1 - .42 * grime;
             albedo = lerp(albedo, albedo * half3(.92, .88, .8), grime * .6);
+            albedo *= 1 - .14 * damp; albedo = lerp(albedo, albedo * half3(.94, .96, .88), damp * .5);
+            albedo = lerp(albedo, albedo * half3(.62, .42, .27), rust * .75);
             // occlusion: baked reveals, a soft dark band at the foot of every wall (contact with the ground), under the eaves
             half contact = saturate(1 - input.data.y / .8); contact *= contact;
             half under = input.data.z > 0 && li != 2 ? saturate(1 - input.data.z / .9) : 0;
-            half ao = (1 - .6 * saturate(input.occ.x)) * (1 - vertical * (.38 * contact + .3 * under * under));
+            half ao = (1 - .6 * saturate(rustQuad ? 0 : input.occ.x)) * (1 - vertical * (.38 * contact + .3 * under * under));
             // the sun is most of the light here; URP occlusion only darkens the ambient part, so part of it goes into the albedo
             albedo *= lerp(1, ao, .55);
 
@@ -175,7 +248,7 @@ Shader "Magistrala/Facade"
             surface.albedo = albedo;
             surface.alpha = 1;
             surface.metallic = 0;
-            surface.smoothness = saturate(lerp(GLOSS[li], (1 - rough) * .6, .7)) * (1 - grime * .5);
+            surface.smoothness = saturate(lerp(pl ? PGLOSS[max(pi, 0)] : GLOSS[li], (1 - rough) * .6, .7)) * (1 - grime * .5) * (1 - damp * .3);
             UNITY_BRANCH if (_Wetness > 0.001)
             {
                 half up = saturate(nWS.y * 1.5 - 0.3) * _Wetness;
