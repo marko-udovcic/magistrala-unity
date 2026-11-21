@@ -35,6 +35,7 @@ namespace Magistrala.EditorTools
         {
             ("oleander-roza", "main", .7f), ("oleander-bijeli", "main", .3f),
             ("grm-tamni", "fill", 1f),
+            ("grm-zivica", "core", 1f),
             ("trava-suha", "base", 1f),
         };
         const string OUT = WorldBuilder.GEN + "/Nature";
@@ -54,11 +55,13 @@ namespace Magistrala.EditorTools
                 var lg = ol.GetComponentInChildren<LODGroup>(); var lods = lg ? lg.GetLODs() : null;
                 MeshRenderer R(int i) => lods == null ? ol.GetComponentInChildren<MeshRenderer>() : lods[Mathf.Min(i, lods.Length - 1)].renderers.OfType<MeshRenderer>().FirstOrDefault();
                 var near = R(1); var far = R(2);
-                var pink = near.sharedMaterial; pink.enableInstancing = true;
+                // the real D8 median: a solid ~2 m dark-green hedge. Leaves of the albedo darkened (flowers kept), the crown narrowed to
+                // 60 % so a 2 m tall plant is ~1.2 m wide (fits the median, rows overlap at 0.85 m); LOD1 (1.5k tris) to 45 m,
+                // LOD2 (400 tris, still a full bush, no card) to 380 m so from the cab it reads as one hedge far ahead
+                var pink = DarkLeaves(near.sharedMaterial);
                 var white = WhiteFlowers(pink);
-                Mesh M(MeshRenderer r) => r.GetComponent<MeshFilter>().sharedMesh;
-                list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = M(near), mats = new[] { pink }, imp = M(far), impMat = pink, draw = 160, near = 14 });
-                list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = M(near), mats = new[] { white }, imp = M(far), impMat = white, draw = 160, near = 14 });
+                list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { pink }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = pink, draw = 380, near = 45 });
+                list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { white }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = white, draw = 380, near = 45 });
             }
             else Debug.LogWarning("[priroda] no oleander prefab (Assets/Models/Props/Tripo/oleander.glb + .json)");
             // dense dark-green filler: the package's rose bush without flowers, tinted to a dark Mediterranean evergreen
@@ -69,7 +72,10 @@ namespace Magistrala.EditorTools
                 MeshRenderer R(int i) => lods == null ? bush.GetComponentInChildren<MeshRenderer>() : lods[Mathf.Min(i, lods.Length - 1)].renderers.OfType<MeshRenderer>().FirstOrDefault();
                 var near = R(1); var far = lods != null && lods.Length > 2 ? R(lods.Length - 1) : null;
                 var mats = near.sharedMaterials.Select(m => Tint(m, "tamni", new Color(.5f, .62f, .45f, 1))).ToArray();
-                list.Add(new NaturePass.Proto { id = "grm-tamni", mesh = Flat(near, bush.transform, "grm_tamni"), mats = mats, imp = far && far != near ? Flat(far, bush.transform, "grm_tamni_far") : null, impMat = far && far != near ? Tint(far.sharedMaterial, "tamni", new Color(.5f, .62f, .45f, 1)) : null, draw = 90, near = 12 });
+                // the hedge's body: the same bush narrowed and darker, ~1.7–1.9 m, one every 0.85 m under the oleanders — no see-through
+                var dark = new Color(.36f, .48f, .33f, 1);
+                list.Add(new NaturePass.Proto { id = "grm-zivica", mesh = Narrow(near, "grm_zivica", .72f), mats = near.sharedMaterials.Select(m => Tint(m, "zivica", dark)).ToArray(), imp = far && far != near ? Narrow(far, "grm_zivica_far", .72f) : null, impMat = far && far != near ? Tint(far.sharedMaterial, "zivica", dark) : null, draw = 380, near = 45 });
+                list.Add(new NaturePass.Proto { id = "grm-tamni", mesh = Flat(near, bush.transform, "grm_tamni"), mats = mats, imp = far && far != near ? Flat(far, bush.transform, "grm_tamni_far") : null, impMat = far && far != near ? Tint(far.sharedMaterial, "tamni", new Color(.5f, .62f, .45f, 1)) : null, draw = 200, near = 25 });
             }
             var grass = Load<GameObject>(CE + "Foliage and Grass/Prefabs/Prefab_beach_grass_02_2.prefab");
             if (grass)
@@ -77,6 +83,40 @@ namespace Magistrala.EditorTools
                 var r = grass.GetComponentInChildren<MeshRenderer>();
                 list.Add(new NaturePass.Proto { id = "trava-suha", mesh = Flat(r, grass.transform, "trava_suha"), mats = r.sharedMaterials.Select(m => Tint(m, "suha", new Color(1.05f, .95f, .75f, 1))).ToArray(), draw = 35, near = 1e5f });
             }
+        }
+
+        static readonly Dictionary<string, Mesh> narrow = new Dictionary<string, Mesh>();
+        /// a crown narrowed (x, z × k, in the prefab root's frame), height kept
+        static Mesh Narrow(MeshRenderer r, string name, float k)
+        {
+            if (narrow.TryGetValue(name, out var c) && c) return c;
+            var src = r.GetComponent<MeshFilter>().sharedMesh; var m = UnityEngine.Object.Instantiate(src); m.name = name; var v = src.vertices;
+            var M = r.transform.root.worldToLocalMatrix * r.transform.localToWorldMatrix;
+            for (int i = 0; i < v.Length; i++) { var q = M.MultiplyPoint3x4(v[i]); v[i] = new Vector3(q.x * k, q.y, q.z * k); }
+            m.vertices = v; m.RecalculateBounds(); Save(m, $"{OUT}/{name}.asset"); return narrow[name] = m;
+        }
+
+        /// oleander leaves darker (the D8 hedge reads dark green), flower pixels unchanged
+        static Material DarkLeaves(Material src)
+        {
+            var tex = src.GetTexture("_BaseMap") as Texture2D; if (!tex) return src;
+            if (!AssetDatabase.IsValidFolder(OUT)) AssetDatabase.CreateFolder(WorldBuilder.GEN, "Nature");
+            string tp = $"{OUT}/oleander_tamni_albedo.png";
+            var t = new Texture2D(2, 2); t.LoadImage(File.ReadAllBytes(AssetDatabase.GetAssetPath(tex)));
+            var px = t.GetPixels32();
+            for (int i = 0; i < px.Length; i++)
+            {
+                var c = px[i]; int r = c.r, g = c.g, b = c.b;
+                float pinkness = Mathf.Clamp01(((r - g) - 22) / 50f) * Mathf.Clamp01(((b - g) + 8) / 30f), k = 1 - pinkness;
+                px[i] = new Color32((byte)(r * (1 - .55f * k)), (byte)(g * (1 - .4f * k)), (byte)(b * (1 - .55f * k)), c.a);
+            }
+            t.SetPixels32(px); File.WriteAllBytes(tp, t.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(t);
+            AssetDatabase.ImportAsset(tp);
+            var imp = (TextureImporter)AssetImporter.GetAtPath(tp); imp.sRGBTexture = true; imp.mipmapEnabled = true; imp.SaveAndReimport();
+            string mp = $"{OUT}/oleander_tamni.mat"; var m = Load<Material>(mp);
+            if (!m) { m = new Material(src); AssetDatabase.CreateAsset(m, mp); } else { m.shader = src.shader; m.CopyPropertiesFromMaterial(src); }
+            m.SetTexture("_BaseMap", Load<Texture2D>(tp)); m.enableInstancing = true; EditorUtility.SetDirty(m);
+            return m;
         }
 
         /// a mesh in its prefab root's frame (TreeRenderer draws at the instance's TRS only)
@@ -192,22 +232,24 @@ namespace Magistrala.EditorTools
                     double room = half - KERB;                              // half-width a plant may take
                     if (room > .35)
                     {
-                        if (x - lastMain >= 1.2)
+                        if (x - lastMain >= .85)
                         {
-                            // oleander: ~1.9 m tall × 2 m wide at s = 1; fit the median (half-width ≤ room), at least 70 %; a wide
-                            // median gets two staggered rows (a ~3 m planted band, as the D8 in Kaštela), a narrow one a single row
-                            int rows = room > 2.2 ? 2 : 1; bool odd = ((int)Math.Round(x / 1.2)) % 2 == 1;
+                            // oleander (narrowed crown): 1.9–2.2 m tall × ~1.2 m wide, one every 0.85 m so the crowns overlap — a solid hedge;
+                            // a median with room for it gets two staggered rows (~1.2–2 m planted band), a narrow one a single row
+                            int rows = room > 1.0 ? 2 : 1; bool odd = ((int)Math.Round(x / .85)) % 2 == 1;
                             for (int q = 0; q < rows; q++)
                             {
                                 Pick("main", out var id);
-                                double off = rows == 1 ? 0 : (q == 0 ? -.75 : .75) + (odd ? .2 : -.2);
-                                float s = (float)Math.Min(.95 + .12 * rnd.NextDouble(), Math.Max(.7, (room - Math.Abs(off)) / 1.0));
-                                if (id != null) { put(x + (rnd.NextDouble() - .5) * .35 + (q == 1 ? .6 : 0), Y(x, zc) - .05, zc + off + (rnd.NextDouble() - .5) * .25, (float)(rnd.NextDouble() * 360), s, id); n++; }
+                                double off = rows == 1 ? 0 : (q == 0 ? -1 : 1) * Math.Min(.5, room - .55) + (odd ? .1 : -.1);
+                                float s = (float)(1.0 + .16 * rnd.NextDouble());
+                                if (id != null) { put(x + (rnd.NextDouble() - .5) * .25 + (q == 1 ? .42 : 0), Y(x, zc) - .08, zc + off + (rnd.NextDouble() - .5) * .15, (float)(rnd.NextDouble() * 360), s, id); n++; }
                             }
+                            Pick("core", out var cid);
+                            if (cid != null) { put(x + .2, Y(x, zc) - .1, zc + (rnd.NextDouble() - .5) * .15, (float)(rnd.NextDouble() * 360), (float)(1.15 + .15 * rnd.NextDouble()), cid); n++; }
                             lastMain = x;
                         }
                         // fill between and under: shrubs where the oleanders leave gaps, grass at the base on both edges
-                        if (rnd.NextDouble() < .55) { Pick("fill", out var id); if (id != null) { put(x + (rnd.NextDouble() - .5) * .5, Y(x, zc) - .05, zc + (rnd.NextDouble() - .5) * Math.Min(room, 2.4), (float)(rnd.NextDouble() * 360), (float)(.9 + .3 * rnd.NextDouble()), id); n++; } }
+                        if (rnd.NextDouble() < .12) { Pick("fill", out var id); if (id != null) { put(x + (rnd.NextDouble() - .5) * .5, Y(x, zc) - .05, zc + (rnd.NextDouble() - .5) * Math.Min(room, 2.4), (float)(rnd.NextDouble() * 360), (float)(1.1 + .3 * rnd.NextDouble()), id); n++; } }
                         if (rnd.NextDouble() < .4) { Pick("base", out var id); if (id != null) { double side = rnd.NextDouble() < .5 ? -1 : 1; put(x, Y(x, zc), zc + side * Math.Min(Math.Max(0, room - .15), 1.9), (float)(rnd.NextDouble() * 360), (float)(.7 + .4 * rnd.NextDouble()), id); n++; } }
                     }
                     j = j1;

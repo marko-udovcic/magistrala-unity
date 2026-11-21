@@ -26,3 +26,19 @@ Analiza 2026-11-21, 18 točaka svakih 500 m (x −9800 … −1300). Slike (inte
 7. Razdjelni pojas: oleander kao vidljiv neprekinut taman red ~1 m.
 
 Koordinate: pločica (tx,tz) = igra x [tx·1024, +1024), z [tz·1024, +1024); Unity x = gx+4200, z = −(gz+5300).
+
+## Provedeno (2026-11-21, grana `vegetacija`)
+- Maska: `Tools/vegetacija/maska.py` (venv BalkanDriver/tools/world/dgu/cache/venv) → `Assets/Editor/vegetacija-maska.png` (2560 × 768,
+  4 m ćelije, cijela jezgra Kaštela, ~330 kB, samo izvedena maska). Bitovi: 0–3 gustoća tamnog drvenastog u nakupini (0 = nije nakupina),
+  4 maslinik (OSM landuse=orchard), 5 izgrađeno (OSM landuse=residential), 6 0–8 m od ruba D8, 7 0–100 m od ruba D8.
+  Nakupina = ortofoto „tamno drvenasto” (G−R ≥ 2, G−B ≥ 2, zamućena svjetlina < 84, sjene među krošnjama, duboka sjena šume),
+  udio po 2 m, zaglađeno 10 m ≥ 0,42, komadi < 800 m² izbačeni. ~835 ha nakupina (većina na padini Kozjaka), 264 ha maslinika.
+- `VegetationMask.cs` (Build trees): nakupine na mreži 4,4 m: 285–516 biljaka/ha do 110 m visine (55 % crnika, 22 % niski alepski
+  bor 5,5–9,5 m, 23 % maslina), iznad 110 m 50–155/ha s većim krošnjama (72 % crnika, 28 % bor); maslinici mreža 7,5 m, maslina
+  × 0,72–0,82; stabla s pločica izvan nakupina prorijeđena na ~30/ha uz D8, ~25/ha drugdje, ~10/ha (uz D8 4/ha) u izgrađenom,
+  ništa 0–8 m od ruba D8; borovi s pločica ~15 % (ostalo maslina / crnika), čempresi samo do 18 m od kuće (30 %).
+  Crnika = mreža naše masline, lišće tamno zimzeleno (Tint kopije materijala), impostor masline zatamnjen.
+  Perlin borovi na padini (14k) zamijenjeni nakupinama iz maske.
+- Grafika: detalji terena: pod gustim krošnjama i u maslinicima nema naše zelene trave, suhih busena 35 % (golo tlo).
+- Razdjelni pojas (MedianHedge): oleander 1,9–2,2 m (s 1,0–1,16), krošnja sužena na 60 % (~1,2 m), svakih 0,85 m, dva reda u
+  cik-cak kad pojas to dopušta; lišće tamnije (albedo, cvjetovi ostaju), LOD1 do 45 m, LOD2 (400 tris, pun grm) do 380 m.

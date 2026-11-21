@@ -495,7 +495,7 @@ namespace Magistrala.EditorTools
             var protos = TreeProtos.Prefabs();
             var models = WorldData.Models();
             int total = 0;
-            NaturePass.Begin(protos.Count); // NatureManufacture pines / median hedge prototypes after ours
+            VegetationMask.Reset(); NaturePass.Begin(protos.Count); // NatureManufacture pines / median hedge prototypes after ours
             var rec = new List<byte>();
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
@@ -534,12 +534,15 @@ namespace Magistrala.EditorTools
                         for (int i = 0; i + 3 < gtrees.Count; i += 4)
                             raw.Add(new[] { MiniJson.F(gtrees[i]) + tx * 1024, 0f, MiniJson.F(gtrees[i + 1]) + tz * 1024, MiniJson.F(gtrees[i + 2]), MiniJson.F(gtrees[i + 3]) });
                     var rnd = new System.Random(tx * 7919 + tz);
+                    var dens = VegetationMask.Density(raw); // Kaštela as on the orthophoto (VegetationMask): thinned, clumps / groves placed apart
                     foreach (var f in raw)
                     {
                         double gx = f[0], gz = f[2];
                         float h = (float)Tiles.Height(gx, gz);
                         int proto = TreeProtos.Species((int)f[3], gx, h, gz, f[4], out float s);
                         if (proto < 0 || proto >= protos.Count) continue;
+                        if (!VegetationMask.TileTree(ref proto, ref s, gx, gz, dens, models)) continue;
+                        if (proto >= protos.Count) { if (WorldData.FootDist(models, gx, gz) < 4 || StreetsBuilder.Covered(gx, gz, 1.5) || RivaBuilder.NoTree(gx, gz) || h < .4f) continue; var u2 = W.U(gx, h - .12, gz); foreach (var v in new[] { u2.x, u2.y, u2.z, (float)(rnd.NextDouble() * 360), s, proto }) rec.AddRange(BitConverter.GetBytes(v)); total++; continue; }
                         proto = NaturePass.TreeProto(proto, gx, gz, h, ref s);
                         if (WorldData.FootDist(models, gx, gz) < (proto >= 4 ? 3 : 5) || StreetsBuilder.Covered(gx, gz, 1.5) || RivaBuilder.NoTree(gx, gz)) continue;
                         var q = WorldData.ModelTerrain(models, gx, gz, 2, h); if (q.HasValue) h = (float)q.Value;

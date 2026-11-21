@@ -19,7 +19,7 @@ datoteke se ne dijele. Mapa `Assets/NatureManufacture Assets` je u `.gitignore`;
   smeđa→crvenica `cliff_clay_02`, naš vapnenac, kamenito tlo / šljunak `ground_sand_09`). Ortofoto tint (OrthoGround) računa
   prosjek boje sloja iz same teksture, pa radi i s njima (Grafika: ortofoto tlo poslije Build terrain).
 - Build trees: borovi u pravokutniku → borovi paketa, mreža spljoštena prema alepskom boru (visina × 0,82, krošnja × 1,22),
-  kora sivosmeđa; LOD2 blizu, križni billboard daleko (TreeRenderer). Dodatni borovi u skupinama na padini iznad 60 m.
+  kora sivosmeđa; LOD2 blizu, križni billboard daleko (TreeRenderer). Dodatni borovi u skupinama na padini iznad 60 m — samo bez maske; s maskom (`Assets/Editor/vegetacija-maska.png`, `VegetationMask`) nakupine makije / bora / masline s ortofota i maslinici iz OSM-a, stabla s pločica prorijeđena (docs/vegetacija-d8.md).
   Razdjelni pojas D8 (`MedianHedge`): oleander (Tripo, 70 % roza / 30 % bijeli), tamnozeleni grm, suha trava — cijela D8 od
   čvora 41 (Štafilić) do 05 (Sućurac): rešetka 0,5 m u komadima od 200 m po x, u pojasu ±45 m oko crte D8 (središta modela
   dionica d01–d25 i križanja na D8, `D8Keys`); prekidi na križanjima / prijelazima sami (asfalt).

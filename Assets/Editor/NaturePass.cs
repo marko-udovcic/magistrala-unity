@@ -49,7 +49,7 @@ namespace Magistrala.EditorTools
         static void Save(UnityEngine.Object o, string path) { if (File.Exists(path)) AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(o, path); }
         static float Perlin(double x, double z, double f) => Mathf.PerlinNoise((float)(x * f + 1000.5), (float)(z * f + 2000.5));
         static uint Hash(double x, double z, int salt) { unchecked { uint h = (uint)((long)Math.Round(x * 10) * 73856093L) ^ (uint)((long)Math.Round(z * 10) * 19349663L) ^ (uint)(salt * 83492791); h ^= h >> 13; h *= 0x5bd1e995; h ^= h >> 15; return h; } }
-        static float R01(double x, double z, int salt) => (Hash(x, z, salt) & 0xffffff) / 16777216f;
+        public static float R01(double x, double z, int salt) => (Hash(x, z, salt) & 0xffffff) / 16777216f;
 
         // ================================================================== terrain layers
         /// the 4 layers (same roles as WorldBuilder's: 0 dry scrub ground, 1 soil, 2 rock, 3 gravel) for a tile in a box
@@ -129,8 +129,10 @@ namespace Magistrala.EditorTools
                     float grassW = A[ai, aj, 0], soilW = A[ai, aj, 1], rockW = A[ai, aj, 2];
                     float n = Perlin(gx, gz, .06), n2 = Perlin(gx + 50, gz - 70, .17);
                     // our green grass thinned to a third in the boxes (the package's dry tufts take over)
-                    if (layers.Count > 0) layers[0][r, c] = Mathf.RoundToInt(layers[0][r, c] * .35f);
-                    float dry = grassW * (1.1f + 2.4f * n) + soilW * .5f;          // tufts per 4 m cell
+                    // under the clumps' closed crowns and in the olive groves (VegetationMask): bare soil and litter, a few dry tufts
+                    int vm = VegetationMask.At(gx, gz); bool under = (vm & VegetationMask.CLUMP) >= 6 || (vm & VegetationMask.ORCHARD) != 0;
+                    if (layers.Count > 0) layers[0][r, c] = under ? 0 : Mathf.RoundToInt(layers[0][r, c] * .35f);
+                    float dry = (grassW * (1.1f + 2.4f * n) + soilW * .5f) * (under ? .35f : 1);          // tufts per 4 m cell
                     int Cnt(float mean, int salt) { float f = mean * (.7f + .6f * R01(gx, gz, salt)); int i = (int)f; return i + (R01(gx, gz, salt + 7) < f - i ? 1 : 0); }
                     L[0][r, c] = Cnt(dry * .55f, 1);
                     if (src.Count > 1) L[1][r, c] = Cnt(dry * .45f, 2);
@@ -177,6 +179,25 @@ namespace Magistrala.EditorTools
             Dir(OUT);
             foreach (var p in PineSrc) { var pr = Pine(p); if (pr != null) extra.Add(pr); }
             MedianHedge.Protos(extra);
+            // crnika (holm oak / closed dark maquis crown): our olive's mesh, leaves a dark evergreen; materials made in Finish from
+            // the scene's (leaf-clipped) olive materials (VegetationMask)
+            var olive = Load<Mesh>(WorldBuilder.GEN + "/Plants/olive.mesh.asset");
+            if (olive && VegetationMask.On) extra.Add(new Proto { id = "crnika", mesh = olive, mats = null, draw = 1000, near = 70 });
+        }
+        /// the height (m, at scale 1) of a prototype: ours by index or an extra one by id
+        public static float Height(string id) { int i = Index(id); return i < 0 ? 0 : HeightOf(i); }
+        public static float HeightOf(int proto)
+        {
+            if (proto >= baseCount && extra != null && proto - baseCount < extra.Count) { var m = extra[proto - baseCount].mesh; return m ? m.bounds.size.y : 0; }
+            var pm = Load<Mesh>(WorldBuilder.GEN + "/Plants/" + TreeProtos.IDS[Mathf.Clamp(proto, 0, TreeProtos.IDS.Length - 1)] + ".mesh.asset"); return pm ? pm.bounds.size.y : 0;
+        }
+        /// one of the package pines (r in 0..1); the medium (bushy, 2.4 m) one only 1 in 8
+        public static int PineIndex(float r)
+        {
+            var ids = extra.Select((p, i) => (p, i)).Where(t => t.p.id.StartsWith("pine:")).ToList();
+            var tall = ids.Where(t => !t.p.id.Contains("medium")).ToList(); if (tall.Count == 0) tall = ids;
+            if (r < .125f && tall.Count < ids.Count) return baseCount + ids.First(t => t.p.id.Contains("medium")).i;
+            return baseCount + tall[Mathf.Min(tall.Count - 1, (int)((r - .125f) / .875f * tall.Count))].i;
         }
         public static int Index(string id) { if (extra == null) return -1; int i = extra.FindIndex(p => p.id == id); return i < 0 ? -1 : baseCount + i; }
         public static int PineCount => extra?.Count(p => p.id.StartsWith("pine:")) ?? 0;
@@ -186,7 +207,7 @@ namespace Magistrala.EditorTools
         {
             if (extra == null || PineCount == 0 || proto > 1 || !In(gx, gz)) return proto;
             int k = Mathf.Min(PineCount - 1, (int)(R01(gx, gz, 11) * PineCount));
-            scale *= .8f + .35f * R01(gx, gz, 12);
+            scale *= VegetationMask.On ? .62f + .25f * R01(gx, gz, 12) : .8f + .35f * R01(gx, gz, 12);   // Aleppo pines in Kaštela: low
             return baseCount + k;
         }
 
@@ -196,7 +217,8 @@ namespace Magistrala.EditorTools
             if (extra == null || extra.Count == 0) return;
             void Put(double gx, double y, double gz, float yaw, float s, int proto) { var u = W.U(gx, y, gz); foreach (var v in new[] { u.x, u.y, u.z, yaw, s, proto }) rec.AddRange(BitConverter.GetBytes(v)); }
             int np = 0;
-            if (PineCount > 0)
+            if (VegetationMask.On) np = VegetationMask.Place((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto), models);   // orthophoto clumps + OSM groves
+            else if (PineCount > 0)
                 foreach (var b in Boxes)
                     for (double gz = b.z0; gz < b.z1; gz += 7)
                         for (double gx = b.x0; gx < b.x1; gx += 7)
@@ -224,6 +246,13 @@ namespace Magistrala.EditorTools
             var meshes = tr.meshes.ToList(); var mats = tr.materials.ToList(); var bm = tr.blendMaterials.ToList(); var st = tr.materialStart.ToList();
             var draw = tr.drawDistance.ToList(); var near = tr.nearDistance.ToList(); var im = (tr.impMeshes ?? new Mesh[0]).ToList(); var imat = (tr.impMaterials ?? new Material[0]).ToList();
             while (im.Count < meshes.Count) { im.Add(null); imat.Add(null); }
+            foreach (var p in extra.Where(p => p.mats == null && p.id == "crnika"))
+            {
+                // the olive (prototype 2) leaf-clipped materials and impostor, tinted dark evergreen (Quercus ilex: dark, dense, a little blue)
+                int s0 = tr.materialStart[2], sn = tr.meshes[2].subMeshCount;
+                p.mats = Enumerable.Range(s0, sn).Select(i => Tint(tr.materials[i], "crnika", tr.materials[i].name.Contains("bark") ? new Color(.55f, .52f, .5f, 1) : new Color(.46f, .56f, .44f, 1))).ToArray();
+                p.imp = tr.impMeshes[2]; p.impMat = Tint(tr.impMaterials[2], "crnika", new Color(.5f, .6f, .48f, 1));
+            }
             foreach (var p in extra)
             {
                 meshes.Add(p.mesh); st.Add(mats.Count); mats.AddRange(p.mats); bm.AddRange(p.mats);
@@ -263,6 +292,14 @@ namespace Magistrala.EditorTools
                 imp = cross && cross != full ? Shape(cross, "pine_" + id + "_cross") : null, impMat = cm,
                 draw = 1400, near = 60,
             };
+        }
+
+        static Material Tint(Material m, string tag, Color c)
+        {
+            string p = $"{OUT}/{m.name}_{tag}.mat"; var t = Load<Material>(p);
+            if (!t) { t = new Material(m); AssetDatabase.CreateAsset(t, p); } else { t.shader = m.shader; t.CopyPropertiesFromMaterial(m); }
+            foreach (var prop in new[] { "baseColorFactor", "_BaseColor", "_Color" }) if (t.HasProperty(prop)) { var o = m.GetColor(prop); t.SetColor(prop, new Color(o.r * c.r, o.g * c.g, o.b * c.b, o.a)); }
+            t.enableInstancing = true; EditorUtility.SetDirty(t); return t;
         }
 
         /// bark: greyer, browner (Aleppo pine bark is grey-brown, the beach pine's is orange); needles a touch darker / olive
