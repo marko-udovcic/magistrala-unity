@@ -487,7 +487,7 @@ namespace Magistrala.Game
             }
             else if (atWarehouse)
                 l.Add((S.closedDay == Day && FirmHours ? "Danas nema firmine ture." : !FirmHours ? (Hour < 6 && Day % 7 < 5 ? "Skladište otvara u 6:00. Zdravko zove." : "Smjena je gotova. Firma radi radnim danom 6–17 h.") : "Čeka se Zdravkov poziv.", 1));
-            else l.Add(("Vrati se u skladište u Lukšiću", 1));
+            // slobodan i daleko od skladišta: bez kartice (odredište "Skladište u Lukšiću" je već na HUD-u)
         }
 
         void OnGUI()
