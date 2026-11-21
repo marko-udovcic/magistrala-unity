@@ -16,6 +16,10 @@
 //   into its bay, the whole tour in a minute)
 //   -jobfresh  wallet from zero, nothing saved (implied by -job)   -savefile path  save / load this file instead (tests)
 //   -jobabort s  break the first unload off after s seconds   -camorbit yaw,pitch  chase camera orbit at start
+//   -kartaoznaka gx,gz  the owner's map waypoint at game x, z at start (WorldMap.cs: -karta [m/px] opens the map at start)
+// The owner's waypoint (M map, WorldMap.cs: Enter / click): snapped to the nearest open graph edge; while it is set the GPS
+// leads there instead (RoadRouter.RouteTo, the same yellow route on the minimap), the HUD shows "Oznaka"; cleared within
+// WaypointReach m, kept in the save (SaveData.wp*).
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -80,7 +84,7 @@ namespace Magistrala.Game
             if (Has("-nojob") || I) return;
             var w = Resources.Load<GameWorld>(GameWorld.ResourcePath);
             if (!w) { Debug.LogWarning("[job] no Resources/MagistralaGame — run Magistrala/Igra: podaci"); return; }
-            var go = new GameObject("MagistralaGame"); I = go.AddComponent<MagistralaGame>(); I.World = w; go.AddComponent<GpsMap>();
+            var go = new GameObject("MagistralaGame"); I = go.AddComponent<MagistralaGame>(); I.World = w; go.AddComponent<GpsMap>(); go.AddComponent<WorldMap>();
         }
 
         void Start()
@@ -106,6 +110,14 @@ namespace Magistrala.Game
             Truck.Hit += OnTruckHit;
             // start of the day: in the warehouse bay in Lukšić, backed in, facing out (unless a measuring run drives the D8)
             if (!Has("-autopilot") && Arg("-tp") == null && !Has("-bench")) { PlaceAtWarehouse(); RestoreFromSave(); }
+            if (S.wpOn) SetWaypoint(new Vector3(S.wpX, 0, S.wpZ), false);
+            if (Arg("-kartaoznaka") is string ko)
+            {
+                var v = ko.Split(',');
+                if (v.Length == 2 && float.TryParse(v[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var gx)
+                    && float.TryParse(v[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var gz))
+                    SetWaypoint(new Vector3(gx + 4200, 0, -gz - 5300));
+            }
             StartDay();
             if (autoJob != null) StartCoroutine(AutoStart());
             // test: -camorbit yaw,pitch  the chase camera's mouse orbit (degrees) at start, e.g. 30,-18 to watch the tail lift
@@ -301,10 +313,11 @@ namespace Magistrala.Game
             prompt = null;
             TickDay(dt, kb);
             var help = new List<string>();
-            // the phone takes the keys while it is open (the game is paused) or ringing (Y / N)
-            if (Phone.Open) { kb = null; help.Add("Tab zatvori mobitel"); }
+            // the phone takes the keys while it is open (the game is paused) or ringing (Y / N); the map (M) too
+            if (WorldMap.IsOpen) kb = null;
+            else if (Phone.Open) { kb = null; help.Add("Tab zatvori mobitel"); }
             else if (Phone.Ringing != null) help.Add($"Y javi se ({MatePhone.Who(Phone.Ringing.caller).name}) · N odbij");
-            else help.Add(Phone.Unread > 0 ? $"Tab mobitel ({Phone.Unread} nova poruka)" : "Tab mobitel");
+            else help.Add(Phone.Unread > 0 ? $"Tab mobitel ({Phone.Unread} nova poruka) · M karta" : "Tab mobitel · M karta");
             bool ringing = Phone.Ringing != null;
             if (card != null)
             {
@@ -386,6 +399,10 @@ namespace Magistrala.Game
                 }
             }
             HelpKeys = help.Count > 0 ? string.Join(" · ", help) : null;
+            if (Waypoint is Vector3 wpt && Vector3.Distance(Flat(TruckCentre()), Flat(wpt)) < WaypointReach)
+            {
+                ClearWaypoint("reached"); Banner("Stigao si do oznake.");
+            }
             TickFuel(dt);
             routeT -= dt;
             if (routeT <= 0) { routeT = 1f; UpdateRoute(); }
@@ -405,8 +422,38 @@ namespace Magistrala.Game
             return Mathf.Abs(along) < s.bayHl - truckLen * 0.25f + 3 && Mathf.Abs(across) < s.bayHw + 0.8f && Mathf.Abs(align) > 0.93f;
         }
 
+        // ------------------------------------------------------------------ the owner's waypoint (WorldMap)
+        public const float WaypointReach = 25;
+        /// the waypoint on the road (snapped), null = none
+        public Vector3? Waypoint { get; private set; }
+        RoadRouter.Spot wpSpot;
+
+        /// a waypoint at the road point nearest to u (Unity x / z); the GPS leads there from now on
+        public void SetWaypoint(Vector3 u, bool log = true)
+        {
+            if (Router == null) return;
+            var sp = Router.Nearest(new Vector3(u.x, 0, u.z), Vector3.zero);
+            if (sp.edge < 0) return;
+            wpSpot = sp; Waypoint = sp.p; S.wpOn = true; S.wpX = sp.p.x; S.wpZ = sp.p.z;
+            routeT = 0;
+            if (log) Debug.Log($"[karta] waypoint at game x={sp.p.x - 4200:0} z={-sp.p.z - 5300:0} ({sp.dist:0} m from the click), edge {sp.edge} '{World.edges[sp.edge].name}'");
+        }
+        public void ClearWaypoint(string why)
+        {
+            if (Waypoint == null) return;
+            Waypoint = null; S.wpOn = false; routeT = 0;
+            Debug.Log($"[karta] waypoint cleared ({why})");
+        }
+
         void UpdateRoute()
         {
+            if (Waypoint is Vector3 wp)
+            {
+                Target = wp;
+                Route = Router.RouteTo(TruckCentre(), Truck.transform.forward, wpSpot, out float wm);
+                RouteMetres = Route != null ? wm : Vector3.Distance(TruckCentre(), wp);
+                return;
+            }
             GStop goal = State == Phase.Free ? (atWarehouse ? null : World.Stop(Warehouse)) : Current != null ? World.Stop(Current.to) : null;
             if (goal == null) { Route = null; Target = null; RouteMetres = 0; return; }
             Target = goal.bay;
@@ -462,6 +509,7 @@ namespace Magistrala.Game
         {
             get
             {
+                if (Waypoint != null) return "Oznaka";
                 string id = Current != null ? Current.to : State == Phase.Free && !atWarehouse ? Warehouse : null;
                 if (id == null) return null;
                 return id == Warehouse ? "Skladište u Lukšiću" : World.Stop(id)?.name;
@@ -502,7 +550,7 @@ namespace Magistrala.Game
 
         void OnGUI()
         {
-            if (Magistrala.GpuSwitches.NoHud || !Truck || Event.current.type != EventType.Repaint) return;
+            if (Magistrala.GpuSwitches.NoHud || !Truck || Event.current.type != EventType.Repaint || WorldMap.IsOpen) return;
             if (prompt != null) Pill(Screen.height * 0.62f, prompt, 1);
             if (bannerT > 0 && banner != null) Pill(Screen.height * 0.16f, banner, Mathf.Clamp01(bannerT * 2));
             DrawCard();
