@@ -119,7 +119,8 @@ namespace Magistrala.EditorTools
             int nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0;
             // 1. every footprint (and the annex splits), with its heights; then the houses only the orthophoto shows
             var B = new List<Bld>(); int n = 0, skipped = 0, nAnnex = 0;
-            var feed = new List<(List<Vector2d> P, Dictionary<string, object> b, OrthoRoofs.Rec rec)>();
+            var feed = new List<(List<Vector2d> P, Dictionary<string, object> b, OrthoRoofs.Rec rec, string id)>();
+            BuildingFloors.Begin();
             for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++)
                 for (int tx = WorldBuilder.TX0; tx <= WorldBuilder.TX1; tx++)
                 {
@@ -144,7 +145,7 @@ namespace Magistrala.EditorTools
                             if (after >= Math.Min(before, .5)) { for (int i = 0; i < P.Count; i++) P[i] = new Vector2d(P[i].x + rec.shx, P[i].z + rec.shz); nShifted++; }
                             else nShiftRoad++;
                         }
-                        feed.Add((P, b, rec));
+                        feed.Add((P, b, rec, $"{tx}_{tz}:{bi0}"));
                     }
                 }
             // the orthophoto's houses that neither OSM nor the cadastre has: off the carriageways and the models
@@ -153,18 +154,19 @@ namespace Magistrala.EditorTools
                 bool road = false; foreach (var p in a.P) if (Yards.Clear(p.x, p.z).clear < .8) { road = true; break; }
                 if (road) { skipped++; continue; }
                 var b = new Dictionary<string, object> { { "kind", "house" }, { "h", a.h } };
-                feed.Add((a.P, b, new OrthoRoofs.Rec { decide = 1, cls = 1, hasRoof = true, roof = a.roof })); nAdded++;
+                feed.Add((a.P, b, new OrthoRoofs.Rec { decide = 1, cls = 1, hasRoof = true, roof = a.roof }, null)); nAdded++;
                 Yards.AddFoot(a.P);
             }
             {
-                    foreach (var (P, b, rec) in feed)
+                    foreach (var (P, b, rec, id) in feed)
                     {
                         double cx = 0, cz = 0; foreach (var p in P) { cx += p.x; cz += p.z; } cx /= P.Count; cz /= P.Count;
                         if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
                         if (onFoot) { skipped++; continue; }
                         string kind = (string)MiniJson.G(b, "kind") ?? "house";
-                        double h = MiniJson.D(MiniJson.G(b, "h") ?? 7.0);
+                        // storeys: the owner's corrections > OSM > the orthophoto shadow estimate > the tile's h (BuildingFloors)
+                        double h = BuildingFloors.Height(id, b, MiniJson.D(MiniJson.G(b, "h") ?? 7.0), out var hSrc, out var storeys);
                         double gmin = double.MaxValue, gmax = double.MinValue;
                         foreach (var p in P) { double g = Ground(models, p.x, p.z); gmin = Math.Min(gmin, g); gmax = Math.Max(gmax, g); }
                         double baseY = gmax - Math.Min(1.0, (gmax - gmin) * .3), bottom = gmin - .6;
@@ -175,6 +177,7 @@ namespace Magistrala.EditorTools
                         var bl = new Bld { P = P, orig = P, kind = kind, h = h, baseY = baseY, bottom = bottom, top = baseY + h, cx = cx, cz = cz, seed = seed, lookSeed = seed,
                             core = InCore(cx, cz), yard = house && h < 13, cell = Key(cx, cz, CELL), chunk = Key(cx, cz, CHUNK), ortho = rec };
                         n++; if (rec != null) nOrtho++;
+                        BuildingFloors.Index(id, P, baseY, h, storeys, hSrc);
                         // annexes: a large near-rectangular house becomes a main block and a lower wing (one storey less, roof
                         // terrace) across its long axis; the footprint stays exactly the cadastre's
                         double area = 0; for (int i = 0; i < P.Count; i++) { var a = P[i]; var c = P[(i + 1) % P.Count]; area += a.x * c.z - c.x * a.z; } area = Math.Abs(area) / 2;
@@ -393,6 +396,7 @@ namespace Magistrala.EditorTools
             Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
             Debug.Log($"[Magistrala] orthophoto roofs ({OrthoRoofs.PATH}): {nOrtho} footprints with a record, pitched {HouseBuilder.nOrthoPitched} + tiled slab {HouseBuilder.nOrthoTiledFlat}, flat {HouseBuilder.nOrthoFlat}, solar on {HouseBuilder.nSolar} roofs ({HouseBuilder.nSolarPanels} modules), OSM shifted {nShifted} ({nShiftRoad} kept: carriageway), added {nAdded}");
             Yards.WriteSpots();
+            BuildingFloors.End();
         }
 
         // the AC units: one TreeRenderer prototype (klima LOD1, ~1k tris), drawn instanced to AC_DRAW m, small shadows near
