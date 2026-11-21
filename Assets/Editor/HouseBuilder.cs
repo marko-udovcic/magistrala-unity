@@ -1180,14 +1180,15 @@ namespace Magistrala.EditorTools
             g.v = v; g.n = nn; g.uv = uv; g.d = d; g.c = c; g.o = o;
         }
 
-        /// the building vertex in 44 bytes instead of 88 (float everywhere): normal and tangent in signed bytes, the tint in bytes
-        /// (kuce3: the whole town is detailed now), the data channel in half floats, the occlusion in bytes; positions and the world-metre UV0 stay 32-bit. Existing data is converted.
+        /// the building vertex in 52 bytes instead of 88 (float everywhere): normal, tangent and the data channel in half floats,
+        /// the tint and the occlusion in bytes (kuce3: the whole town is detailed now; SNorm8 normals came out black in the
+        /// player beyond the near level, statically batched mid / far meshes); positions and the world-metre UV0 stay 32-bit. Existing data is converted.
         public static void Compact(Mesh mesh)
         {
             mesh.SetVertexBufferParams(mesh.vertexCount,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.SNorm8, 4),
-                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.SNorm8, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float16, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float16, 4),
                 new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float16, 4),
