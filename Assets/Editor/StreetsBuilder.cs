@@ -1351,8 +1351,9 @@ namespace Magistrala.EditorTools
             BuildBarriers(root);
             AssetDatabase.SaveAssets();
             log.Add($"streets: {kmDrawn:F1} km ribbon ({segsDrawn} segments, {sidewalkSegs} sidewalk sides), {discs} junction discs, {nCourts} courts, {barriers.Count} barriers ({barriersDropped} dropped: an outside street continues the stub); {tris} triangles ({dropped} dropped on models), {nv} vertices, {chunks.Count} chunks");
+            log.Add(WriteCover()); // (before the ground: WalkTerrain keeps off our streets)
+            log.Add(WriteWalkCover());
             log.Add(CarveTerrain());
-            log.Add(WriteCover());
             log.Add(ClearDetails());
             log.Add(ClearTrees());
             log.Add(RivaBuilder.Build()); // (the riva: on the streets' colliders and their carved ground)
@@ -1465,6 +1466,7 @@ namespace Magistrala.EditorTools
                             if (Get(r, c) > ry) Set(r, c, ry);
                         }
                 }
+                WalkTerrain(ox, oz1, step, res, Get, Set);
                 if (changed > n0) { td.SetHeights(0, 0, H); EditorUtility.SetDirty(td); tiles++; }
             }
             AssetDatabase.SaveAssets();
@@ -1502,7 +1504,9 @@ namespace Magistrala.EditorTools
             return $"cover mask: {n} cells ({n * MC * MC / 1e6:F2} km²)";
         }
         /// street / court within `r` m of game (x, z) (Assets/Generated/Streets/cover.bytes, false when no streets were built)
-        public static bool Covered(double gx, double gz, double r = 0)
+        /// (the model-road footways count only on their own footprint, not within `r`: the olives beside them stay)
+        public static bool Covered(double gx, double gz, double r = 0) => CoveredMain(gx, gz, r) || WalkCovered(gx, gz);
+        static bool CoveredMain(double gx, double gz, double r)
         {
             if (cover == null) { if (!File.Exists(COVER)) return false; cover = File.ReadAllBytes(COVER); }
             int k = (int)Math.Ceiling(r / MC);
@@ -1515,7 +1519,7 @@ namespace Magistrala.EditorTools
                 }
             return false;
         }
-        public static void ResetCover() => cover = null;
+        public static void ResetCover() { cover = null; walkCover = null; }
 
         static string ClearDetails()
         {

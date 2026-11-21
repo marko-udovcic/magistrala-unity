@@ -214,10 +214,11 @@ namespace Magistrala.EditorTools
                     }
             }
         }
+        static List<double[]> walkLow = new List<double[]>(), walkRaise = new List<double[]>();
         static int stripRuns; static double stripLen; static int stripSkipModel, stripSkipConflict, stripSkipRural, stripSkipWall, stripSkipGround;
         static string BuildModelWalks()
         {
-            walkModel = new Dictionary<string, double>(); stripRuns = 0; stripLen = 0; stripSkipModel = stripSkipConflict = stripSkipRural = stripSkipWall = stripSkipGround = 0;
+            walkModel = new Dictionary<string, double>(); walkLow.Clear(); walkRaise.Clear(); stripRuns = 0; stripLen = 0; stripSkipModel = stripSkipConflict = stripSkipRural = stripSkipWall = stripSkipGround = 0;
             var roadsT = GameObject.Find("World")?.transform.Find("Roads"); if (!roadsT) return "model sidewalks: no World/Roads";
             var meshes = new List<(MeshFilter mf, MeshRenderer mr, Bounds b)>();
             foreach (var mr in roadsT.GetComponentsInChildren<MeshRenderer>()) { var mf = mr.GetComponent<MeshFilter>(); if (mf && mf.sharedMesh) meshes.Add((mf, mr, mr.bounds)); }
@@ -293,18 +294,18 @@ namespace Magistrala.EditorTools
             var bu = Dilate(builtAny, 30);
             foreach (int side in new[] { -1, 1 })
             {
-                var ok = new bool[N]; var E = new double[N]; var Y = new double[N]; var Wd = new double[N]; var Gy = new double[N];
+                var ok = new bool[N]; var soft = new bool[N]; var E = new double[N]; var Y = new double[N]; var Wd = new double[N]; var Gy = new double[N];
                 for (int i = 0; i < N; i++)
                 {
                     double cx = P[i][0], cz = P[i][1], rx = -tz[i] * side, rz = tx[i] * side;
-                    if (R.At(cx, cz) != 1) continue; // (centre off the model's asphalt: another tile's / an intersection's)
+                    if (R.At(cx, cz) != 1) { soft[i] = true; continue; } // (centre off the model's asphalt: another tile's / an intersection's)
                     double lastA = -1; int miss = 0;
                     for (double u = 0; u <= w / 2 + 3; u += .1)
                     {
                         var c = R.At(cx + rx * u, cz + rz * u);
                         if (c == 1) { lastA = u; miss = 0; } else if (++miss >= 3) break;
                     }
-                    if (lastA < 0) continue;
+                    if (lastA < 0) { soft[i] = true; continue; }
                     double e = lastA + .1;
                     if (e > w / 2 + 1.2 || e < w / 2 - 1.5) { stripSkipConflict++; continue; } // a mouth / fillet / median
                     // the model's own sidewalk / island beside the asphalt
@@ -321,12 +322,12 @@ namespace Magistrala.EditorTools
                             if (c == 1 || c == 2 || c == 3 || c == 255) { clash = true; break; }
                         }
                     if (clash) { stripSkipConflict++; continue; }
-                    int ki = R.Idx(cx + rx * (e - .15), cz + rz * (e - .15)); if (ki < 0 || R.c[ki] != 1) continue;
+                    int ki = R.Idx(cx + rx * (e - .15), cz + rz * (e - .15)); if (ki < 0 || R.c[ki] != 1) { soft[i] = true; continue; }
                     double y = R.y[ki]; float g = TerrainY(ex + rx * (wd + .3), ez + rz * (wd + .3));
-                    if (!float.IsNaN(g) && (g < y - 1.2 || g > y + .6)) { stripSkipGround++; continue; }
+                    if (!float.IsNaN(g) && (g < y - 1.2 || g > y + .6)) { stripSkipGround++; soft[i] = true; continue; }
                     ok[i] = true; E[i] = e; Y[i] = y; Wd[i] = wd; Gy[i] = float.IsNaN(g) ? y - .4 : g;
                 }
-                for (int i = 0; i < N; i++) if (ok[i] && !bu[i]) { ok[i] = false; stripSkipRural++; }
+                for (int i = 0; i < N; i++) if (ok[i] && !bu[i]) { ok[i] = false; soft[i] = true; stripSkipRural++; }
                 // smoothing (median edge / height over ±2, the narrowest width over ±1), runs under 6 m dropped
                 var E2 = (double[])E.Clone(); var Y2 = (double[])Y.Clone(); var W2a = (double[])Wd.Clone();
                 for (int i = 0; i < N; i++)
@@ -336,38 +337,133 @@ namespace Magistrala.EditorTools
                     for (int k = Math.Max(0, i - 2); k <= Math.Min(N - 1, i + 2); k++) if (ok[k]) { le.Add(E[k]); ly.Add(Y[k]); if (Math.Abs(k - i) <= 1) mw = Math.Min(mw, Wd[k]); }
                     le.Sort(); ly.Sort(); E2[i] = le[le.Count / 2]; Y2[i] = ly[ly.Count / 2]; W2a[i] = mw;
                 }
+                // runs joined over gaps under 6 m that nothing hard interrupts (no mouth / paving / street / wall in the strip: a
+                // seam, a rural / ground sample), the edge / height / width interpolated; runs under 15 m dropped
+                for (int i = 1; i < N - 1; i++)
+                {
+                    if (ok[i] || !ok[i - 1]) continue;
+                    int g1 = i; while (g1 < N && !ok[g1]) g1++;
+                    if (g1 >= N || g1 - i >= 6) { i = g1; continue; }
+                    bool allSoft = true; for (int k = i; k < g1; k++) if (!soft[k]) allSoft = false;
+                    if (allSoft)
+                        for (int k = i; k < g1; k++)
+                        {
+                            double f = (k - (i - 1)) / (double)(g1 - (i - 1));
+                            ok[k] = true; E2[k] = E2[i - 1] + (E2[g1] - E2[i - 1]) * f; Y2[k] = Y2[i - 1] + (Y2[g1] - Y2[i - 1]) * f; W2a[k] = Math.Min(W2a[i - 1], W2a[g1]); Gy[k] = Math.Min(Gy[i - 1], Gy[g1]);
+                        }
+                    i = g1;
+                }
                 for (int i = 0; i < N;)
                 {
                     if (!ok[i]) { i++; continue; }
                     int j0 = i; while (i < N && ok[i]) i++; int j1 = i - 1;
-                    if (j1 - j0 < 6) continue;
+                    if (j1 - j0 < 15) continue;
                     // lowered kerb at a run end inside the road (the polyline's own ends continue into the next tile / street)
                     bool rampA = j0 > 0, rampB = j1 < N - 1;
                     double Kh(int k) { double d = Math.Min(rampA ? k - j0 : 1e9, rampB ? j1 - k : 1e9); return .02 + .13 * Smooth(d / 1.5); }
-                    G Pt(int k, double du, double dy) { double rx = -tz[k] * side, rz = tx[k] * side, u = E2[k] - .08 + du; return new G(P[k][0] + rx * u, Y2[k] + dy, P[k][1] + rz * u); }
+                    G Pt(int k, double du, double dy) { double rx = -tz[k] * side, rz = tx[k] * side, u = E2[k] - .15 + du; return new G(P[k][0] + rx * u, Y2[k] + dy, P[k][1] + rz * u); }
                     for (int k = j0; k < j1; k++)
                     {
-                        int q = k + 1; double ka = Kh(k), kb = Kh(q), wa = W2a[k] + .08, wb = W2a[q] + .08;
+                        int q = k + 1; double ka = Kh(k), kb = Kh(q), wa = W2a[k] + .15, wb = W2a[q] + .15;
                         var outA = new Vector3((float)(-tz[k] * side), 0, (float)(-tx[k] * side));
                         double ga = Math.Max(-2, Math.Min(-.4, Gy[k] - Y2[k] - .05)), gb = Math.Max(-2, Math.Min(-.4, Gy[q] - Y2[q] - .05));
-                        Quad(MAT_KERB, Pt(k, 0, -.05), Pt(q, 0, -.05), Pt(q, 0, kb), Pt(k, 0, ka), -outA, Drop.None, false);
+                        Quad(MAT_KERB, Pt(k, 0, -.25), Pt(q, 0, -.25), Pt(q, 0, kb), Pt(k, 0, ka), -outA, Drop.None, false);
                         Quad(MAT_KERB, Pt(k, 0, ka), Pt(q, 0, kb), Pt(q, .18, kb), Pt(k, .18, ka), Vector3.up, Drop.None, false);
                         Quad(MAT_WALK, Pt(k, .18, ka), Pt(q, .18, kb), Pt(q, wb, kb), Pt(k, wa, ka), Vector3.up, Drop.None, false);
                         Quad(MAT_KERB, Pt(k, wa, ka), Pt(q, wb, kb), Pt(q, wb, gb), Pt(k, wa, ga), outA, Drop.None, false);
                         Quad(-1, Pt(k, 0, ka), Pt(q, 0, kb), Pt(q, wb, kb), Pt(k, wa, ka), Vector3.up, Drop.None, true);
                         var ca = Pt(k, wa / 2, 0); var cb = Pt(q, wb / 2, 0);
                         double len = Math.Sqrt(Sq(cb.x - ca.x) + Sq(cb.z - ca.z)); stripLen += len; CountWalk(walkModel, ca.x, ca.z, len);
-                        carve.Add(new[] { ca.x, ca.z, ca.y, cb.x, cb.z, cb.y, Math.Max(wa, wb) / 2 + .2, 3 }); // (cover mask only)
+                        // the ground: lowered along the asphalt edge (no terrain over the model's asphalt in front of the kerb), raised
+                        // under the footway's back and behind it to its top (no floating slab); the strip's own footprint mask
+                        var ia = Pt(k, 0, 0); var ib = Pt(q, 0, 0);
+                        walkLow.Add(new[] { ia.x, ia.z, ia.y, ib.x, ib.z, ib.y, 1.1 });
+                        walkRaise.Add(new[] { ia.x, ia.z, ib.x, ib.z, -tz[k] * side, tx[k] * side, Y2[k] + ka - .03, Y2[q] + kb - .03, Math.Min(wa, wb) });
                     }
                     // end caps
                     foreach (int k in new[] { j0, j1 })
                     {
-                        var tv = new Vector3((float)tx[k], 0, (float)-tz[k]) * (k == j0 ? -1 : 1); double kk = Kh(k), wk = W2a[k] + .08, gk = Math.Max(-2, Math.Min(-.4, Gy[k] - Y2[k] - .05));
-                        Quad(MAT_KERB, Pt(k, 0, -.05), Pt(k, wk, gk), Pt(k, wk, kk), Pt(k, 0, kk), tv, Drop.None, false);
+                        var tv = new Vector3((float)tx[k], 0, (float)-tz[k]) * (k == j0 ? -1 : 1); double kk = Kh(k), wk = W2a[k] + .15, gk = Math.Max(-2, Math.Min(-.4, Gy[k] - Y2[k] - .05));
+                        Quad(MAT_KERB, Pt(k, 0, -.25), Pt(k, wk, gk), Pt(k, wk, kk), Pt(k, 0, kk), tv, Drop.None, false);
                     }
                     stripRuns++;
                 }
             }
+        }
+    }
+}
+namespace Magistrala.EditorTools
+{
+    public static partial class StreetsBuilder
+    {
+        // ------------------------------------------------------------------ ground at the model-road strips (CarveTerrain, last)
+        /// the terrain lowered within 1.1 m of the model asphalt's edge (asphalt y − 0.18: nothing over the asphalt in front of the
+        /// kerb), then raised (only) from 1.2 m behind the kerb face to the footway's top − 3 cm and blended back over ≥ 3 m (1:5);
+        /// not on a model's paving or our streets
+        static void WalkTerrain(double ox, double oz1, double step, int res, Func<int, int, float> get, Action<int, int, double> set)
+        {
+            foreach (var q in walkLow)
+            {
+                double reach = q[6], x0 = Math.Min(q[0], q[3]) - reach, x1 = Math.Max(q[0], q[3]) + reach, z0 = Math.Min(q[1], q[4]) - reach, z1 = Math.Max(q[1], q[4]) + reach;
+                if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;
+                double bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
+                for (int r = Math.Max(0, (int)Math.Floor((oz1 - z1) / step)); r <= Math.Min(res - 1, (int)Math.Ceiling((oz1 - z0) / step)); r++)
+                    for (int c = Math.Max(0, (int)Math.Floor((x0 - ox) / step)); c <= Math.Min(res - 1, (int)Math.Ceiling((x1 - ox) / step)); c++)
+                    {
+                        double gx = ox + c * step, gz = oz1 - r * step;
+                        double tt = l2 < 1e-9 ? 0 : Math.Max(0, Math.Min(1, ((gx - q[0]) * bx + (gz - q[1]) * bz) / l2));
+                        if (Math.Sqrt(Sq(gx - q[0] - bx * tt) + Sq(gz - q[1] - bz * tt)) > reach) continue;
+                        double ry = q[2] + (q[5] - q[2]) * tt - .18;
+                        if (get(r, c) > ry) set(r, c, ry);
+                    }
+            }
+            foreach (var q in walkRaise)
+            {
+                double W = q[8], pad = W + 12, x0 = Math.Min(q[0], q[2]) - pad, x1 = Math.Max(q[0], q[2]) + pad, z0 = Math.Min(q[1], q[3]) - pad, z1 = Math.Max(q[1], q[3]) + pad;
+                if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;
+                double bx = q[2] - q[0], bz = q[3] - q[1], l2 = bx * bx + bz * bz; if (l2 < 1e-6) continue;
+                for (int r = Math.Max(0, (int)Math.Floor((oz1 - z1) / step)); r <= Math.Min(res - 1, (int)Math.Ceiling((oz1 - z0) / step)); r++)
+                    for (int c = Math.Max(0, (int)Math.Floor((x0 - ox) / step)); c <= Math.Min(res - 1, (int)Math.Ceiling((x1 - ox) / step)); c++)
+                    {
+                        double gx = ox + c * step, gz = oz1 - r * step;
+                        double tt = ((gx - q[0]) * bx + (gz - q[1]) * bz) / l2; if (tt < -.02 || tt > 1.02) continue; tt = Math.Max(0, Math.Min(1, tt));
+                        double d = (gx - q[0] - bx * tt) * q[4] + (gz - q[1] - bz * tt) * q[5]; if (d < 1.2) continue;
+                        double top = q[6] + (q[7] - q[6]) * tt; float cur = get(r, c); double rise = top - cur; if (rise <= .01) continue;
+                        double k = 1;
+                        if (d > W + .3) { double B = Math.Max(3, Math.Min(10, rise * 5)); if (d > W + .3 + B) continue; k = Smooth(1 - (d - W - .3) / B); }
+                        if (WorldData.SurfDist(wbModels, gx, gz) < .3 || CoveredMain(gx, gz, 0)) continue;
+                        double target = cur + rise * k; if (target > cur + .005) set(r, c, target);
+                    }
+            }
+        }
+
+        // ------------------------------------------------------------------ the strips' own footprint (1 m cells): vegetation off the strip only
+        const double WMC = 1; static readonly int WNX = (int)((AX1 - AX0) / WMC), WNZ = (int)((AZ1 - AZ0) / WMC);
+        const string WALKCOVER = OUT + "/cover-walk.bytes";
+        static byte[] walkCover;
+        static string WriteWalkCover()
+        {
+            var m = new byte[(WNX * WNZ + 7) / 8]; int n = 0;
+            foreach (var q in walkRaise)
+            {
+                double W = q[8], bx = q[2] - q[0], bz = q[3] - q[1], l2 = bx * bx + bz * bz; if (l2 < 1e-6) continue;
+                for (double gz = Math.Floor((Math.Min(q[1], q[3]) - W - 1) / WMC) * WMC; gz <= Math.Max(q[1], q[3]) + W + 1; gz += WMC)
+                    for (double gx = Math.Floor((Math.Min(q[0], q[2]) - W - 1) / WMC) * WMC; gx <= Math.Max(q[0], q[2]) + W + 1; gx += WMC)
+                    {
+                        double cx = gx + WMC / 2, cz = gz + WMC / 2, tt = ((cx - q[0]) * bx + (cz - q[1]) * bz) / l2; if (tt < -.05 || tt > 1.05) continue;
+                        double d = (cx - q[0] - bx * tt) * q[4] + (cz - q[1] - bz * tt) * q[5]; if (d < -.3 || d > W + .4) continue;
+                        int i = (int)Math.Floor((cx - AX0) / WMC), j = (int)Math.Floor((cz - AZ0) / WMC); if (i < 0 || j < 0 || i >= WNX || j >= WNZ) continue;
+                        int b = j * WNX + i; if ((m[b >> 3] & (1 << (b & 7))) == 0) { m[b >> 3] |= (byte)(1 << (b & 7)); n++; }
+                    }
+            }
+            File.WriteAllBytes(WALKCOVER, m); UnityEditor.AssetDatabase.ImportAsset(WALKCOVER); walkCover = m;
+            return $"model-road footways: {n} m² footprint mask";
+        }
+        static bool WalkCovered(double gx, double gz)
+        {
+            if (walkCover == null) { if (!File.Exists(WALKCOVER)) return false; walkCover = File.ReadAllBytes(WALKCOVER); }
+            int i = (int)Math.Floor((gx - AX0) / WMC), j = (int)Math.Floor((gz - AZ0) / WMC); if (i < 0 || j < 0 || i >= WNX || j >= WNZ) return false;
+            int b = j * WNX + i; return (walkCover[b >> 3] & (1 << (b & 7))) != 0;
         }
     }
 }
