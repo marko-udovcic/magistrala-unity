@@ -65,6 +65,17 @@ namespace Magistrala.EditorTools
             if (game != null) foreach (var s in game.stops) bays.Add((s.bay, s.bayDir, s.bayHl, s.bayHw));
         }
 
+        /// a footprint that is not in the tiles (BuildingsFromTiles: the orthophoto's added houses), after Begin
+        public static void AddFoot(List<V> P)
+        {
+            int id = foot.Count; foot.Add(P);
+            double x0 = double.MaxValue, x1 = double.MinValue, z0 = double.MaxValue, z1 = double.MinValue;
+            foreach (var v in P) { x0 = Math.Min(x0, v.x); x1 = Math.Max(x1, v.x); z0 = Math.Min(z0, v.z); z1 = Math.Max(z1, v.z); }
+            for (int gx = (int)Math.Floor((x0 - 8) / CELL); gx <= (int)Math.Floor((x1 + 8) / CELL); gx++)
+                for (int gz = (int)Math.Floor((z0 - 8) / CELL); gz <= (int)Math.Floor((z1 + 8) / CELL); gz++)
+                { if (!footGrid.TryGetValue((gx, gz), out var l)) footGrid[(gx, gz)] = l = new List<int>(); l.Add(id); }
+        }
+
         static double SegDist(double px, double pz, double ax, double az, double bx, double bz)
         {
             double dx = bx - ax, dz = bz - az, L = dx * dx + dz * dz;
