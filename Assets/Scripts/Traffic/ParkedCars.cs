@@ -16,7 +16,7 @@ namespace Magistrala.Traffic
         /// per car: position (Unity), yaw (deg) in w; kind index into data.kinds; paint index into the kind's paints
         public Vector4[] cars;
         public int[] kind, paint;
-        public float nearDist = 12, drawDist = 260, shadowDist = 35;   // (full parts to 45 m: ~800 SetPass calls at the Stari riva lot); shadowDist: off-screen cars still drawn into the shadow map
+        public float nearDist = 0, drawDist = 260, shadowDist = 35;   // nearDist 0: the merged far mesh everywhere (a fully detailed car costs ~120 SetPass calls: its ~25 part materials × main / depth / shadow passes; full parts to 45 m put ~800 on the Stari riva lot); shadowDist: off-screen cars still drawn into the shadow map
         /// measuring only (-parked 0): not drawn
         public static bool Off;
         public int DrawnLastFrame { get; private set; }
@@ -92,7 +92,7 @@ namespace Magistrala.Traffic
         }
 
         readonly List<(float dd, int i)> nearC = new List<(float, int)>();
-        public int maxNear = 6;
+        public int maxNear = 2;
         void Far(int i, in Matrix4x4 m, TrafficKind kd)
         {
             int f0 = farB[kind[i]];
