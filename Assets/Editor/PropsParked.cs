@@ -99,7 +99,7 @@ namespace Magistrala.EditorTools
                 var kd = data.kinds[k]; string nm = kd.name.ToLowerInvariant();
                 return kd.len >= 3.3f && kd.len <= 5.4f && kd.h <= 2.1f && kd.beaconShare <= 0 && kd.farMesh && kd.paints != null && kd.paints.Length > 0
                        && !nm.Contains("bus") && !nm.Contains("coach") && !nm.Contains("truck") && !nm.Contains("benzer") && kd.weight > 0;
-            }).ToArray();
+            }).OrderByDescending(k => data.kinds[k].weight).Take(7).ToArray();   // 7 commonest kinds × 3 colours: few instanced draws
             if (ks.Length == 0) { log.Add("  parkirani auti: nema vrsta"); return; }
             float wsum = ks.Sum(k => data.kinds[k].weight);
             gates = new List<Vector3>(); gateN = new Dictionary<Vector3, Vector2>();
@@ -119,8 +119,10 @@ namespace Magistrala.EditorTools
                 var K = data.kinds[kd];
                 var c = W.U(gx, 0, gz); var rot = Quaternion.Euler(0, yawU, 0);
                 if (!CarFree(c, K.halfW + .12f, K.len / 2 + .2f, rot, street, out float y, out string w, yard)) { Why(w); return false; }
-                float pr = ((h >> 16) & 0xffff) / 65536f * K.paintW.Sum(); int pi = 0;
-                for (int i = 0; i < K.paintW.Length; i++) { pr -= K.paintW[i]; if (pr <= 0) { pi = i; break; } }
+                // the kind's three commonest colours only (every colour is one more instanced draw per kind)
+                var top = Enumerable.Range(0, K.paintW.Length).OrderByDescending(i => K.paintW[i]).Take(3).ToArray();
+                float pr = ((h >> 16) & 0xffff) / 65536f * top.Sum(i => K.paintW[i]); int pi = top[0];
+                foreach (int i in top) { pr -= K.paintW[i]; if (pr <= 0) { pi = i; break; } }
                 cars.Add(new Vector4(c.x, y, c.z, yawU)); kinds.Add(kd); paints.Add(Mathf.Min(pi, K.paints.Length - 1));
                 placed.Add((new Vector2(c.x, c.z), new Vector2(K.halfW + .1f, K.len / 2 + .15f), yawU));
                 var go = new GameObject("auto"); go.isStatic = true; go.transform.SetParent(colRoot, false);

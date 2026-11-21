@@ -326,7 +326,7 @@ namespace Magistrala.EditorTools
                 var go = new GameObject(mesh.name); go.isStatic = true; go.transform.SetParent(root, false);
                 go.AddComponent<MeshFilter>().sharedMesh = mesh; var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = kv.Key.Item1;
                 // ground decals cast nothing; posts, nets and fences do
-                bool flat = kv.Key.Item1 != posts && kv.Key.Item1 != net && kv.Key.Item1 != fence && kv.Key.Item1 != fencePost && kv.Key.Item1 != coping;
+                bool flat = kv.Key.Item1 != posts && kv.Key.Item1 != net && kv.Key.Item1 != fence && kv.Key.Item1 != fencePost;
                 mr.shadowCastingMode = flat ? ShadowCastingMode.Off : ShadowCastingMode.On;
                 n++;
             }

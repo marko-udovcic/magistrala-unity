@@ -1,7 +1,7 @@
 // Parked cars (docs/audit-stari.md): static cars of the traffic kinds (TrafficData) in the car parks and along the village streets,
 // placed by Magistrala/Rekviziti: postavi (Assets/Editor/PropsParked.cs). Drawn like the traffic (Graphics.RenderMeshInstanced):
-// the kind's parts (lod0 / lod1 / lod2 by distance) near the camera, the merged far mesh (palette, paint, tail: 3 draws per kind)
-// beyond nearDist, nothing beyond drawDist; shadows within shadowDist. Cars sit in 128 m cells, only the cells near the camera are
+// the kind's parts (lod0 / lod1 / lod2 by distance) only very near the camera, the merged far mesh (palette, paint, tail: 3 draws
+// per kind) beyond nearDist, nothing beyond drawDist; every drawn car casts (one draw list per bucket), off-screen ones within shadowDist. Cars sit in 128 m cells, only the cells near the camera are
 // walked. Colliders: static BoxColliders made by the builder (children of this object).
 using System.Collections.Generic;
 using UnityEngine;
@@ -16,7 +16,7 @@ namespace Magistrala.Traffic
         /// per car: position (Unity), yaw (deg) in w; kind index into data.kinds; paint index into the kind's paints
         public Vector4[] cars;
         public int[] kind, paint;
-        public float nearDist = 45, drawDist = 320, shadowDist = 70;
+        public float nearDist = 12, drawDist = 260, shadowDist = 35;   // (full parts to 45 m: ~800 SetPass calls at the Stari riva lot); shadowDist: off-screen cars still drawn into the shadow map
         /// measuring only (-parked 0): not drawn
         public static bool Off;
         public int DrawnLastFrame { get; private set; }
@@ -33,7 +33,11 @@ namespace Magistrala.Traffic
         void Start()
         {
             var a = System.Environment.GetCommandLineArgs();
-            for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-parked" && a[i + 1] == "0") Off = true;
+            for (int i = 0; i + 1 < a.Length; i++)
+            {
+                if (a[i] == "-parked" && a[i + 1] == "0") Off = true;
+                if (a[i] == "-parkednear" && float.TryParse(a[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var nd)) nearDist = nd; // measuring: full-parts distance
+            }
             if (!data || cars == null) return;
             M = new Matrix4x4[cars.Length];
             for (int i = 0; i < cars.Length; i++)
@@ -87,6 +91,14 @@ namespace Magistrala.Traffic
             else { if (matN[b] == mats[b].Length) System.Array.Resize(ref mats[b], mats[b].Length * 2); mats[b][matN[b]++] = m; }
         }
 
+        readonly List<(float dd, int i)> nearC = new List<(float, int)>();
+        public int maxNear = 6;
+        void Far(int i, in Matrix4x4 m, TrafficKind kd)
+        {
+            int f0 = farB[kind[i]];
+            Add(f0, m, true); Add(f0 + 1 + paint[i], m, true); Add(f0 + 1 + kd.farPaints.Length, m, true);
+        }
+
         void LateUpdate()
         {
             DrawnLastFrame = 0;
@@ -108,22 +120,28 @@ namespace Magistrala.Traffic
                     if (dd > draw2) continue;
                     var kd = data.kinds[kind[i]];
                     bool vis = GeometryUtility.TestPlanesAABB(planes, new Bounds(new Vector3(m.m03, m.m13 + kd.h * .5f, m.m23), new Vector3(kd.len, kd.h, kd.len)));
-                    bool shadow = dd < sh2;
-                    if (!vis && !shadow) continue;
+                    bool near0 = dd < sh2;
+                    if (!vis && !near0) continue;
+                    // (one draw list per bucket, all casting: a second, shadow-less list doubled the draws / SetPass calls)
                     DrawnLastFrame++;
-                    if (dd > near2 && farB[kind[i]] >= 0)
-                    {
-                        int f0 = farB[kind[i]];
-                        Add(f0, m, shadow); Add(f0 + 1 + paint[i], m, shadow); Add(f0 + 1 + kd.farPaints.Length, m, shadow);
-                        continue;
-                    }
-                    float d = Mathf.Sqrt(dd);
-                    bool three = kd.lod2 != null && kd.lod2.Length > 0;
-                    int lod = three ? (d < kd.lodNear ? 0 : d < kd.lodMid ? 1 : 2) : 0;
-                    var parts = Level(kd, lod); var ids = kindParts[kind[i]][lod];
-                    for (int p = 0; p < parts.Length; p++) Add(ids[p] + (parts[p].paint ? paint[i] : 0), m * parts[p].local, shadow);
+                    if (dd > near2 || farB[kind[i]] < 0) { if (farB[kind[i]] >= 0) Far(i, m, kd); else nearC.Add((dd, i)); continue; }
+                    nearC.Add((dd, i));
                 }
             }
+            // full parts for the few nearest cars only (each part is an instanced draw of its own material; a car park beside the
+            // truck put ~250 SetPass calls on the main thread), the rest of the near ones as the merged far mesh
+            nearC.Sort((x, y) => x.dd.CompareTo(y.dd));
+            for (int q = 0; q < nearC.Count; q++)
+            {
+                int i = nearC[q].i; var kd = data.kinds[kind[i]]; ref var m = ref M[i];
+                if (q >= maxNear && farB[kind[i]] >= 0) { Far(i, m, kd); continue; }
+                float d = Mathf.Sqrt(nearC[q].dd);
+                bool three = kd.lod2 != null && kd.lod2.Length > 0;
+                int lod = three ? (d < kd.lodNear ? 0 : d < kd.lodMid ? 1 : 2) : 0;
+                var parts = Level(kd, lod); var ids = kindParts[kind[i]][lod];
+                for (int p = 0; p < parts.Length; p++) Add(ids[p] + (parts[p].paint ? paint[i] : 0), m * parts[p].local, true);
+            }
+            nearC.Clear();
             var wb = new Bounds(cp, Vector3.one * (draw * 2 + 50));
             for (int b = 0; b < buckets.Count; b++)
             {
