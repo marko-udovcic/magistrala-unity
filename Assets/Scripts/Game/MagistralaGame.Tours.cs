@@ -9,7 +9,8 @@
 //           single drops from the warehouse (FirmJobs, the first loop – kept: short jobs, loaded at the warehouse)
 //   pay     one total at the end: 10 € + 3 €/road km of the whole tour (warehouse → pickup → drops → back) + StopPay per stop after
 //           the first, rounded to 0.5 €; the deadline on the game clock (TourDeadline); then the usual payout lines
-// Fatureta tours (drva, ormar: Galeb, evening, cash) are in the data but not offered: the Galeb is not in Unity yet. Tours whose
+// Fatureta tours of the package (drva, ormar …) are not offered here: faturete are the customers' own jobs with haggling
+// (MagistralaGame.Faturete.cs, Resources/Game/faturete.json); they reuse the legs machinery below ('u' pickup, 'd' drop). Tours whose
 // pickup is in Split (brasno, riba, voce) or whose drop is (bicikli, suta) are not playable in Kaštela.
 using System.Collections;
 using System.Collections.Generic;
@@ -107,7 +108,7 @@ namespace Magistrala.Game
         static Job Clone(Job j) => JsonUtility.FromJson<Job>(JsonUtility.ToJson(j));
         /// a single drop: Deadline(km) as before (web regions.ts); a tour: on this game's clock (ClockRate, 1/6 game min per real
         /// second) at ~40 km/h × 1.4 + 6 min per stop + 30 (Deadline's web clock gave a 24 km tour a whole day and more)
-        static float TourDeadline(Job j) => j.tour == "" ? Deadline(j.km) : Mathf.Round(j.km * 1000 / 11f * ClockRate * 1.4f + Mathf.Max(0, j.legs.Count - 1) * StopWorkMin + 30);
+        static float TourDeadline(Job j) => j.fatureta ? j.deadlineMin : j.tour == "" ? Deadline(j.km) : Mathf.Round(j.km * 1000 / 11f * ClockRate * 1.4f + Mathf.Max(0, j.legs.Count - 1) * StopWorkMin + 30);
 
         public string OfferLine(Job j) => j.tour != "" ? $"{j.label} · {Eur(j.pay)} · {Magistrala.HudStyle.Dec(j.km)} km · oko {Magistrala.HudStyle.Dec(Mathf.Max(1, Mathf.Round(WorkMin(j) / 30) / 2), "0.#")} h" : $"{j.label} – {j.cargo} · {Magistrala.HudStyle.Dec(j.km)} km · {Eur(j.pay)}";
 
@@ -124,6 +125,7 @@ namespace Magistrala.Game
         string LegVerb(Leg l)
         {
             if (l == null) return "";
+            if (Current != null && Current.fatureta) return l.K == 'u' ? "Utovar" : "Istovar";
             if (l.K == 'u') return "Utovar";
             if (l.K == 'r') return "Natrag u skladište s praznim gajbama";
             int n = 0; foreach (var x in Current.legs) { if (x == l) break; if (x.K == 'd') n++; }
@@ -148,8 +150,8 @@ namespace Magistrala.Game
             char k = Current.Leg?.K ?? 'd';
             if (k == 'd') { StartUnload(); return; }
             State = Phase.Loading; loadingKind = k; Truck.parkLock = true;
-            phaseT = auto && nearStart == 0 ? 2 : k == 'u' ? 8 : 4;
-            Banner(k == 'u' ? "Ručna povučena. Viličar utovaruje palete…" : "Prazne gajbe na rampu, otpremnice u ured.");
+            phaseT = auto && nearStart == 0 ? 2 : Current.fatureta ? Current.loadSec : k == 'u' ? 8 : 4;
+            Banner(Current.fatureta ? $"Ručna povučena. Utovar: {Current.cargo}, {Who(Current.customer)} pomaže…" : k == 'u' ? "Ručna povučena. Viličar utovaruje palete…" : "Prazne gajbe na rampu, otpremnice u ured.");
             Debug.Log($"[job] {(k == 'u' ? "loading" : "empties")} at {Current.to}");
         }
 

@@ -25,7 +25,7 @@ namespace Magistrala
             Renderer head = null;
             foreach (var r in GetComponentsInChildren<Renderer>(true))
             {
-                if (r.name == "body_L_head") head = r;
+                if (r.name == "body_L_head" || (!head && r.name.StartsWith("Phare"))) head = r; // (Galeb: both lamps in one "Phare" mesh)
                 var mats = r.materials; // instances: only this truck glows
                 foreach (var m in mats)
                 {

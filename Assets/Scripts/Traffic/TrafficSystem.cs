@@ -218,6 +218,8 @@ namespace Magistrala.Traffic
         // ------------------------------------------------------------------ player
         void FindPlayer()
         {
+            // (the player's vehicle can change: MagistralaGame.Vehicles parks one and activates the other)
+            if (player && !player.gameObject.activeInHierarchy) { player = null; playerCols = null; }
             if (!player)
             {
                 var tc = FindFirstObjectByType<TruckController>();

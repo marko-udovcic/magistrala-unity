@@ -7,6 +7,9 @@
 // Keys while open: ↑ / ↓ select · Enter open / choose · 1–9 pick directly · Backspace back · Tab close. Mouse works too.
 // Plug-ins (faturete haggling, Vesna's errands, the bank): Ring(PhoneCall) with choices, Message(from, text, story),
 // jobsProvider for Poslovi; the save round-trips through Export / Import.
+// Conversations (faturete haggling, MagistralaGame.Faturete.cs): OpenChat(PhoneCall { chat = true }) shows a message conversation
+// on the call screen without ringing; a choice with `next` continues it (the other side's lines + new choices), so a haggle can
+// run several rounds. AddContact adds people who are not in the fixed list (customers).
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -20,7 +23,10 @@ namespace Magistrala.Game.Phone
         public string reply;       // what the caller answers (null = none)
         public Action act;         // consequence
         public bool openJobs;      // after the call: the Poslovi app
+        public Func<PhoneStep> next; // the conversation goes on: the other side's lines and new choices (null / no choices = done)
     }
+
+    public class PhoneStep { public string[] lines; public List<PhoneChoice> choices = new List<PhoneChoice>(); public string sub; }
 
     public class PhoneCall
     {
@@ -33,9 +39,10 @@ namespace Magistrala.Game.Phone
         public Action onMissed, onDecline, onAnswer;
         public string declineToast;            // banner after N
         public float ringAt;
+        public bool chat;                      // a message conversation (OpenChat), not a ringing call
     }
 
-    public class PhoneJob { public string label, sub; public Action take; }
+    public class PhoneJob { public string label, sub; public Action take; public Color? col; }
 
     [Serializable] public class PhoneMsg { public string from, text; public float at; public bool read, story; }
     [Serializable] public class PhoneLog { public string who; public float at; public int kind; } // 0 in, 1 missed, 2 out, 3 declined
@@ -52,7 +59,10 @@ namespace Magistrala.Game.Phone
             new Contact { id = "marija", name = "Marija", role = "Pumpa u Kaštelima", color = new Color(0.4f, 0.75f, 0.45f) },
             new Contact { id = "punica", name = "Dragica", role = "Punica", color = new Color(0.62f, 0.5f, 0.85f) },
         };
-        public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
+        static readonly List<Contact> extra = new List<Contact>();
+        /// people outside the fixed list (fatureta customers); replaces one with the same id
+        public static void AddContact(Contact c) { extra.RemoveAll(x => x.id == c.id); extra.Add(c); }
+        public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; foreach (var c in extra) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
 
         public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About }
         public bool Open { get; private set; }
@@ -65,6 +75,10 @@ namespace Magistrala.Game.Phone
         public Func<float> clock = () => 0;
         public Func<List<PhoneJob>> jobsProvider;
         public Func<string> jobsNote;
+        /// the Poslovi app's subtitle
+        public Func<string> jobsTitle;
+        /// an extra action in a message thread (e.g. "Odgovori na ponudu"), null = none
+        public Func<string, (string label, Action act)?> threadAction;
         /// outgoing call: contact id → what they say (null = no answer)
         public Func<string, string> outgoing;
         public Action<string> toast;
@@ -105,6 +119,15 @@ namespace Magistrala.Game.Phone
         public void Import(PhoneSave s) { data = s ?? new PhoneSave(); }
 
         public void Show(Screen s) { Open = true; Current = s; sel = 0; }
+        /// a message conversation with choices (faturete): no ringing, no call log
+        public void OpenChat(PhoneCall c)
+        {
+            call = c; callDone = c.choices.Count == 0; bubbles.Clear(); afterJobs = null;
+            foreach (var l in c.lines) bubbles.Add((false, l));
+            Show(Screen.InCall);
+            Debug.Log($"[phone] conversation with {c.caller}");
+        }
+        public bool InChat => Open && Current == Screen.InCall && call != null && call.chat;
         public void OpenThread(string from) { thread = from; Show(Screen.Thread); }
         public void Close() { Open = false; Current = Screen.Home; afterJobs = null; ApplyPause(); }
 
@@ -128,7 +151,7 @@ namespace Magistrala.Game.Phone
                 if (kb.yKey.wasPressedThisFrame) Answer();
                 else if (kb.nKey.wasPressedThisFrame) Decline();
             }
-            else if (kb.tabKey.wasPressedThisFrame) { if (Open) { if (Current != Screen.InCall || callDone) Close(); } else Show(Screen.Home); }
+            else if (kb.tabKey.wasPressedThisFrame) { if (Open) { if (Current != Screen.InCall || callDone || (call != null && call.chat)) { if (call != null && call.chat) call = null; Close(); } } else Show(Screen.Home); }
             else if (Open)
             {
                 if (kb.upArrowKey.wasPressedThisFrame) sel--;
@@ -152,7 +175,7 @@ namespace Magistrala.Game.Phone
 
         void Back()
         {
-            if (Current == Screen.InCall && !callDone) return; // choose first
+            if (Current == Screen.InCall && !callDone && !(call != null && call.chat)) return; // choose first (a conversation can wait)
             if (Current == Screen.InCall || Current == Screen.Outgoing) { EndCall(); return; }
             if (Current == Screen.Thread) { Current = Screen.Messages; sel = 0; return; }
             if (Current == Screen.Home) Close(); else { Current = Screen.Home; sel = 0; }
@@ -184,7 +207,15 @@ namespace Magistrala.Game.Phone
         {
             bubbles.Add((true, ch.label));
             if (ch.reply != null) bubbles.Add((false, ch.reply));
-            callDone = true; ch.act?.Invoke(); changed?.Invoke();
+            callDone = true; ch.act?.Invoke();
+            var st = ch.next?.Invoke();
+            if (st != null && call != null)
+            {
+                if (st.lines != null) foreach (var l in st.lines) bubbles.Add((false, l));
+                if (st.sub != null) call.sub = st.sub;
+                call.choices = st.choices ?? new List<PhoneChoice>(); callDone = call.choices.Count == 0;
+            }
+            changed?.Invoke();
             if (ch.openJobs) afterJobs = call;
             sel = 0;
             Debug.Log($"[phone] chose \"{ch.label}\"");
@@ -285,7 +316,8 @@ namespace Magistrala.Game.Phone
             Fill(new Rect(x + W / 2 - 62, scr.yMax - 13, 124, 5), new Color(1, 1, 1, 0.85f), 2.5f); // home bar
             if (Open)
             {
-                string hint = Current == Screen.InCall && !callDone ? "↑ ↓ Enter / 1–4 odgovori" : "↑ ↓ Enter · Backspace natrag · Tab zatvori";
+                int nCh = this.call != null ? Mathf.Max(1, this.call.choices.Count) : 4;
+                string hint = Current == Screen.InCall && !callDone ? $"↑ ↓ Enter / 1–{nCh} odgovori" : "↑ ↓ Enter · Backspace natrag · Tab zatvori";
                 var hs = St(13, true, new Color(1f, 0.86f, 0.35f), TextAnchor.MiddleRight, false);
                 GUI.Label(new Rect(x - 330, y + H - 40, 316, 20), hint, hs);
                 GUI.Label(new Rect(x - 330, y + H - 62, 316, 20), "PAUZA · sat stoji", hs);
@@ -419,7 +451,8 @@ namespace Magistrala.Game.Phone
             "Magistrala — Kaštela, Split.\n\n" +
             "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni " +
             "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
-            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).";
+            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).\n\n" +
+            "Galeb: 3D model autora Max (sketchfab.com/Max-5532), licenca CC BY 4.0, izmijenjeno (uklonjene oznake, nova boja).";
         void DrawAbout(Rect a)
         {
             float y = Title(a, "O igri", "Izvori podataka");
@@ -476,9 +509,11 @@ namespace Magistrala.Game.Phone
             var mine = data.msgs.FindAll(m => m.from == thread);
             foreach (var m in mine) m.read = true;
             var list = new List<(bool, string, string)>(); foreach (var m in mine) list.Add((false, m.text, Hm(m.at)));
-            Bubbles(a, a.y + 74, a.yMax - 50, list);
+            var ta = threadAction?.Invoke(thread);
+            Bubbles(a, a.y + 74, a.yMax - (ta != null ? 100 : 50), list);
+            if (ta.HasValue) items.Add((ta.Value.label, null, ta.Value.act, new Color(1f, 0.58f, 0.1f)));
             items.Add(("Natrag", null, () => { Current = Screen.Messages; sel = 0; }, null));
-            List(a, a.yMax - 44);
+            List(a, a.yMax - (ta != null ? 94 : 44));
         }
 
         void DrawCalls(Rect a)
@@ -498,6 +533,7 @@ namespace Magistrala.Game.Phone
         {
             float y = Title(a, "Kontakti");
             foreach (var c in Contacts) { string id = c.id; items.Add((c.name, c.role, () => CallOut(id), null)); }
+            foreach (var c in extra) { string id = c.id; items.Add((c.name, c.role, () => CallOut(id), null)); }
             List(a, y);
         }
 
@@ -523,7 +559,7 @@ namespace Magistrala.Game.Phone
 
         void DrawJobs(Rect a)
         {
-            float y = Title(a, "Poslovi", "Ture firme · skladište u Lukšiću");
+            float y = Title(a, "Poslovi", jobsTitle?.Invoke() ?? "Ture firme · skladište u Lukšiću");
             var jobs = jobsProvider?.Invoke();
             string note = jobsNote?.Invoke();
             if (note != null)
@@ -532,7 +568,7 @@ namespace Magistrala.Game.Phone
                 float h = ns.CalcHeight(new GUIContent(note), a.width);
                 GUI.Label(new Rect(a.x, y, a.width, h), note, ns); y += h + 10;
             }
-            if (jobs != null) foreach (var j in jobs) { var jj = j; items.Add((j.label, j.sub, () => jj.take(), new Color(1f, 0.58f, 0.1f))); }
+            if (jobs != null) foreach (var j in jobs) { var jj = j; items.Add((j.label, j.sub, () => jj.take(), j.col ?? new Color(1f, 0.58f, 0.1f))); }
             if (jobs == null || jobs.Count == 0) GUI.Label(new Rect(a.x, y, a.width, 20), "Danas nema ponuda.", small);
             List(a, y);
         }
@@ -542,9 +578,9 @@ namespace Magistrala.Game.Phone
             var c = call; if (c == null) { Current = Screen.Home; return; }
             Avatar(new Rect(a.x, a.y, 44, 44), c.caller);
             GUI.Label(new Rect(a.x + 54, a.y + 2, a.width - 54, 24), Who(c.caller).name, St(17, true, Color.white, TextAnchor.MiddleLeft, false));
-            GUI.Label(new Rect(a.x + 54, a.y + 24, a.width - 54, 16), (c.sub ?? Who(c.caller).role) + (callDone ? " · poziv završen" : " · u pozivu"), small);
+            GUI.Label(new Rect(a.x + 54, a.y + 24, a.width - 54, 16), (c.sub ?? Who(c.caller).role) + (c.chat ? "" : callDone ? " · poziv završen" : " · u pozivu"), small);
             if (!callDone) { int n = 1; foreach (var ch in c.choices) { var cc = ch; items.Add(($"{n++}  {ch.label}", null, () => Choose(cc), new Color(0.04f, 0.52f, 1f))); } }
-            else items.Add((afterJobs != null ? "Otvori Poslove" : "Završi poziv", null, EndCall, afterJobs != null ? new Color(1f, 0.58f, 0.1f) : new Color(1f, 0.23f, 0.19f)));
+            else items.Add((afterJobs != null ? "Otvori Poslove" : c.chat ? "Zatvori" : "Završi poziv", null, c.chat ? (Action)(() => { call = null; Close(); }) : EndCall, afterJobs != null ? new Color(1f, 0.58f, 0.1f) : new Color(1f, 0.23f, 0.19f)));
             float ih = 0; var st = new GUIStyle(item) { font = semi }; foreach (var it in items) ih += st.CalcHeight(new GUIContent(it.label), a.width) + 6;
             float listTop = a.yMax - ih;
             var list = new List<(bool, string, string)>(); foreach (var b in bubbles) list.Add((b.mate, b.text, null));

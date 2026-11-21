@@ -36,6 +36,18 @@ namespace Magistrala.Game
             var p = new Payout { job = j, base_ = j.pay, minutes = gameMinutes };
             float b = j.pay;
             p.late = gameMinutes > j.deadlineMin;
+            if (j.fatureta)
+            {
+                // a fatureta pays the agreed price; the customer takes off for broken cargo and for missing his window, no bonuses
+                if (p.late) { float over = gameMinutes - j.deadlineMin; p.lines.Add(($"Kasno ({Mathf.Round(over):0} min iza dogovora)", -Mathf.Round(b * Mathf.Min(0.5f, 0.15f + over / 600f)))); }
+                if (j.cargoDamage > 0.5f) p.lines.Add(($"Šteta na teretu ({Mathf.Round(j.cargoDamage):0} %)", -Mathf.Round(b * Mathf.Min(0.9f, j.cargoDamage / 100f))));
+                float sum = b; foreach (var l in p.lines) sum += l.amount;
+                p.total = Mathf.Max(0, Mathf.Round(sum * 2) / 2);
+                int rr = 5; if (p.late) rr--; if (j.cargoDamage > 10) rr--; if (j.cargoDamage > 35) rr--; if (j.truckDamage > 15) rr--;
+                p.rating = Mathf.Max(1, rr);
+                p.quip = I ? I.FaturetaQuip(j, p) : "";
+                return p;
+            }
             if (p.late)
             {
                 float over = gameMinutes - j.deadlineMin, pct = Mathf.Min(0.5f, 0.15f + over / 600f);
@@ -75,12 +87,15 @@ namespace Magistrala.Game
             bool vehicle = c.rigidbody != null;
             float dmg = strength * (vehicle ? 9 : 6);
             Current.truckDamage = Mathf.Min(100, Current.truckDamage + dmg);
-            Current.cargoDamage = Mathf.Min(100, Current.cargoDamage + dmg * 1.2f);
+            if (Current.loaded) Current.cargoDamage = Mathf.Min(100, Current.cargoDamage + dmg * 1.2f); // (nothing on board yet: no cargo to break)
             if (strength > 0.25f) Banner(vehicle ? "#@%&! Udario si auto!" : "#@%&! Pazi malo!");
             Debug.Log($"[job] hit {c.collider.name}: {force / 1000:0} kN, strength {strength:0.00}, cargo damage {Current.cargoDamage:0.0} %");
         }
 
         // ------------------------------------------------------------------ the card (Delivery.tsx, short), HUD style (HudStyle)
+        /// "Dvor Bašića – Kaštel Lukšić" → "Dvor Bašića"
+        static string Short(string n) { if (n == null) return ""; int k = n.IndexOf(" – "); return k > 0 ? n.Substring(0, k) : n; }
+
         void DrawCard()
         {
             if (card == null) return;
@@ -99,7 +114,8 @@ namespace Magistrala.Game
             HudStyle.Label(new Rect(cx, cy - 4 * K, cw, 28 * K), new string('★', p.rating) + new string('☆', 5 - p.rating), HudStyle.St(22, true, HudStyle.Accent, TextAnchor.MiddleRight));
             cy += 22 * K;
             HudStyle.Label(new Rect(cx, cy, cw, 40 * K), p.job.cargo.Substring(0, 1).ToUpper() + p.job.cargo.Substring(1), HudStyle.St(30, true, Color.white)); cy += 40 * K;
-            string sub = p.job.tour != "" ? $"{p.job.label} · {Magistrala.HudStyle.Dec(p.job.km)} km · {Mathf.Round(p.minutes):0} min u igri{(TourReturns(p.job.tour) ? " · prazne gajbe vraćene (u cijeni)" : "")}"
+            string sub = p.job.fatureta ? $"Fatureta · {Short(World.Stop(p.job.legs[0].stop)?.name)} → {Short(World.Stop(p.job.legs[p.job.legs.Count - 1].stop)?.name)} · {Magistrala.HudStyle.Dec(p.job.km)} km"
+                : p.job.tour != "" ? $"{p.job.label} · {Magistrala.HudStyle.Dec(p.job.km)} km · {Mathf.Round(p.minutes):0} min u igri{(TourReturns(p.job.tour) ? " · prazne gajbe vraćene (u cijeni)" : "")}"
                 : $"{World.Stop(p.job.from)?.name} → {p.job.label} · {Magistrala.HudStyle.Dec(p.job.km)} km · {Mathf.Round(p.minutes):0} min u igri";
             HudStyle.Label(new Rect(cx, cy, cw, 22 * K), sub, HudStyle.St(14, false, HudStyle.Muted)); cy += 22 * K;
             HudStyle.Label(new Rect(cx, cy, cw, 30 * K), $"„{p.quip}“", HudStyle.St(15, false, new Color(1, 1, 1, 0.82f))); cy += 30 * K + 14 * K;
@@ -111,13 +127,14 @@ namespace Magistrala.Game
                 var c = a < 0 ? HudStyle.Bad : a > 0 && i > 0 ? HudStyle.Good : Color.white;
                 HudStyle.Label(new Rect(cx, cy, cw, 26 * K), (i > 0 && a > 0 ? "+" : a < 0 ? "−" : "") + Eur(Mathf.Abs(a)), HudStyle.St(17, true, c, TextAnchor.MiddleRight));
             }
-            Row(p.job.tour != "" ? $"Zarada za turu ({p.job.drops} {Stajanja(p.job.drops)})" : "Osnovna zarada", p.base_, 0); cy += 28 * K;
+            Row(p.job.fatureta ? $"Dogovoreno · {Who(p.job.customer)}" : p.job.tour != "" ? $"Zarada za turu ({p.job.drops} {Stajanja(p.job.drops)})" : "Osnovna zarada", p.base_, 0); cy += 28 * K;
             for (int i = 0; i < p.lines.Count; i++) { Row(p.lines[i].label, p.lines[i].amount, i + 1); cy += 28 * K; }
             cy += 6 * K; HudStyle.Fill(new Rect(cx, cy, cw, Mathf.Max(1, HudStyle.Px(1))), HudStyle.Line); cy += 8 * K;
             float shown = age < 0.6f + n * 0.3f ? 0 : Mathf.Min(1, (age - 0.6f - n * 0.3f) / 0.8f) * p.total;
-            HudStyle.Label(new Rect(cx, cy, cw, 50 * K), "Ukupno – na ruke", HudStyle.St(20, true, Color.white));
+            HudStyle.Label(new Rect(cx, cy, cw, 50 * K), p.job.fatureta && p.job.payMode == "racun" ? "Ukupno – račun obrta" : "Ukupno – na ruke", HudStyle.St(20, true, Color.white));
             HudStyle.Label(new Rect(cx, cy, cw, 50 * K), Eur(Mathf.Round(shown * 2) / 2), HudStyle.St(34, true, HudStyle.Highlight, TextAnchor.MiddleRight)); cy += 50 * K;
-            HudStyle.Label(new Rect(cx, cy, cw, 26 * K), p.late ? $"Rok je bio {Hm(p.job.startMin + p.job.deadlineMin)}.   Enter – zatvori" : $"Na vrijeme (rok {Hm(p.job.startMin + p.job.deadlineMin)}).   Enter – zatvori", HudStyle.St(14, false, HudStyle.Muted));
+            if (p.job.fatureta) HudStyle.Label(new Rect(cx, cy, cw, 26 * K), (p.job.payMode == "racun" ? "Račun ide u fascikl „Za Ljubicu“." : "Gotovina u džep, bez računa.") + "   Enter – zatvori", HudStyle.St(14, false, HudStyle.Muted));
+            else HudStyle.Label(new Rect(cx, cy, cw, 26 * K), p.late ? $"Rok je bio {Hm(p.job.startMin + p.job.deadlineMin)}.   Enter – zatvori" : $"Na vrijeme (rok {Hm(p.job.startMin + p.job.deadlineMin)}).   Enter – zatvori", HudStyle.St(14, false, HudStyle.Muted));
         }
     }
 }

@@ -6,7 +6,9 @@
 //   hour → the 7:00 angry re-call (−2 once): "Vozim" / "Zaspao sam" (+1) / "Danas ne mogu" (−1, no firm tour today); unanswered for
 //   half an hour → −2, no firm tour today (faza1-odgovori Q19, dijalozi Q3). Messages: story ones (Vesna's list at 14 h, once) plus
 //   at most 2 random a day (Q21) at two seeded times between 8 and 19 h (regionContent SPLIT_KASTELA_MESSAGES).
-//   firm tours only on weekdays 6–17 h after the call; after 17 h (or a closed day) N at the warehouse ends the day.
+//   firm tours only on weekdays 6–17 h after the call; after 17 h (or a closed day) N at the warehouse ends the day — or at
+//   home in the Bašić yard (Galeb, faturete: MagistralaGame.Faturete.cs). The next day: a weekday at 5:59, Saturday at 7:59
+//   (faturete 8–20 h, no firm), Sunday is skipped (family, nothing to drive: faza1-odgovori Q10).
 //   save: Application.persistentDataPath/magistrala-save.json (JsonUtility) – day / time, wallet, reputation, call flags,
 //   delivered jobs, the running tour, the stop the truck stands at; loaded on start (old PlayerPrefs wallet migrated once).
 // Test switches: -clock HH:MM  start time · -clockx N  clock N× faster · -call [7]  ring the 6:00 (or the 7:00) call at once
@@ -42,6 +44,19 @@ namespace Magistrala.Game
         public float fuel = 72;
         /// the owner's map waypoint (WorldMap, Unity x / z on the road), wpOn = set
         public bool wpOn; public float wpX, wpZ;
+        /// story phase 3 (MagistralaGame.Vehicles.cs / Faturete.cs): the driven vehicle ("atego" / "galeb"), its exact pose, the
+        /// parked one's pose, the Galeb's diesel %
+        public string vehicle = "atego";
+        public bool posOn, parkOn; public float posX, posY, posZ, posYaw, parkX, parkY, parkZ, parkYaw;
+        public float fuelG = 64;
+        /// faturete: today's offers and their haggling state, accepted ones waiting their turn, when each job may come again
+        /// ("id:day"), the customers' opinion of Mate (0..1, hidden), invoices for Ljubica ("day|hh:mm|customer|€")
+        public List<MagistralaGame.FatOffer> fatOffers = new List<MagistralaGame.FatOffer>();
+        public List<MagistralaGame.Job> fatQueue = new List<MagistralaGame.Job>();
+        public List<string> fatNext = new List<string>();
+        public float fatRep = 0.5f;
+        public int fatPlanDay = -1, fatDone;
+        public List<string> invoices = new List<string>();
     }
 
     public partial class MagistralaGame
@@ -99,6 +114,7 @@ namespace Magistrala.Game
             }
             else { S.jobTo = ""; S.job = null; }
             if (Phone) S.phone = Phone.Export();
+            SaveVehicles();
             try { System.IO.File.WriteAllText(savePath, JsonUtility.ToJson(S, true)); Debug.Log($"[save] {why}: {DayLabel}, stop {S.stop}, cash {S.cash:0.0} €"); }
             catch (Exception e) { Debug.LogWarning($"[save] failed: {e.Message}"); }
         }
@@ -109,10 +125,12 @@ namespace Magistrala.Game
         void RestoreFromSave()
         {
             var s = World.Stop(S.stop);
-            if (s != null && s.id != Warehouse) PlaceAtStop(s);
+            if (S.posOn && Galeb != null) PlacePose(Truck, new Vector3(S.posX, S.posY, S.posZ), S.posYaw); // exact (two vehicles may share a stop)
+            else if (s != null && s.id != Warehouse) PlaceAtStop(s);
             if (S.job != null && S.job.legs != null && S.job.legs.Count > 0 && S.job.leg < S.job.legs.Count && S.job.legs.TrueForAll(l => World.Stop(l.stop) != null))
             {
                 var j = Clone(S.job); j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
+                if (j.fatureta && j.loaded && !InGaleb) { Debug.LogWarning("[save] loaded fatureta but not in the Galeb: dropped"); S.job = null; return; }
                 Current = j; State = Phase.Driving;
                 SetPallets(j.loaded); if (j.loaded && Unload) Unload.SetDelivered(j.rowsOff);
                 int left = 0; for (int i = j.leg; i < j.legs.Count; i++) if (j.legs[i].K == 'd') left++;
@@ -282,14 +300,28 @@ namespace Magistrala.Game
             if (saveT <= 0) { saveT = 60; if (Truck.SpeedKmh < 1) SaveNow("periodic"); }
         }
 
-        /// N at the warehouse after the shift (or on a closed day): the next working day, 5:59 (weekends skipped: Galeb / family not in Unity yet)
+        /// N at the warehouse after the shift (or on a closed day), or at home in the yard: the next day — a weekday at 5:59,
+        /// Saturday at 7:59 (faturete only), Sunday skipped (family)
         void EndDay()
         {
-            int d = Day + 1; while (d % 7 >= 5) d++;
-            S.clockMin = d * 1440 + 5 * 60 + 59;
-            Banner($"Novi radni dan: {DayNames[d % 7]}. Kamion firme čeka u Lukšiću.");
+            int d = Day + 1; bool sunday = d % 7 == 6; if (sunday) d++;
+            bool sat = d % 7 == 5;
+            S.clockMin = d * 1440 + (sat ? 7 * 60 + 59 : 5 * 60 + 59);
+            DropOffers("end of day");
+            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. Atego čeka u Lukšiću.");
             Debug.Log($"[day] end of day → {DayLabel}");
             SaveNow("end of day");
+        }
+
+        /// N – end of the day at home: in the Bašić yard, free and stopped, outside the firm's hours (or a closed day / weekend)
+        void HomeEndDay(Keyboard kb, List<string> help, bool ringing)
+        {
+            var y = World.Stop(Yard);
+            if (y == null || Vector3.Distance(Flat(TruckCentre()), Flat(y.bay)) > 45 || Current != null) return;
+            if (FirmHours && S.closedDay != Day) return;
+            if (prompt == null) prompt = "Doma si · N – kraj dana";
+            help.Add("N kraj dana");
+            if (kb != null && !ringing && kb.nKey.wasPressedThisFrame && Truck.SpeedKmh < 3) EndDay();
         }
 
         /// web regions.ts: expected game minutes at ~55 km/h (realSec = m / 15.3, 0.5 game min / s) × 1.8 + 45
