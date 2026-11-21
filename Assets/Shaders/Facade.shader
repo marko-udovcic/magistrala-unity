@@ -48,7 +48,7 @@ Shader "Magistrala/Facade"
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
         // the plaster variants: metres per repeat (Poly Haven's real sizes, the 1 m ones a little larger against visible repeats)
-        static const float PTILE[9] = { 3.0, 1.5, 1.5, 4.0, 3.0, 2.0, 2.0, 2.5, 1.5 };
+        static const float PTILE[9] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2 };
         static const float PGLOSS[9] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08 };
         // roof layer: mean luminance 0.197 (linear) -> 0.40 (HouseBuilder.RoofTint)
         static const half ROOF_GREY = 2.03;
@@ -140,10 +140,11 @@ Shader "Magistrala/Facade"
             UNITY_BRANCH if (old && pl && camDist < 70)
             {
                 float2 pw = float2(input.uv.x, input.uv.y);
-                float pn = Noise(pw * float2(.55, .8) + 17.3) * .65 + Noise(pw * 2.3 + 4.1) * .35;
+                // small patches (~0.3-1 m), more of them low on the wall (splash, damp) than up high
+                float pn = Noise(pw * float2(1.3, 1.7) + 17.3) * .6 + Noise(pw * 4.1 + 4.1) * .4 + .1 * saturate(1 - input.data.y / 2.5);
                 float near = saturate((70 - camDist) / 20);
-                peel = saturate((pn - .69) * 18) * near;
-                peelRim = saturate(1 - abs(pn - .69) * 28) * near;
+                peel = saturate((pn - .8) * 22) * near;
+                peelRim = saturate(1 - abs(pn - .8) * 30) * near;
                 UNITY_BRANCH if (peel > 0.01)
                 {
                     float2 suv = input.uv / TILE[1];
@@ -206,7 +207,7 @@ Shader "Magistrala/Facade"
             half grime = vertical * saturate(dirt * saturate(blot * .5 + streak * eave * 2.0 + foot * .6) + drip * (.35 + .5 * dirt));
             // rising damp: a darker, slightly green-brown band at the foot of the wall, its top edge ragged (old houses higher)
             float dampTop = (.3 + .45 * Noise(float2(along * .6, 3.7)) + .2 * Noise(float2(along * 2.9, 8.1))) * (old ? 1.5 : .8) * (.5 + dirt);
-            half damp = vertical * saturate((dampTop - input.data.y) / .22) * (li == 2 ? 0 : 1);
+            half damp = vertical * saturate((dampTop - input.data.y) / .35) * (li == 2 ? 0 : 1) * .7;
             // rust runs under an AC unit / balcony slab (the overlay quad): the drip masks, narrowing downwards
             half rust = 0;
             if (rustQuad)
@@ -220,7 +221,7 @@ Shader "Magistrala/Facade"
                 albedo *= .94 + .12 * blot * vertical + .06 * (1 - vertical);
             albedo *= 1 - .42 * grime;
             albedo = lerp(albedo, albedo * half3(.92, .88, .8), grime * .6);
-            albedo *= 1 - .2 * damp; albedo = lerp(albedo, albedo * half3(.93, .95, .86), damp * .5);
+            albedo *= 1 - .14 * damp; albedo = lerp(albedo, albedo * half3(.94, .96, .88), damp * .5);
             albedo = lerp(albedo, albedo * half3(.62, .42, .27), rust * .75);
             // occlusion: baked reveals, a soft dark band at the foot of every wall (contact with the ground), under the eaves
             half contact = saturate(1 - input.data.y / .8); contact *= contact;

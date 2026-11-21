@@ -11,7 +11,7 @@ namespace Magistrala
     public class LightPreset : MonoBehaviour
     {
         [Header("noć (Shift+G, -night 1): the sunset sky darkened, a faint cool moonlight, the street lamps on")]
-        public float nightSky = .06f, nightSun = .06f, nightAmb = .12f, nightExposure = -.2f, nightReflect = .12f;
+        public float nightSky = .12f, nightSun = .1f, nightAmb = .35f, nightExposure = 0f, nightReflect = .15f;
         public Color moon = new Color(.62f, .72f, 1f);
         bool night; Material nightSky0; float dayRefl = 1;
         /// the street lamps' level (StreetLights): sunset .55 (they come on at dusk), night 1, day 0
@@ -34,7 +34,7 @@ namespace Magistrala
             public Color fog, sky, eq, ground, filter, sun, splitS, splitH; public Material skybox; public Texture[] probes;
         }
         S day; bool golden, ready; Light sun;
-        ColorAdjustments ca; WhiteBalance wb; Bloom bloom; SplitToning split; Vignette vig;
+        ColorAdjustments ca; WhiteBalance wb; Bloom bloom; SplitToning split; Vignette vig; ShadowsMidtonesHighlights smh; Vector4 smhShadows;
 
         void Start() => Init();
 
@@ -45,6 +45,7 @@ namespace Magistrala
             var vol = FindFirstObjectByType<Volume>();
             var prof = vol.profile; // runtime instance (never the asset)
             prof.TryGet(out ca); prof.TryGet(out wb); prof.TryGet(out bloom); prof.TryGet(out vig);
+            if (prof.TryGet(out smh)) smhShadows = smh.shadows.value;
             if (!prof.TryGet(out split)) { split = prof.Add<SplitToning>(); }
             split.active = true;
             Texture[] dayProbes = null;
@@ -98,6 +99,8 @@ namespace Magistrala
         void Apply(S s)
         {
             RenderSettings.reflectionIntensity = night ? nightReflect * dayRefl : dayRefl;
+            // the grade's shadow lift (+0.04) turns a night into a grey veil: blacks stay black at night
+            if (smh) smh.shadows.value = night ? new Vector4(smhShadows.x, smhShadows.y, smhShadows.z, -.02f) : smhShadows;
             transform.rotation = s.rot; sun.colorTemperature = s.temp; sun.intensity = s.intensity; sun.color = s.sun; sun.shadowStrength = s.shadowStr;
             RenderSettings.fogDensity = s.fogD; RenderSettings.fogColor = s.fog;
             RenderSettings.ambientSkyColor = s.sky; RenderSettings.ambientEquatorColor = s.eq; RenderSettings.ambientGroundColor = s.ground;

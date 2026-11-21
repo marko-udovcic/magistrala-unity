@@ -11,8 +11,8 @@ SRC = '/Users/macair/Documents/BalkanDriver/assets-src/polyhaven-zbuke/'
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'Assets', 'Textures', 'PolyHaven', 'zbuke') + '/'
 os.makedirs(OUT, exist_ok=True)
 # order = layer index in the _Plaster array (Magistrala/Facade, BuildingTextures.Plasters); contrast of the grey detail
-IDS = [('concrete_wall_003', .95), ('white_rough_plaster', 1.0), ('cracked_concrete_wall', 1.0), ('preconcrete_wall_001', .9),
-       ('beige_wall_002', .8), ('painted_plaster_wall', .85), ('yellow_plaster', .85), ('red_plaster_weathered', 1.0), ('grey_plaster_02', .95)]
+IDS = [('concrete_wall_003', .7), ('white_rough_plaster', .55), ('cracked_concrete_wall', .6), ('preconcrete_wall_001', .8),
+       ('beige_wall_002', .8), ('painted_plaster_wall', .85), ('yellow_plaster', .85), ('red_plaster_weathered', .8), ('grey_plaster_02', .65)]
 S = 1024
 alb, nor = [], []
 for i, (n, con) in enumerate(IDS):
@@ -20,6 +20,11 @@ for i, (n, con) in enumerate(IDS):
     a = np.asarray(d).astype(np.float32) / 255
     m = a.reshape(-1, 3).mean(0)
     lum = (.3 * a[..., 0] / m[0] + .59 * a[..., 1] / m[1] + .11 * a[..., 2] / m[2])
+    # the photos' big stains repeat visibly every tile on a long wall: 65 % of the luminance high-passed (structure over ~0.6 m
+    # removed; Magistrala/Facade adds its own non-repeating blotches), 35 % as photographed
+    from PIL import ImageFilter
+    lb = np.asarray(Image.fromarray(np.clip(lum * 100, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(S / 10))).astype(np.float32) / 100
+    lum = .35 * lum + .65 * lum / np.maximum(lb, .05)
     # large-scale luminance flattened a little (the shader adds its own blotches), detail kept at `con`
     v = .86 * (1 + (lum - 1) * con)
     # a little of the photo's own chroma (patches of an older coat), 25 %

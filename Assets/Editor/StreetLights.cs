@@ -330,7 +330,7 @@ namespace Magistrala.EditorTools
             var colCells = new Dictionary<(int, int), GameObject>();
             var poolMat = AssetDatabase.LoadAssetAtPath<Material>(LAMP_OUT + "/LightPool.mat");
             if (!poolMat) { poolMat = new Material(Shader.Find("Magistrala/LightPool")); AssetDatabase.CreateAsset(poolMat, LAMP_OUT + "/LightPool.mat"); }
-            sl.poolMat = poolMat;
+            poolMat.SetFloat("_Strength", .45f); EditorUtility.SetDirty(poolMat); sl.poolMat = poolMat;
             var lampColor = sl.lampColor;
             for (int i = 0; i < acc.Count; i++)
             {

@@ -67,7 +67,12 @@ namespace Magistrala.EditorTools
             }
             else
             {
-                var t = new Color(Mathf.Clamp01(r.lin.r / .71f), Mathf.Clamp01(r.lin.g / .71f), Mathf.Clamp01(r.lin.b / .71f)).gamma;
+                // the measured chroma is noisy (white balance from the asphalt, shade, sky light): a blue cast is almost always that
+                // (Kaštela has next to no blue houses), so the chroma is halved, a blue one cut to a fifth; the lightness is kept
+                var lin = r.lin; float L = .3f * lin.r + .59f * lin.g + .11f * lin.b;
+                float keep = lin.b > lin.r ? .2f : .5f;
+                lin = new Color(L + (lin.r - L) * keep, L + (lin.g - L) * keep, L + (lin.b - L) * keep);
+                var t = new Color(Mathf.Clamp01(lin.r / .71f), Mathf.Clamp01(lin.g / .71f), Mathf.Clamp01(lin.b / .71f)).gamma;
                 k.wall = Color.Lerp(t, k.wall, .08f); k.derelict = false;
                 if (k.family <= 1) k.trim = Color.white; else k.trim = Color.Lerp(k.wall, new Color(.87f, .85f, .81f), .55f);
                 if (r.type == "concrete" && !industrial) k.concrete = true;

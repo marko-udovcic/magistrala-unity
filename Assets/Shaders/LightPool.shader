@@ -5,7 +5,7 @@ Shader "Magistrala/LightPool"
 {
     Properties
     {
-        _Strength("Strength", Range(0, 2)) = .35
+        _Strength("Strength", Range(0, 2)) = .45
         _Level("Level (runtime)", Range(0, 1)) = 0
     }
     SubShader
