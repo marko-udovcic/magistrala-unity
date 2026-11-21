@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Magistrala.Game;
 using Magistrala.Traffic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -330,7 +331,7 @@ namespace Magistrala.EditorTools
         /// twoWay: the axis carries both directions (mag-11-19 old road, Cesta dr. F. Tuđmana: w 7, n 2): this corridor drives its one
         /// lane right of the axis, centre (w / n) / 2 — the w/2 − (k + ½)·w/n formula is for one-way carriageways; the other direction is
         /// the reversed chain
-        static TrafficCorridor Corridor(string name, List<(double x, double z, double w, int n, Piece pc)> pts, List<ModelJ> models, bool twoWay = false)
+        static TrafficCorridor Corridor(string name, List<(double x, double z, double w, int n, Piece pc)> pts, List<ModelJ> models, bool twoWay = false, float yStart = float.NaN)
         {
             // resample every STEP m along the polyline (w, n of the segment's start vertex)
             var P = new List<Vector2>(); var Wd = new List<float>(); var N = new List<int>(); var Pc = new List<Piece>();
@@ -382,7 +383,7 @@ namespace Magistrala.EditorTools
             // heights: model surface for the first sample, then raycasts on the road colliders following the previous height
             Physics.SyncTransforms();
             double y0 = double.NaN; foreach (var m in models) { y0 = m.Surface(S[0].x, S[0].y); if (!double.IsNaN(y0)) break; }
-            float yPrev = double.IsNaN(y0) ? 30 : (float)y0; int miss = 0;
+            float yPrev = !float.IsNaN(yStart) ? yStart : double.IsNaN(y0) ? 30 : (float)y0; int miss = 0;
             for (int i = 0; i < cnt; i++)
             {
                 var u = W.U(S[i].x, 0, S[i].y);
@@ -408,6 +409,43 @@ namespace Magistrala.EditorTools
             }
             Debug.Log($"[traffic] corridor {name}: {cnt} samples, {(cnt - 1) * STEP:F0} m, game x {S[0].x:F0} → {S[cnt - 1].x:F0}, lanes ≤ {maxL}, height misses {miss}");
             return cor;
+        }
+
+        /// a named road of the game graph as a corridor axis: from the node nearest `from` (game x, z), always the edge of that name
+        /// that continues straightest, up to game x `xEnd` (eastwards); w 7 / 2 lanes (two-way). yStart: the first point's height.
+        static List<(double x, double z, double w, int n, Piece pc)> GraphRoad(GameWorld gw, string name, Vector2 from, float xEnd, out float yStart, out float yEnd)
+        {
+            yStart = yEnd = float.NaN;
+            var inc = new List<int>[gw.nodes.Length]; for (int i = 0; i < inc.Length; i++) inc[i] = new List<int>();
+            for (int i = 0; i < gw.edges.Length; i++) { inc[gw.edges[i].a].Add(i); inc[gw.edges[i].b].Add(i); }
+            int cur = -1; float bd = 30;
+            for (int i = 0; i < gw.nodes.Length; i++) { float d = (W.G(gw.nodes[i]) - from).magnitude; if (d < bd) { bd = d; cur = i; } }
+            if (cur < 0) return null;
+            List<Vector2> Pts(int ei, int at) { var e = gw.edges[ei]; var l = new List<Vector2>(); for (int k = 0; k < e.pn; k++) l.Add(W.G(gw.pts[e.p0 + k])); if (e.b == at) l.Reverse(); return l; }
+            List<float> Ys(int ei, int at) { var e = gw.edges[ei]; var l = new List<float>(); for (int k = 0; k < e.pn; k++) l.Add(gw.pts[e.p0 + k].y); if (e.b == at) l.Reverse(); return l; }
+            var piece = new Piece { p = null, w = 7, n = 2, prof = null };
+            var outp = new List<Vector2>(); Vector2 dir = Vector2.right; int prev = -1; var seen = new HashSet<int>();
+            yStart = gw.nodes[cur].y;
+            for (int guard = 0; guard < 400; guard++)
+            {
+                int best = -1; float bc = prev < 0 ? -2 : .7f;
+                foreach (int ei in inc[cur])
+                {
+                    if (ei == prev || seen.Contains(ei) || gw.edges[ei].closed || !(gw.edges[ei].name ?? "").Contains(name)) continue;
+                    var q = Pts(ei, cur); if (q.Count < 2) continue;
+                    var t = (q[Mathf.Min(3, q.Count - 1)] - q[0]).normalized; float c = Vector2.Dot(t, dir);
+                    if (prev < 0) c = t.x; // the first edge: the eastward one
+                    if (c > bc) { bc = c; best = ei; }
+                }
+                if (best < 0) break;
+                var pts = Pts(best, cur); var ys = Ys(best, cur); seen.Add(best);
+                for (int k = outp.Count == 0 ? 0 : 1; k < pts.Count; k++) { if (pts[k].x > xEnd) { guard = 9999; break; } outp.Add(pts[k]); yEnd = ys[k]; }
+                if (outp.Count >= 2) dir = (outp[outp.Count - 1] - outp[Mathf.Max(0, outp.Count - 4)]).normalized;
+                prev = best; var e = gw.edges[best]; cur = e.a == cur ? e.b : e.a;
+                if (guard >= 9999) break;
+            }
+            Debug.Log($"[traffic] graph road {name}: {outp.Count} points, game x {(outp.Count > 0 ? outp[0].x : 0):F0} → {(outp.Count > 0 ? outp[outp.Count - 1].x : 0):F0}");
+            return outp.Select(q => ((double)q.x, (double)q.y, 7.0, 2, piece)).ToList();
         }
 
         // ------------------------------------------------------------------ signals
@@ -541,7 +579,28 @@ namespace Magistrala.EditorTools
                 cors[cors.Count - 1].deadEnd = s13 != null;
                 cors.Add(Corridor("Stara cesta zapad (Štafilić)", back, models, true));
             }
+            // Cesta dr. Franje Tuđmana east of the s13 gap (Lukšić node at game x −6052 → Kambelovac, Gomilica, Sućurac, to the world's
+            // east edge): two-way, from the game graph (GameWorld edges, the streets as StreetsBuilder draws them) — the AI on the main
+            // road of the signalised junctions without a model (semafori-bez-modela.json); the westbound end is the gap (closure)
+            var gwd = AssetDatabase.LoadAssetAtPath<GameWorld>("Assets/Generated/Game/Resources/" + GameWorld.ResourcePath + ".asset");
+            float tudY = float.NaN, tudY1 = float.NaN;
+            var tud = gwd ? GraphRoad(gwd, "Tuđmana", new Vector2(-6052.4f, -5036.1f), -430, out tudY, out tudY1) : null;
+            if (tud != null && tud.Count > 10)
+            {
+                var back = new List<(double x, double z, double w, int n, Piece pc)>(tud); back.Reverse();
+                cors.Add(Corridor("Tuđmana istok (Sućurac)", tud, models, true, tudY));
+                var w = Corridor("Tuđmana zapad (Lukšić)", back, models, true, tudY1);
+                w.deadEnd = true; cors.Add(w);
+            }
+            else Debug.LogWarning("[traffic] Tuđmana east of Lukšić: no GameWorld (run Igra: podaci) — corridor skipped");
             var (plans, stops) = Signals(models);
+            // the real signalised junctions without a model: generic plans, their stop lines
+            var extra = ExtraSignals.Load();
+            foreach (var j in extra)
+            {
+                int pi = plans.Count; plans.Add(j.plan);
+                foreach (var a in j.approaches) stops.Add((a.p, a.t, pi, a.group, j.key));
+            }
             foreach (var c in cors) PlaceStops(c, stops);
 
             string path = OUT + "/TrafficData.asset";

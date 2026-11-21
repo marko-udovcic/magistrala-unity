@@ -117,3 +117,24 @@ Snimke: `prije-01-A-ulica`, `prije-01-B-ulica`, `prije-20-A-ulica`, `prije-01-dr
    Pravilniku; provjeriti s fotografijama na terenu. Romb „cesta s prednošću“ uz glavne ceste izvan križanja nije postavljen.
 6. s04: model ima semafor, OSM ne – provjeriti na terenu.
 7. Kazna / posljedica za crveno (sad samo natpis).
+
+## 6. Semafori bez Markova modela (grana `semafori`)
+
+Sedam stvarnih semaforiziranih križanja koja nemaju model križanja (Marko ih je potvrdio fotografijama,
+`references/fotografije/semafori/1–7`; #6 je Street View – samo raspored). Podaci: `Assets/Editor/semafori-bez-modela.json`
+(generira `Tools/semafori/semafori_gen.py` iz GameWorld grafa, zebri pločica s06 / s13 i OSM `traffic_signals`), gradnja
+`SignsBuilder.Extra.cs` (Build signals), planovi i AI stop-crte `TrafficBuilder` (Build traffic).
+
+| # | ključ | prilazi (SG1 glavna, SG2 sporedna) | plan |
+|---|---|---|---|
+| 1 | semafor-s06 | Tuđmana Z / I (konzola, romb, pješački), Polinovac / Put blata (stup); ŠKOLA + X na kolniku oba glavna prilaza | 70 s, 2 faze |
+| 2 | semafor-s13 | Tuđmana Z (konzola), I prije zebre (konzola), prema I na zebri (stup), Put sv. Lovre (stup, Markova stop-crta) + pješački semafori na zebri | 80 s, + pješačka faza |
+| 3 | semafor-tamunic | Tuđmana Z / I (konzola s pločom ŠKOLA), Tamunić / Rubignonia (stup); 4 zebre, ŠKOLA + X; pješački semafori | 80 s, + pješačka faza |
+| 4 | semafor-putaljski | Tuđmana Z / I (konzola), Putaljski put (stup); 3 zebre; betonske polukugle na otoku | 70 s |
+| 5 | semafor-kambelovac | Tuđmana Z / I (konzola), fra F. Careva (stup); 3 zebre | 70 s |
+| 6 | semafor-gomilica-pomaknuto | Tuđmana Z (konzola, crveno-bijela zebra) / I (konzola), sjeverna i južna sporedna (stupovi, zajednička SG2) | 70 s |
+| 7 | semafor-gomilica-t | Tuđmana Z / I (konzola), Ulica kralja Krešimira (stup) | 70 s |
+
+Faze: zeleno, žuto 3 s, sve crveno 2 s, crveno-žuto 2 s; svaki plan ima pomak (`offset`) na zajedničkom satu.
+AI: novi koridori „Tuđmana istok / zapad“ (graf igre, od Lukšića x −6052 do x −430) voze glavnu cestu kroz 3–7; 1 i 2 su na
+staroj cesti. Sporedne ulice nemaju AI (kao i drugdje). Ulice 6 i 7 (sporedne) nisu u igri: samo stupovi sa semaforima, bez boje.

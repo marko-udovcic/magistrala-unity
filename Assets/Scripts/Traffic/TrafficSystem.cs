@@ -39,6 +39,8 @@ namespace Magistrala.Traffic
         public int Despawned { get; private set; }
         /// spawn attempts refused: 0 off the stretch, 1 in view, 2 spacing, 3 truck, 4 red light ahead
         public readonly int[] SpawnFails = new int[5];
+        /// stop lines passed by the cars, by the light shown (0 green, 1 amber, 2 red — must stay 0)
+        public readonly int[] StopPass = new int[3];
 
         public class Car
         {
@@ -278,6 +280,19 @@ namespace Magistrala.Traffic
                 sb.Append($" c{c} truck s {pS0[c]:F0}..{pS1[c]:F0} lat {pL0[c]:F1}..{pL1[c]:F1}:");
                 foreach (var o in byCorridor[c]) if (Mathf.Abs(o.s - pSc[c]) < 120) sb.Append($" [{o.s - pSc[c]:F0} L{o.lane}>{o.laneTo} lat {o.lat:F1} v {o.v * 3.6f:F0} stop {o.stopT:F0}]");
             }
+            // the stop lines within 150 m of the truck on every corridor: light, cars standing within 40 m before it
+            for (int c = 0; c < data.corridors.Length; c++)
+            {
+                var co = data.corridors[c]; if (co.stops == null || pFar[c] > 60) continue;
+                foreach (var st in co.stops)
+                {
+                    if (Mathf.Abs(st.s - pSc[c]) > 150) continue;
+                    int q = 0; float near = 1e9f;
+                    foreach (var o in byCorridor[c]) { float d = st.s - (o.s + o.len / 2); if (d > -1 && d < 40 && o.v < .5f) q++; if (d > -1) near = Mathf.Min(near, d); }
+                    sb.Append($" {{{co.name} {st.model} {st.group} {(LightAt(st) == 0 ? "zeleno" : LightAt(st) == 1 ? "žuto" : "crveno")} čeka {q} najbliži {(near < 1e8f ? near.ToString("F0") : "-")} m}}");
+                }
+            }
+            sb.Append($" prolazi zel/žu/crv {StopPass[0]}/{StopPass[1]}/{StopPass[2]}");
             return sb.ToString();
         }
 
@@ -315,7 +330,7 @@ namespace Magistrala.Traffic
         /// 0 green, 1 amber, 2 red, 3 red + amber (just before green: the cars treat it as red)
         int Light(int plan, string group)
         {
-            var p = data.plans[plan]; float u = ((clock % p.cycle) + p.cycle) % p.cycle;
+            var p = data.plans[plan]; float u = (((clock + p.offset) % p.cycle) + p.cycle) % p.cycle;
             foreach (var ph in p.phases)
             {
                 if (ph.group != group) continue;
@@ -410,7 +425,8 @@ namespace Magistrala.Traffic
                             if (d < -.5f) continue;
                             if (d > 150) break;
                             float l = LightAt(st);
-                            bool stop = l == 2 ? car.v * car.v / (2 * 7f) < d + 1.5f || car.v < 3 : l == 1 && car.v * car.v / (2 * 3f) < d;
+                            // amber: stop when it can comfortably, or when it could not clear the line before red (≤ 2.5 s left) — no dilemma zone
+                            bool stop = l == 2 ? car.v * car.v / (2 * 7f) < d + 1.5f || car.v < 3 : l == 1 && (car.v * car.v / (2 * 3f) < d || d > car.v * 2.5f);
                             if (stop && d < gap) { gap = Mathf.Max(d, 0); lv = 0; }
                             break;
                         }
@@ -423,6 +439,17 @@ namespace Magistrala.Traffic
                     float ds = (car.v + nv) * .5f * dt;
                     // hard clamp: never into the obstacle
                     if (ds > gap - .3f) { ds = Mathf.Max(0, gap - .3f); nv = Mathf.Min(nv, ds / dt); }
+                    if (signals && cor.stops != null && ds > 0)
+                    {
+                        // a stop line passed this step, by the light it showed (tests: a car never crosses on red)
+                        float f0 = car.s + car.len / 2 + 1.0f - .5f, f1 = f0 + ds;
+                        foreach (var st in cor.stops)
+                            if (st.s > f0 && st.s <= f1)
+                            {
+                                int l = (int)LightAt(st); StopPass[l]++;
+                                if (l == 2) Debug.LogWarning($"[traffic] auto prošao kroz crveno: {cor.name} {st.model} {st.group} s {st.s:F0} v {car.v * 3.6f:F0} km/h");
+                            }
+                    }
                     car.v = nv; car.s += ds; car.wheelAng += ds;
                     car.stopT = car.v < .3f ? car.stopT + dt : 0;
                     // lane keeping / changing
