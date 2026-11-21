@@ -68,7 +68,7 @@ namespace Magistrala.Traffic
     public class TrafficPhase { public string group; public float g0, g1, y0, y1; /** red + amber before green (−1 none) */ public float r0 = -1, r1 = -1; }
 
     [Serializable]
-    public class TrafficPlan { public string key; public float cycle; public TrafficPhase[] phases; }
+    public class TrafficPlan { public string key; public float cycle; public TrafficPhase[] phases; /** shifts the plan on the shared clock (s) */ public float offset; }
 
     public class TrafficData : ScriptableObject
     {

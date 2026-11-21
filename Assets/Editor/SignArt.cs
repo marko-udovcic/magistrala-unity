@@ -391,6 +391,27 @@ namespace Magistrala.EditorTools
             return cv;
         });
 
+        /// the "ŠKOLA" plate on a school junction's cantilever (owner's photo 3): white, thin red rim, red capitals
+        public string SchoolPlate() => Add("school", () =>
+        {
+            int pw = 320, ph = 112; var cv = new SignCanvas(pw, ph);
+            cv.Fill(Sd.Box(pw / 2f, ph / 2f, pw / 2f - 1, ph / 2f - 1, 6), White);
+            cv.Fill((x, y) => Mathf.Abs(Sd.Box(pw / 2f, ph / 2f, pw / 2f - 6, ph / 2f - 6, 4)(x, y)) - 2.2f, Red);
+            font.Centred(cv, "ŠKOLA", pw / 2f, ph / 2f + 25, 50, pw - 40, Red);
+            return cv;
+        });
+        /// road text (white paint, transparent around): drawn on a long quad lying on the lane, so the letters come out elongated
+        /// along the travel direction as painted ones are (the quad's "up" is the travel direction)
+        public string RoadText(string text) => Add("road:" + text, () =>
+        {
+            int pw = 512, ph = 256; var cv = new SignCanvas(pw, ph);
+            cv.Clear(new Color(PaintWhite.r, PaintWhite.g, PaintWhite.b, 0));
+            float cap = 170, w = font.Width(text, cap); if (w > pw - 20) cap *= (pw - 20) / w;
+            font.Draw(cv, text, pw / 2f - font.Width(text, cap) / 2, ph / 2f + cap * .6f, cap, PaintWhite);
+            return cv;
+        });
+        public static readonly Color PaintWhite = Hex("e9e8e2"), PaintRed = Hex("b3362c"), Concrete = Hex("bcb8ae");
+
         /// street-name plate: blue, white border and text
         public string Street(string name) => Add("street:" + name, () =>
         {

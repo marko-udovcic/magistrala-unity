@@ -15,7 +15,9 @@
 //   direction boards  the research package's roadside boards and truck-weight discs (road-signs.json);
 //   place names       where a numbered road or the old road crosses a settlement boundary (GameWorld place grid, OSM boundaries):
 //                     the entry board of the place ahead, its "end of place" board on the back;
-//   street names      a blue plate on the corner of every named street that meets another one (not on the D8).
+//   street names      a blue plate on the corner of every named street that meets another one (not on the D8);
+//   no-model signals  the real signalised junctions without a junction model (SignsBuilder.Extra.cs, semafori-bez-modela.json):
+//                     cantilevers / posts with heads, plates, pedestrian heads, painted stop lines, zebras, ŠKOLA / X markings.
 // Static geometry is merged per 256 m chunk into one mesh with one material (the sign atlas, SignArt.cs: faces, steel, black);
 // poles, posts and bollards get box colliders.
 using System;
@@ -30,7 +32,7 @@ using UnityEngine;
 
 namespace Magistrala.EditorTools
 {
-    public static class SignsBuilder
+    public static partial class SignsBuilder
     {
         const string GEN = WorldBuilder.GEN;
         const float CH = 256;
@@ -443,6 +445,7 @@ namespace Magistrala.EditorTools
                 var p = W.U(st.p.x, m != null ? m.y : 0, st.p.y); p.y = Ground(p, p.y, out _);
                 res.Add(new TrafficSignals.Line { p = p, dir = new Vector3(st.dir.x, 0, -st.dir.y).normalized, hw = w / 2, planKey = plans[st.plan].key, group = st.group });
             }
+            res.AddRange(ExtraLines());
             return res;
         }
         static float LaneGap(float[] lanes, int i, float span)
@@ -579,6 +582,7 @@ namespace Magistrala.EditorTools
                     var nu = W.U(n.x, n.y, n.z);
                     if (n.x < WorldData.MIN_X || n.x > -300 || n.z < -7000 || n.z > -3000) continue;
                     if (InSignalModel(nu, models, sigs)) continue;
+                    if (NearExtraJunction(nu, 15)) continue; // a signalised junction without a model (semafori-bez-modela.json)
                     // the crossing road's half width: the widest other edge at the node
                     float cross = 3.5f;
                     foreach (var o in edges.Values) if ((o.a == n.id || o.b == n.id) && o.id != e.id) cross = Mathf.Max(cross, o.width > 0 ? (float)o.width / 2 : (o.oneway ? 3.5f : 3.2f));
@@ -612,6 +616,7 @@ namespace Magistrala.EditorTools
                 {
                     var t = DirU(st.a); var right = Vector3.Cross(Vector3.up, t);
                     var c = W.U(st.p.x, m.y, st.p.y);
+                    if (NearExtraStop(c, 6)) continue; // now signalised (semafori-bez-modela.json: s13's Put sv. Lovre)
                     string kind = "STOP";
                     foreach (var k in ctl) if ((k.node - c).magnitude < 40 && Vector3.Dot(k.t, t) > .8f) { kind = k.c == "stop" ? "STOP" : "trokut (prednost prolaska)"; break; }
                     var q2 = Clear(c + right * (st.w / 2 + .7f), right);
@@ -831,7 +836,7 @@ namespace Magistrala.EditorTools
         public static string Build(TrafficSystem ts, Material lensOff, out List<TrafficSignals.Head> outHeads, Transform signalsRoot)
         {
             counts.Clear(); log.Clear(); placed.Clear();
-            chunks = new Dictionary<Vector2Int, Chunk>(); cols = new List<(Vector3, Quaternion, Vector3)>();
+            chunks = new Dictionary<Vector2Int, Chunk>(); decals = new Dictionary<Vector2Int, Chunk>(); cols = new List<(Vector3, Quaternion, Vector3)>();
             heads = new List<TrafficSignals.Head>();
             if (!AssetDatabase.IsValidFolder(SignAtlas.DIR)) AssetDatabase.CreateFolder(GEN, "Signs");
             if (!AssetDatabase.IsValidFolder(SignAtlas.DIR + "/Meshes")) AssetDatabase.CreateFolder(SignAtlas.DIR, "Meshes");
@@ -848,11 +853,12 @@ namespace Magistrala.EditorTools
             // pass 1 (dry): every face gets painted (A.uv filled by a provisional pack) — pass 2 builds the geometry with the real uv
             for (int pass = 0; pass < 2; pass++)
             {
-                chunks.Clear(); cols.Clear(); heads.Clear(); placed.Clear(); counts.Clear(); log.Clear(); where.Clear();
+                chunks.Clear(); decals.Clear(); cols.Clear(); heads.Clear(); placed.Clear(); counts.Clear(); log.Clear(); where.Clear();
                 A.Solid("steel", SignAtlas.Steel); A.Solid("black", SignAtlas.Dark); A.Solid("white", SignAtlas.White); A.BollardStripes();
                 A.Solid("lens", SignAtlas.Hex("121212"));
                 rSteel = R("solid:steel"); rBlack = R("solid:black"); rWhite = R("solid:white"); rBollard = R("bollard"); rLens = R("solid:lens");
                 BuildSignals(models, sigs, groupStops);
+                BuildExtraSignals();
                 FallbackHeads(ts.data);
                 BuildApproachSigns(models, sigs);
                 BuildCrossingSigns(models, sigs);
@@ -875,6 +881,18 @@ namespace Magistrala.EditorTools
                 AssetDatabase.CreateAsset(mesh, $"{SignAtlas.DIR}/Meshes/{mesh.name}.asset");
                 var go = new GameObject(mesh.name); go.transform.SetParent(root.transform, false); go.isStatic = true;
                 go.AddComponent<MeshFilter>().sharedMesh = mesh; var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mat;
+                tris += c.t.Count / 3;
+            }
+            // road markings (no shadows: a few cm above the asphalt)
+            foreach (var kv in decals)
+            {
+                var c = kv.Value; if (c.t.Count == 0) continue;
+                var mesh = new Mesh { name = $"marks_{kv.Key.x}_{kv.Key.y}" };
+                mesh.SetVertices(c.v); mesh.SetNormals(c.n); mesh.SetUVs(0, c.uv); mesh.SetTriangles(c.t, 0); mesh.RecalculateBounds(); mesh.RecalculateTangents();
+                AssetDatabase.CreateAsset(mesh, $"{SignAtlas.DIR}/Meshes/{mesh.name}.asset");
+                var go = new GameObject(mesh.name); go.transform.SetParent(root.transform, false); go.isStatic = true;
+                go.AddComponent<MeshFilter>().sharedMesh = mesh; var r = go.AddComponent<MeshRenderer>(); r.sharedMaterial = mat;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 tris += c.t.Count / 3;
             }
             var colRoot = new GameObject("colliders"); colRoot.transform.SetParent(root.transform, false); colRoot.isStatic = true;
