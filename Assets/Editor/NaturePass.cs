@@ -367,7 +367,8 @@ namespace Magistrala.EditorTools
                         float hy = H(gx, gz); if (hy > 420) continue;
                         float sp = hy < 120 ? 5.5f : 14f;
                         if (Near(g2, sp)) continue;
-                        if (WorldData.SurfDist(models, gx, gz) < 1.2 || StreetsBuilder.Covered(gx, gz, 1)) continue;
+                        // (3 m off a street's / model's paving: a face sunk 1 m and scaled up to 1.1 sticks out ~2 m downhill)
+                        if (WorldData.SurfDist(models, gx, gz) < 3 || StreetsBuilder.Covered(gx, gz, 3)) continue;
                         // not on the shore / riva (the terrain is cut down under the photo sea and by the sea wall there), not on a house plot
                         if (hy < 2 || RivaBuilder.Class(gx, gz) != 0 || RivaBuilder.Class(gx + 4, gz) != 0 || RivaBuilder.Class(gx - 4, gz) != 0 || RivaBuilder.Class(gx, gz + 4) != 0 || RivaBuilder.Class(gx, gz - 4) != 0) continue;
                         if (WorldData.FootDist(models, gx, gz) < 2.5) continue;
