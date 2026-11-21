@@ -1,7 +1,8 @@
 // The D8 central median as in Kaštela: a dense oleander hedge (pink and white, 1.5–2 m) with shrubs and dry grass at its base.
 // The median of Marko's D8 tiles is not a mesh of its own (the tiles' "ground" between the two carriageways), so it is found on a
 // 0.5 m grid: a cell off the asphalt with the D8's asphalt both north and south of it within MAXW (two carriageways, a strip
-// between). Junction openings and median crossings are asphalt, so the hedge stops there by itself.
+// between). Junction openings and median crossings are asphalt, so the hedge stops there by itself. The whole D8 in Kaštela
+// (Štafilić → Sućurac) is scanned in 200 m chunks along x, each in a narrow z window around the D8 line.
 // Plants are TreeRenderer prototypes (instanced, a cheap far mesh, short draw distance): Plants is the list of (prototype, weight);
 // a new plant (e.g. another Tripo shrub) is one more entry here + one Proto in Protos().
 using System;
@@ -15,8 +16,19 @@ namespace Magistrala.EditorTools
 {
     public static class MedianHedge
     {
-        /// probe stretch of the D8 (game x), Lukšić warehouse ± 500 m; widen to extend
-        public static double X0 = -7250, X1 = -6250, Z0 = -5700, Z1 = -5500;
+        /// the D8 through Kaštela (game x): Štafilić (čvor 41) to Sućurac (05); the scan runs in CHUNK m pieces along x, each in a
+        /// z window of ±HALF m around the D8 line (its section / junction models' centres)
+        public static double X0 = -9600, X1 = -420;
+        const double CHUNK = 200, HALF = 45;
+        /// the D8's models (dionice d01–d25, the junctions on it): their centres give the D8 line
+        static readonly string[] D8Keys =
+        {
+            "krizanje-41", "dionica-d22", "krizanje-43", "dionica-d23", "krizanje-45", "dionica-d24", "dionica-d25", "krizanje-47",
+            "dionica-d16", "dionica-d17", "dionica-d18", "dionica-d19", "dionica-d20", "dionica-d21", "krizanje-01",
+            "dionica-d01", "dionica-d02", "dionica-d03", "dionica-d04", "dionica-d05", "dionica-d06", "krizanje-51",
+            "dionica-d07", "dionica-d08", "dionica-d09", "krizanje-02", "dionica-d10", "krizanje-53", "dionica-d11", "krizanje-54",
+            "dionica-d12", "krizanje-03", "dionica-d13", "dionica-d14", "krizanje-04", "dionica-d15", "krizanje-05",
+        };
         const double STEP = .5, MAXW = 9, KERB = .3;
         /// the hedge's plants: weight = share of the hedge's main slots (oleanders) / of the fill slots (shrubs) / base (grass)
         public static readonly (string id, string slot, float weight)[] Plants =
@@ -118,14 +130,34 @@ namespace Magistrala.EditorTools
 
         public static int Place(PutFn put, List<ModelJ> all)
         {
-            var models = all.FindAll(m => m.x + m.half > X0 && m.x - m.half < X1);
-            int nx = (int)((X1 - X0) / STEP), nz = (int)((Z1 - Z0) / STEP);
+            var line = all.Where(m => D8Keys.Contains(m.key)).Select(m => (x: m.x, z: m.z)).OrderBy(p => p.x).ToList();
+            if (line.Count < 2) { Debug.LogWarning("[priroda] median: no D8 models"); return 0; }
+            double Zc(double x)
+            {
+                if (x <= line[0].x) return line[0].z; if (x >= line[line.Count - 1].x) return line[line.Count - 1].z;
+                int k = 1; while (line[k].x < x) k++;
+                double t = (x - line[k - 1].x) / Math.Max(1e-6, line[k].x - line[k - 1].x); return line[k - 1].z + (line[k].z - line[k - 1].z) * t;
+            }
+            var rnd = new System.Random(4711); int n = 0, cells = 0; double lastMain = -1e9;
+            for (double cx = X0; cx < X1; cx += CHUNK)
+            {
+                double cx1 = Math.Min(X1, cx + CHUNK);
+                double za = Math.Min(Math.Min(Zc(cx), Zc(cx1)), Zc((cx + cx1) / 2)) - HALF, zb = Math.Max(Math.Max(Zc(cx), Zc(cx1)), Zc((cx + cx1) / 2)) + HALF;
+                n += Chunk(put, all, cx, cx1, za, zb, rnd, ref lastMain, ref cells);
+            }
+            Debug.Log($"[priroda] median: {cells} cells of 0.5 m, {n} plants (x {X0}…{X1}, D8 line from {line.Count} models)");
+            return n;
+        }
+
+        static int Chunk(PutFn put, List<ModelJ> all, double X0, double X1, double Z0, double Z1, System.Random rnd, ref double lastMain, ref int cells)
+        {
+            var models = all.FindAll(m => m.x + m.half + 25 > X0 && m.x - m.half - 25 < X1 && m.z + m.half + 25 > Z0 && m.z - m.half - 25 < Z1);
+            int nx = (int)Math.Round((X1 - X0) / STEP), nz = (int)((Z1 - Z0) / STEP);
             bool Asph(double x, double z) => LaneProfile.OnAsphalt(models, x, z);
             // column scan (x fixed): asphalt runs along z; a median cell has asphalt north and south within MAXW total
             var asph = new bool[nx, nz];
             for (int i = 0; i < nx; i++) for (int j = 0; j < nz; j++) asph[i, j] = Asph(X0 + (i + .5) * STEP, Z0 + (j + .5) * STEP);
             var edge = new float[nx, nz]; // distance to the nearest asphalt along the column (m), 0 off the median
-            int cells = 0;
             for (int i = 0; i < nx; i++)
                 for (int j = 0; j < nz; j++)
                 {
@@ -139,7 +171,7 @@ namespace Magistrala.EditorTools
                     if (ka < 10 || kb < 10) continue;
                     edge[i, j] = (float)Math.Min((j - a) * STEP, (b - j) * STEP); cells++;
                 }
-            var rnd = new System.Random(4711); int n = 0;
+            int n = 0;
             float Pick(string slot, out string id)
             {
                 var opts = Plants.Where(p => p.slot == slot).ToArray(); float tot = opts.Sum(p => p.weight), r = (float)rnd.NextDouble() * tot;
@@ -148,7 +180,6 @@ namespace Magistrala.EditorTools
             }
             double Y(double x, double z) { double h = Tiles.Height(x, z); var q = WorldData.ModelTerrain(models, x, z, 2, h); return q ?? h; }
             // along each median column: the centre cell (max edge distance) gets the hedge; walk x, a main plant every ~1.3 m
-            double lastMain = -1e9;
             for (int i = 0; i < nx; i++)
             {
                 double x = X0 + (i + .5) * STEP;
@@ -182,7 +213,6 @@ namespace Magistrala.EditorTools
                     j = j1;
                 }
             }
-            Debug.Log($"[priroda] median: {cells} cells of 0.5 m, {n} plants (x {X0}…{X1})");
             return n;
         }
     }

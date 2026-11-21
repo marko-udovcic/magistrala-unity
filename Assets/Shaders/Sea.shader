@@ -7,6 +7,8 @@ Shader "Magistrala/Sea"
         _NormalScale2("Second Normal Tile Size (m)", Float) = 11
         _Speed1("First Scroll Speed (tiles/s, XY)", Vector) = (0.020,0.012,0,0)
         _Speed2("Second Scroll Speed (tiles/s, XY)", Vector) = (-0.015,0.025,0,0)
+        _Speed1b("First Layer, Crossing Copy Speed (tiles/s, XY)", Vector) = (-0.022,0.027,0,0)
+        _Speed2b("Second Layer, Crossing Copy Speed (tiles/s, XY)", Vector) = (0.08,0.03,0,0)
         _NormalScale3("Third Normal Tile Size (m)", Float) = 97
         _Speed3("Third Scroll Speed (tiles/s, XY)", Vector) = (0.006,-0.009,0,0)
         _DetailFade("Small Waves Fade Out (m from camera: start, end)", Vector) = (80,1400,0,0)
@@ -19,7 +21,7 @@ Shader "Magistrala/Sea"
         _SunSpecPower("Sun Glint Exponent", Float) = 900
         [MainColor] _Tint("Body Colour Multiplier", Color) = (1,1,1,1)
         _FoamShore("Shore Foam (reserved)", Range(0,1)) = 0
-        _Swell("Soft Swell: slope, wavelength (m), speed (m/s), second-wave angle (rad)", Vector) = (0.035, 26, 1.6, 0.6)
+        _Swell("Soft Swell: slope, wavelength (m), speed (m/s), second-wave angle (rad)", Vector) = (0.06, 20, 5.5, 0.6)
     }
     SubShader
     {
@@ -37,6 +39,8 @@ Shader "Magistrala/Sea"
             float4 _Speed1;
             float4 _Speed2;
             float4 _Speed3;
+            float4 _Speed1b;
+            float4 _Speed2b;
             float4 _DetailFade;
             float4 _MacroWarp;
             float _NormalScale3;
@@ -115,15 +119,24 @@ Shader "Magistrala/Sea"
             // small waves fade with distance (their tiling and shimmer are what shows from far / above), big swell stays
             float fSmall = lerp(1.0, 0.15, smoothstep(_DetailFade.x, _DetailFade.y, dist));
             float fMid = lerp(1.0, 0.45, smoothstep(_DetailFade.y * 0.5, _DetailFade.y * 6.0, dist));
-            float2 xy = WaveXY(p, _NormalScale1, 0.35, _Speed1.xy, _NormalStrength * macro * fMid)
-                      + WaveXY(p, _NormalScale2, -0.83, _Speed2.xy, _NormalStrength * fSmall)
+            // each ripple layer = two copies at slightly different tile sizes and angles scrolling in crossing directions: their sum
+            // changes shape over time (waves form and fade) instead of one sheet sliding — the sea reads as moving, not static
+            float2 xy = (WaveXY(p, _NormalScale1, 0.35, _Speed1.xy, _NormalStrength * macro * fMid)
+                       + WaveXY(p, _NormalScale1 * 0.79, 2.45, _Speed1b.xy, _NormalStrength * macro * fMid)) * 0.72
+                      + (WaveXY(p, _NormalScale2, -0.83, _Speed2.xy, _NormalStrength * fSmall)
+                       + WaveXY(p, _NormalScale2 * 0.77, 1.63, _Speed2b.xy, _NormalStrength * fSmall)) * 0.72
                       + WaveXY(p, _NormalScale3, 1.21, _Speed3.xy, _NormalStrength * 0.8 * macro);
-            // soft swell: two long, slow sine wavelets (a light-breeze bay: visible movement, no real waves), fading far away
+            // light swell: three long wavelets travelling roughly together (a bay with a light breeze: slow broad undulation, no
+            // regular sine pattern), fading far away
             float2 d1 = float2(0.8, 0.6), d2 = float2(cos(_Swell.w) * 0.8 - sin(_Swell.w) * 0.6, sin(_Swell.w) * 0.8 + cos(_Swell.w) * 0.6);
-            float k1 = 6.2831853 / max(_Swell.y, 1.0), k2 = k1 * 1.37;
+            float2 d3 = float2(cos(-0.45) * 0.8 - sin(-0.45) * 0.6, sin(-0.45) * 0.8 + cos(-0.45) * 0.6);
+            float k1 = 6.2831853 / max(_Swell.y, 1.0), k2 = k1 * 1.37, k3 = k1 * 0.71;
             float fSwell = lerp(1.0, 0.25, smoothstep(_DetailFade.x, _DetailFade.y, dist));
-            xy += (d1 * cos(dot(d1, input.positionWS.xz) * k1 - _Time.y * _Swell.z * k1)
-                 + d2 * 0.7 * cos(dot(d2, input.positionWS.xz) * k2 - _Time.y * _Swell.z * 0.9 * k2)) * _Swell.x * fSwell;
+            float2 ws = input.positionWS.xz;
+            // phase speed of each wavelet ~ sqrt(wavelength) (deep water), _Swell.z for the first
+            xy += (d1 * cos(dot(d1, ws) * k1 - _Time.y * _Swell.z * k1)
+                 + d2 * 0.7 * cos(dot(d2, ws) * k2 - _Time.y * _Swell.z * 0.854 * k2 + 1.7)
+                 + d3 * 0.6 * cos(dot(d3, ws) * k3 - _Time.y * _Swell.z * 1.187 * k3 + 4.1)) * _Swell.x * fSwell;
             float3 normalTS = normalize(float3(xy, 1.0));
             float3 n = normalize(input.normalWS);
             // World X/Z mapping: +normal-map X points +world X, +Y points +world Z.
@@ -225,7 +238,9 @@ Shader "Magistrala/Sea"
         {
             UNITY_SETUP_INSTANCE_ID(input);
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-            float3 n = SurfaceNormalWS(input);
+            // flat water for the depth-normals (SSAO): the ripple normals made SSAO darken whole stretches of water (the harbour
+            // basin, near the camera) and cost 7 texture reads more
+            float3 n = normalize(input.normalWS);
             #if defined(_GBUFFER_NORMALS_OCT)
                 float2 oct = PackNormalOctQuadEncode(n);
                 return half4(PackFloat2To888(saturate(oct * 0.5 + 0.5)), 0.0);

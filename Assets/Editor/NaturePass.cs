@@ -1,5 +1,5 @@
-// Priroda (probe): NatureManufacture "Coast & Dunes Environment – Dynamic Nature" (Unity Asset Store, Standard EULA; the package folder
-// Assets/NatureManufacture Assets is NOT in git, docs/priroda.md) on the ground and plants of the probe boxes, as hooks in the existing
+// Priroda: NatureManufacture "Coast & Dunes Environment – Dynamic Nature" (Unity Asset Store, Standard EULA; the package folder
+// Assets/NatureManufacture Assets is NOT in git, docs/priroda.md) on the ground and plants of all of Kaštela (NaturePass.Boxes), as hooks in the existing
 // builders, so a rebuild reproduces it:
 //   Build terrain          tiles touching a box get 4 package-based layers in our order (dry scrub ground, brown soil, our limestone
 //                          rock, pale stony gravel) — the splat logic and the orthophoto macro tint (OrthoGround) stay as they are
@@ -27,11 +27,11 @@ namespace Magistrala.EditorTools
         /// the package is present (it is not in git): without it every hook leaves our build unchanged
         public static bool On => AssetDatabase.IsValidFolder(PKG);
 
-        /// probe boxes, game frame (x0, z0, x1, z1); widen / add boxes to extend (all of Kaštela: one box over the region)
+        /// boxes, game frame (x0, z0, x1, z1) where the pass applies: all of Kaštela = the playable core tiles (WorldBuilder TX0…TX1,
+        /// TZ0…TZ1: Štafilić / D409 west of game x −9600 to Sućurac, the coast up the Kozjak slope); add a box to extend (Split)
         public static readonly (double x0, double z0, double x1, double z1)[] Boxes =
         {
-            (-7250, -6700, -6250, -5470),   // Kaštel Lukšić: the warehouse, the slope north of the D8 up toward Kozjak (to ~150 m)
-            (-8000, -5800, -7500, -5540),   // junction 47 (Kaštel Stari): the D8 cut and Zagorski put
+            (WorldBuilder.TX0 * 1024, WorldBuilder.TZ0 * 1024, (WorldBuilder.TX1 + 1) * 1024, (WorldBuilder.TZ1 + 1) * 1024),
         };
         public static bool In(double gx, double gz, double pad = 0)
         {
@@ -336,11 +336,23 @@ namespace Magistrala.EditorTools
             var src = CliffSrc.Select(n => Load<GameObject>(CE + "Cliffs/Prefabs/" + n + ".prefab")).Where(g => g).ToList();
             if (src.Count == 0) return "no cliffs; ";
             var terrains = UnityEngine.Object.FindObjectsByType<Terrain>(FindObjectsSortMode.None);
-            float H(double gx, double gz) { var u = W.U(gx, 0, gz); foreach (var t in terrains) { var p = t.transform.position; var s = t.terrainData.size; if (u.x >= p.x && u.x < p.x + s.x && u.z >= p.z && u.z < p.z + s.z) return t.SampleHeight(u) + p.y; } return float.NaN; }
+            // terrain by tile (the core of all Kaštela: millions of samples, a linear search over ~70 terrains per sample was minutes)
+            var byTile = new Dictionary<(int, int), Terrain>();
+            foreach (var t in terrains) { var parts = t.name.Split(' '); if (parts.Length < 2) continue; var q = parts[1].Split(','); if (q.Length == 2 && int.TryParse(q[0], out int ttx) && int.TryParse(q[1], out int ttz)) byTile[(ttx, ttz)] = t; }
+            float H(double gx, double gz) { if (!byTile.TryGetValue(((int)Math.Floor(gx / 1024), (int)Math.Floor(gz / 1024)), out var t)) return float.NaN; var u = W.U(gx, 0, gz); return t.SampleHeight(u) + t.transform.position.y; }
             var models = WorldData.Models();
             var grp = new GameObject("cliffs"); grp.transform.SetParent(parent, false); grp.isStatic = true;
             var mats = new Dictionary<Material, Material>();
-            var placed = new List<Vector2>(); int n = 0;
+            var grid = new Dictionary<(int, int), List<Vector2>>(); int n = 0;
+            (int, int) Key(Vector2 p) => ((int)Math.Floor(p.x / 16), (int)Math.Floor(p.y / 16));
+            void Add(Vector2 p) { var k = Key(p); if (!grid.TryGetValue(k, out var l)) grid[k] = l = new List<Vector2>(); l.Add(p); }
+            bool Near(Vector2 p, float r)
+            {
+                var k = Key(p);
+                for (int a = -1; a <= 1; a++) for (int b = -1; b <= 1; b++)
+                        if (grid.TryGetValue((k.Item1 + a, k.Item2 + b), out var l)) foreach (var q in l) if ((q - p).sqrMagnitude < r * r) return true;
+                return false;
+            }
             foreach (var b in Boxes)
                 for (double gz = b.z0; gz < b.z1; gz += 3)
                     for (double gx = b.x0; gx < b.x1; gx += 3)
@@ -350,13 +362,20 @@ namespace Magistrala.EditorTools
                         var grad = new Vector2(c - a, e - d) / 4f; float slope = grad.magnitude;   // rise per metre
                         if (slope < .55f) continue;                                                  // ≥ ~29°: cut faces, steep banks, embankments
                         var g2 = new Vector2((float)gx, (float)gz);
-                        if (placed.Any(p => (p - g2).sqrMagnitude < 5.5f * 5.5f)) continue;
+                        // spacing: 5.5 m low down (road cuts, banks seen from the cab), sparser up the Kozjak slope (seen from far: a
+                        // face every ~14 m reads the same and keeps the object count down), none above 420 m (out of the playable view)
+                        float hy = H(gx, gz); if (hy > 420) continue;
+                        float sp = hy < 120 ? 5.5f : 14f;
+                        if (Near(g2, sp)) continue;
                         if (WorldData.SurfDist(models, gx, gz) < 1.2 || StreetsBuilder.Covered(gx, gz, 1)) continue;
+                        // not on the shore / riva (the terrain is cut down under the photo sea and by the sea wall there), not on a house plot
+                        if (hy < 2 || RivaBuilder.Class(gx, gz) != 0 || RivaBuilder.Class(gx + 4, gz) != 0 || RivaBuilder.Class(gx - 4, gz) != 0 || RivaBuilder.Class(gx, gz + 4) != 0 || RivaBuilder.Class(gx, gz - 4) != 0) continue;
+                        if (WorldData.FootDist(models, gx, gz) < 2.5) continue;
                         var pf = src[Mathf.Min(src.Count - 1, (int)(R01(gx, gz, 31) * src.Count))];
                         var go = (GameObject)PrefabUtility.InstantiatePrefab(pf, grp.transform);
                         // face out of the slope (downhill), sunk into it
                         var down = new Vector3(-grad.x, 0, grad.y).normalized; // game z → unity -z
-                        float y = H(gx, gz);
+                        float y = hy;
                         go.transform.position = W.U(gx, y - 1.2, gz) - down * 1.0f;
                         go.transform.rotation = Quaternion.LookRotation(down, Vector3.up) * Quaternion.Euler(0, R01(gx, gz, 33) * 20 - 10, 0);
                         float sc = Mathf.Clamp(slope * .6f, .55f, 1.1f) * (.85f + .3f * R01(gx, gz, 34)); go.transform.localScale = Vector3.one * sc;
@@ -367,7 +386,7 @@ namespace Magistrala.EditorTools
                         }
                         foreach (var col in go.GetComponentsInChildren<Collider>()) UnityEngine.Object.DestroyImmediate(col);
                         GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
-                        placed.Add(g2); n++;
+                        Add(g2); n++;
                     }
             return $"cliffs {n}; ";
         }
