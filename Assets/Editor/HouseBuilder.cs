@@ -793,8 +793,19 @@ namespace Magistrala.EditorTools
         }
 
         // ---- clutter (TIPOLOGIJA 6 / 9.7): AC units, meter box, cables, satellite dish, chimneys, antennas, roof terraces
+        /// AcModel: the AC units are the Tripo model (klima.glb, 0.80 x 0.56 x 0.30 m, instanced by BuildingsFromTiles through a
+        /// TreeRenderer) instead of boxes: AcSpots gets the unit's bottom-centre against the wall (Unity) and its outward normal
+        public static bool AcModel;
+        public static readonly List<(Vector3 p, Vector3 n)> AcSpots = new List<(Vector3, Vector3)>();
         static void AcUnit(HouseGeo g, Facade f, float x, float y)
         {
+            if (AcModel)
+            {
+                if (Lod == 0) AcSpots.Add((f.P(x, y, 0), f.outward));
+                detailTint = new Color(.9f, .9f, .88f); // the pipe duct down the wall
+                { againstWall = true; Box(g, Slot.Detail, f.P(x - .36f, y - .9f, 0), f.along, f.outward, .07f, .9f, .06f, false); againstWall = false; }
+                return;
+            }
             detailTint = new Color(.93f, .93f, .92f);
             { againstWall = true; Box(g, Slot.Detail, f.P(x - .4f, y, 0), f.along, f.outward, .8f, .55f, .28f); againstWall = false; }
             detailTint = new Color(.25f, .26f, .27f); // fan grille
@@ -1007,8 +1018,8 @@ namespace Magistrala.EditorTools
             }
             if (ac && Lod == 0)
             {
-                detailTint = new Color(.93f, .93f, .92f);
-                Box(g, Slot.Detail, c + v * 1.2f, u, v, .8f, .55f, .3f, false);
+                if (AcModel) AcSpots.Add((c + v * 1.2f + u * .4f, v));
+                else { detailTint = new Color(.93f, .93f, .92f); Box(g, Slot.Detail, c + v * 1.2f, u, v, .8f, .55f, .3f, false); }
             }
             // large roofs: AC units, tanks and antennas spread over the other big triangles
             var rr = new System.Random((int)(Mathf.Abs(c.x * 13.1f + c.z * 7.7f)) % 100000);
@@ -1169,15 +1180,15 @@ namespace Magistrala.EditorTools
             g.v = v; g.n = nn; g.uv = uv; g.d = d; g.c = c; g.o = o;
         }
 
-        /// the building vertex in 56 bytes instead of 88 (float everywhere): normal, tangent, tint and the data channel in half
-        /// floats, the occlusion in bytes; positions and the world-metre UV0 stay 32-bit. Existing data is converted.
+        /// the building vertex in 44 bytes instead of 88 (float everywhere): normal and tangent in signed bytes, the tint in bytes
+        /// (kuce3: the whole town is detailed now), the data channel in half floats, the occlusion in bytes; positions and the world-metre UV0 stay 32-bit. Existing data is converted.
         public static void Compact(Mesh mesh)
         {
             mesh.SetVertexBufferParams(mesh.vertexCount,
                 new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
-                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float16, 4),
-                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.Float16, 4),
-                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float16, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.SNorm8, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Tangent, VertexAttributeFormat.SNorm8, 4),
+                new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.UNorm8, 4),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord0, VertexAttributeFormat.Float32, 2),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord1, VertexAttributeFormat.Float16, 4),
                 new VertexAttributeDescriptor(VertexAttribute.TexCoord2, VertexAttributeFormat.UNorm8, 4));

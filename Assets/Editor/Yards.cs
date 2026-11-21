@@ -229,7 +229,7 @@ namespace Magistrala.EditorTools
             sb.Append("],\"doors\":["); int nd = 0;
             foreach (var d in HouseBuilder.Doors)
             {
-                if (!BuildingsFromTiles.InProbe(d.p.x + W.OX, -d.p.z + W.OZ) && !BuildingsFromTiles.InShow(d.p.x + W.OX, -d.p.z + W.OZ)) continue;
+                if (!BuildingsFromTiles.InProbe(d.p.x + W.OX, -d.p.z + W.OZ) && !BuildingsFromTiles.InShowArea(d.p.x + W.OX, -d.p.z + W.OZ)) continue;
                 sb.Append(nd++ > 0 ? "," : "").Append($"[{F(d.p.x)},{F(d.p.y)},{F(d.p.z)},{F(d.n.x)},{F(d.n.z)}]");
             }
             Directory.CreateDirectory(Path.GetDirectoryName(SpotsPath));

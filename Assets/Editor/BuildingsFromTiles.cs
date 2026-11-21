@@ -56,7 +56,14 @@ namespace Magistrala.EditorTools
         /// the probe and the D8 corridor keep main's three-level chunks, the rest main's boxes (full rollout: later)
         public static readonly (double ax, double az, double bx, double bz, double r) Show = (-8230, -4390, -7690, -4650, SHOW_R);
         const double SHOW_R = 160;
-        public static bool InShow(double x, double z)
+        /// kuce3: the showcase's pipeline and look for every house of Kaštela (false: back to the capsule only, main's
+        /// three-level chunks by the D8 / in the probe and boxes elsewhere)
+        public static readonly bool ShowEverywhere = true;
+        /// AC units on the facades / roofs as the instanced Tripo model (klima.glb) instead of boxes (false: boxes)
+        public static readonly bool AcModel = true;
+        public static bool InShow(double x, double z) => ShowEverywhere || InShowArea(x, z);
+        /// the original showcase capsule (Kaštel Novi riva to the Stari core): extras that cost a draw each (front-door pots)
+        public static bool InShowArea(double x, double z)
         {
             double dx = Show.bx - Show.ax, dz = Show.bz - Show.az, t = Math.Max(0, Math.Min(1, ((x - Show.ax) * dx + (z - Show.az) * dz) / (dx * dx + dz * dz)));
             double qx = Show.ax + t * dx - x, qz = Show.az + t * dz - z; return qx * qx + qz * qz < Show.r * Show.r;
@@ -222,6 +229,7 @@ namespace Magistrala.EditorTools
                 return (1e9f, 0f);
             };
             HouseBuilder.Doors.Clear();
+            HouseBuilder.AcSpots.Clear(); HouseBuilder.AcModel = AcModel && TripoPropImporter.Prefab("klima");
 
             // 4. the houses: near / mid per 64 m cell, far / box / hull per 256 m chunk
             var cells = new Dictionary<long, HouseGeo[]>(); var chunks = new Dictionary<long, HouseGeo[]>();
@@ -289,7 +297,7 @@ namespace Magistrala.EditorTools
                 }
                 finally { HouseBuilder.Lod = 0; HouseBuilder.Shrink = 0; }
             }
-            HouseBuilder.EdgeQuery = null; HouseBuilder.StreetQuery = null;
+            HouseBuilder.EdgeQuery = null; HouseBuilder.StreetQuery = null; HouseBuilder.AcModel = false;
 
             var hm = HouseBuilder.Materials();
             if (!AssetDatabase.IsValidFolder("Assets/Generated/TileBuildings")) AssetDatabase.CreateFolder("Assets/Generated", "TileBuildings");
@@ -342,12 +350,40 @@ namespace Magistrala.EditorTools
                 Lod(go, m0.bounds.center, new[] { new[] { r0 }, new[] { Part(go, "lod1", m1, hm, ShadowCastingMode.On) } }, new[] { 1500f }, false);
                 li++;
             }
+            AcUnits(tr.transform);
             Debug.Log($"[Magistrala] building LODs: near {triL[0] / 1000}k (to {NEAR_END} m), mid {triL[1] / 1000}k (to {MID_END} m), far {triL[2] / 1000}k (from {FAR_START} m), box {triL[3] / 1000}k (from {BOX_START} m), shadow hull {triL[4] / 1000}k");
             AssetDatabase.SaveAssets();
             // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
             Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
             Yards.WriteSpots();
+        }
+
+        // the AC units: one TreeRenderer prototype (klima LOD1, ~1k tris), drawn instanced to AC_DRAW m, small shadows near
+        const float AC_DRAW = 70, AC_SHADOW = 25;
+        static void AcUnits(Transform parent)
+        {
+            var spots = HouseBuilder.AcSpots; if (spots.Count == 0) return;
+            var pf = TripoPropImporter.Prefab("klima"); var lg = pf ? pf.GetComponent<LODGroup>() : null; if (!lg) return;
+            var lods = lg.GetLODs(); var r = lods[Math.Min(1, lods.Length - 1)].renderers[0];
+            var mesh = r.GetComponent<MeshFilter>().sharedMesh; var mat = r.sharedMaterial; mat.enableInstancing = true; EditorUtility.SetDirty(mat);
+            float depth = mesh.bounds.size.z;
+            var rec = new List<byte>(spots.Count * 24);
+            foreach (var (p, n) in spots)
+            {
+                var o = new Vector3(n.x, 0, n.z).normalized; var q = p + o * (depth / 2 + .02f);
+                float yaw = Mathf.Atan2(o.x, o.z) * Mathf.Rad2Deg;
+                foreach (var v in new[] { q.x, q.y, q.z, yaw, 1f, 0f }) rec.AddRange(BitConverter.GetBytes(v));
+            }
+            const string path = "Assets/Generated/TileBuildings/klima.bytes";
+            File.WriteAllBytes(path, rec.ToArray()); AssetDatabase.ImportAsset(path);
+            var go = new GameObject("klima"); go.transform.SetParent(parent, false);
+            var t = go.AddComponent<Magistrala.TreeRenderer>();
+            t.data = AssetDatabase.LoadAssetAtPath<TextAsset>(path);
+            t.meshes = new[] { mesh }; t.materials = new[] { mat }; t.blendMaterials = new[] { mat }; t.materialStart = new[] { 0 };
+            t.drawDistance = new[] { AC_DRAW }; t.nearDistance = new[] { 1e5f }; t.impMeshes = new Mesh[1]; t.impMaterials = new Material[1];
+            t.shadowDistance = AC_SHADOW; t.impShadowDistance = 0;
+            Debug.Log($"[Magistrala] AC units (Tripo klima, instanced to {AC_DRAW} m): {spots.Count}");
         }
 
         /// the old cores' houses stand at the street: pave the ground between a street facade and the carriageway (concrete

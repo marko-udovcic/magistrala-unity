@@ -1,0 +1,1 @@
+{ "fit": "x", "size": 0.8, "sx": 0.8, "sy": 0.56, "sz": 0.3, "cull": 70, "collider": "none", "shadows": false, "tex": 512, "lod0": 4000, "lod1": 1000, "lod2": 250 }
