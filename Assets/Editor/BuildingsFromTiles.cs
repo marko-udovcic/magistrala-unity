@@ -88,10 +88,11 @@ namespace Magistrala.EditorTools
 
         // LOD distances (m from the camera to the reference point; QualitySettings.lodBias 2, fov 55, see Lod()):
         // near (recessed windows, clutter) per 64 m cell to 120 m from its centre (the nearest mid-level house >= ~75 m away:
-        // a 20 cm reveal is ~1 px at the "srednje" render scale), mid per cell to 650 m; the 256 m chunk's far level from
-        // 500 m of ITS centre (a cell centre is <= 136 m from it: the far level is always on before the cells drop out),
+        // a 20 cm reveal is ~1 px at the "srednje" render scale), mid per cell to 450 m; the 256 m chunk's far level from
+        // 300 m of ITS centre (a cell centre is <= 136 m from it: the far level is always on before the cells drop out),
+        // kuce3 (every house detailed): mid 650 -> 450 m, far 500 -> 300 m, -15 % fps in Kambelovac otherwise;
         // its box level (no windows) from 1500 m.
-        const float CELL = 64, CHUNK = 256, NEAR_END = 120, MID_END = 650, FAR_START = 500, BOX_START = 1500;
+        const float CELL = 64, CHUNK = 256, NEAR_END = 120, MID_END = 450, FAR_START = 300, BOX_START = 1500;
 
         public static void Build()
         {
@@ -328,6 +329,9 @@ namespace Magistrala.EditorTools
                 // town and its collider
                 var hull = Part(go, "hull", mh, new[] { hm[0] }, ShadowCastingMode.ShadowsOnly);
                 hull.gameObject.AddComponent<MeshCollider>().sharedMesh = mh;
+                // not static-batched: with the whole town detailed (kuce3), the batched hulls cost ~15 % fps in the shadow pass
+                // (Kambelovac 100 -> 85 fps) and 120 MB of build; unbatched they cost nothing measurable
+                hull.gameObject.isStatic = false;
                 Lod(go, mf.bounds.center, new[] { new Renderer[0], new[] { rf }, new[] { rb } }, new[] { FAR_START, BOX_START }, false);
                 triL[2] += Tris(kv.Value[0]); triL[3] += Tris(kv.Value[1]); triL[4] += Tris(kv.Value[2]); hi++;
             }
