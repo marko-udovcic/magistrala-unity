@@ -36,6 +36,8 @@ namespace Magistrala.EditorTools
         public static int OutN = 1024;
         public static string Source = "lidar"; // Tools/dof/dof_mosaic.py --src (lidar = DOF LiDAR 2022./23., dof2526 = DOF 2025./26.)
         static string MOSAIC => W.BD + $"/tools/world/dgu/cache/dof/mosaic-{Source}/";
+        /// the photo of terrain tile tx, tz on the game grid (2048², 0.5 m / px, Unity texture rows: row 0 = the tile's largest game z)
+        public static string MosaicPath(int tx, int tz) => MOSAIC + $"t_{tx}_{tz}.png";
         const string OUT = WorldBuilder.GEN + "/Terrain/Macro";
         const int N = 2048; const double PX = 0.5;
         public static float Bright = 1f, Sat = 1f, Contrast = 1f, RMin = .45f, RMax = 2.4f;

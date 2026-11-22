@@ -1,7 +1,8 @@
 """The facade plaster variants (Magistrala/Facade _Plaster / _PlasterN arrays, BuildingTextures.P*) and the near micro grain from the
 nine Poly Haven CC0 2K plasters in BalkanDriver/assets-src/polyhaven-zbuke (README there): each albedo made grey at mean .86
 (sRGB, as the facade's plaster layer: the building's tint sets the colour) with its detail and 25 % of its own chroma variation,
-downscaled to 1024; normal xy + roughness in blue; flipbook strips (first layer = top row). Run:
+downscaled to 1024; normal xy + roughness in blue; flipbook strips (first layer = top row); a tenth layer is the yard hedge
+(zivica.py). Run:
   PYLIB=<folder with numpy, Pillow> python3 -I Tools/zbuke/zbuke.py"""
 import sys, os
 if os.environ.get('PYLIB'): sys.path.insert(0, os.environ['PYLIB'])
@@ -36,6 +37,10 @@ for i, (n, con) in enumerate(IDS):
     nn[..., 2] = ro
     nor.append(nn)
     print(n, m.round(3), 'lum sd', lum.std().round(3))
+# layer 9 (Look variant 10): the trimmed yard hedge (zivica.py: Poly Haven Periwinkle Plant leaves, colour kept)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from zivica import hedge
+ha, hn = hedge(S); alb.append(ha); nor.append(hn)
 # flipbook strip: first layer = top row
 Image.fromarray(np.concatenate(alb, 0)).save(OUT + 'zbuke_albedo.jpg', quality=90)
 Image.fromarray(np.concatenate(nor, 0)).save(OUT + 'zbuke_normal.jpg', quality=92)
