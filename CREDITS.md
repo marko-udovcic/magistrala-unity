@@ -46,6 +46,11 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
 - **"Ace '11 - Low Poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/ace-11-low-poly-model-055ff8a21b8d4d279debca089e2fafcd — CC BY 4.0. U igri „dz_ace_11”.
 - **"LCT 3000 '07- Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/lct-3000-07-low-poly-model-3be03b6a43aa41898c9ca806b8787052 — CC BY 4.0. U igri „dz_lct3000_07”.
 - **"Volkswagen Golf IV"** — Fratzica (vasilebetivu62) — https://sketchfab.com/3d-models/volkswagen-golf-iv-3e40ac80ec044394999715a18e2dbe33 — CC BY 4.0. U igri „vw_golf_4”.
+- **"low-poly Škoda Octavia RS 2020"** — D_U (DU1701) — https://sketchfab.com/3d-models/low-poly-skoda-octavia-rs-2020-d567807ce57e415ba9a1ffdf07e0cf5b — CC BY 4.0. U igri „octavia_2020”.
+- **"2015 Mazda 6"** — Dave Bored (Tyler_Dave) — https://sketchfab.com/3d-models/2015-mazda-6-24fb449e5f4243f49666ccf22d10c834 — CC BY 4.0. U igri „mazda6_2015”.
+- **"Dacia Duster Low Poly"** — Danut_Stanciu (solid3ddd / solidmodelsproject) — https://sketchfab.com/3d-models/dacia-duster-low-poly-ea275644cd634593b6a97eacf0ede405 — CC BY 4.0. U igri „dacia_duster”.
+- **"Jeep Renegade 2016"** — Jose Bronze (pinceladas3d) — https://sketchfab.com/3d-models/jeep-renegade-2016-192f7e81dce84c6780434f692a0f96c5 — CC BY 4.0. U igri „jeep_renegade”.
+- **"Lowpoly Generic SUV"** — mk2design — https://sketchfab.com/3d-models/lowpoly-generic-suv-edc994ad28ed438cb365c0e0389ac177 — CC BY 4.0. U igri „generic_suv”.
 - **"Mercedes Benz Sprinter 2006"** — Max (Max-7215; u metapodacima Max-5532) — https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 — CC BY 4.0.
   U igri „sprinter” (civilni) i „sprinter_policija” (naša policijska grafika POLICIJA s logom igre, svjetla na krovu naša; razdvojen UV).
   **Izmijenjeno (svi gore):** uklonjeni amblemi, natpisi i oznake proizvođača (geometrija i teksture: priprema

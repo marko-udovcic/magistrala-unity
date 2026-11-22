@@ -30,6 +30,7 @@ namespace Magistrala.EditorTools
             { "09", ("Mercedes Sprinter", 5.9f) }, { "10", ("VW Passat B5.5", 4.70f) },
             // tura 2 (22.11.): labels / lengths as in auti-kandidati.json
             { "11", ("Asti Stradale 89", 3.9f) }, { "12", ("Milano 95", 3.85f) }, { "13", ("Olympic 95", 4.22f) }, { "14", ("Tozzo 98", 4.4f) }, { "15", ("Sigil 07", 4.33f) }, { "16", ("Compact 07", 2.7f) }, { "17", ("Kiri 10", 4.36f) }, { "18", ("Urban 10", 4.3f) }, { "19", ("Ace 11", 3.85f) }, { "20", ("LCT3000 07", 5.86f) }, { "21", ("Golf IV", 4.15f) },
+            { "22", ("Octavia 2020", 4.69f) }, { "23", ("Mazda 6 2015", 4.87f) }, { "24", ("Dacia Duster", 4.34f) }, { "25", ("Jeep Renegade", 4.24f) }, { "26", ("Generic SUV", 4.9f) },
         };
 
         [MenuItem("Magistrala/Auti: parking kandidata")]

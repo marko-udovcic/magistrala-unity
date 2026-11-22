@@ -2995,6 +2995,667 @@
       "paintVMin": 0.22,
       "plateFrontY": 0.427,
       "plateRearY": 0.455
+    },
+    {
+      "kind": "octavia_2020",
+      "glb": "22_octavia_2020.glb",
+      "label": "Octavia 2020",
+      "source": "low-poly Škoda Octavia RS 2020 - D_U (DU1701) - https://sketchfab.com/3d-models/low-poly-skoda-octavia-rs-2020-d567807ce57e415ba9a1ffdf07e0cf5b - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/22_octavia_2020",
+      "length": 4.69,
+      "up": "y",
+      "front": "+",
+      "parkFront": "+",
+      "glassNode": "(?!)",
+      "materials": [
+        {
+          "name": "material_4_kotaci",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "material_5_kotaci",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "material_1",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "material_2",
+          "role": "body",
+          "size": 1024,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "material_3",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "material_4",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "material_5",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "material_6",
+          "role": "glass",
+          "size": 1024
+        },
+        {
+          "name": "material_7",
+          "role": "cover",
+          "size": 1024
+        },
+        {
+          "name": "material_8",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "material_9",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "material",
+          "role": "trim",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2_1/Object_15$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2_1/Object_16$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/3\\.001_2/Object_18$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2\\.1_3/Object_21$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2\\.1_3/Object_22$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/3\\.002_4/Object_24$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2\\.2_5/Object_27$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2\\.2_5/Object_28$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/3\\.003_6/Object_30$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2\\.3_7/Object_33$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/2\\.3_7/Object_34$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/3\\.004_8/Object_36$",
+          "suffix": "kotaci"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "material_9",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.3
+        },
+        {
+          "type": "head",
+          "mat": "material_5",
+          "color": "light",
+          "end": "front",
+          "depth": 0.3
+        }
+      ],
+      "colors": [
+        "#eeeeea",
+        "#96999c",
+        "#202328",
+        "#c5c7c9",
+        "#24374e",
+        "#70292d"
+      ],
+      "colorWeights": [
+        28,
+        23,
+        20,
+        18,
+        8,
+        3
+      ],
+      "weight": 14,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "paintSatMax": 0.25,
+      "paintVMin": 0.5,
+      "plateFrontY": 0.45,
+      "plateRearY": 0.75
+    },
+    {
+      "kind": "mazda6_2015",
+      "glb": "23_mazda6_2015.glb",
+      "label": "Mazda 6 2015",
+      "source": "2015 Mazda 6 - Dave Bored (Tyler_Dave) - https://sketchfab.com/3d-models/2015-mazda-6-24fb449e5f4243f49666ccf22d10c834 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/23_mazda6_2015",
+      "length": 4.87,
+      "up": "y",
+      "front": "+",
+      "parkFront": "+",
+      "glassNode": "(?!)",
+      "materials": [
+        {
+          "name": "Magistrala_PlainPaint",
+          "role": "body",
+          "size": 1024,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Magistrala_GrilleTrim",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "glasses_pivot_Glass__0",
+          "role": "glass",
+          "size": 1024
+        },
+        {
+          "name": "Material.003_kotaci",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Material.002_kotaci",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Material.002",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Material.003",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Material.001",
+          "role": "trim",
+          "size": 1024,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Material.004",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Material.006",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Material.005",
+          "role": "hide",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_BL_steer_3/bone_wheel_BL_rotation_8/WheelBL_9/WheelBL_Tires_10/WheelBL_Tires_Material\\.003_0_11/Object_16$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_BL_steer_3/bone_wheel_BL_rotation_8/WheelBL_9/WheelBL_Rims_12/WheelBL_Rims_Material\\.002_0_13/Object_19$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_BR_steer_14/bone_wheel_BR_rotation_19/WheelBR_20/WheelBR_Tires_21/WheelBR_Tires_Material\\.003_0_22/Object_30$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_BR_steer_14/bone_wheel_BR_rotation_19/WheelBR_20/WheelBR_Rims_23/WheelBR_Rims_Material\\.002_0_24/Object_33$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_FL_steer_25/bone_wheel_FL_rotation_30/WheelFL_31/WheelFL_Tires_32/WheelFL_Tires_Material\\.003_0_33/Object_44$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_FL_steer_25/bone_wheel_FL_rotation_30/WheelFL_31/WheelFL_Rims_34/WheelFL_Rims_Material\\.002_0_35/Object_47$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_FR_steer_36/bone_wheel_FR_rotation_41/WheelFR_42/WheelFR_Tires_43/WheelFR_Tires_Material\\.003_0_44/Object_58$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/root/GLTF_SceneRootNode/Sketchfab_model_0/2f8f9bcb437c4e85a4b604e1b6cb1f8c\\.fbx_1/RootNode_2/bone_wheel_FR_steer_36/bone_wheel_FR_rotation_41/WheelFR_42/WheelFR_Rims_45/WheelFR_Rims_Material\\.002_0_46/Object_61$",
+          "suffix": "kotaci"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "Material.002",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.3
+        },
+        {
+          "type": "head",
+          "mat": "Material.002",
+          "color": "light",
+          "end": "front",
+          "depth": 0.3
+        }
+      ],
+      "colors": [
+        "#eeeeea",
+        "#96999c",
+        "#202328",
+        "#c5c7c9",
+        "#24374e",
+        "#70292d"
+      ],
+      "colorWeights": [
+        28,
+        23,
+        20,
+        18,
+        8,
+        3
+      ],
+      "weight": 5,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "paintSatMax": 0.25,
+      "paintVMin": 0.5,
+      "plateFrontY": 0.45,
+      "plateRearY": 0.75
+    },
+    {
+      "kind": "dacia_duster",
+      "glb": "24_dacia_duster.glb",
+      "label": "Dacia Duster",
+      "source": "Dacia Duster Low Poly - Danut_Stanciu (solid3ddd / solidmodelsproject) - https://sketchfab.com/3d-models/dacia-duster-low-poly-ea275644cd634593b6a97eacf0ede405 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/24_dacia_duster",
+      "length": 4.34,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?!)",
+      "materials": [
+        {
+          "name": "Magistrala_HeadlightReflectors",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Magistrala_Wheels",
+          "role": "wheel",
+          "size": 2048
+        },
+        {
+          "name": "UV_body_mir_cap",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UV_glass_clear",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "Reverselight",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UV_glass_red",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "Headlight",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "Taillight",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "Foglight",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "material",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "UV_body",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UV_int",
+          "role": "interior",
+          "size": 2048
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "Taillight",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.3
+        },
+        {
+          "type": "head",
+          "mat": "Magistrala_HeadlightReflectors",
+          "color": "light",
+          "end": "front",
+          "depth": 0.3
+        }
+      ],
+      "colors": [
+        "#eeeeea",
+        "#96999c",
+        "#202328",
+        "#c5c7c9",
+        "#24374e",
+        "#70292d"
+      ],
+      "colorWeights": [
+        28,
+        23,
+        20,
+        18,
+        8,
+        3
+      ],
+      "weight": 12,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "paintSatMax": 0.25,
+      "paintVMin": 0.5,
+      "plateFrontY": 0.45,
+      "plateRearY": 0.75
+    },
+    {
+      "kind": "jeep_renegade",
+      "glb": "25_jeep_renegade.glb",
+      "label": "Jeep Renegade",
+      "source": "Jeep Renegade 2016 - Jose Bronze (pinceladas3d) - https://sketchfab.com/3d-models/jeep-renegade-2016-192f7e81dce84c6780434f692a0f96c5 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/25_jeep_renegade",
+      "length": 4.24,
+      "up": "y",
+      "front": "+",
+      "parkFront": "+",
+      "glassNode": "(?!)",
+      "materials": [
+        {
+          "name": "Magistrala_Wheels",
+          "role": "wheel",
+          "size": 2048
+        },
+        {
+          "name": "car_jeep_ren",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "FrontColor",
+          "role": "trim",
+          "size": 2048
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "car_jeep_ren",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.3
+        },
+        {
+          "type": "head",
+          "mat": "car_jeep_ren",
+          "color": "light",
+          "end": "front",
+          "depth": 0.3
+        }
+      ],
+      "colors": [
+        "#eeeeea",
+        "#96999c",
+        "#202328",
+        "#c5c7c9",
+        "#24374e",
+        "#70292d"
+      ],
+      "colorWeights": [
+        28,
+        23,
+        20,
+        18,
+        8,
+        3
+      ],
+      "weight": 5,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "light",
+      "paintSatMax": 0.25,
+      "paintVMin": 0.5,
+      "plateFrontY": 0.45,
+      "plateRearY": 0.75
+    },
+    {
+      "kind": "generic_suv",
+      "glb": "26_generic_suv.glb",
+      "label": "Generic SUV",
+      "source": "Lowpoly Generic SUV - mk2design - https://sketchfab.com/3d-models/lowpoly-generic-suv-edc994ad28ed438cb365c0e0389ac177 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/26_generic_suv",
+      "length": 4.9,
+      "up": "y",
+      "front": "+",
+      "parkFront": "+",
+      "glassNode": "(?!)",
+      "materials": [
+        {
+          "name": "Magistrala_NeutralGrille",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Magistrala_LampCovers",
+          "role": "cover",
+          "size": 1024
+        },
+        {
+          "name": "Texture_kotaci",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Interior",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Texture",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Shadow",
+          "role": "hide",
+          "size": 1024
+        },
+        {
+          "name": "Glass",
+          "role": "glass",
+          "size": 1024
+        },
+        {
+          "name": "Body",
+          "role": "body",
+          "size": 1024,
+          "smoothMax": 0.75
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "/Sketchfab_model/e4cfccc019694d70938c6828a7884e2a\\.fbx/RootNode/Wheel_FL/Object_10/Wheel_FL_Texture_0$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/e4cfccc019694d70938c6828a7884e2a\\.fbx/RootNode/Wheel_FR/Object_17/Wheel_FR_Texture_0$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/e4cfccc019694d70938c6828a7884e2a\\.fbx/RootNode/Wheel_RL/Object_20/Wheel_RL_Texture_0$",
+          "suffix": "kotaci"
+        },
+        {
+          "path": "/Sketchfab_model/e4cfccc019694d70938c6828a7884e2a\\.fbx/RootNode/Wheel_RR/Object_23/Wheel_RR_Texture_0$",
+          "suffix": "kotaci"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "Texture",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.3
+        },
+        {
+          "type": "head",
+          "mat": "Texture",
+          "color": "light",
+          "end": "front",
+          "depth": 0.3
+        }
+      ],
+      "colors": [
+        "#eeeeea",
+        "#96999c",
+        "#202328",
+        "#c5c7c9",
+        "#24374e",
+        "#70292d"
+      ],
+      "colorWeights": [
+        28,
+        23,
+        20,
+        18,
+        8,
+        3
+      ],
+      "weight": 4,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "hue",
+      "paintSatMax": 0.25,
+      "paintVMin": 0.5,
+      "plateFrontY": 0.45,
+      "plateRearY": 0.75
     }
   ]
 }

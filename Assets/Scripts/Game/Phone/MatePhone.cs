@@ -479,7 +479,14 @@ namespace Magistrala.Game.Phone
             "„Urban '10 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
             "„Ace '11 - Low Poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
             "„LCT 3000 '07- Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Volkswagen Golf IV” — Fratzica (vasilebetivu62).";
+            "„Volkswagen Golf IV” — Fratzica (vasilebetivu62).\n" +
+            AboutPage +
+            "Prometni auti (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
+            "„low-poly Škoda Octavia RS 2020” — D_U (DU1701).\n" +
+            "„2015 Mazda 6” — Dave Bored (Tyler_Dave).\n" +
+            "„Dacia Duster Low Poly” — Danut_Stanciu (solid3ddd / solidmodelsproject).\n" +
+            "„Jeep Renegade 2016” — Jose Bronze (pinceladas3d).\n" +
+            "„Lowpoly Generic SUV” — mk2design.";
         /// AboutText is shown in pages (the phone screen is short): the marker splits them
         const string AboutPage = "\f";
         int aboutPage;
