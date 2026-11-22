@@ -20,6 +20,8 @@ public sealed class TruckController : MonoBehaviour
     /// gameplay (MagistralaGame unload): parking brake on, no throttle / brake input while the tail lift works
     public bool parkLock;
     public bool HandbrakeOn => handbrake;
+    /// the throttle pedal 0..1 (keyboard W or extThrottle) — the engine sound's load (Audio/TruckAudio.cs)
+    public float Throttle => throttleInput;
     /// gameplay: every collision of the truck body (damage / cargo damage)
     public event System.Action<Collision> Hit;
     void OnCollisionEnter(Collision c) => Hit?.Invoke(c);

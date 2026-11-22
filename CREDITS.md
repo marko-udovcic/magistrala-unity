@@ -152,3 +152,20 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   BalkanDriver `CREDITS-traffic.md` navodi „Free Standard” i komercijalnu uporabu; izvorni URL i kopija licence
   nisu priloženi ovom worktreeju pa to nije potvrđena CC BY licenca. Izmjene: uklonjene oznake / tablice,
   izmišljeni identitet Fiyat Punat, nova maska, stakla, atlas, kotači i LOD. Dobrovoljna zasluga u mobitelu → O igri.
+
+## Zvuk (Assets/Audio, izvor: BalkanDriver assets-src/zvuk — puni popis po datoteci u ATRIBUCIJA.md)
+
+Obavezna atribucija (prikazano i u mobitelu, "O igri"):
+- Motor (granule), truba, zrak kočnica / ručne, petrolej-pumpa, automobili u prometu: **Work With Sounds / Technical Museum of
+  Slovenia** ("WWS City Bus MAN SG 220 – engine / horn / door opening-closing"), **Werstas** ("WWS Petrol Tanker", "WWS Siren of
+  the fire chief's van"), **Konrad Gutkowski** ("WWS Fire engine siren"), **Museum of Municipal Engineering** ("WWS FSR Tarpan
+  239D van starting") — CC BY 4.0, izmijenjeno (granularna resinteza, rezanje, petlje, filtriranje). commons.wikimedia.org
+- Cvrčci noću: **Glaneur de sons**, "Nature sounds ambience in a Dordogne pond", CC BY 3.0, izmijenjeno.
+- Kiša po krovu: **Beeld en Geluid**, "Regen op het dak van een stilstaande auto en onweer", CC BY-SA 3.0, izmijenjeno;
+  izvedena datoteka `rain_roof.ogg` je pod CC BY-SA 3.0 (zamjena bez BY-SA: `rain_roof_pd.ogg`).
+
+CC0 / javno dobro: Kenney (Impact Sounds), GGBotNet (Car Sound Effects Pack), Rango Mango (seagulls), HaelDB (dog barking, CC0
+od dvojne licence), isaiah658 (ambient birds), Thimras (park ambiences), qubodup, rubberduck, bmaczero (udarci), Helge Klaus
+Rieder (zvona Schruns), Nostrifikator (zvono), Tvabutzku1234 (vjetar), earthcalling (more), DavidDelon (cvrčci), cori (kiša,
+grad), stephan (kafana), ezwa (jutro), Extemporalist (prolaz auta). Ostalo (žmigavac, pištalica, truba Galeba, dvotonac rezerva,
+roletna, rampa): vlastita sinteza, CC0.
