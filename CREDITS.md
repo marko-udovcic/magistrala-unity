@@ -64,6 +64,9 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   (Sadrži podatke Državne geodetske uprave; podaci su izmijenjeni)
 - Tripo rekviziti i službena vozila (`Assets/Models/Props/Tripo/`, `Assets/Models/Vehicles/Tripo/`), Markovi generirani modeli. U ovom worktreeju oleander i klima imaju samo JSON konfiguraciju, bez GLB-a. Licenca generiranja / plan računa nije dokumentiran; vidi upozorenja u `Tools/dijagnoza/licence.md`.
 - Kamion `firm_truck.glb` i proceduralna prometna flota iz BalkanDrivera (iznimka: Punat, niže). Biljke, impostori i stare PBR teksture imaju vanjske CC0 izvore, popisane niže; nisu u cijelosti vlastiti sadržaj.
+- Brodice (pasara, guc, gajeta, pentaša, jedrilica, jahta): vlastiti proceduralni modeli bez tekstura (`Assets/Editor/BoatsBuilder.cs`,
+  izbornik Magistrala/Brodice: postavi), ništa preuzeto. Položaji vezova iz `coast.json` (rive, mandrači, marine; izvedeno iz
+  OpenStreetMap)
 
 ## Mapillary (CC BY-SA 4.0)
 - **Street-level imagery: Mapillary contributors (CC BY-SA 4.0)** — https://www.mapillary.com. Iz fotografija su izvedene samo
