@@ -64,6 +64,14 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   (Sadrži podatke Državne geodetske uprave; podaci su izmijenjeni)
 - Oleander `Assets/Models/Props/Tripo/oleander.glb` (Tripo, Markov model; razdjelni pojas D8, roza i bijela varijanta)
 - Kamion `firm_truck.glb`, biljke `plants/*.glb` i njihovi impostori, teksture `tex/pbr/*` (stari teren / beton)
+- Brodice (pasara, guc, gajeta, pentaša, jedrilica, jahta): vlastiti proceduralni modeli bez tekstura (`Assets/Editor/BoatsBuilder.cs`,
+  izbornik Magistrala/Brodice: postavi), ništa preuzeto. Položaji vezova iz `coast.json` (rive, mandrači, marine; izvedeno iz
+  OpenStreetMap, vidi niže)
+
+## OpenStreetMap (ODbL 1.0)
+- **© OpenStreetMap contributors**, Open Database License (https://www.openstreetmap.org/copyright) — obala, rive, gatovi i
+  mandrači Kaštela (`client/public/assets/world/split-kastela/coast.json`, BalkanDriver `tools/world/coast_features.py`,
+  `coast_harbours.py`), iz njih vezovi brodica i klupe na rivi
 
 ## Mapillary (CC BY-SA 4.0)
 - **Street-level imagery: Mapillary contributors (CC BY-SA 4.0)** — https://www.mapillary.com. Iz fotografija su izvedene samo

@@ -486,7 +486,10 @@ namespace Magistrala.Game.Phone
             "„2015 Mazda 6” — Dave Bored (Tyler_Dave).\n" +
             "„Dacia Duster Low Poly” — Danut_Stanciu (solid3ddd / solidmodelsproject).\n" +
             "„Jeep Renegade 2016” — Jose Bronze (pinceladas3d).\n" +
-            "„Lowpoly Generic SUV” — mk2design.";
+            "„Lowpoly Generic SUV” — mk2design.\n" +
+            AboutPage +
+            "Obala, rive i mandrači: © OpenStreetMap contributors (ODbL), dorađeno.\n\n" +
+            "Brodice (pasare, guci, gajete, pentaše, jedrilice, jahte): naši modeli, vezovi prema podacima OpenStreetMapa.";
         /// AboutText is shown in pages (the phone screen is short): the marker splits them
         const string AboutPage = "\f";
         int aboutPage;
