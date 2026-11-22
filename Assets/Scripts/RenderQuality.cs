@@ -14,7 +14,7 @@ namespace Magistrala
         {
             new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f, aoOff = true, aa = AntialiasingMode.SubpixelMorphologicalAntiAliasing },
             new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .85f, veg = 1f, aoHalf = true, aoDepth = true, aoAfter = true, aa = AntialiasingMode.TemporalAntiAliasing },
-            new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f, aoDepth = true, aoAfter = true, aa = AntialiasingMode.TemporalAntiAliasing },
+            new Level { name = "oštro",  mpix = 4.0f, shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f, aoDepth = true, aoAfter = true, aa = AntialiasingMode.TemporalAntiAliasing },
         };
         const string PREF = "kvaliteta";
 
