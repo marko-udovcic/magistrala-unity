@@ -64,7 +64,7 @@ namespace Magistrala.Game.Phone
         public static void AddContact(Contact c) { extra.RemoveAll(x => x.id == c.id); extra.Add(c); }
         public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; foreach (var c in extra) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
 
-        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About }
+        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About, Settings }
         public bool Open { get; private set; }
         public Screen Current { get; private set; } = Screen.Home;
         public PhoneCall Ringing { get; private set; }
@@ -313,6 +313,7 @@ namespace Magistrala.Game.Phone
                 case Screen.Outgoing: DrawOutgoing(scr, area); break;
                 case Screen.Soon: DrawSoon(area); break;
                 case Screen.About: DrawAbout(area); break;
+                case Screen.Settings: DrawSettings(area); break;
             }
             Fill(new Rect(x + W / 2 - 62, scr.yMax - 13, 124, 5), new Color(1, 1, 1, 0.85f), 2.5f); // home bar
             if (Open)
@@ -397,6 +398,7 @@ namespace Magistrala.Game.Phone
                 new App { name = "Karta", glyph = PhoneArt.Map, c = new Color(0.3f, 0.75f, 0.55f), s = Screen.Soon },
                 new App { name = "Banka", glyph = PhoneArt.Bank, c = new Color(0.2f, 0.32f, 0.62f), s = Screen.Soon },
                 new App { name = "O igri", glyph = PhoneArt.Person, c = new Color(0.45f, 0.47f, 0.52f), s = Screen.About },
+                new App { name = "Postavke", glyph = PhoneArt.Gear, c = new Color(0.42f, 0.44f, 0.5f), s = Screen.Settings },
             };
             var dock = new[]
             {
@@ -418,7 +420,8 @@ namespace Magistrala.Game.Phone
                 if (ap.badge > 0) { var b = new Rect(r.xMax - 15, r.y - 7, 22, 22); Fill(b, new Color(1f, 0.23f, 0.19f), 11); GUI.Label(b, ap.badge.ToString(), St(12, true, Color.white, TextAnchor.MiddleCenter, false)); }
             }
             float top = scr.y + 176;
-            for (int i = 0; i < grid.Length; i++) Icon(grid[i], new Rect(gx + i * cell + (cell - icon) / 2, top, icon, icon), true);
+            for (int i = 0; i < grid.Length; i++) Icon(grid[i], new Rect(gx + (i % 4) * cell + (cell - icon) / 2, top + (i / 4) * 92, icon, icon), true);
+            top += ((grid.Length - 1) / 4) * 92; // (a second row of apps pushes the notification card down)
             // the latest message as a notification card
             if (data.msgs.Count > 0)
             {
@@ -446,6 +449,29 @@ namespace Magistrala.Game.Phone
             items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
             List(a, a.yMax - 50);
         }
+
+        // settings: sound volumes (Audio/MagistralaAudio: the mixer groups, remembered in PlayerPrefs "zvuk.*"); Enter or → / ← change
+        // the selected one by 10 % (Enter wraps 100 % → 0 %), a short tick plays through the changed group although the game is paused
+        void DrawSettings(Rect a)
+        {
+            float y = Title(a, "Postavke", "Zvuk · Enter / ← → mijenja");
+            int n = Magistrala.Audio.MagistralaAudio.VolLabels.Length;
+            for (int i = 0; i < n; i++)
+            {
+                int k = i; float v = Magistrala.Audio.MagistralaAudio.Volume(i);
+                items.Add(($"{Magistrala.Audio.MagistralaAudio.VolLabels[i]}  {Mathf.RoundToInt(v * 100)} %", Bar(v), () => Magistrala.Audio.MagistralaAudio.SetVolume(k, Magistrala.Audio.MagistralaAudio.Volume(k) >= 0.95f ? 0 : Magistrala.Audio.MagistralaAudio.Volume(k) + 0.1f), null));
+            }
+            items.Add(($"Kvaliteta slike: {Magistrala.RenderQuality.Label}", "tipka K mijenja", null, null));
+            items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
+            var kb = Keyboard.current;
+            if (kb != null && sel < n && Event.current.type == EventType.Repaint)
+            {
+                if (kb.rightArrowKey.wasPressedThisFrame) Magistrala.Audio.MagistralaAudio.SetVolume(sel, Magistrala.Audio.MagistralaAudio.Volume(sel) + 0.1f);
+                if (kb.leftArrowKey.wasPressedThisFrame) Magistrala.Audio.MagistralaAudio.SetVolume(sel, Magistrala.Audio.MagistralaAudio.Volume(sel) - 0.1f);
+            }
+            List(a, y);
+        }
+        static string Bar(float v) { int f = Mathf.RoundToInt(v * 10); return new string('●', f) + new string('·', 10 - f); } // (● is in Inter, used by Poruke)
 
         // credits / sources (the attribution the data licences ask for; full list in CREDITS.md)
         public const string AboutText =
@@ -642,7 +668,21 @@ namespace Magistrala.Game.Phone
             "\n" +
             "„Mercedes Benz Sprinter 2006”\n" +
             "Max (Max-7215; u metapodacima Max-5532)\n" +
-            "sketchfab.com/models/f69de1315bb049c8946d57f6006acd73";
+            "sketchfab.com/models/f69de1315bb049c8946d57f6006acd73" +
+            AboutPage +
+            "Zvuk\n" +
+            "\n" +
+            "Motor, sirene, truba i zrak: Work With Sounds — Technical Museum of Slovenia, Werstas, Museum of Municipal Engineering (Kraków), Konrad Gutkowski. CC BY 4.0, izmijenjeno.\n" +
+            "\n" +
+            "Cvrčci noću: Glaneur de sons, CC BY 3.0, izmijenjeno.\n" +
+            "Kiša po krovu: Beeld en Geluid, CC BY-SA 3.0, izmijenjeno (izvedenica pod istom licencom).\n" +
+            "creativecommons.org/licenses/by/4.0/ · /by/3.0/ · /by-sa/3.0/" +
+            AboutPage +
+            "Zvuk — CC0 i javno dobro\n" +
+            "\n" +
+            "Kenney (kenney.nl), GGBotNet, Rango Mango, HaelDB, isaiah658, Thimras, qubodup, rubberduck, bmaczero, Helge Klaus Rieder, Nostrifikator, Tvabutzku1234, earthcalling, DavidDelon, cori, stephan, ezwa, Extemporalist.\n" +
+            "\n" +
+            "Wikimedia Commons, OpenGameArt. Ostalo: vlastita sinteza.";
         /// AboutText is shown in pages (the phone screen is short): the marker splits them
         const string AboutPage = "\f";
         int aboutPage;
@@ -789,6 +829,14 @@ namespace Magistrala.Game.Phone
     public static class PhoneArt
     {
         static Texture2D wall, wallBlur, handset, bubble, person, box, map, bank, wifi;
+        static Texture2D gear;
+        /// settings: an 8-tooth cog with a hole
+        public static Texture2D Gear => gear ??= Make(96, (u, v) =>
+        {
+            float dx = u - 0.5f, dy = v - 0.5f, r = Mathf.Sqrt(dx * dx + dy * dy), a = Mathf.Atan2(dy, dx);
+            float outer = Mathf.Cos(a * 8) > 0.25f ? 0.42f : 0.33f;
+            return Mathf.Clamp01((outer - r) * 60f) * Mathf.Clamp01((r - 0.13f) * 60f);
+        });
         public static Texture2D Wall => wall ??= Wallpaper(false);
         public static Texture2D WallBlur => wallBlur ??= Wallpaper(true);
         public static Texture2D Handset => handset ??= Make(96, HandsetA);

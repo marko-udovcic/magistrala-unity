@@ -43,3 +43,8 @@ crashlytics-buildid.txt
 /Assets/NatureManufacture Assets/
 /Assets/NatureManufacture Assets.meta
 Assets/Models/Vehicles/Kandidati/
+
+# sound clips (CC0 / CC BY, built in BalkanDriver/assets-src/zvuk: build.sh → out/), copied in by hand — see Assets/Audio/README.md
+/Assets/Audio/*
+!/Assets/Audio/README.md
+!/Assets/Audio/README.md.meta
