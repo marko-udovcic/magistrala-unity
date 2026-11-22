@@ -53,6 +53,9 @@ namespace Magistrala.EditorTools
         }
 
         /// the eave height of building `id` (tile `b`, tile h `h`); src: what decided it
+        /// true when the shadow measurement (visine-zgrada.json) decides this building's height: real data, not to be capped
+        public static bool IsMeasured(string id) => UseMeasured && id != null && measured != null && measured.TryGetValue(id, out var m) && m.conf >= MIN_CONF;
+
         public static double Height(string id, Dictionary<string, object> b, double h, out string src, out int storeys)
         {
             src = (string)MiniJson.G(b, "hSrc") ?? "osm";

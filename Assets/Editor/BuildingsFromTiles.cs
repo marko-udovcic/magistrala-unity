@@ -94,6 +94,63 @@ namespace Magistrala.EditorTools
         // its box level (no windows) from 1500 m.
         const float CELL = 64, CHUNK = 256, NEAR_END = 120, MID_END = 450, FAR_START = 300, BOX_START = 1500;
 
+        // Tile artefacts must not become pillars. Metres / m²; deliberately below normal house sizes.
+        // Keep owner corrections (and explicitly tagged OSM footprints) when skipping; cap only small houses.
+        // Tools/zgrade/stupovi.py reads these constants for the offline audit. Roof rise is additional to the eaves.
+        public const double SHAPE_MIN_WIDTH = 1.5, SHAPE_TINY_AREA = 10, SHAPE_TINY_WIDTH = 2;
+        public const double SHAPE_SMALL_AREA = 80, SHAPE_SMALL_WIDTH = 5, SHAPE_HEIGHT_WIDTH = 2.5;
+
+        // Minimum-area rotated rectangle: candidate directions are the convex hull's edges, not the AABB.
+        public static (double area, double width) ShapeSize(List<Vector2d> P)
+        {
+            double area = 0;
+            for (int i = 0; i < P.Count; i++)
+            {
+                var a = P[i]; var b = P[(i + 1) % P.Count];
+                area += (a.x - P[0].x) * (b.z - P[0].z) - (b.x - P[0].x) * (a.z - P[0].z);
+            }
+            var sorted = new List<Vector2d>(P);
+            sorted.Sort((a, b) => a.x != b.x ? a.x.CompareTo(b.x) : a.z.CompareTo(b.z));
+            var unique = new List<Vector2d>();
+            foreach (var p in sorted) if (unique.Count == 0 || p.x != unique[unique.Count - 1].x || p.z != unique[unique.Count - 1].z) unique.Add(p);
+            if (unique.Count < 3) return (Math.Abs(area) / 2, 0);
+            double Cross(Vector2d a, Vector2d b, Vector2d c) => (b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x);
+            var hull = new List<Vector2d>();
+            foreach (var p in unique)
+            {
+                while (hull.Count >= 2 && Cross(hull[hull.Count - 2], hull[hull.Count - 1], p) <= 0) hull.RemoveAt(hull.Count - 1);
+                hull.Add(p);
+            }
+            int lower = hull.Count;
+            for (int i = unique.Count - 2; i >= 0; i--)
+            {
+                var p = unique[i];
+                while (hull.Count > lower && Cross(hull[hull.Count - 2], hull[hull.Count - 1], p) <= 0) hull.RemoveAt(hull.Count - 1);
+                hull.Add(p);
+            }
+            hull.RemoveAt(hull.Count - 1);
+            double best = double.MaxValue, width = 0;
+            for (int i = 0; i < hull.Count; i++)
+            {
+                var a = hull[i]; var b = hull[(i + 1) % hull.Count];
+                double dx = b.x - a.x, dz = b.z - a.z, length = Math.Sqrt(dx * dx + dz * dz);
+                if (length < 1e-9) continue;
+                dx /= length; dz /= length;
+                double u0 = double.MaxValue, u1 = double.MinValue, v0 = double.MaxValue, v1 = double.MinValue;
+                foreach (var p in hull)
+                {
+                    double u = (p.x - a.x) * dx + (p.z - a.z) * dz, v = -(p.x - a.x) * dz + (p.z - a.z) * dx;
+                    u0 = Math.Min(u0, u); u1 = Math.Max(u1, u); v0 = Math.Min(v0, v); v1 = Math.Max(v1, v);
+                }
+                double rectangle = (u1 - u0) * (v1 - v0);
+                double candidateWidth = Math.Min(u1 - u0, v1 - v0);
+                // Equal-area rectangles (notably triangles): deterministic choice of the narrower one.
+                if (rectangle < best - 1e-8 || Math.Abs(rectangle - best) <= 1e-8 && candidateWidth < width)
+                { best = rectangle; width = candidateWidth; }
+            }
+            return (Math.Abs(area) / 2, width);
+        }
+
         public static void Build()
         {
             var models = WorldData.Models();
@@ -116,7 +173,7 @@ namespace Magistrala.EditorTools
             // the carriageways (the orthophoto shift must not push a footprint onto one) and the footprints for the yards
             Yards.Begin(models, rects);
             OrthoRoofs.Reset(); MapillaryFacades.Reset(); HouseBuilder.nOrthoPitched = HouseBuilder.nOrthoFlat = HouseBuilder.nOrthoTiledFlat = HouseBuilder.nSolar = HouseBuilder.nSolarPanels = 0;
-            int nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0;
+            int nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0, nShapeSkipped = 0, nShapeCapped = 0;
             // 1. every footprint (and the annex splits), with its heights; then the houses only the orthophoto shows
             var B = new List<Bld>(); int n = 0, skipped = 0, nAnnex = 0;
             var feed = new List<(List<Vector2d> P, Dictionary<string, object> b, OrthoRoofs.Rec rec, MapillaryFacades.Rec mly, string id)>();
@@ -167,12 +224,22 @@ namespace Magistrala.EditorTools
                         string kind = (string)MiniJson.G(b, "kind") ?? "house";
                         // storeys: the owner's corrections > OSM > the orthophoto shadow estimate > the tile's h (BuildingFloors)
                         double h = BuildingFloors.Height(id, b, MiniJson.D(MiniJson.G(b, "h") ?? 7.0), out var hSrc, out var storeys);
+                        var shape = ShapeSize(P);
+                        bool ownerHeight = hSrc == "ispravak", taggedHeight = hSrc == "osm-levels" || hSrc == "osm-height";
+                        if (kind == "house" && !ownerHeight && !taggedHeight &&
+                            (shape.width < SHAPE_MIN_WIDTH || shape.area < SHAPE_TINY_AREA && shape.width < SHAPE_TINY_WIDTH))
+                        { nShapeSkipped++; continue; }
                         double gmin = double.MaxValue, gmax = double.MinValue;
                         foreach (var p in P) { double g = Ground(models, p.x, p.z); gmin = Math.Min(gmin, g); gmax = Math.Max(gmax, g); }
                         double baseY = gmax - Math.Min(1.0, (gmax - gmin) * .3), bottom = gmin - .6;
                         bool house = kind == "house";
                         // no row of identical boxes: +-35 cm on the eaves (the DGU heights are per-building medians anyway)
                         if (house) h = Math.Max(2.6, h + (Hash01(cx, cz, 1) - .5) * .7);
+                        if (house && !ownerHeight && !taggedHeight && !BuildingFloors.IsMeasured(id) && shape.area <= SHAPE_SMALL_AREA && shape.width < SHAPE_SMALL_WIDTH && h > SHAPE_HEIGHT_WIDTH * shape.width)
+                        {
+                            h = SHAPE_HEIGHT_WIDTH * shape.width;
+                            storeys = Math.Max(1, (int)Math.Ceiling(h / 3)); hSrc += "-shape-cap"; nShapeCapped++;
+                        }
                         int seed = (int)(Math.Abs(cx * 7.31 + cz * 3.17) % 100000);
                         var bl = new Bld { P = P, orig = P, kind = kind, h = h, baseY = baseY, bottom = bottom, top = baseY + h, cx = cx, cz = cz, seed = seed, lookSeed = seed,
                             core = InCore(cx, cz), yard = house && h < 13, cell = Key(cx, cz, CELL), chunk = Key(cx, cz, CHUNK), ortho = rec, mly = mly };
@@ -393,7 +460,7 @@ namespace Magistrala.EditorTools
             AssetDatabase.SaveAssets();
             // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
-            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
+            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, shape filter {nShapeSkipped} skipped / {nShapeCapped} capped, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
             Debug.Log($"[Magistrala] orthophoto roofs ({OrthoRoofs.PATH}): {nOrtho} footprints with a record, pitched {HouseBuilder.nOrthoPitched} + tiled slab {HouseBuilder.nOrthoTiledFlat}, flat {HouseBuilder.nOrthoFlat}, solar on {HouseBuilder.nSolar} roofs ({HouseBuilder.nSolarPanels} modules), Mapillary facades {MapillaryFacades.nApplied} ({MapillaryFacades.PATH}), OSM shifted {nShifted} ({nShiftRoad} kept: carriageway), added {nAdded}");
             Yards.WriteSpots();
             BuildingFloors.End();
