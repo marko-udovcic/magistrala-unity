@@ -58,25 +58,28 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   shader za aute (boja po primjerku, prljavština, zatamnjena stakla), dodane izmišljene tablice „ST …” s logom igre, razine detalja (LOD)
   i pojednostavljeni daleki model.
 
-## Iz igre Magistrala (BalkanDriver repo, vlastiti sadržaj)
+## Iz igre Magistrala (BalkanDriver repo; vlastiti sadržaj i preneseni izvori)
 - Modeli križanja i dionica (`client/public/assets/models/krizanja/*.glb`, Markov paket), njihov raspored (`model-junctions.json`)
 - Visine terena, stabla, tlocrti zgrada (`client/public/assets/world/split-kastela/tiles`, `ground`) — dijelom izvedeno iz podataka DGU
   (Sadrži podatke Državne geodetske uprave; podaci su izmijenjeni)
-- Oleander `Assets/Models/Props/Tripo/oleander.glb` (Tripo, Markov model; razdjelni pojas D8, roza i bijela varijanta)
-- Kamion `firm_truck.glb`, biljke `plants/*.glb` i njihovi impostori, teksture `tex/pbr/*` (stari teren / beton)
+- Tripo rekviziti i službena vozila (`Assets/Models/Props/Tripo/`, `Assets/Models/Vehicles/Tripo/`), Markovi generirani modeli. U ovom worktreeju oleander i klima imaju samo JSON konfiguraciju, bez GLB-a. Licenca generiranja / plan računa nije dokumentiran; vidi upozorenja u `Tools/dijagnoza/licence.md`.
+- Kamion `firm_truck.glb` i proceduralna prometna flota iz BalkanDrivera (iznimka: Punat, niže). Biljke, impostori i stare PBR teksture imaju vanjske CC0 izvore, popisane niže; nisu u cijelosti vlastiti sadržaj.
 
 ## Mapillary (CC BY-SA 4.0)
 - **Street-level imagery: Mapillary contributors (CC BY-SA 4.0)** — https://www.mapillary.com. Iz fotografija su izvedene samo
   činjenice: boja, vrsta zida i škure fasada uz staru cestu i D8 (`Assets/Editor/fasade-mapillary.json`, iz BalkanDriver
   tools/world/mapillary/s3_facades.py) i položaji uličnih svjetiljki / stupova (Mapillary map features,
-  `Assets/Editor/rasvjeta-mapillary.json`, Tools/rasvjeta/mly_lights.py) te vrsta i visina stabala uz staru cestu i D8
+  `Assets/Editor/rasvjeta-mapillary.json`, Tools/rasvjeta/mly_lights.py) te parkirališta (`Assets/Editor/parking-mapillary.json`, s5_parking.py) i vrsta i visina stabala uz staru cestu i D8
   (`Assets/Editor/stabla-mapillary.json`, iz BalkanDriver tools/world/mapillary/s4_trees.py; Assets/Editor/MapillaryTrees.cs).
-  Fotografije nisu u igri ni u gitu.
+  Fotografije nisu u igri ni u gitu. Podaci su izmjereni, filtrirani i prilagođeni koordinatama igre.
+  Licenca: https://creativecommons.org/licenses/by-sa/4.0/. Za eventualne zaštićene prerade vrijedi ista licenca.
 
 ## Državna geodetska uprava (Otvorena dozvola, data.gov.hr/otvorena-dozvola)
 - **Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni.**
   Boja tla oko Kaštel Lukšića (`Assets/Generated/Terrain/Macro/*`, izvedeno: zgrade i ceste maskirane i popunjene, boja
   svedena na naše teksture; docs/dof-tlo.md), od 20. 11. 2026. i Kaštel Novi / Stari / zapadni Lukšić (pločice t_-9_-5, t_-8_-5, t_-7_-5).
+  Procijenjene visine / katovi zgrada (`Assets/Editor/visine-zgrada.json`) izvedeni su iz sjena na istom ortofotu.
+  Izvor i uvjeti: https://dgu.gov.hr/otvoreni-podaci/6596, https://data.gov.hr/otvorena-dozvola/.
   Obris rive, obale, lukobrana i parkirališta te krošnje stabala uz rivu (`Assets/Editor/riva.json`, Tools/riva/riva_build.py) izvedeni su
   s iste ortofotografije. Ne predstavlja službeni geodetski dokument. Isti tekst je u igri (mobitel → O igri).
 
@@ -88,11 +91,12 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   marke; bočna traka „GALEB TRANSPORT“ je naša (`galeb_livery.png`, `Tools/vehicles/galeb/livery.py`, font Inter).
   Datoteke: `Assets/Resources/Vehicles/Galeb/galeb.glb`, `galeb_livery.png`. U igri: mobitel → O igri (autor, licenca, izmijenjeno).
 
-## Unity Asset Store (Standard Unity Asset Store EULA — korištenje u igri, sirove datoteke se ne dijele, paket nije u gitu)
+## Unity Asset Store (prijavljena Standard Unity Asset Store EULA; paket nije u gitu)
 - **Coast & Dunes Environment – Dynamic Nature** (Beach, Sea, Islands, Dry Desert) — **NatureManufacture**, Unity Asset Store,
   Standard Unity Asset Store EULA. U probi „priroda”: slojevi tla (suho tlo s makijom, smeđa zemlja, kamenito tlo), suha trava i
   biljke za detalje terena, bor (preoblikovan prema alepskom boru), litice (zatamnjene u vapnenac), grm (tamnozeleno, bez cvijeta) u
-  razdjelnom pojasu D8, more (shader „Water Sea Offset”), vjetar. Mapa paketa `Assets/NatureManufacture Assets` je u .gitignore.
+  razdjelnom pojasu D8, more (shader „Water Sea Offset”), vjetar. Mapa paketa `Assets/NatureManufacture Assets` je u .gitignore
+  i nije prisutna u ovom worktreeju; licenca paketa i dokaz kupnje ovdje nisu provjerljivi. Vidi `Tools/dijagnoza/licence.md`.
 
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
@@ -105,3 +109,43 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   (ploče portala, putokazi, nazivi mjesta i ulica: Inter SemiBold rasteriziran u `Assets/Generated/Signs/SignAtlas.png` pri
   gradnji, `Assets/Editor/SignArt.cs`).
   Datoteke: `Assets/Resources/Fonts/Inter-*.ttf`, licenca `Assets/Resources/Fonts/Inter-LICENSE.txt`.
+
+- **Liberation Sans** — Digitized data copyright (c) 2010 Google Corporation (Reserved Font Names: Arimo, Tinos, Cousine); Copyright (c) 2012 Red Hat, Inc. (Reserved Font Name: Liberation). SIL OFL 1.1.
+  Font i puni tekst licence: `Assets/TextMesh Pro/Fonts/LiberationSans.ttf`, `Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt`.
+- Inter: Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter).
+- D-DIN: Copyright (C) 2017 Datto Inc.; Reserved Font Names: D-DIN, D-DIN Condensed, D-DIN Expanded.
+  OFL: https://openfontlicense.org/. Pri distribuciji fontova sačuvati cijeli tekst licence i copyright; rasterizirani natpisi nisu font softver.
+
+## OpenStreetMap (ODbL 1.0)
+- **© OpenStreetMap contributors** — https://www.openstreetmap.org/copyright.
+  Podaci pod Open Database License 1.0: https://opendatacommons.org/licenses/odbl/1-0/.
+  Cestovni graf, nazivi, ograničenja brzine, tlocrti / visine zgrada, namjena tla, parkirališta, parkovi i nasadi
+  iz BalkanDriver podataka, filtrirani i prilagođeni igri. Prikaz u igri: mobitel → O igri → Karta i prostor.
+  Atribucija ne zamjenjuje ODbL obveze pri javnoj distribuciji izvedene baze; vidi audit.
+
+## Preneseni CC0 izvori iz BalkanDrivera
+- Biljke i impostori (`Assets/Models/Plants`, `Assets/Textures/Imp`): Poly Haven
+  [island_tree_02](https://polyhaven.com/a/island_tree_02) (maslina),
+  [searsia_lucida](https://polyhaven.com/a/searsia_lucida) (grmovi),
+  [wild_rooibos_bush](https://polyhaven.com/a/wild_rooibos_bush) (niski grm),
+  [grass_medium_02](https://polyhaven.com/a/grass_medium_02) (trava),
+  [pine_sapling_small](https://polyhaven.com/a/pine_sapling_small) (iglice proceduralnih borova / čempresa),
+  [rock_07](https://polyhaven.com/a/rock_07) (kamen); kora ambientCG
+  [Bark014](https://ambientcg.com/a/Bark014), [Bark007](https://ambientcg.com/a/Bark007), Lennart Demes.
+  Izmjene: pojednostavljenje, zamjena lišća karticama, prebojavanje, atlasni impostori.
+- Stare PBR teksture (`Assets/Textures`): Poly Haven
+  [asphalt_02](https://polyhaven.com/a/asphalt_02), [rocky_trail](https://polyhaven.com/a/rocky_trail),
+  [grass_ground](https://polyhaven.com/a/grass_ground), [rocks_ground_02](https://polyhaven.com/a/rocks_ground_02),
+  [rock_boulder_dry](https://polyhaven.com/a/rock_boulder_dry),
+  [concrete_floor_damaged_01](https://polyhaven.com/a/concrete_floor_damaged_01).
+  Albedo s AO, zapakirane normale / hrapavost; dio boja dodatno prilagođen u Unityju.
+- Materijali proceduralnih kamiona iz BalkanDrivera: ambientCG Fabric061, Fabric030, Metal021, Planks021,
+  Plastic010, Leather037, Rubber004, DiamondPlate008C, Leather026, Plastic018B, Plastic012B, Leather018 (CC0).
+  Popis izvora: `BalkanDriver/client/public/assets/CREDITS-vehicles.md`; ne predstavlja potvrdu da svaki materijal ulazi u ovaj build.
+
+## Punat (treća strana; potvrditi licencu)
+- **„2005 Fiat Grande Punto” — ActsOfDoge, Sketchfab**, osnova za
+  `Assets/Models/Vehicles/Traffic/punat.glb` i `punat_lod1.glb`.
+  BalkanDriver `CREDITS-traffic.md` navodi „Free Standard” i komercijalnu uporabu; izvorni URL i kopija licence
+  nisu priloženi ovom worktreeju pa to nije potvrđena CC BY licenca. Izmjene: uklonjene oznake / tablice,
+  izmišljeni identitet Fiyat Punat, nova maska, stakla, atlas, kotači i LOD. Dobrovoljna zasluga u mobitelu → O igri.
