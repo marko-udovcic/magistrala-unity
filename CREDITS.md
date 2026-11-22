@@ -27,6 +27,20 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   **Izmijenjeno:** uklonjeni natpisi i oznake proizvođača, materijali pretvoreni u naš shader za aute (boja po primjerku, prljavština,
   zatamnjena stakla), dodane izmišljene registarske tablice, razine detalja (LOD) i pojednostavljeni daleki model.
   U igri kao prometni auto „zastava” (`Assets/Editor/auti-kandidati.json`, `Assets/Editor/KandidatImporter.cs`).
+- **"Yugo Koral 45"** — Tomislav Tomljenović — https://sketchfab.com/3d-models/yugo-koral-45-f5d14e34c9064b49b943e0c4a3add6ca — CC BY 4.0. U igri „yugo45”.
+- **"BMW E46 MSport"** — Ricy — https://sketchfab.com/3d-models/bmw-e46-msport-614c2f1660474178a1d4717b7492d1c7 — CC BY 4.0. U igri „e46”.
+- **"Mercedes-Benz E-class W124 (unfinished)"** — OverLord — https://sketchfab.com/3d-models/mercedes-benz-e-class-w124-unfinished-4b468dbe4b6d4ca994bc7066b90781e2 — CC BY 4.0. U igri „w124”.
+- **"Volkswagen Golf II"** — ARDmation — https://sketchfab.com/3d-models/volkswagen-golf-ii-740500f10bc94e7a91c2290e445fcb39 — CC BY 4.0. U igri „golf2”.
+- **"Volkswagen Passat (2004 V6 4Motion)"** — I3D99 — https://sketchfab.com/3d-models/volkswagen-passat-480c0793f02b43d78b0d0c4a0eb6acb6 — CC BY 4.0. U igri „passat” (uklonjeni i američki bočni markeri).
+- **"Compact Hatchback"** — RCC Design — https://sketchfab.com/3d-models/compact-hatchback-abbd4e65bbf1475b866d84735088b8ff — CC BY 4.0. U igri „rcc_hatch”.
+- **"Executive Sedan"** — RCC Design — https://sketchfab.com/3d-models/executive-sedan-eadf0e3171d74e4999e37898f95578c8 — CC BY 4.0. U igri „rcc_sedan”.
+- **"European Delivery Van"** — Evan Hiltz — https://sketchfab.com/3d-models/european-delivery-van-0b2f1ad95a79419f9a092420024d329c — CC BY 4.0. U igri „kombi_tn”.
+- **"Mercedes Benz Sprinter 2006"** — Max (Max-7215; u metapodacima Max-5532) — https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 — CC BY 4.0.
+  U igri „sprinter” (civilni) i „sprinter_policija” (naša policijska grafika POLICIJA s logom igre, svjetla na krovu naša; razdvojen UV).
+  **Izmijenjeno (svi gore):** uklonjeni amblemi, natpisi i oznake proizvođača (geometrija i teksture: priprema
+  `BalkanDriver/assets-src/auti-kandidati/`, README.md), natpisi s guma, stvarne / strane registracije; materijali pretvoreni u naš
+  shader za aute (boja po primjerku, prljavština, zatamnjena stakla), dodane izmišljene tablice „ST …” s logom igre, razine detalja (LOD)
+  i pojednostavljeni daleki model.
 
 ## Iz igre Magistrala (BalkanDriver repo, vlastiti sadržaj)
 - Modeli križanja i dionica (`client/public/assets/models/krizanja/*.glb`, Markov paket), njihov raspored (`model-junctions.json`)

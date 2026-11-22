@@ -33,13 +33,26 @@ Preuzeti modeli automobila (Sketchfab i sl., CC BY / CC0) postaju prometni auti 
 | `materials[]` | po glTF materijalu (prefiks imena): `role` = `body` (boja se mijenja po primjerku), `trim`, `interior` (samo LOD0, prorijeđen), `wheel` (kotači se vrte), `glass`, `hide`; `size` tekstura (≤ 2048); `smoothMax`, `smoothMul`, `desat`, `bright`, `metalMul` = korekcije izgleda |
 | `strip[]` | uklanjanje marke: `px` = pravokutnik u pikselima izvorne teksture (gornji lijevi kut, kao u pregledniku slika) – prebojava se bojom ruba (`fill: auto`) ili zadanom (`#rrggbb`), normal mapa ravna; ili `box` = 6 brojeva (m, okvir auta) – trokuti unutra se brišu |
 | `probe` | okviri (6 brojeva svaki): u log se ispiše koji materijal i koji pikselni pravokutnik teksture leži u tom dijelu auta – za traženje amblema |
-| `lamps[]` | `type` head / tail / ind (žmigavci, lijevo/desno po x) – trokuti materijala `mat` čija je boja u sredini `red` / `amber` / `light` / `dark` / `any`, u zadnjem `depth` dijelu duljine na kraju `end`, između `yMin` i `yMax`, okrenuti prema van (`facing`) |
+| `lamps[]` | `type` head / tail / ind (žmigavci, lijevo/desno po x) / beaconA / beaconB (rotacije; `end: any` = bilo gdje na autu) – trokuti materijala `mat` čija je boja u sredini `red` / `amber` / `light` / `dark` / `any`, u zadnjem `depth` dijelu duljine na kraju `end`, između `yMin` i `yMax`, okrenuti prema van (`facing`) |
 | `colors`, `colorWeights` | boje laka i njihove težine (svaka boja = jedan materijal, jedno instancirano crtanje više) |
 | `weight`, `vMul`, `a`, `b`, `T` | udio u prometu i vožnja (brzina, ubrzanje, kočenje, razmak) kao kod ostalih vrsta |
 | `lod1`, `lod2`, `far`, `interiorLod0` | ciljni broj trokuta; LOD0 = model (unutrašnjost × interiorLod0) |
 | `lodNear`, `lodMid` | udaljenosti prelaska LOD0 → LOD1 → LOD2 (m); preko 70 m daleki model (TrafficSystem.lod1Dist) |
 | `plateStyle` | 0 = nova tablica s EU trakom, 1 = starija bez nje; `plateFrontY` / `plateRearY` visina sredine tablice (m), `plateW` / `plateH` |
 | `paintHueTol`, `paintSatMin` | koji pikseli teksture karoserije su lak (ton blizu najčešćeg zasićenog tona) |
+| `paintMode` | `hue` (zadano: ton blizu najčešćeg zasićenog), `light` (svijetli nezasićeni pikseli – bijeli auti, `paintSatMax`, `paintVMin`), `all` (cijeli materijal karoserije; i kad materijal nema teksturu, samo faktor boje) |
+| `paintRects` | pravokutnici (px, x0 y0 x1 y1 …, gornji lijevi kut) teksture karoserije: lak samo unutar njih |
+| `noPaint` | vozilo s oznakama (policija, hitna): tekstura karoserije ostaje kakva jest, jedna „boja” `#ffffff` |
+| `beaconShare` | udio vozila koja voze s upaljenim rotacijama (svjetla `beaconA` / `beaconB` → TrafficPart.lamp 5 / 6, naizmjence bljeskaju) |
+| `codex` | mapa Codexove pripreme (od korijena projekta, npr. `../BalkanDriver/assets-src/auti-kandidati/01_bmw_e46`): iz `config.json` se uzimaju `texture_map` (čiste teksture iz `textures-clean/`, alfa iz `*-alpha.png`), `drop_meshes` (cijeli glTF čvorovi) i `geometry_patches` (rasponi trokuta). `strip.px` se tada odnosi na čistu (≤ 2048) teksturu |
+| `keepNodes` | čvorovi iz `drop_meshes` koji ipak ostaju (tekstura im je već očišćena – npr. neutralni sivi znak umjesto rupe) |
+| `dropNodes` | regex imena čvorova koji se izbacuju |
+| `nodeMats` | `[{ "path": regex, "suffix": "kolo" }]`: primitivi čiji put čvora odgovara dobiju kopiju materijala `<ime>_<suffix>` (npr. gume na istom atlasu kao karoserija → uloga `wheel`) |
+| `extra` | `[{ "glb": put, "offset": [x, y, z] }]`: dodatni GLB (krovna svjetla) u glTF prostoru auta prije uspravljanja |
+| `glassOpaque` | auto bez unutrašnjosti: neprozirno tamno staklo i na LOD0 |
+| `lod0` | gornja granica trokuta LOD0 (karoserija + kotači, 4 × 4 % za kotače); 0 = model kakav jest |
+| `parkLabel` | natpis mjesta sirovog modela u sceni parkirališta (izvedbe istog modela dijele jedno mjesto) |
+| `materials[].metal`, `smooth` | stalni metal / glatkoća (materijali bez teksture: krom, sjajna plastika) |
 | `paintSmooth`, `coatSmooth`, `flake`, `grime`, `grimeH`, `glassAlpha` | izgled: lak, lakirni sloj, metalne čestice, prljavština (jačina, visina pragova), prozirnost stakla na LOD0 |
 
 ## 3. Pokretanje
@@ -49,9 +62,11 @@ Preuzeti modeli automobila (Sketchfab i sl., CC BY / CC0) postaju prometni auti 
    brisanja/prebojavanja, svjetla, postotak piksela laka, broj trokuta po LOD-u.
    Izvorne teksture se spremaju u `Builds/kandidati/<kind>/` – tamo u pregledniku slika nađeš pravokutnike za `strip`.
 2. **Magistrala/Build traffic** – vrsta ulazi u `TrafficData` (Uvoz sam pokreće Build traffic ako je otvorena scena s objektom Traffic).
-3. Parkirani auti: **Magistrala/Rekviziti: postavi** (uzima 8 najčešćih vrsta osobnih auta).
+3. Parkirani auti: **Magistrala/Rekviziti: postavi** (uzima 16 najčešćih vrsta osobnih auta, bez vozila s rotacijama, do 5,4 m i 2,1 m visine).
 4. Slike prije/poslije u sceni parkirališta: `-executeMethod Magistrala.EditorTools.KandidatImporter.BatchShots -kandidat <kind> -faza prije|poslije -shotdir <mapa> [-paint i]`
    (isti položaji kamere: 3/4 sprijeda, bok, 3/4 straga, detalj sprijeda, detalj straga).
+   Više auta odjednom (jedno pokretanje editora): `-executeMethod Magistrala.EditorTools.KandidatImporter.BatchMany -kandidati e46,w124 -shotroot <mapa> [-faze prije,poslije] [-noimport] [-parkscene]`
+   (slike u `<mapa>/<kind>/`; log ispisuje i profil prednjeg / stražnjeg kraja na x = 0 – visine gdje tablica može ravno sjesti).
 5. U igri: player s `-carshow <kind> -carcam f34,left,rear,d40 -shot x.png -shots …` i `-kindw <kind>=0` / `-kindw only=<kind>` za A/B mjerenje.
 
 ## 4. Što alat radi (ukratko)
