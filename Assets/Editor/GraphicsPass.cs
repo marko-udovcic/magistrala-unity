@@ -267,6 +267,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Grafika: detalji terena")]
         public static void Details()
         {
+            MainScene.Ensure();
             var grass = Flat("grass", "Assets/Models/Plants/grass.glb", false);
             var stone = Flat("stone", "Assets/Models/Plants/rock_a.glb", false);
             var maquis = Flat("maquis", "Assets/Models/Plants/shrub_b.glb");

@@ -9,6 +9,7 @@ namespace Magistrala.EditorTools
     {
         static string Build(BuildTarget target, BuildTargetGroup group, string path, bool dev = false)
         {
+            MainScene.EnsureSaved();
             PlayerSettings.companyName = "Magistrala"; PlayerSettings.productName = "Magistrala Unity proba";
             PlayerSettings.runInBackground = true; PlayerSettings.enableFrameTimingStats = true;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;

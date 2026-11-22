@@ -153,6 +153,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Build roads")]
         public static void Roads()
         {
+            MainScene.Ensure();
             var models = WorldData.Models(); LaneProfile.Clear();
             var root = Root("Roads");
             Dir(GEN + "/Roads");
@@ -322,6 +323,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Build terrain")]
         public static void Terrain()
         {
+            MainScene.Ensure();
             var models = WorldData.Models();
             var root = Root("Terrain");
             // CC0 Poly Haven sets (CREDITS.md): olive dry grass with stones, terra rossa, limestone rock face, pale gravel
@@ -492,6 +494,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Build trees")]
         public static void Trees()
         {
+            MainScene.Ensure();
             var protos = TreeProtos.Prefabs();
             var models = WorldData.Models();
             int total = 0;
@@ -639,6 +642,6 @@ namespace Magistrala.EditorTools
 
         // ------------------------------------------------------------------ tile buildings (footprints, extruded)
         [MenuItem("Magistrala/Build tile buildings")]
-        public static void TileBuildings() { BuildingsFromTiles.Build(); }
+        public static void TileBuildings() { MainScene.Ensure(); BuildingsFromTiles.Build(); }
     }
 }
