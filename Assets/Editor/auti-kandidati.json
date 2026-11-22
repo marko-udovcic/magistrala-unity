@@ -6,6 +6,7 @@
       "label": "Zastava 101",
       "source": "Zastava 101 (Stojadin) - Tomislav Tomljenović - https://sketchfab.com/3d-models/x-52c885cfc52a4ac1acb14f84a3feacfa - CC BY 4.0",
       "length": 3.83,
+      "height": 1.38,
       "up": "auto",
       "front": "auto",
       "parkFront": "+",
@@ -624,6 +625,7 @@
       "codex": "../BalkanDriver/assets-src/auti-kandidati/04_yugo_45",
       "source": "Yugo Koral 45 - Tomislav Tomljenović - https://sketchfab.com/3d-models/yugo-koral-45-f5d14e34c9064b49b943e0c4a3add6ca - CC BY 4.0",
       "length": 3.49,
+      "height": 1.39,
       "materials": [
         {
           "name": "M_Yugo45_Karoserija",
