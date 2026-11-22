@@ -586,6 +586,7 @@ namespace Magistrala.EditorTools
             tr.nearDistance = new[] { 110f, 110f, 90f, 110f, 45f, 45f, 40f, 120f };
             TreeProtos.Impostors(out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
             NaturePass.Finish(tr);
+            Debug.Log(MapillaryTrees.Apply(tr, models)); // Mapillary street trees the build lacks (MapillaryTrees.cs)
             Debug.Log($"[Magistrala] trees: {total} (yard crowns kept {VegetationMask.YardKept}, dropped {VegetationMask.YardDropped})");
         }
 

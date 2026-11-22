@@ -69,7 +69,9 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
 - **Street-level imagery: Mapillary contributors (CC BY-SA 4.0)** — https://www.mapillary.com. Iz fotografija su izvedene samo
   činjenice: boja, vrsta zida i škure fasada uz staru cestu i D8 (`Assets/Editor/fasade-mapillary.json`, iz BalkanDriver
   tools/world/mapillary/s3_facades.py) i položaji uličnih svjetiljki / stupova (Mapillary map features,
-  `Assets/Editor/rasvjeta-mapillary.json`, Tools/rasvjeta/mly_lights.py). Fotografije nisu u igri ni u gitu.
+  `Assets/Editor/rasvjeta-mapillary.json`, Tools/rasvjeta/mly_lights.py) te vrsta i visina stabala uz staru cestu i D8
+  (`Assets/Editor/stabla-mapillary.json`, iz BalkanDriver tools/world/mapillary/s4_trees.py; Assets/Editor/MapillaryTrees.cs).
+  Fotografije nisu u igri ni u gitu.
 
 ## Državna geodetska uprava (Otvorena dozvola, data.gov.hr/otvorena-dozvola)
 - **Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni.**
