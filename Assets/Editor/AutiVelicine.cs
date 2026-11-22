@@ -173,6 +173,8 @@ namespace Magistrala.EditorTools
             cam.farClipPlane = 200;
             Shot(cam, Path.Combine(outDir, "velicine-odozgo.png"), 2400, 1000);
             AssetDatabase.DeleteAsset(TMP);
+            // never leave the lot as the editor's last scene: the next rebuild / build would go to the wrong scene (main 675c6be)
+            EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity", OpenSceneMode.Single);
             Debug.Log("[velicine] -> " + outDir);
         }
 

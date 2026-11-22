@@ -151,6 +151,8 @@ namespace Magistrala.EditorTools
             var a = Environment.GetCommandLineArgs();
             for (int i = 0; i + 1 < a.Length; i++) { if (a[i] == "-kandidat") kind = a[i + 1]; if (a[i] == "-shotdir") outDir = a[i + 1]; if (a[i] == "-paint") paint = int.Parse(a[i + 1]); }
             Shots(Configs().First(c => c.kind == kind), outDir, "poslije", paint);
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity"); // never leave the lot as the last scene (main 675c6be)
         }
 
         /// batch: the main scene, import (-kandidat k), Build traffic, Rekviziti: postavi (parked cars), save, [-player: macOS player]
@@ -1377,6 +1379,8 @@ namespace Magistrala.EditorTools
                 }
                 catch (Exception e) { Debug.LogError($"[kandidat] {k} FAILED: {e}"); }
             }
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity"); // never leave the lot as the last scene (main 675c6be)
         }
 
         /// batch: -executeMethod Magistrala.EditorTools.KandidatImporter.BatchShots -kandidat zastava -shotdir <dir> -faza prije|poslije [-paint i]
@@ -1387,6 +1391,8 @@ namespace Magistrala.EditorTools
             for (int i = 0; i + 1 < a.Length; i++) { if (a[i] == "-kandidat") kind = a[i + 1]; if (a[i] == "-shotdir") outDir = a[i + 1]; if (a[i] == "-faza") faza = a[i + 1]; if (a[i] == "-paint") paint = int.Parse(a[i + 1]); }
             var cfg = Configs().First(c => c.kind == kind);
             Shots(cfg, outDir, faza, paint);
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity"); // never leave the lot as the last scene (main 675c6be)
         }
 
         public static void Shots(KCar cfg, string outDir, string faza, int paint)

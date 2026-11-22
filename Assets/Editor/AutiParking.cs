@@ -247,6 +247,8 @@ namespace Magistrala.EditorTools
         {
             BuildScene();
             Shots(System.Environment.GetEnvironmentVariable("PARKING_SHOTS") ?? "Builds/auti-parking/slike");
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity"); // never leave the lot as the last scene (main 675c6be)
         }
 
         public static void BatchPlayers()
@@ -254,6 +256,8 @@ namespace Magistrala.EditorTools
             EditorSceneManager.OpenScene(ScenePath);
             Debug.Log("[parking] " + BuildPlayer(BuildTarget.StandaloneOSX, "Builds/auti-parking/mac/AutiParking.app"));
             Debug.Log("[parking] " + BuildPlayer(BuildTarget.StandaloneWindows64, "Builds/auti-parking/win/AutiParking.exe"));
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity"); // never leave the lot as the last scene (main 675c6be)
         }
 
         public static void BatchAll()
@@ -262,6 +266,8 @@ namespace Magistrala.EditorTools
             Shots(System.Environment.GetEnvironmentVariable("PARKING_SHOTS") ?? "Builds/auti-parking/slike");
             Debug.Log("[parking] " + BuildPlayer(BuildTarget.StandaloneOSX, "Builds/auti-parking/mac/AutiParking.app"));
             Debug.Log("[parking] " + BuildPlayer(BuildTarget.StandaloneWindows64, "Builds/auti-parking/win/AutiParking.exe"));
+
+            UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity"); // never leave the lot as the last scene (main 675c6be)
         }
     }
 }
