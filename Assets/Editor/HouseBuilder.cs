@@ -9,8 +9,9 @@ namespace Magistrala.EditorTools
     /// What a face is made of. Wall / Roof / Trim / Balcony / Shutter / Detail all go to submesh 0 (Magistrala/Facade, one
     /// texture array: the layer and tint come from the house's Look), Glass to submesh 1 (Magistrala/WindowInterior), Rail to
     /// submesh 2 (cutout railing panels, URP Lit).
-    /// Yard: dry-stone yard walls (rubble layer, untinted).
-    public enum Slot { Wall, Roof, Glass, Shutter, Trim, Balcony, Rail, Detail, Yard }
+    /// Yard: dry-stone yard walls (rubble layer, untinted). Hedge: trimmed yard hedges (the plaster array's hedge layer,
+    /// BuildingTextures.PHedge, submesh 0). Rail also carries the yards' wire fences (House_Rail's atlas, FenceV).
+    public enum Slot { Wall, Roof, Glass, Shutter, Trim, Balcony, Rail, Detail, Yard, Hedge }
 
     public sealed class HouseGeo
     {
@@ -161,14 +162,14 @@ namespace Magistrala.EditorTools
         {
             float code = s == Slot.Wall ? look.wallCode : s == Slot.Roof ? BuildingTextures.Roof * 9 : s == Slot.Trim ? look.trimLayer * 9
                 : s == Slot.Balcony ? BuildingTextures.Concrete * 9 : s == Slot.Shutter ? BuildingTextures.Louvre * 9
-                : s == Slot.Yard ? BuildingTextures.Rubble * 9 : BuildingTextures.Plain * 9;
+                : s == Slot.Yard ? BuildingTextures.Rubble * 9 : s == Slot.Hedge ? 64 * BuildingTextures.PHedge : BuildingTextures.Plain * 9;
             if (rustOn && s == Slot.Wall) code += 2048;
             return new Vector4(code, y - gY, tY - y, s == Slot.Detail ? look.dirt * .4f : look.dirt);
         }
         static Color Tint(Slot s)
         {
             Color t = s == Slot.Wall ? look.wall : s == Slot.Roof ? look.roof : s == Slot.Trim ? look.trim : s == Slot.Balcony ? look.balcony
-                : s == Slot.Shutter ? look.shutter : s == Slot.Yard ? Color.white : detailTint;
+                : s == Slot.Shutter ? look.shutter : s == Slot.Yard ? Color.white : s == Slot.Hedge ? hedgeTint : detailTint;
             // tints are authored in sRGB; vertex colours are read as linear; the roof tint is a multiplier (kept linear)
             if (Lod >= 3 && s == Slot.Wall) t = Color.Lerp(t, new Color(.3f, .32f, .34f), .15f);
             Color lin = s == Slot.Roof ? t : t.linear;
@@ -248,14 +249,15 @@ namespace Magistrala.EditorTools
 
         /// A yard wall along `pts` (Unity world, y = the ground at each point), one open run, for the house AddHouse emitted
         /// last (its look). kind 0 dry stone (rubble), 1 the house's wall (plaster / stone) with a concrete cap, 2 a low plastered
-        /// wall with a railing on it. Gate posts at the run's ends when `posts`.
-        public static void YardWall(HouseGeo g, List<Vector3> pts, float h, int kind, bool postA, bool postB)
+        /// wall with a railing on it, 3 a low concrete base (of a wire fence, YardFence). Gate posts at the run's ends when `posts`.
+        public static void YardWall(HouseGeo g, List<Vector3> pts, float h, int kind, bool postA, bool postB, float pier = 0)
         {
+            float pierH = pier > 0 ? pier : h;
             if (pts.Count < 2) return;
-            const float t = .15f; // half thickness
+            float t = kind == 3 ? .1f : .15f; // half thickness
             float g0 = float.MaxValue; foreach (var p in pts) g0 = Mathf.Min(g0, p.y);
             float sg = gY, st = tY; gY = g0; tY = g0 + 100;
-            Slot body = kind == 0 ? Slot.Yard : Slot.Wall;
+            Slot body = kind == 0 ? Slot.Yard : kind == 3 ? Slot.Balcony : Slot.Wall;
             float wh = kind == 2 ? .75f : h;
             Vector3 up = Vector3.up * wh, dn = Vector3.down * .35f;
             for (int i = 0; i + 1 < pts.Count; i++)
@@ -266,7 +268,7 @@ namespace Magistrala.EditorTools
                 Vector3 pe = i == 0 ? p : p - e * t, qe = i + 2 == pts.Count ? q : q + e * t;
                 Face(g, body, pe + sd * t + dn, qe + sd * t + dn, qe + sd * t + up, pe + sd * t + up, sd);
                 Face(g, body, qe - sd * t + dn, pe - sd * t + dn, pe - sd * t + up, qe - sd * t + up, -sd);
-                if (kind == 0) Face(g, Slot.Yard, pe + sd * t + up, pe - sd * t + up, qe - sd * t + up, qe + sd * t + up, Vector3.up);
+                if (kind == 0 || kind == 3) Face(g, body, pe + sd * t + up, pe - sd * t + up, qe - sd * t + up, qe + sd * t + up, Vector3.up);
                 else
                 {
                     // concrete coping, 3 cm proud each side
@@ -287,10 +289,101 @@ namespace Magistrala.EditorTools
                 if ((k == 0 ? postA : postB) && Lod < 2)
                 {
                     // gate post: a 44 cm pier a little taller than the wall, with a cap
-                    float ph = Mathf.Max(wh, h) + .25f;
-                    Box(g, body, p - e * .44f - sd * .22f + dn, e, sd, .44f, ph + .35f, .44f, false);
+                    float ph = Mathf.Max(wh, pierH) + .25f;
+                    Box(g, kind == 3 ? Slot.Wall : body, p - e * .44f - sd * .22f + dn, e, sd, .44f, ph + .35f, .44f, false);
                     Box(g, Slot.Balcony, p - e * .47f - sd * .25f + Vector3.up * ph, e, sd, .5f, .08f, .5f);
                 }
+            }
+            gY = sg; tY = st;
+        }
+
+        // ---- the railing atlas (Tools/zbuke/ograda.py; House_Rail repeats u 8x per UV unit, so u = metres / 8 is 1 m per repeat):
+        // v bands: railing bars below BarV, post patches, green chain-link, galvanised chain-link (1.2 m of wire each)
+        const float BarV = .12f, FenceBand = 1.2f;
+        static readonly Vector2 BarUV = new Vector2(1f / 2048f, 1f / 2048f);
+        static Vector2 FenceUV(float along, float y, bool galv) => new Vector2(along / 8f, ((galv ? 600f : 152f) + y / FenceBand * 416f) / 1024f);
+        static Vector2 PostUV(bool galv) => new Vector2((galv ? .75f : .25f) / 8f, 136f / 1024f);
+        static Color hedgeTint = Color.white;
+
+        /// A wire fence (žičana ograda) along `pts` (Unity world, y = the ground at each point; one open run): chain-link from
+        /// y0 to y1 above the ground (at most 1.2 m of wire), green plastic-coated or galvanised, both faces (House_Rail culls
+        /// back faces), 5 cm steel posts every <= 2.5 m (near level only). In level 2 (the hull: shadow caster and collider, drawn
+        /// with the facade material only, so its rail submesh is never rendered) the panel reaches the ground: the truck stops at it.
+        public static void YardFence(HouseGeo g, List<Vector3> pts, float y0, float y1, bool galv)
+        {
+            if (pts.Count < 2) return;
+            if (Lod >= 2) y0 = -.2f; else y1 = Mathf.Min(y1, y0 + FenceBand);
+            float along = 0, wh = y1 - y0;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                Vector3 p = pts[i], q = pts[i + 1], e = q - p; e.y = 0; float L = e.magnitude; if (L < 1e-3f) continue; e /= L;
+                Vector3 sd = new Vector3(-e.z, 0, e.x), a = p + Vector3.up * y0, b = q + Vector3.up * y0, c = q + Vector3.up * y1, d = p + Vector3.up * y1;
+                Vector2 ta = FenceUV(along, 0, galv), tb = FenceUV(along + L, 0, galv), tc = FenceUV(along + L, wh, galv), td = FenceUV(along, wh, galv);
+                Quad(g, Slot.Rail, a, b, c, d, ta, tb, tc, td, sd);
+                Quad(g, Slot.Rail, a, b, c, d, ta, tb, tc, td, -sd);
+                along += L;
+                if (Lod > 0) continue;
+                int n = Mathf.Max(1, Mathf.CeilToInt(L / 2.5f));
+                railUV = PostUV(galv);
+                for (int k = 0; k <= n; k++)
+                {
+                    if (k == n && i + 2 < pts.Count) break; // the next segment's first post
+                    Vector3 m = Vector3.Lerp(p, q, (float)k / n);
+                    Box(g, Slot.Rail, m - e * .025f - sd * .025f + Vector3.up * (y0 - .05f), e, sd, .05f, wh + .1f, .05f, false);
+                }
+                railUV = BarUV;
+            }
+        }
+
+        /// A trimmed hedge (živica) along `pts` (one open run): its outer face `off` m inside the line (`side` +1: inside is
+        /// (-e.z, 0, e.x) of the run's direction e), `w` wide, `h` high, a chamfered top; near level: a station every ~1.3 m with
+        /// a few cm of noise in width and height (an uneven trim), mid / hull: one piece per straight segment. Submesh 0 (the
+        /// facade material's hedge layer), so no draw call of its own; the hull's copy casts the shadow and collides.
+        public static void YardHedge(HouseGeo g, List<Vector3> pts, float side, float off, float w, float h, Color tint)
+        {
+            if (pts.Count < 2) return;
+            float g0 = float.MaxValue; foreach (var p in pts) g0 = Mathf.Min(g0, p.y);
+            float sg = gY, st = tY; gY = g0; tY = g0 + 100; hedgeTint = tint;
+            // stations: ground point on the line, its inward vector (mitred at bends), jitter allowed
+            var S = new List<(Vector3 p, Vector3 s, bool j)>();
+            Vector3 prev = Vector3.zero;
+            for (int i = 0; i + 1 < pts.Count; i++)
+            {
+                Vector3 p = pts[i], q = pts[i + 1], e = q - p; e.y = 0; float L = e.magnitude; if (L < 1e-3f) continue; e /= L;
+                Vector3 sd = new Vector3(-e.z, 0, e.x) * side, sv = sd;
+                if (S.Count > 0) { var mi = (prev + sd).normalized; sv = mi / Mathf.Max(.5f, Vector3.Dot(mi, sd)); }
+                S.Add((p, sv, S.Count > 0));
+                int n = Lod == 0 ? Mathf.Max(1, Mathf.RoundToInt(L / 1.3f)) : 1;
+                for (int k = 1; k < n; k++) S.Add((Vector3.Lerp(p, q, (float)k / n), sd, true));
+                prev = sd;
+            }
+            if (S.Count == 0) { gY = sg; tY = st; return; }
+            S.Add((pts[pts.Count - 1], prev, false));
+            float Hash(Vector3 v, float k) { float x = Mathf.Sin(v.x * 12.9898f + v.z * 78.233f + k) * 43758.5453f; return x - Mathf.Floor(x); }
+            Vector3[] Profile(int k)
+            {
+                var (p, s, j) = S[k];
+                float hw = w / 2, hh = h;
+                if (j && Lod == 0) { hw += (Hash(p, 1) - .5f) * .1f; hh += (Hash(p, 2) - .5f) * .14f; }
+                float c = Mathf.Min(.15f, hw * .4f), mid = off + w / 2;
+                Vector3 P(float x, float y) => p + s * (mid + x) + Vector3.up * y;
+                return new[] { P(-hw, -.2f), P(-hw, hh - c), P(-hw + c, hh), P(hw - c, hh), P(hw, hh - c), P(hw, -.2f) };
+            }
+            var A = Profile(0);
+            for (int k = 1; k < S.Count; k++)
+            {
+                var B = Profile(k); Vector3 s = S[k].s.normalized;
+                Vector3[] want = { -s, -s + Vector3.up, Vector3.up, s + Vector3.up, s };
+                for (int f = 0; f < 5; f++) Face(g, Slot.Hedge, A[f], B[f], B[f + 1], A[f + 1], want[f]);
+                A = B;
+            }
+            // end caps
+            for (int k = 0; k < 2; k++)
+            {
+                var Q = Profile(k == 0 ? 0 : S.Count - 1);
+                Vector3 e = k == 0 ? S[0].p - S[1].p : S[S.Count - 1].p - S[S.Count - 2].p; e.y = 0; e.Normalize();
+                Face(g, Slot.Hedge, Q[0], Q[5], Q[4], Q[1], e);
+                Face(g, Slot.Hedge, Q[1], Q[4], Q[3], Q[2], e);
             }
             gY = sg; tY = st;
         }
@@ -684,8 +777,8 @@ namespace Magistrala.EditorTools
             Vector3 h = Vector3.up * .84f;
             Vector3 pa = f.P(x1, ground + rise, depth), pb = f.P(xl, land, depth);
             float L = Vector3.Distance(pa, pb);
-            Quad(g, Slot.Rail, pa, pb, pb + h, pa + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, .28f), new Vector2(0, .28f), f.outward);
-            Quad(g, Slot.Rail, pa, pb, pb + h, pa + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, .28f), new Vector2(0, .28f), -f.outward);
+            Quad(g, Slot.Rail, pa, pb, pb + h, pa + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, BarV), new Vector2(0, BarV), f.outward);
+            Quad(g, Slot.Rail, pa, pb, pb + h, pa + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, BarV), new Vector2(0, BarV), -f.outward);
             RailPanel(g, f.P(xl, land, depth), f.P(x0, land, depth), f.outward);
             RailPanel(g, f.P(x0, land, depth), f.P(x0, land, 0), -f.along);
         }
@@ -801,6 +894,7 @@ namespace Magistrala.EditorTools
         // Oriented closed box. x/z are horizontal unit axes; y is world up.
         /// wall-mounted boxes (their -z side against a wall: AC units, meters, steps, roller boxes...) leave that face out
         static bool againstWall;
+        static Vector2 railUV = new Vector2(1f / 2048f, 1f / 2048f);
         static void Box(HouseGeo g, Slot slot, Vector3 origin, Vector3 x, Vector3 z, float width, float height, float depth, bool bottomFace = true)
         {
             int firstVertex = g.v.Count;
@@ -812,9 +906,9 @@ namespace Magistrala.EditorTools
             Face(g, slot, d, c, c + h, d + h, z);
             Face(g, slot, a, d, d + h, a + h, -x);
             Face(g, slot, b, b + h, c + h, c, x);
-            // Bars sample one opaque texel of the railing mask; only the panel is perforated.
+            // Bars sample one opaque texel of the railing atlas (a bar, or a fence post's patch); only the panels are perforated.
             if (slot == Slot.Rail)
-                for (int i = firstVertex; i < g.uv.Count; i++) g.uv[i] = new Vector2(1f / 2048f, 1f / 2048f);
+                for (int i = firstVertex; i < g.uv.Count; i++) g.uv[i] = railUV;
         }
         // a box on an arbitrary frame (x, y, z unit axes): solar panels, dishes
         static void Box3(HouseGeo g, Slot slot, Vector3 o, Vector3 x, Vector3 y, Vector3 z, float w, float h, float d)
@@ -872,8 +966,8 @@ namespace Magistrala.EditorTools
         {
             Vector3 h = Vector3.up * .84f;
             float L = Vector3.Distance(a, b);
-            Quad(g, Slot.Rail, a, b, b + h, a + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, .28f), new Vector2(0, .28f), outward);
-            Quad(g, Slot.Rail, a, b, b + h, a + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, .28f), new Vector2(0, .28f), -outward);
+            Quad(g, Slot.Rail, a, b, b + h, a + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, BarV), new Vector2(0, BarV), outward);
+            Quad(g, Slot.Rail, a, b, b + h, a + h, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, BarV), new Vector2(0, BarV), -outward);
         }
 
         // ---- clutter (TIPOLOGIJA 6 / 9.7): AC units, meter box, cables, satellite dish, chimneys, antennas, roof terraces
@@ -1368,6 +1462,30 @@ namespace Magistrala.EditorTools
             return new[] { BuildingTextures.Facade(), BuildingTextures.Glass(), rail };
         }
 
+        /// the railing / wire-fence atlas (Tools/zbuke/ograda.py, committed): base colour + alpha, and metallic / smoothness
+        const string RailAtlas = "Assets/Textures/Buildings/ograda_atlas.png", RailMetal = "Assets/Textures/Buildings/ograda_metal.png";
+        static Texture2D RailTex(string path, bool srgb)
+        {
+            var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (ti == null) throw new InvalidOperationException(path + " is missing (Tools/zbuke/ograda.py)");
+            bool dirty = ti.sRGBTexture != srgb || !ti.mipmapEnabled || ti.wrapModeU != TextureWrapMode.Repeat || ti.wrapModeV != TextureWrapMode.Clamp
+                || (srgb && (!ti.alphaIsTransparency || !ti.mipMapsPreserveCoverage || ti.anisoLevel != 4));
+            if (dirty)
+            {
+                ti.textureType = TextureImporterType.Default; ti.sRGBTexture = srgb; ti.mipmapEnabled = true;
+                ti.wrapModeU = TextureWrapMode.Repeat; ti.wrapModeV = TextureWrapMode.Clamp; ti.filterMode = FilterMode.Trilinear;
+                if (srgb)
+                {
+                    // thin wires: keep their coverage in the mips (alpha-tested at .5), anisotropic along the fence at grazing angles
+                    ti.alphaSource = TextureImporterAlphaSource.FromInput; ti.alphaIsTransparency = true;
+                    ti.mipMapsPreserveCoverage = true; ti.alphaTestReferenceValue = .5f; ti.anisoLevel = 4;
+                }
+                else ti.textureCompression = TextureImporterCompression.Uncompressed;
+                ti.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
         static Material RailMaterial()
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -1378,28 +1496,22 @@ namespace Magistrala.EditorTools
             if (create) mat = new Material(shader) { name = "House_Rail" };
             else mat.shader = shader;
             mat.enableInstancing = true;
-            mat.SetColor("_BaseColor", new Color(.15f, .15f, .16f));
-            mat.SetFloat("_Smoothness", .4f);
-            mat.SetFloat("_Metallic", .6f);
+            // the colours, metal and gloss are in the atlas (painted railing bars, green / galvanised wire fences, posts)
+            mat.SetColor("_BaseColor", Color.white);
+            mat.SetFloat("_Smoothness", 1f);
+            mat.SetFloat("_Metallic", 1f);
+            mat.SetFloat("_SmoothnessTextureChannel", 0);
             mat.SetFloat("_Surface", 0);
             mat.SetFloat("_Cull", (float)CullMode.Back);
             if (create) AssetDatabase.CreateAsset(mat, path);
-            // Cutout bars retain depth/shadow rendering and avoid transparency sorting across an entire chunk.
-            Texture2D mask = null;
+            // the old procedural 16 px bar mask (before the atlas) lived inside the material
             foreach (UnityEngine.Object asset in AssetDatabase.LoadAllAssetsAtPath(path))
-                if (asset is Texture2D texture && texture.name == "RailCoverage") { mask = texture; break; }
-            if (mask == null)
-            {
-                mask = new Texture2D(16, 16, TextureFormat.RGBA32, false) { name = "RailCoverage",
-                    filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Repeat };
-                var pixels = new Color[256];
-                for (int y = 0; y < 16; y++)
-                    for (int x = 0; x < 16; x++) pixels[y * 16 + x] = new Color(1, 1, 1, x < 2 ? 1 : 0);
-                mask.SetPixels(pixels); mask.Apply();
-                AssetDatabase.AddObjectToAsset(mask, mat);
-            }
-            mat.SetTexture("_BaseMap", mask);
+                if (asset is Texture2D texture && texture.name == "RailCoverage") { AssetDatabase.RemoveObjectFromAsset(texture); UnityEngine.Object.DestroyImmediate(texture, true); }
+            // Cutout bars retain depth/shadow rendering and avoid transparency sorting across an entire chunk.
+            mat.SetTexture("_BaseMap", RailTex(RailAtlas, true));
             mat.SetTextureScale("_BaseMap", new Vector2(8, 1));
+            mat.SetTexture("_MetallicGlossMap", RailTex(RailMetal, false)); mat.EnableKeyword("_METALLICSPECGLOSSMAP");
+            mat.DisableKeyword("_SMOOTHNESS_TEXTURE_ALBEDO_CHANNEL_A");
             mat.SetTexture("_BumpMap", null); mat.DisableKeyword("_NORMALMAP");
             mat.SetFloat("_AlphaClip", 1);
             mat.SetFloat("_Cutoff", .5f);

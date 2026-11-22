@@ -48,8 +48,10 @@ Shader "Magistrala/Facade"
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
         // the plaster variants: metres per repeat (Poly Haven's real sizes, the 1 m ones a little larger against visible repeats)
-        static const float PTILE[9] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2 };
-        static const float PGLOSS[9] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08 };
+        static const float PTILE[10] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2, 1.0 };
+        static const float PGLOSS[10] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08, 0.25 };
+        // _Plaster layer 9 (variant 10) is not a plaster but the trimmed yard hedge (HouseBuilder Slot.Hedge): no peeling, grime,
+        // rising damp or micro grain on it
         // roof layer: mean luminance 0.197 (linear) -> 0.40 (HouseBuilder.RoofTint)
         static const half ROOF_GREY = 2.03;
 
@@ -122,6 +124,7 @@ Shader "Magistrala/Facade"
             // plaster / concrete with a variant: the Poly Haven plaster array instead of layer 0 / 4
             bool pl = variant > .5 && (li == 0 || li == 4);
             int pi = (int)variant - 1;
+            bool hedge = pl && pi == 9;
             float2 uv = input.uv / (pl ? PTILE[max(pi, 0)] : TILE[li]);
             half3 tex, ns;
             UNITY_BRANCH if (pl)
@@ -178,7 +181,7 @@ Shader "Magistrala/Facade"
             }
             // near micro grain (the walls are not plastic up close): fades in from 25 m, full within 12 m
             half micro = saturate((25 - camDist) / 13);
-            UNITY_BRANCH if (micro > 0.01 && li != 2 && li != 5 && li != 6)
+            UNITY_BRANCH if (micro > 0.01 && li != 2 && li != 5 && li != 6 && !hedge)
             {
                 half3 mg = SAMPLE_TEXTURE2D(_Micro, sampler_Micro, input.uv / .45).rgb;
                 albedo *= 1 + (mg.r - .5) * .5 * micro;
@@ -205,9 +208,10 @@ Shader "Magistrala/Facade"
             // drips from the window sills: the streak noise, narrower and stronger right under the sill
             half drip = input.occ.y * input.occ.y * saturate(leak.g * 1.6 + leak.b * 1.2 + .12);
             half grime = vertical * saturate(dirt * saturate(blot * .5 + streak * eave * 2.0 + foot * .6) + drip * (.35 + .5 * dirt));
+            if (hedge) grime = 0;
             // rising damp: a darker, slightly green-brown band at the foot of the wall, its top edge ragged (old houses higher)
             float dampTop = (.3 + .45 * Noise(float2(along * .6, 3.7)) + .2 * Noise(float2(along * 2.9, 8.1))) * (old ? 1.5 : .8) * (.5 + dirt);
-            half damp = vertical * saturate((dampTop - input.data.y) / .35) * (li == 2 ? 0 : 1) * .7;
+            half damp = vertical * saturate((dampTop - input.data.y) / .35) * (li == 2 || hedge ? 0 : 1) * .7;
             // rust runs under an AC unit / balcony slab (the overlay quad): the drip masks, narrowing downwards
             half rust = 0;
             if (rustQuad)

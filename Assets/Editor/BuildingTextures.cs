@@ -20,8 +20,10 @@ namespace Magistrala.EditorTools
         /// texture array the plaster / concrete layers switch to (Look.variant 1..9 = layer 0..8, 0 = layer 0 above), plus the near micro grain
         public const string PlasterFolder = "Assets/Textures/PolyHaven/zbuke/";
         public const string PlasterAlbedo = PlasterFolder + "zbuke_albedo.jpg", PlasterNormal = PlasterFolder + "zbuke_normal.jpg", Micro = PlasterFolder + "mikro.png";
-        public const int PlasterLayers = 9;
+        public const int PlasterLayers = 10;
         public const int PConcreteWall = 1, PWhiteRough = 2, PCracked = 3, PPreconcrete = 4, PBeige = 5, PPainted = 6, PYellow = 7, PRedWeathered = 8, PGrey = 9;
+        /// not a plaster: the trimmed yard hedge (Tools/zbuke/zivica.py; HouseBuilder Slot.Hedge, its colour kept, no weathering)
+        public const int PHedge = 10;
 
         // source (Poly Haven id) and the sRGB mean the layer is scaled to (null: grey, tinted per building)
         // grey layers keep `contrast` of their detail (plaster 0.8: the trowel marks and blotches read at street level)
