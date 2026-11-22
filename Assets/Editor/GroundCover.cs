@@ -19,7 +19,7 @@ using UnityEngine.Rendering;
 
 namespace Magistrala.EditorTools
 {
-    public static class GroundCover
+    public static partial class GroundCover
     {
         public const string PATH = "Assets/Editor/tlo-kastela.json";
         const string OUT = WorldBuilder.GEN + "/Tlo";
@@ -84,6 +84,7 @@ namespace Magistrala.EditorTools
             foreach (var o in MiniJson.L(j["parks"])) { var d = MiniJson.O(o); Parks.Add(((string)d["id"], (string)d["name"] ?? "", Arr(d["ring"]))); }
             Cars = MiniJson.L(j["cars"]).Select(Arr).ToList();
             Hedges = MiniJson.L(j["hedges"]).Select(Arr).ToList();
+            LoadMly();                       // the Mapillary car parks (GroundCoverMapillary.cs)
             return true;
         }
 
@@ -135,6 +136,7 @@ namespace Magistrala.EditorTools
                         if (inside(HX0 + (i + .5) * HC, HZ0 + (j + .5) * HC)) hard[j * HNX + i] = true;
             }
             foreach (var p in pitches) Mark(p.bx0, p.bz0, p.bx1, p.bz1, (x, z) => Dist(p, x, z) <= .5);
+            MarkMly(Mark);                   // the Mapillary car parks that were built (GroundCoverMapillary.cs)
             foreach (var s in surf)
             {
                 if (s.k == "paint") continue;
@@ -308,6 +310,7 @@ namespace Magistrala.EditorTools
             nPitches = nGoals = nHoops = nFenceM = nTris = nDropped = 0;
             var models = WorldData.Models();
             Surfaces(models);
+            MlyPrepare(models);              // the Mapillary car parks: ground grid and bays (their asphalt after the parked cars)
             foreach (var p in pitches) PitchBuild(p);
             int nm = Flush();
             var s = $"[tlo] {nPitches} pitches ({nGoals} goals, {nHoops} hoops, {nFenceM} m fence), {surf.Count} surfaces ({nTris} triangles, {nDropped} dropped), {nm} meshes";
