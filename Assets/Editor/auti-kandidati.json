@@ -129,7 +129,7 @@
         "#e6e2d6",
         "#d6c7a1",
         "#9c2a22",
-        "#7e9cc4",
+        "#4f74b8",
         "#2f4a35",
         "#c49a2c"
       ],
@@ -141,7 +141,7 @@
         14,
         10
       ],
-      "weight": 9,
+      "weight": 5,
       "vMul": 0.86,
       "a": 0.9,
       "b": 2.7,
@@ -151,8 +151,1506 @@
       "far": 600,
       "interiorLod0": 0.4,
       "plateStyle": 1,
-      "plateFrontY": 0.38,
+      "plateFrontY": 0.44,
       "plateRearY": 0.62
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "-",
+      "glassNode": "_car_0$",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "e46",
+      "glb": "01_bmw_e46.glb",
+      "label": "BMW E46",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/01_bmw_e46",
+      "keepNodes": [
+        19,
+        38,
+        86,
+        96,
+        106,
+        110
+      ],
+      "source": "BMW E46 MSport - Ricy - https://sketchfab.com/3d-models/bmw-e46-msport-614c2f1660474178a1d4717b7492d1c7 - CC BY 4.0",
+      "length": 4.47,
+      "glassOpaque": true,
+      "materials": [
+        {
+          "name": "Carpaint_Flakes_Ruby",
+          "role": "body"
+        },
+        {
+          "name": "Material_247",
+          "role": "wheel",
+          "size": 512
+        },
+        {
+          "name": "Material_259",
+          "role": "wheel",
+          "size": 512
+        },
+        {
+          "name": "Aluminium_Satin_wheels",
+          "role": "wheel",
+          "metal": 0.9,
+          "smooth": 0.6
+        },
+        {
+          "name": "Material_149",
+          "role": "wheel",
+          "size": 512
+        },
+        {
+          "name": "Aluminium_Clean",
+          "role": "trim",
+          "metal": 0.9,
+          "smooth": 0.7
+        },
+        {
+          "name": "Glass_Clear",
+          "role": "cover",
+          "smooth": 0.92
+        },
+        {
+          "name": "Glass_Smoked",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "Glass_Green",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "Glass_Mirror",
+          "role": "trim",
+          "metal": 1,
+          "smooth": 0.95
+        },
+        {
+          "name": "Material_186",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Material_187",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Material_431",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Material_199",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Material_571",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Material_620",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Material_643",
+          "role": "hide",
+          "size": 512
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.9,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#b8bcc0",
+        "#15171a",
+        "#1d2b4a",
+        "#5d6266",
+        "#e8e8e6",
+        "#23362c"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        16,
+        14,
+        10,
+        10
+      ],
+      "weight": 6,
+      "vMul": 1.04,
+      "a": 1.9,
+      "b": 3.4,
+      "T": 1.3,
+      "plateFrontY": 0.47,
+      "plateRearY": 0.77
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 1,
+      "kind": "w124",
+      "glb": "02_mercedes_w124.glb",
+      "label": "Mercedes W124",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/02_mercedes_w124",
+      "source": "Mercedes-Benz E-class W124 (unfinished) - OverLord - https://sketchfab.com/3d-models/mercedes-benz-e-class-w124-unfinished-4b468dbe4b6d4ca994bc7066b90781e2 - CC BY 4.0",
+      "length": 4.74,
+      "materials": [
+        {
+          "name": "CarPaint",
+          "role": "body"
+        },
+        {
+          "name": "Tire",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Rim_Outter",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Rims",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Bolts",
+          "role": "wheel",
+          "size": 512
+        },
+        {
+          "name": "Brake_Rotor",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Caliper",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Suspension",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Exhaust",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Headlight_Glass",
+          "role": "hide"
+        },
+        {
+          "name": "Windshield",
+          "role": "glass"
+        },
+        {
+          "name": "Undeneath",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Material.002",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Lamps",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Headlight.001",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Bumpers",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Grill",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Mirrors",
+          "role": "trim",
+          "size": 512
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.9,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#1c2740",
+        "#aeb2b4",
+        "#d8cfb5",
+        "#121314",
+        "#e6e5e0",
+        "#5a1a1f"
+      ],
+      "colorWeights": [
+        22,
+        20,
+        16,
+        16,
+        14,
+        12
+      ],
+      "weight": 5,
+      "vMul": 0.98,
+      "a": 1.5,
+      "b": 3.2,
+      "T": 1.4,
+      "plateFrontY": 0.455,
+      "plateRearY": 0.725,
+      "glassOpaque": true
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 1,
+      "kind": "golf2",
+      "glb": "05_golf_2.glb",
+      "label": "Golf 2",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/05_golf_2",
+      "source": "Volkswagen Golf II - ARDmation - https://sketchfab.com/3d-models/volkswagen-golf-ii-740500f10bc94e7a91c2290e445fcb39 - CC BY 4.0",
+      "length": 3.99,
+      "materials": [
+        {
+          "name": "paint",
+          "role": "body"
+        },
+        {
+          "name": "tire",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "hoodcap",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "interior",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "seats",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "window",
+          "role": "glass"
+        },
+        {
+          "name": "lights",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "metal",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "mirror",
+          "role": "trim",
+          "metal": 1,
+          "smooth": 0.95
+        },
+        {
+          "name": "plastic",
+          "role": "trim"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.9,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#a3211d",
+        "#e8e6df",
+        "#1f2d4d",
+        "#a9adb0",
+        "#141516",
+        "#2d4a3a"
+      ],
+      "colorWeights": [
+        18,
+        22,
+        16,
+        18,
+        14,
+        12
+      ],
+      "weight": 7,
+      "vMul": 0.95,
+      "a": 1.4,
+      "b": 3.0,
+      "T": 1.4,
+      "plateFrontY": 0.44,
+      "plateRearY": 0.86
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 30000,
+      "plateStyle": 1,
+      "kind": "yugo45",
+      "glb": "04_yugo_45.glb",
+      "label": "Yugo 45",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/04_yugo_45",
+      "source": "Yugo Koral 45 - Tomislav Tomljenović - https://sketchfab.com/3d-models/yugo-koral-45-f5d14e34c9064b49b943e0c4a3add6ca - CC BY 4.0",
+      "length": 3.49,
+      "materials": [
+        {
+          "name": "M_Yugo45_Karoserija",
+          "role": "body"
+        },
+        {
+          "name": "M_Yugo45_Dijelovi",
+          "role": "trim",
+          "alphaFill": "#d5d9dc"
+        },
+        {
+          "name": "M_Yugo45_Unutrasnjost",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "M_Yugo45_Prozori",
+          "role": "glass"
+        },
+        {
+          "name": "M_Yugo45_Gume",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.9,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#9a2420",
+        "#e4e1d6",
+        "#2c4c84",
+        "#d1c39b",
+        "#d6a52a"
+      ],
+      "colorWeights": [
+        24,
+        24,
+        18,
+        18,
+        16
+      ],
+      "weight": 4,
+      "vMul": 0.88,
+      "a": 1.0,
+      "b": 2.8,
+      "T": 1.6,
+      "plateFrontY": 0.365,
+      "plateRearY": 0.705,
+      "headMetal": 0.15
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "-",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "rcc_hatch",
+      "glb": "06_compact_hatchback.glb",
+      "label": "Compact Hatchback (RCC)",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/06_compact_hatchback",
+      "source": "Compact Hatchback - RCC Design - https://sketchfab.com/3d-models/compact-hatchback-abbd4e65bbf1475b866d84735088b8ff - CC BY 4.0",
+      "length": 4.0,
+      "paintMode": "light",
+      "nodeMats": [
+        {
+          "path": "_wheel_",
+          "suffix": "kolo"
+        },
+        {
+          "path": "lamp_glass",
+          "suffix": "svjetla"
+        }
+      ],
+      "materials": [
+        {
+          "name": "HATCHBACK_1988_0_kolo",
+          "role": "wheel"
+        },
+        {
+          "name": "HATCHBACK_1988_RIMS",
+          "role": "wheel",
+          "metal": 0.8,
+          "smooth": 0.7
+        },
+        {
+          "name": "HATCHBACK_1988_GLASS_svjetla",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "HATCHBACK_1988_GLASS",
+          "role": "glass"
+        },
+        {
+          "name": "HATCHBACK_1988_0",
+          "role": "body"
+        },
+        {
+          "name": "HATCHBACK_1988_bulbs",
+          "role": "trim"
+        },
+        {
+          "name": "HATCHBACK_1988_MIRRORS",
+          "role": "trim",
+          "metal": 0.9,
+          "smooth": 0.85
+        },
+        {
+          "name": "Concrete",
+          "role": "hide"
+        },
+        {
+          "name": "HATCHBACK_1988",
+          "role": "body"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.9,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#e6e5e1",
+        "#9b1f1c",
+        "#27457a",
+        "#a7abad",
+        "#161718"
+      ],
+      "colorWeights": [
+        24,
+        18,
+        18,
+        22,
+        18
+      ],
+      "weight": 7,
+      "vMul": 0.97,
+      "a": 1.5,
+      "b": 3.1,
+      "T": 1.4,
+      "plateFrontY": 0.47,
+      "plateRearY": 0.855,
+      "paintVMin": 0.4
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "-",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "rcc_sedan",
+      "glb": "07_executive_sedan.glb",
+      "label": "Executive Sedan (RCC)",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/07_executive_sedan",
+      "source": "Executive Sedan - RCC Design - https://sketchfab.com/3d-models/executive-sedan-eadf0e3171d74e4999e37898f95578c8 - CC BY 4.0",
+      "length": 4.74,
+      "paintMode": "light",
+      "nodeMats": [
+        {
+          "path": "_WHEEL_",
+          "suffix": "kolo"
+        },
+        {
+          "path": "F_LAMPS",
+          "suffix": "svjetla"
+        }
+      ],
+      "materials": [
+        {
+          "name": "SEDAN_PLASTIC_kolo",
+          "role": "wheel"
+        },
+        {
+          "name": "SEDAN_kolo",
+          "role": "wheel",
+          "metal": 0.8,
+          "smooth": 0.7
+        },
+        {
+          "name": "SEDAN_GLASS_svjetla",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "SEDAN_GLASS_LAMPS",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "SEDAN_GLASS",
+          "role": "glass"
+        },
+        {
+          "name": "SEDAN_PLASTIC",
+          "role": "body"
+        },
+        {
+          "name": "Concrete",
+          "role": "hide"
+        },
+        {
+          "name": "SEDAN",
+          "role": "body"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.9,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#1d2a44",
+        "#b0b3b5",
+        "#121315",
+        "#cfc5a8",
+        "#e5e4df"
+      ],
+      "colorWeights": [
+        22,
+        24,
+        18,
+        16,
+        20
+      ],
+      "weight": 6,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "plateFrontY": 0.44,
+      "plateRearY": 0.8,
+      "paintVMin": 0.4
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "kombi_tn",
+      "glb": "08_dostavni_kombi_tn.glb",
+      "label": "Dostavni kombi TN",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/08_dostavni_kombi_tn",
+      "source": "European Delivery Van - Evan Hiltz - https://sketchfab.com/3d-models/european-delivery-van-0b2f1ad95a79419f9a092420024d329c - CC BY 4.0",
+      "length": 5.0,
+      "paintHueTol": 16,
+      "materials": [
+        {
+          "name": "van_european_delivery_body",
+          "role": "body"
+        },
+        {
+          "name": "van_european_delivery_trim",
+          "role": "trim"
+        },
+        {
+          "name": "van_european_delivery_glass",
+          "role": "glass"
+        },
+        {
+          "name": "van_european_delivery_undercarriage",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "van_european_delivery_wheels",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.5,
+          "yMax": 1.2,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#e9e8e3",
+        "#d9b04a",
+        "#8e1f1a",
+        "#6d8fb3",
+        "#c9c0a6"
+      ],
+      "colorWeights": [
+        34,
+        16,
+        14,
+        18,
+        18
+      ],
+      "weight": 4,
+      "vMul": 0.9,
+      "a": 1.1,
+      "b": 2.8,
+      "T": 1.6,
+      "plateFrontY": 0.47,
+      "plateRearY": 0.51
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [
+        {
+          "mat": "",
+          "box": [
+            -0.16,
+            0.52,
+            2.1,
+            0.16,
+            0.82,
+            2.5
+          ],
+          "pieceMax": 800,
+          "note": "znak marke na maski"
+        },
+        {
+          "mat": "",
+          "box": [
+            -0.85,
+            0.8,
+            -2.3,
+            -0.18,
+            1.1,
+            -1.95
+          ],
+          "pieceMax": 2000,
+          "note": "natpis modela (lijevo straga)"
+        },
+        {
+          "mat": "",
+          "box": [
+            0.18,
+            0.8,
+            -2.3,
+            0.85,
+            1.1,
+            -1.95
+          ],
+          "pieceMax": 2000,
+          "note": "natpis motora (desno straga)"
+        }
+      ],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "passat",
+      "glb": "10_vw_passat_b55.glb",
+      "label": "VW Passat B5.5",
+      "source": "Volkswagen Passat (2004 V6 4Motion) - I3D99 - https://sketchfab.com/3d-models/volkswagen-passat-480c0793f02b43d78b0d0c4a0eb6acb6 - CC BY 4.0",
+      "length": 4.7,
+      "materials": [
+        {
+          "name": "paint",
+          "role": "body"
+        },
+        {
+          "name": "tyre",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "chrome",
+          "role": "trim",
+          "metal": 1,
+          "smooth": 0.85
+        },
+        {
+          "name": "glass",
+          "role": "glass"
+        },
+        {
+          "name": "headlight_cover",
+          "role": "hide"
+        },
+        {
+          "name": "headlight",
+          "role": "trim",
+          "metal": 0.8,
+          "smooth": 0.9
+        },
+        {
+          "name": "interior_metal",
+          "role": "interior"
+        },
+        {
+          "name": "lens",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "mirror",
+          "role": "trim",
+          "metal": 1,
+          "smooth": 0.95
+        },
+        {
+          "name": "plastic",
+          "role": "trim"
+        },
+        {
+          "name": "plate",
+          "role": "hide"
+        },
+        {
+          "name": "rearlight_cover",
+          "role": "trim",
+          "smooth": 0.9
+        },
+        {
+          "name": "rearlight",
+          "role": "trim",
+          "smooth": 0.8
+        },
+        {
+          "name": "relfector_mirror",
+          "role": "trim",
+          "metal": 1,
+          "smooth": 0.9
+        },
+        {
+          "name": "sidemarker",
+          "role": "hide"
+        },
+        {
+          "name": "trim",
+          "role": "trim"
+        },
+        {
+          "name": "material",
+          "role": "wheel"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "rearlight",
+          "color": "any",
+          "end": "rear",
+          "depth": 0.15
+        },
+        {
+          "type": "head",
+          "mat": "headlight",
+          "color": "any",
+          "end": "front",
+          "depth": 0.15,
+          "facing": 0.2
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        }
+      ],
+      "colors": [
+        "#b5b9bc",
+        "#131416",
+        "#1f2b44",
+        "#25392f",
+        "#63686c",
+        "#e6e6e4"
+      ],
+      "colorWeights": [
+        28,
+        20,
+        16,
+        10,
+        16,
+        10
+      ],
+      "weight": 8,
+      "vMul": 1.02,
+      "a": 1.8,
+      "b": 3.3,
+      "T": 1.3,
+      "plateFrontY": 0.45,
+      "plateRearY": 0.825
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "sprinter",
+      "glb": "09_mercedes_sprinter.glb",
+      "label": "Mercedes Sprinter",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/09_mercedes_sprinter",
+      "source": "Mercedes Benz Sprinter 2006 - Max (Max-7215) - https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 - CC BY 4.0",
+      "length": 5.9,
+      "paintMode": "light",
+      "materials": [
+        {
+          "name": "Carrosserie_5",
+          "role": "body",
+          "texFrom": "Carrosserie"
+        },
+        {
+          "name": "Carrosserie",
+          "role": "body"
+        },
+        {
+          "name": "Phare",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Interrieur",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Chassis",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Autre",
+          "role": "trim"
+        },
+        {
+          "name": "Vitre",
+          "role": "glass"
+        },
+        {
+          "name": "material",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Porte_2__0",
+          "role": "hide"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.6,
+          "yMax": 1.3,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        }
+      ],
+      "colors": [
+        "#eeeeec",
+        "#b4b7ba",
+        "#8c1b17",
+        "#1f2f55",
+        "#d8d2c0"
+      ],
+      "colorWeights": [
+        50,
+        18,
+        10,
+        12,
+        10
+      ],
+      "weight": 6,
+      "vMul": 0.93,
+      "a": 1.2,
+      "b": 3.0,
+      "T": 1.5,
+      "plateFrontY": 0.43,
+      "plateRearY": 0.45,
+      "paintVMin": 0.35
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "sprinter_policija",
+      "glb": "../BalkanDriver/assets-src/auti-kandidati/09_mercedes_sprinter/model-policija.glb",
+      "label": "Sprinter policija",
+      "source": "Mercedes Benz Sprinter 2006 - Max (Max-7215) - https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 - CC BY 4.0",
+      "length": 5.9,
+      "materials": [
+        {
+          "name": "Carrosserie_5",
+          "role": "trim",
+          "metal": 0,
+          "smooth": 0.6,
+          "bright": 1.12
+        },
+        {
+          "name": "Carrosserie",
+          "role": "body"
+        },
+        {
+          "name": "Phare",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Interrieur",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Chassis",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Autre",
+          "role": "trim"
+        },
+        {
+          "name": "Vitre",
+          "role": "glass"
+        },
+        {
+          "name": "material",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Porte_2__0",
+          "role": "hide"
+        },
+        {
+          "name": "Popravak",
+          "role": "trim",
+          "size": 16
+        },
+        {
+          "name": "Plava",
+          "role": "trim",
+          "size": 512,
+          "smooth": 0.9
+        },
+        {
+          "name": "Bijela",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Nosaci",
+          "role": "trim",
+          "size": 512
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.6,
+          "yMax": 1.3,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        },
+        {
+          "type": "beaconA",
+          "mat": "Plava_lijeva",
+          "color": "any",
+          "end": "any"
+        },
+        {
+          "type": "beaconB",
+          "mat": "Plava_desna",
+          "color": "any",
+          "end": "any"
+        }
+      ],
+      "colors": [
+        "#ffffff"
+      ],
+      "colorWeights": [
+        1
+      ],
+      "weight": 1.2,
+      "vMul": 1.0,
+      "a": 1.4,
+      "b": 3.2,
+      "T": 1.3,
+      "plateFrontY": 0.43,
+      "plateRearY": 0.45,
+      "parkLabel": "Mercedes Sprinter",
+      "noPaint": true,
+      "beaconShare": 0.35,
+      "extra": [
+        {
+          "glb": "../BalkanDriver/assets-src/auti-kandidati/09_mercedes_sprinter/svjetla-krov/svjetla-krov.glb",
+          "offset": [
+            0,
+            1.257,
+            0.45
+          ]
+        }
+      ]
+    },
+    {
+      "up": "y",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "strip": [],
+      "probe": [],
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 800,
+      "interiorLod0": 0.4,
+      "lod0": 33000,
+      "plateStyle": 0,
+      "kind": "sprinter_hitna",
+      "glb": "../BalkanDriver/assets-src/auti-kandidati/09_mercedes_sprinter/model-hitna.glb",
+      "label": "Sprinter hitna",
+      "source": "Mercedes Benz Sprinter 2006 - Max (Max-7215) - https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 - CC BY 4.0",
+      "length": 5.9,
+      "materials": [
+        {
+          "name": "Carrosserie_5",
+          "role": "trim",
+          "metal": 0,
+          "smooth": 0.6
+        },
+        {
+          "name": "Carrosserie",
+          "role": "body"
+        },
+        {
+          "name": "Phare",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Interrieur",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Chassis",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Autre",
+          "role": "trim"
+        },
+        {
+          "name": "Vitre",
+          "role": "glass"
+        },
+        {
+          "name": "material",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Porte_2__0",
+          "role": "hide"
+        },
+        {
+          "name": "Popravak",
+          "role": "trim",
+          "size": 16
+        },
+        {
+          "name": "Plava",
+          "role": "trim",
+          "size": 512,
+          "smooth": 0.9
+        },
+        {
+          "name": "Bijela",
+          "role": "trim",
+          "size": 512
+        },
+        {
+          "name": "Nosaci",
+          "role": "trim",
+          "size": 512
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.12
+        },
+        {
+          "type": "ind",
+          "mat": "",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.12
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.6,
+          "yMax": 1.3,
+          "facing": 0.5,
+          "axMin": 0.3,
+          "axMax": 0.85
+        },
+        {
+          "type": "beaconA",
+          "mat": "Plava_lijeva",
+          "color": "any",
+          "end": "any"
+        },
+        {
+          "type": "beaconB",
+          "mat": "Plava_desna",
+          "color": "any",
+          "end": "any"
+        },
+        {
+          "type": "beaconA",
+          "mat": "Plava_straga_desna",
+          "color": "any",
+          "end": "any"
+        },
+        {
+          "type": "beaconB",
+          "mat": "Plava_straga_lijeva",
+          "color": "any",
+          "end": "any"
+        }
+      ],
+      "colors": [
+        "#ffffff"
+      ],
+      "colorWeights": [
+        1
+      ],
+      "weight": 0.8,
+      "vMul": 1.0,
+      "a": 1.4,
+      "b": 3.2,
+      "T": 1.3,
+      "plateFrontY": 0.43,
+      "plateRearY": 0.45,
+      "parkLabel": "Mercedes Sprinter",
+      "noPaint": true,
+      "beaconShare": 0.4,
+      "extra": [
+        {
+          "glb": "../BalkanDriver/assets-src/auti-kandidati/09_mercedes_sprinter/svjetla-krov-hitna/svjetla-krov.glb",
+          "offset": [
+            0,
+            1.257,
+            0.45
+          ]
+        }
+      ]
     }
   ]
 }

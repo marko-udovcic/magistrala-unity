@@ -99,7 +99,7 @@ namespace Magistrala.EditorTools
                 var kd = data.kinds[k]; string nm = kd.name.ToLowerInvariant();
                 return kd.len >= 3.3f && kd.len <= 5.4f && kd.h <= 2.1f && kd.beaconShare <= 0 && kd.farMesh && kd.paints != null && kd.paints.Length > 0
                        && !nm.Contains("bus") && !nm.Contains("coach") && !nm.Contains("truck") && !nm.Contains("benzer") && kd.weight > 0;
-            }).OrderByDescending(k => data.kinds[k].weight).Take(8).ToArray();   // 8 commonest kinds × 3 colours: few instanced draws (8: room for the Zastava next to the 7 web kinds)
+            }).OrderByDescending(k => data.kinds[k].weight).Take(16).ToArray();   // 16 commonest kinds × 3 colours: parked cars draw the merged far mesh (palette + paint + tail per kind and colour), ~80 instanced draws at most (16: the web kinds and the downloaded ones, auti-kandidati.json)
             if (ks.Length == 0) { log.Add("  parkirani auti: nema vrsta"); return; }
             float wsum = ks.Sum(k => data.kinds[k].weight);
             gates = new List<Vector3>(); gateN = new Dictionary<Vector3, Vector2>();

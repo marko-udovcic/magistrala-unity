@@ -2,7 +2,7 @@
 # Izmišljene splitske registarske tablice za promet (Magistrala/TripoCar shader, _PlateTex): atlas 1024 x 1024,
 # 2 stupca x 8 redova, ćelija 512 x 128, tablica 500 x 108 px (omjer 520 x 112 mm) u sredini ćelije.
 #   stupac 0 (u 0 .. 0.5)  = nova tablica s plavom EU trakom (krug zvjezdica + "HR")
-#   stupac 1 (u 0.5 .. 1)  = starija tablica bez EU trake (stariji auti, prolog 1998.)
+#   stupac 1 (u 0.5 .. 1)  = starija tablica bez EU trake (stariji auti: Zastava, Yugo, Golf 2, W124)
 #   red r (v odozdo)       = tablica r (isti broj u oba stupca); Unity v = 1 - (r + 1) / 8 .. 1 - r / 8
 # Format: ST · logo igre (Magistrala disk prebojan u crveno-bijelu šahovnicu s plavim, NE državni grb) · 3–4 znamenke - 1–2 slova.
 # Brojevi su izmišljeni. Font: D-DIN Condensed Bold (Datto, SIL OFL 1.1, Tools/vehicles/fonts) — besplatni DIN 1451 klon.
@@ -45,9 +45,22 @@ plate() {
     -frames:v 1 "$out"
 }
 
+# ageing (22. 11. 2026.: tablice su bile prečiste): požutjela bijela podloga, sitno zrno, mrlje prašine (različite po tablici, $3 = sjeme)
+# i tamniji donji / gornji rub (prskanje s ceste)
+# zajedničko polje mrlja (zamućeni šum), svaka tablica uzima drugi isječak
+ffmpeg -loglevel error -y -f lavfi -i "color=c=black:s=1500x700" -vf "format=gray,geq=lum='255*random(1)',gblur=sigma=9,eq=contrast=6:brightness=-0.05,gblur=sigma=3" -frames:v 1 "$TMP/dirt.png"
+age() {
+  local in="$1" out="$2" k="$3"
+  local ox=$(( (k * 173) % 500 )) oy=$(( (k * 97) % 484 ))
+  ffmpeg -loglevel error -y -i "$in" -i "$TMP/dirt.png" -f lavfi -i "color=c=0x55493a:s=1000x216" -filter_complex \
+    "[0]format=rgb24,colorchannelmixer=rr=.965:gg=.955:bb=.90,noise=alls=7:allf=u[p];\
+[1]crop=1000:216:$ox:$oy,format=gray,geq=lum='clip(lum(X,Y)*0.35+if(gt(Y,184),(Y-184)*2.4,0)+if(lt(Y,12),(12-Y)*2.5,0)+if(lt(X,10),(10-X)*3,0)+if(gt(X,990),(X-990)*3,0),0,140)'[m];\
+[2]format=rgba[c];[c][m]alphamerge[d];[p][d]overlay=format=auto" -frames:v 1 "$out"
+}
+
 for i in "${!NUMS[@]}"; do
-  plate "${NUMS[$i]}" 1 "$TMP/eu$i.png"
-  plate "${NUMS[$i]}" 0 "$TMP/old$i.png"
+  plate "${NUMS[$i]}" 1 "$TMP/eu$i.png"; age "$TMP/eu$i.png" "$TMP/eu$i.a.png" "$i"; mv "$TMP/eu$i.a.png" "$TMP/eu$i.png"
+  plate "${NUMS[$i]}" 0 "$TMP/old$i.png"; age "$TMP/old$i.png" "$TMP/old$i.a.png" "$((i + 11))"; mv "$TMP/old$i.a.png" "$TMP/old$i.png"
   ffmpeg -loglevel error -y -i "$TMP/eu$i.png" -i "$TMP/old$i.png" -filter_complex \
     "[0]scale=500:108:flags=area,pad=512:128:6:10:color=0xf7f7f4[a];[1]scale=500:108:flags=area,pad=512:128:6:10:color=0xf7f7f4[b];[a][b]hstack" \
     -frames:v 1 "$TMP/row$i.png"

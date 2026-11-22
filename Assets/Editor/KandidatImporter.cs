@@ -45,6 +45,9 @@ namespace Magistrala.EditorTools
             public int size = 2048;             // texture size (<= 2048)
             public float smoothMax = 1, smoothMul = 1, desat = 0, bright = 1;   // look tweaks of the non-paint texels
             public float metalMul = 1;
+            public float metal = -1, smooth = -1;  // >= 0: fixed metal / smoothness (untextured chrome, glossy plastic)
+            public string texFrom;
+            public string alphaFill;            // #rrggbb: transparent texels (lamp lenses of a BLEND atlas) blended towards this colour (what showed through)              // use another material's textures (a plain uniform panel material joins the body's paint set)
         }
         [Serializable] public class KStrip
         {
@@ -58,10 +61,10 @@ namespace Magistrala.EditorTools
         }
         [Serializable] public class KLamp
         {
-            public string type;                 // head | tail | indL | indR (indL / indR: amber, split by x < 0 / > 0 automatically if "ind")
+            public string type;                 // head | tail | indL | indR (indL / indR: amber, split by x < 0 / > 0 automatically if "ind") | beaconA | beaconB (flashing, TrafficKind.beaconShare)
             public string mat;                  // material name (prefix)
             public string color = "any";        // red | amber | light | dark | any — the texel at the triangle centre
-            public string end = "front";        // front | rear: only the last `depth` of the length
+            public string end = "front";        // front | rear: only the last `depth` of the length; any: anywhere (no facing test)
             public float depth = .2f, yMin = 0, yMax = 9, facing = .2f;   // facing: min |n.z| towards that end
             public float axMin = 0, axMax = 9;  // |x| range (m): lamps sit at the corners, the grille / badge in the middle
         }
@@ -85,6 +88,28 @@ namespace Magistrala.EditorTools
             public float grime = .55f, grimeH = .42f;
             public float glassAlpha = .62f;
             public string parkFront = "+";      // AutiParking scene: the raw model's front along +z or -z (for the before / after views)
+            public string parkLabel;            // AutiParking bay label of the raw model (default: label) — variants of one model share it
+            // Codex preparation folder (relative to the project root, e.g. ../BalkanDriver/assets-src/auti-kandidati/01_bmw_e46):
+            // config.json texture_map (clean textures, alpha files), drop_meshes (whole glTF nodes), geometry_patches (triangle ranges)
+            public string codex;
+            public int[] keepNodes;             // drop_meshes nodes kept anyway (their texture is already cleaned)
+            public string dropNodes;            // regex: glTF node names dropped (ground tiles etc.)
+            public string paintMode = "hue";    // hue: texels near the paint's hue | light: bright unsaturated texels (white cars) | all: the whole body material
+            public int[] paintRects;            // body texture px rects (x0, y0, x1, y1, ...; top-left origin): paint only inside them
+            public float paintSatMax = .14f, paintVMin = .55f;   // paintMode light
+            public bool noPaint;                // livery (police, ambulance): the body texture as is, one white "paint"
+            public float beaconShare;           // share of the cars driving with beacons on (lamps beaconA / beaconB)
+            public KExtra[] extra;              // extra GLBs merged in before uprighting (police light bar)
+            public int lod0;                    // LOD0 triangle cap (body + wheels, interior aside); 0 = the model as is
+            public KNodeMat[] nodeMats;
+            public bool glassOpaque;
+            public float headMetal = .6f;       // headlamp submesh metal (chrome reflector look); clear lenses: lower            // no interior behind the windows: opaque dark glass on LOD0 too         // split a material by node path: matching primitives get a copy "<material>_<suffix>" (own role)
+        }
+        [Serializable] public class KNodeMat { public string path; public string suffix; }
+        [Serializable] public class KExtra
+        {
+            public string glb;                  // path relative to the project root
+            public float[] offset;              // glTF metres in the car's glTF space (after its node transforms)
         }
         [Serializable] class KFile { public KCar[] cars; }
 
@@ -155,8 +180,8 @@ namespace Magistrala.EditorTools
         static void Dir(string p) { if (!AssetDatabase.IsValidFolder(p)) { var parent = Path.GetDirectoryName(p).Replace('\\', '/'); Dir(parent); AssetDatabase.CreateFolder(parent, Path.GetFileName(p)); } }
 
         // ------------------------------------------------------------------ GLB (all nodes / meshes / primitives)
-        class GMat { public string name; public int bc = -1, mr = -1, nrm = -1; public Color factor = Color.white; public bool blend; }
-        class Prim { public string node; public int mat; public Vector3[] P, N; public Vector2[] UV; public int[] I; }
+        class GMat { public string name; public int bc = -1, mr = -1, nrm = -1; public Color factor = Color.white; public bool blend; public bool sg; public float gloss = 1; }
+        class Prim { public string node, path; public int nodeIdx, primIdx; public int mat; public Vector3[] P, N; public Vector2[] UV; public int[] I; }
         class Glb { public List<Prim> prims = new List<Prim>(); public List<GMat> mats = new List<GMat>(); public List<byte[]> images = new List<byte[]>(); }
 
         static Glb ReadGlb(string path)
@@ -198,6 +223,15 @@ namespace Magistrala.EditorTools
                     gm.bc = Img(MiniJson.G(pbr, "baseColorTexture")); gm.mr = Img(MiniJson.G(pbr, "metallicRoughnessTexture"));
                     if (MiniJson.G(pbr, "baseColorFactor") is object bf) { var l = MiniJson.L(bf); gm.factor = new Color(F(l[0]), F(l[1]), F(l[2]), F(l[3])); }
                 }
+                // older exports: KHR_materials_pbrSpecularGlossiness (diffuse + specular / glossiness in alpha)
+                if (MiniJson.G(m, "extensions") is object exO && MiniJson.G(MiniJson.O(exO), "KHR_materials_pbrSpecularGlossiness") is object sgO)
+                {
+                    var sg = MiniJson.O(sgO); gm.sg = true;
+                    if (MiniJson.G(sg, "diffuseTexture") is object dt) gm.bc = Img(dt);
+                    if (MiniJson.G(sg, "specularGlossinessTexture") is object st) gm.mr = Img(st);
+                    if (MiniJson.G(sg, "diffuseFactor") is object df) { var l = MiniJson.L(df); gm.factor = new Color(F(l[0]), F(l[1]), F(l[2]), F(l[3])); }
+                    gm.gloss = MiniJson.G(sg, "glossinessFactor") is object gf ? F(gf) : 1;
+                }
                 gm.nrm = Img(MiniJson.G(m, "normalTexture"));
                 gm.blend = (MiniJson.G(m, "alphaMode") as string) == "BLEND";
                 g.mats.Add(gm);
@@ -217,21 +251,22 @@ namespace Magistrala.EditorTools
                 if (MiniJson.G(n, "scale") is object ss) { var l = MiniJson.L(ss); s = new Vector3(F(l[0]), F(l[1]), F(l[2])); }
                 return Matrix4x4.TRS(t, q, s);
             }
-            void Walk(int ni, Matrix4x4 parent)
+            void Walk(int ni, Matrix4x4 parent, string ppath)
             {
                 var n = MiniJson.O(nodes[ni]); var M = parent * Local(n);
-                string name = MiniJson.G(n, "name") as string ?? "";
+                string name = MiniJson.G(n, "name") as string ?? "", path = ppath + "/" + name;
                 if (MiniJson.G(n, "mesh") is object meshI)
                 {
                     var nm = M.inverse.transpose; bool flip = M.determinant < 0;
-                    foreach (var po in MiniJson.L(MiniJson.O(meshes[I(meshI)])["primitives"]))
+                    var primList = MiniJson.L(MiniJson.O(meshes[I(meshI)])["primitives"]);
+                    for (int pIdx = 0; pIdx < primList.Count; pIdx++)
                     {
-                        var p = MiniJson.O(po); var at = MiniJson.O(p["attributes"]);
+                        var p = MiniJson.O(primList[pIdx]); var at = MiniJson.O(p["attributes"]);
                         if (MiniJson.G(p, "mode") is object md && I(md) != 4) continue;
                         var pos = Floats(I(at["POSITION"]), 3);
                         var nor = MiniJson.G(at, "NORMAL") is object na ? Floats(I(na), 3) : null;
                         var uv = MiniJson.G(at, "TEXCOORD_0") is object ua ? Floats(I(ua), 2) : null;
-                        var pr = new Prim { node = name, mat = MiniJson.G(p, "material") is object mi ? I(mi) : -1, P = new Vector3[pos.Length], N = new Vector3[pos.Length], UV = new Vector2[pos.Length] };
+                        var pr = new Prim { node = name, path = path, nodeIdx = ni, primIdx = pIdx, mat = MiniJson.G(p, "material") is object mi ? I(mi) : -1, P = new Vector3[pos.Length], N = new Vector3[pos.Length], UV = new Vector2[pos.Length] };
                         for (int i = 0; i < pos.Length; i++)
                         {
                             var w = M.MultiplyPoint3x4(new Vector3(pos[i][0], pos[i][1], pos[i][2]));
@@ -252,10 +287,10 @@ namespace Magistrala.EditorTools
                         g.prims.Add(pr);
                     }
                 }
-                if (MiniJson.G(n, "children") is object ch) foreach (var c in MiniJson.L(ch)) Walk(I(c), M);
+                if (MiniJson.G(n, "children") is object ch) foreach (var c in MiniJson.L(ch)) Walk(I(c), M, path);
             }
             var scene = MiniJson.O(MiniJson.L(j["scenes"])[MiniJson.G(j, "scene") is object sc ? I(sc) : 0]);
-            foreach (var r in MiniJson.L(scene["nodes"])) Walk(I(r), Matrix4x4.identity);
+            foreach (var r in MiniJson.L(scene["nodes"])) Walk(I(r), Matrix4x4.identity, "");
             return g;
         }
 
@@ -282,7 +317,7 @@ namespace Magistrala.EditorTools
         static bool IsLight(Color c) { Color.RGBToHSV(c, out _, out float s, out float v); return v > .55f && s < .3f; }
 
         // ------------------------------------------------------------------ the car
-        const int C_BASE = 0, C_HEAD = 1, C_TAIL = 2, C_INDL = 3, C_INDR = 4, C_GLASS = 5;
+        const int C_BASE = 0, C_HEAD = 1, C_TAIL = 2, C_INDL = 3, C_INDR = 4, C_GLASS = 5, C_BCNA = 6, C_BCNB = 7;
         class Tri { public int prim, t; public int mat; public int cls; public int wheel = -1; public bool cut; }
         class Car
         {
@@ -305,26 +340,84 @@ namespace Magistrala.EditorTools
         public static string Import(KCar cfg)
         {
             var log = new System.Text.StringBuilder($"[kandidat] {cfg.kind} ({cfg.glb})");
-            var c = new Car { cfg = cfg, g = ReadGlb($"{SRC}/{cfg.glb}") };
+            var c = new Car { cfg = cfg, g = ReadGlb(GlbPath(cfg.glb)) };
+            // extra GLBs (light bar): own materials / images appended, placed at the offset in the car's glTF space
+            if (cfg.extra != null)
+                foreach (var ex in cfg.extra)
+                {
+                    var e = ReadGlb(ex.glb); int mo = c.g.mats.Count, io = c.g.images.Count;
+                    var off = ex.offset != null && ex.offset.Length == 3 ? new Vector3(-ex.offset[0], ex.offset[1], ex.offset[2]) : Vector3.zero;   // glTF -> Unity: x mirrored
+                    c.g.images.AddRange(e.images);
+                    foreach (var m in e.mats) { if (m.bc >= 0) m.bc += io; if (m.mr >= 0) m.mr += io; if (m.nrm >= 0) m.nrm += io; c.g.mats.Add(m); }
+                    foreach (var pr in e.prims) { pr.nodeIdx = -1; if (pr.mat >= 0) pr.mat += mo; for (int i = 0; i < pr.P.Length; i++) pr.P[i] += off; c.g.prims.Add(pr); }
+                    log.Append($"; extra {Path.GetFileName(ex.glb)}: {e.prims.Sum(q => q.I.Length / 3)} tris");
+                }
+            // Codex preparation: clean textures (+ alpha), whole nodes dropped, triangle ranges removed
+            var cut = new HashSet<(int node, int prim, int tri)>(); var dropN = new HashSet<int>(); var alphaImg = new Dictionary<int, byte[]>();
+            if (!string.IsNullOrEmpty(cfg.codex)) CodexPrep(c, cfg, dropN, cut, alphaImg, log);
+            if (cfg.nodeMats != null)
+                foreach (var nmr in cfg.nodeMats)
+                {
+                    var rx = new System.Text.RegularExpressions.Regex(nmr.path, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    var copies = new Dictionary<int, int>(); int nP = 0;
+                    foreach (var pr in c.g.prims)
+                    {
+                        if (pr.mat < 0 || !rx.IsMatch(pr.path ?? pr.node)) continue;
+                        if (!copies.TryGetValue(pr.mat, out int cm))
+                        {
+                            var o = c.g.mats[pr.mat];
+                            c.g.mats.Add(new GMat { name = o.name + "_" + nmr.suffix, bc = o.bc, mr = o.mr, nrm = o.nrm, factor = o.factor, blend = o.blend, sg = o.sg, gloss = o.gloss });
+                            copies[pr.mat] = cm = c.g.mats.Count - 1;
+                        }
+                        pr.mat = cm; nP++;
+                    }
+                    log.Append($"; nodeMats {nmr.suffix}: {nP} primitives");
+                }
             int nm = c.g.mats.Count;
             c.bc = new Tex[nm]; c.mr = new Tex[nm]; c.nrm = new Tex[nm]; c.km = new KMat[nm];
             var texCache = new Dictionary<int, Tex>();
-            Tex T(int i) { if (i < 0) return null; if (!texCache.TryGetValue(i, out var t)) texCache[i] = t = Tex.Load(c.g.images[i]); return t; }
-            for (int m = 0; m < nm; m++) { c.bc[m] = T(c.g.mats[m].bc); c.mr[m] = T(c.g.mats[m].mr); c.nrm[m] = T(c.g.mats[m].nrm); c.km[m] = MatCfg(cfg, c.g.mats[m].name); }
-            int nTri = 0;
+            Tex T(int i)
+            {
+                if (i < 0) return null;
+                if (!texCache.TryGetValue(i, out var t))
+                {
+                    texCache[i] = t = Tex.Load(c.g.images[i]);
+                    if (alphaImg.TryGetValue(i, out var ab)) { var a = Tex.Load(ab); for (int k = 0; k < t.px.Length; k++) { int x = k % t.w * a.w / t.w, y = k / t.w * a.h / t.h; t.px[k].a = a.px[y * a.w + x].r; } }
+                }
+                return t;
+            }
+            for (int m = 0; m < nm; m++)
+            {
+                c.km[m] = MatCfg(cfg, c.g.mats[m].name);
+                if (!string.IsNullOrEmpty(c.km[m].texFrom))
+                {
+                    var src = c.g.mats.FirstOrDefault(q => q.name.StartsWith(c.km[m].texFrom, StringComparison.OrdinalIgnoreCase) && q != c.g.mats[m]);
+                    if (src != null) { c.g.mats[m].bc = src.bc; c.g.mats[m].mr = src.mr; c.g.mats[m].nrm = src.nrm; c.g.mats[m].factor = src.factor; }
+                }
+                c.bc[m] = T(c.g.mats[m].bc); c.mr[m] = T(c.g.mats[m].mr); c.nrm[m] = T(c.g.mats[m].nrm);
+            }
+            int nTri = 0, nCut = 0, nDrop = 0;
+            var dropRx = string.IsNullOrEmpty(cfg.dropNodes) ? null : new System.Text.RegularExpressions.Regex(cfg.dropNodes, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             for (int pi = 0; pi < c.g.prims.Count; pi++)
             {
                 var p = c.g.prims[pi]; bool glass = System.Text.RegularExpressions.Regex.IsMatch(p.node, cfg.glassNode, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                for (int t = 0; t < p.I.Length; t += 3) c.tris.Add(new Tri { prim = pi, t = t, mat = Mathf.Max(0, p.mat), cls = glass || (p.mat >= 0 && c.km[p.mat].role == "glass") ? C_GLASS : C_BASE });
                 nTri += p.I.Length / 3;
+                if (dropN.Contains(p.nodeIdx) || (dropRx != null && dropRx.IsMatch(p.node))) { nDrop += p.I.Length / 3; continue; }
+                for (int t = 0; t < p.I.Length; t += 3)
+                {
+                    if (cut.Count > 0 && cut.Contains((p.nodeIdx, p.primIdx, t / 3))) { nCut++; continue; }
+                    c.tris.Add(new Tri { prim = pi, t = t, mat = Mathf.Max(0, p.mat), cls = glass || (p.mat >= 0 && c.km[p.mat].role == "glass") ? C_GLASS : C_BASE });
+                }
             }
-            log.Append($": {nTri} tris, {nm} materials ({string.Join(", ", c.g.mats.Select((m, i) => $"{m.name}={c.km[i].role}"))})");
+            log.Append($": {nTri} tris ({nDrop} dropped nodes, {nCut} cut by patches), {nm} materials ({string.Join(", ", c.g.mats.Select((m, i) => $"{m.name}={c.km[i].role}"))})");
             DumpTextures(c);
             Upright(c, log);
             Wheels(c, log);
             Strip(c, log);
+            Covers(c, log);
             Probe(c);
             Lamps(c, log);
+            PlateProfile(c);
             string dir = $"{OUT}/{cfg.kind}"; Dir(dir);
             var info = new Info { kind = cfg.kind, len = c.L, halfW = c.hw, h = c.H, wheelR = (c.wr[0] + c.wr[1] + c.wr[2] + c.wr[3]) / 4, wheels = c.wc, wheelZf = (c.wc[0].z + c.wc[1].z) / 2, wheelZr = (c.wc[2].z + c.wc[3].z) / 2 };
             var texSets = BakeTextures(c, dir, log);
@@ -334,6 +427,48 @@ namespace Magistrala.EditorTools
             log.Append($"; LOD tris {info.tris0} / {info.tris1} / {info.tris2} / far {info.trisFar}");
             return log.ToString();
         }
+
+        /// a glb path: a bare file name lives in SRC, a path is relative to the project root
+        static string GlbPath(string g) => g.Contains("/") ? g : $"{SRC}/{g}";
+
+        /// Codex's config.json (assets-src/auti-kandidati/NN_ime): texture_map -> clean images (+ alpha files), drop_meshes -> nodes,
+        /// geometry_patches -> (node, primitive, triangle) to remove (unless marked already applied)
+        static void CodexPrep(Car c, KCar cfg, HashSet<int> dropN, HashSet<(int, int, int)> cut, Dictionary<int, byte[]> alphaImg, System.Text.StringBuilder log)
+        {
+            string dir = cfg.codex.TrimEnd('/');
+            var j = MiniJson.O(MiniJson.Parse(File.ReadAllText($"{dir}/config.json")));
+            int nTex = 0;
+            if (MiniJson.G(j, "texture_map") is object tmO)
+                foreach (var o in MiniJson.L(tmO))
+                {
+                    var e = MiniJson.O(o); int img = (int)MiniJson.D(e["image"]);
+                    if (MiniJson.G(e, "clean_file") is string cf && File.Exists($"{dir}/textures-clean/{cf}") && img < c.g.images.Count)
+                    {
+                        c.g.images[img] = File.ReadAllBytes($"{dir}/textures-clean/{cf}"); nTex++;
+                        if (MiniJson.G(e, "alpha_file") is string af && File.Exists($"{dir}/textures-clean/{af}")) alphaImg[img] = File.ReadAllBytes($"{dir}/textures-clean/{af}");
+                    }
+                }
+            var keep = new HashSet<int>(cfg.keepNodes ?? new int[0]);
+            if (MiniJson.G(j, "drop_meshes") is object dmO)
+                foreach (var o in MiniJson.L(dmO)) { int n = (int)MiniJson.D(MiniJson.O(o)["node"]); if (!keep.Contains(n)) dropN.Add(n); }
+            int nPatch = 0;
+            if (MiniJson.G(j, "geometry_patches") is object gpO)
+                foreach (var o in MiniJson.L(gpO))
+                {
+                    var e = MiniJson.O(o);
+                    if (MiniJson.G(e, "already_applied_in_model_policija") is bool ap && ap && cfg.glb.Contains("policija")) continue;
+                    int node = (int)MiniJson.D(e["node"]), prim = MiniJson.G(e, "primitive") is object po ? (int)MiniJson.D(po) : 0;
+                    foreach (var r in MiniJson.L(e["triangle_ranges"]))
+                    {
+                        var rl = MiniJson.L(r); int a = (int)MiniJson.D(rl[0]), n = (int)MiniJson.D(rl[1]);
+                        for (int t = a; t < a + n; t++) { cut.Add((node, prim, t)); nPatch++; }
+                    }
+                }
+            log.Append($"; codex {Path.GetFileName(dir)}: {nTex} clean textures ({alphaImg.Count} with alpha), {dropN.Count} nodes dropped, {nPatch} patch triangles");
+        }
+
+        /// the colour at a triangle's centre: texture × factor (untextured materials: the factor)
+        static Color TexCol(Car c, Tri t) { var f = c.g.mats[t.mat].factor; var tx = c.bc[t.mat]; return tx != null ? tx.At(CtrUV(c, t)) * f : f; }
 
         /// the source textures (base colour) to Builds/kandidati/<kind>/ for finding badge rects in an image viewer
         static void DumpTextures(Car c)
@@ -346,7 +481,9 @@ namespace Magistrala.EditorTools
         // ------------------------------------------------------------------ upright, scale, centre
         static void Upright(Car c, System.Text.StringBuilder log)
         {
-            Bounds B() { bool first = true; var b = new Bounds(); foreach (var p in c.g.prims) foreach (var v in p.P) { if (first) { b = new Bounds(v, Vector3.zero); first = false; } else b.Encapsulate(v); } return b; }
+            // bounds of the kept triangles (dropped nodes / cut triangles / hidden materials leave their vertices behind)
+            var kept = c.tris.Where(t => c.km[t.mat].role != "hide").ToList();
+            Bounds B() { bool first = true; var b = new Bounds(); foreach (var t in kept) for (int q = 0; q < 3; q++) { var v = P(c, t, q); if (first) { b = new Bounds(v, Vector3.zero); first = false; } else b.Encapsulate(v); } return b; }
             var b0 = B();
             Vector3[] ax = { Vector3.right, Vector3.up, Vector3.forward };
             float[] ext = { b0.size.x, b0.size.y, b0.size.z };
@@ -371,8 +508,8 @@ namespace Magistrala.EditorTools
             float sum = 0, wsum2 = 0;
             foreach (var t in c.tris)
             {
-                var tx = c.bc[t.mat]; if (tx == null || c.km[t.mat].role == "interior" || c.km[t.mat].role == "wheel") continue;
-                var col = tx.At(CtrUV(c, t)); if (!IsRed(col)) continue;
+                if (c.km[t.mat].role == "interior" || c.km[t.mat].role == "wheel" || c.km[t.mat].role == "hide") continue;
+                var col = TexCol(c, t); if (!IsRed(col)) continue;
                 float ar = FaceN(c, t).magnitude; sum += Vector3.Dot(Ctr(c, t) - b0.center, fwd) * ar; wsum2 += ar;
             }
             if (c.cfg.front == "+" ) { } else if (c.cfg.front == "-") fwd = -fwd;
@@ -385,7 +522,7 @@ namespace Magistrala.EditorTools
             b = B();
             c.L = b.size.z; c.H = b.size.y;
             // body half width below the mirrors (lower 55 %)
-            float hw = 0; foreach (var p in c.g.prims) foreach (var v in p.P) if (v.y < .55f * c.H) hw = Mathf.Max(hw, Mathf.Abs(v.x));
+            float hw = 0; foreach (var t in kept) for (int q = 0; q < 3; q++) { var v = P(c, t, q); if (v.y < .55f * c.H) hw = Mathf.Max(hw, Mathf.Abs(v.x)); }
             c.hw = hw;
             log.Append($"; upright: long axis {"xyz"[L]}, up {up}, red centroid {(wsum2 > 0 ? sum / wsum2 : 0):F2} -> front {fwd}; scale {s2:F4}, size {b.size.x:F2} x {b.size.y:F2} x {b.size.z:F2} m");
         }
@@ -477,6 +614,33 @@ namespace Magistrala.EditorTools
                         if (c.g.mats[m].name.StartsWith(s.mat ?? "", StringComparison.OrdinalIgnoreCase)) { PaintRect(c, m, s.px, s.fill); log.Append($"; strip {c.g.mats[m].name} px {string.Join(",", s.px)} {s.note}"); }
             }
             c.tris.RemoveAll(t => t.cut);
+        }
+
+        /// role "cover" (transparent lamp covers): the cover's triangles lying over another surface (a lamp behind, within 8 cm) are
+        /// dropped – the lamp shows; the rest (cover over nothing, e.g. smoked segments over the dark body) stays as opaque trim
+        static void Covers(Car c, System.Text.StringBuilder log)
+        {
+            var cov = c.tris.Where(t => c.km[t.mat].role == "cover").ToList(); if (cov.Count == 0) return;
+            // lamp internals only: a cover over the body paint (smoked segments) stays
+            var under = c.tris.Where(t => c.km[t.mat].role != "cover" && c.km[t.mat].role != "body" && t.cls != C_GLASS && c.km[t.mat].role != "hide").ToList();
+            int cut = 0;
+            foreach (var t in cov)
+            {
+                var n = FaceN(c, t); if (n.sqrMagnitude < 1e-14f) { t.cut = true; continue; }
+                n.Normalize(); var o = Ctr(c, t);
+                // both ways (the cover's winding is not reliable): a surface within 8 cm behind or in front
+                bool hit = false;
+                foreach (var d in new[] { -n, n })
+                    if (Ray(c, under, o + d * .001f, d, out var ht, out _))
+                    {
+                        var a = P(c, ht, 0); var hn = FaceN(c, ht).normalized;
+                        float dist = Mathf.Abs(Vector3.Dot(a - o, hn) / Mathf.Max(1e-4f, Mathf.Abs(Vector3.Dot(d, hn))));
+                        if (dist < .08f) { hit = true; break; }
+                    }
+                if (hit) { t.cut = true; cut++; }
+            }
+            c.tris.RemoveAll(t => t.cut);
+            log.Append($"; covers: {cut} of {cov.Count} tris over a lamp dropped, {cov.Count - cut} kept opaque");
         }
 
         /// paint a pixel rect (source image, top-left origin) of material m over: base colour + roughness with the rect border's median
@@ -572,33 +736,53 @@ namespace Magistrala.EditorTools
             }
         }
 
+        /// the outermost body surface along the car's axis at x = 0 (front / rear), every 3 cm of height: where a plate can sit flat
+        static void PlateProfile(Car c)
+        {
+            var solid = c.tris.Where(t => t.cls != C_GLASS && t.wheel < 0 && c.km[t.mat].role != "interior" && c.km[t.mat].role != "hide").ToList();
+            foreach (float zs in new[] { 1f, -1f })
+            {
+                var sb = new System.Text.StringBuilder($"[kandidat] {c.cfg.kind} profile {(zs > 0 ? "front" : "rear")} (y: |z| material):");
+                for (float y = .2f; y < 1.3f; y += .03f)
+                {
+                    if (!Ray(c, solid, new Vector3(0, y, zs * (c.L / 2 + 1)), new Vector3(0, 0, -zs), out var ht, out _)) continue;
+                    var a = P(c, ht, 0); var nrm = Vector3.Cross(P(c, ht, 1) - a, P(c, ht, 2) - a);
+                    float tz = a.z - (nrm.x * (0 - a.x) + nrm.y * (y - a.y)) / (Mathf.Abs(nrm.z) < 1e-6f ? 1e-6f : nrm.z);
+                    sb.Append($" {y:F2}:{Mathf.Abs(tz):F3} {c.g.mats[ht.mat].name.Substring(0, Mathf.Min(10, c.g.mats[ht.mat].name.Length))};");
+                }
+                Debug.Log(sb.ToString());
+            }
+        }
+
         // ------------------------------------------------------------------ lamps
         static void Lamps(Car c, System.Text.StringBuilder log)
         {
             if (c.cfg.lamps == null) return;
-            var cnt = new int[6];
+            var cnt = new int[8];
             foreach (var lp in c.cfg.lamps)
             {
-                int cls = lp.type == "head" ? C_HEAD : lp.type == "tail" ? C_TAIL : lp.type == "indL" ? C_INDL : lp.type == "indR" ? C_INDR : lp.type == "ind" ? -1 : -2;
+                int cls = lp.type == "head" ? C_HEAD : lp.type == "tail" ? C_TAIL : lp.type == "indL" ? C_INDL : lp.type == "indR" ? C_INDR : lp.type == "ind" ? -1
+                        : lp.type == "beaconA" ? C_BCNA : lp.type == "beaconB" ? C_BCNB : -2;
+                bool any = lp.end == "any";
                 if (cls == -2) continue;
                 float zs = lp.end == "rear" ? -1 : 1, zLim = c.L / 2 - lp.depth * c.L;
                 foreach (var t in c.tris)
                 {
                     if (t.cls != C_BASE || t.wheel >= 0) continue;
                     if (!string.IsNullOrEmpty(lp.mat) && !c.g.mats[t.mat].name.StartsWith(lp.mat, StringComparison.OrdinalIgnoreCase)) continue;
-                    var p = Ctr(c, t); if (p.z * zs < zLim || p.y < lp.yMin || p.y > lp.yMax || Mathf.Abs(p.x) < lp.axMin || Mathf.Abs(p.x) > lp.axMax) continue;
-                    var pr = c.g.prims[t.prim]; var n = (pr.N[pr.I[t.t]] + pr.N[pr.I[t.t + 1]] + pr.N[pr.I[t.t + 2]]).normalized; if (n.z * zs < lp.facing) continue;
-                    var col = c.bc[t.mat]?.At(CtrUV(c, t)) ?? Color.white;
+                    var p = Ctr(c, t); if ((!any && p.z * zs < zLim) || p.y < lp.yMin || p.y > lp.yMax || Mathf.Abs(p.x) < lp.axMin || Mathf.Abs(p.x) > lp.axMax) continue;
+                    var pr = c.g.prims[t.prim]; var n = (pr.N[pr.I[t.t]] + pr.N[pr.I[t.t + 1]] + pr.N[pr.I[t.t + 2]]).normalized; if (!any && n.z * zs < lp.facing) continue;
+                    var col = TexCol(c, t);
                     bool ok = lp.color == "red" ? IsRed(col) : lp.color == "amber" ? IsAmber(col) : lp.color == "light" ? IsLight(col) : lp.color == "dark" ? Lum(col) < .25f : true;
                     if (!ok) continue;
                     t.cls = cls >= 0 ? cls : p.x < 0 ? C_INDL : C_INDR; cnt[t.cls]++;
                 }
             }
-            log.Append($"; lamps head {cnt[C_HEAD]} tail {cnt[C_TAIL]} ind {cnt[C_INDL]}/{cnt[C_INDR]} tris");
+            log.Append($"; lamps head {cnt[C_HEAD]} tail {cnt[C_TAIL]} ind {cnt[C_INDL]}/{cnt[C_INDR]} beacons {cnt[C_BCNA]}/{cnt[C_BCNB]} tris");
         }
 
         // ------------------------------------------------------------------ textures
-        class TexSet { public Texture2D alb, mask; public float paintRef; public bool paint; }
+        class TexSet { public Texture2D alb, mask; public float paintRef; public bool paint; public float hue0; }
 
         static TexSet[] BakeTextures(Car c, string dir, System.Text.StringBuilder log)
         {
@@ -610,17 +794,28 @@ namespace Magistrala.EditorTools
                 var bc = c.bc[m]; var mr = c.mr[m]; var gm = c.g.mats[m];
                 int S = Mathf.Min(km.size, bc?.w ?? 64, 2048); if (bc == null) S = 16;
                 var alb = new Color[S * S]; var mask = new Color[S * S];
-                bool body = km.role == "body";
+                bool body = km.role == "body" && !c.cfg.noPaint;
+                bool allPaint = body && (c.cfg.paintMode == "all" || bc == null);
+                if (body && bc != null) { rectW = bc.w; rectH = bc.h; rectsFor = null; }
                 // the paint's hue: peak of the saturated texels' hue histogram (texels the triangles use: the whole atlas is close enough)
                 float hue0 = 0, vRef = 1;
-                if (body && bc != null)
+                if (body && bc != null && !allPaint)
                 {
                     var hist = new float[36];
                     for (int i = 0; i < bc.px.Length; i += 7) { Color.RGBToHSV(bc.px[i], out float h, out float s, out float v); if (s > c.cfg.paintSatMin && v > .25f) hist[Mathf.Min(35, (int)(h * 36))]++; }
                     int pk = Array.IndexOf(hist, hist.Max()); hue0 = (pk + .5f) / 36f;
                     var vs = new List<float>();
-                    for (int i = 0; i < bc.px.Length; i += 7) { Color.RGBToHSV(bc.px[i], out float h, out float s, out float v); if (PaintTexel(h, s, v, hue0, c.cfg)) vs.Add(v); }
+                    for (int i = 0; i < bc.px.Length; i += 7)
+                    {
+                        Color.RGBToHSV(bc.px[i], out float h, out float s, out float v);
+                        if (PaintTexel(h, s, v, hue0, c.cfg) && InPaintRect(c.cfg, (i % bc.w + .5f) / bc.w, (i / bc.w + .5f) / bc.h)) vs.Add(v);
+                    }
                     vs.Sort(); vRef = vs.Count > 0 ? vs[(int)(vs.Count * .7f)] : 1;
+                }
+                if (allPaint && bc != null)
+                {
+                    var vs = new List<float>(); for (int i = 0; i < bc.px.Length; i += 7) { Color.RGBToHSV(bc.px[i], out _, out _, out float v); vs.Add(v); }
+                    vs.Sort(); vRef = Mathf.Max(.05f, vs[(int)(vs.Count * .7f)]);
                 }
                 const float PaintRef = .82f; int nPaint = 0;
                 for (int y = 0; y < S; y++)
@@ -630,22 +825,32 @@ namespace Magistrala.EditorTools
                         Color col = bc != null ? Box(bc, uv, S) : Color.white; col *= gm.factor;
                         Color mrc = mr != null ? Box(mr, uv, S) : new Color(0, .6f, 0, 1);
                         float smooth = Mathf.Clamp01((1 - mrc.g) * km.smoothMul), metal = Mathf.Clamp01(mrc.b * km.metalMul);
+                        if (gm.sg)
+                        {
+                            // specular / glossiness: smoothness = glossiness (alpha; not when the "specular" map is the diffuse atlas itself),
+                            // no metal (a white diffuse / specular atlas would turn the whole car into chrome; chrome parts: KMat.metal)
+                            smooth = Mathf.Clamp01((mr != null && gm.mr != gm.bc ? mrc.a : .55f) * gm.gloss * km.smoothMul);
+                            metal = 0;
+                        }
+                        if (km.metal >= 0) metal = km.metal;
+                        if (km.smooth >= 0) smooth = km.smooth;
                         Color.RGBToHSV(col, out float h, out float s, out float v);
                         int i = y * S + x;
-                        if (body && PaintTexel(h, s, v, hue0, c.cfg))
+                        if (body && (allPaint || (PaintTexel(h, s, v, hue0, c.cfg) && InPaintRect(c.cfg, uv.x, uv.y))))
                         {
                             // plain paint: grey shading (its brightness against the paint's), recoloured per instance by _PaintColor
-                            float g = Mathf.Clamp(v / vRef, .3f, 1.25f) * PaintRef;
+                            float g = (bc == null ? 1 : Mathf.Clamp(v / vRef, .3f, 1.25f)) * PaintRef;
                             alb[i] = new Color(g, g, g, c.cfg.paintSmooth); mask[i] = new Color(1, 0, 0, 0); nPaint++;
                             continue;
                         }
+                        if (!string.IsNullOrEmpty(km.alphaFill) && col.a < .98f) { var af = Hex(km.alphaFill); col = new Color(Mathf.Lerp(af.r, col.r, col.a), Mathf.Lerp(af.g, col.g, col.a), Mathf.Lerp(af.b, col.b, col.a), 1); }
                         if (km.desat > 0) { float l = Lum(col); col = Color.Lerp(col, new Color(l, l, l), km.desat); }
                         col *= km.bright;
                         alb[i] = new Color(col.r, col.g, col.b, Mathf.Min(km.smoothMax, smooth));
                         mask[i] = new Color(0, 0, metal, 0);
                     }
                 string k = c.cfg.kind, nmS = San(gm.name);
-                var set = new TexSet { paintRef = PaintRef, paint = body };
+                var set = new TexSet { paintRef = PaintRef, paint = body, hue0 = allPaint ? -1 : hue0 };
                 set.alb = Save(alb, S, $"{dir}/{k}_{nmS}_albedo.png", true);
                 set.mask = Save(mask, S, $"{dir}/{k}_{nmS}_mask.png", false);
                 sets[m] = set;
@@ -654,8 +859,27 @@ namespace Magistrala.EditorTools
             return sets;
         }
 
+        /// texture uv (bottom-up) inside one of cfg.paintRects (px, top-left origin of the body texture)? no rects: everywhere
+        static bool InPaintRect(KCar cfg, float u, float v)
+        {
+            if (cfg.paintRects == null || cfg.paintRects.Length < 4) return true;
+            return PaintRectsUV(cfg).Any(r => u >= r.x && u <= r.z && v >= r.y && v <= r.w);
+        }
+        static Vector4[] rectsUV; static KCar rectsFor;
+        static Vector4[] PaintRectsUV(KCar cfg)
+        {
+            if (rectsFor == cfg && rectsUV != null) return rectsUV;
+            // px rects are given against a nominal 1.0 = cfg.paintRects texture size: the first body texture's (set in BakeTextures)
+            var l = new List<Vector4>();
+            for (int k = 0; k + 3 < cfg.paintRects.Length; k += 4)
+                l.Add(new Vector4(cfg.paintRects[k] / rectW, 1 - cfg.paintRects[k + 3] / rectH, cfg.paintRects[k + 2] / rectW, 1 - cfg.paintRects[k + 1] / rectH));
+            rectsFor = cfg; rectsUV = l.ToArray(); return rectsUV;
+        }
+        static float rectW = 2048, rectH = 2048;
+
         static bool PaintTexel(float h, float s, float v, float hue0, KCar cfg)
         {
+            if (cfg.paintMode == "light") return s < cfg.paintSatMax && v > cfg.paintVMin;
             float dh = Mathf.Abs(h - hue0); dh = Mathf.Min(dh, 1 - dh);
             return s > cfg.paintSatMin && v > .2f && dh * 360 < cfg.paintHueTol;
         }
@@ -730,7 +954,7 @@ namespace Magistrala.EditorTools
 
         /// UV-preserving decimation; when the UV seams stop it short of the target (fragmented atlases), again without them
         /// (the UVs then stretch a little across the seams — only used for LOD1 / LOD2 / far)
-        static Mesh Simplify(Mesh src, float quality, bool seams = true)
+        static Mesh Simplify(Mesh src, float quality, bool seams = true, bool careful = false)
         {
             if (quality >= .999f) return src;
             int target = Mathf.Max(4, Mathf.RoundToInt(Tris(src) * quality));
@@ -738,14 +962,16 @@ namespace Magistrala.EditorTools
             {
                 var ms = new UnityMeshSimplifier.MeshSimplifier();
                 var o = UnityMeshSimplifier.SimplificationOptions.Default;
-                o.PreserveUVSeamEdges = keepSeams; o.PreserveBorderEdges = false; o.EnableSmartLink = true; o.VertexLinkDistance = link;
+                o.PreserveUVSeamEdges = keepSeams; o.PreserveBorderEdges = careful; o.EnableSmartLink = true; o.VertexLinkDistance = link;
                 o.PreserveSurfaceCurvature = false; o.MaxIterationCount = 300; o.Agressiveness = 7;
                 ms.SimplificationOptions = o; ms.Initialize(m); ms.SimplifyMesh(q);
                 return ms.ToMesh();
             }
             var r = Run(src, quality, seams, .0005);
-            if (Tris(r) > target * 1.3f) r = Run(r, Mathf.Clamp01(target / (float)Mathf.Max(1, Tris(r))), false, .002);
-            if (Tris(r) > target * 1.5f) r = Run(r, Mathf.Clamp01(target / (float)Mathf.Max(1, Tris(r))), false, .01);
+            if (careful) return r;   // interior: open shells (seats, dashboard) collapse into shards without their borders
+            // fragmented models stop short of the target: again without seams, linking ever farther vertices
+            foreach (double link in new[] { .002, .01, .025 })
+                if (Tris(r) > target * 1.2f) r = Run(r, Mathf.Clamp01(target / (float)Mathf.Max(1, Tris(r))), false, link);
             return r;
         }
 
@@ -807,7 +1033,10 @@ namespace Magistrala.EditorTools
                 .Select(g => new Group { mat = g.Key.Item1, cls = g.Key.cls, t = g.ToList(), role = g.Key.Item1 < 0 ? "glass" : c.km[g.Key.Item1].role })
                 .OrderBy(g => g.role == "body" && g.cls == C_BASE ? 0 : g.role == "glass" ? 3 : g.role == "interior" ? 2 : 1).ThenBy(g => g.mat).ThenBy(g => g.cls).ToList();
             if (groups.Count == 0 || !(groups[0].role == "body" && groups[0].cls == C_BASE)) throw new Exception("no body (paint) material — set role \"body\" in the config");
-            var solid = c.tris.Where(t => t.cls != C_GLASS && t.wheel < 0 && c.km[t.mat].role != "interior").ToList();
+            // several body materials: they share the first one's paint set, so they must use the same texture (one atlas)
+            foreach (var g in groups.Where(g => g.role == "body" && g.cls == C_BASE && g.mat != groups[0].mat))
+                if (c.g.mats[g.mat].bc != c.g.mats[groups[0].mat].bc) Debug.LogWarning($"[kandidat] {k}: body material {c.g.mats[g.mat].name} has another texture than {c.g.mats[groups[0].mat].name} — its paint uses the wrong UVs");
+            var solid = c.tris.Where(t => t.cls != C_GLASS && t.wheel < 0 && c.km[t.mat].role != "interior" && c.km[t.mat].role != "hide").ToList();
             var plates = PlateQuads(c, solid);
 
             // materials
@@ -859,22 +1088,23 @@ namespace Magistrala.EditorTools
             foreach (var g in groups)
             {
                 Material m, on = null; int lamp = 0;
-                if (g.role == "glass") { m = glassT; lodMat.Add(glassO); }
+                if (g.role == "glass") { m = cfg.glassOpaque ? glassO : glassT; lodMat.Add(glassO); }
                 else
                 {
                     var ts = sets[g.mat]; string mn = San(c.g.mats[g.mat].name);
                     if (g.role == "body" && g.cls == C_BASE) m = null;   // paint set
                     else
                     {
-                        string suf = g.cls == C_HEAD ? "_head" : g.cls == C_TAIL ? "_tail" : g.cls == C_INDL || g.cls == C_INDR ? "_ind" : "";
+                        string suf = g.cls == C_HEAD ? "_head" : g.cls == C_TAIL ? "_tail" : g.cls == C_INDL || g.cls == C_INDR ? "_ind" : g.cls == C_BCNA ? "_bcnA" : g.cls == C_BCNB ? "_bcnB" : "";
                         m = Mat(mn + suf, sh); Setup(m, ts, Hex(colors[0]));
                         if (g.cls != C_BASE)
                         {
-                            lamp = g.cls == C_HEAD ? 4 : g.cls == C_TAIL ? 1 : g.cls == C_INDL ? 2 : 3;
+                            lamp = g.cls == C_HEAD ? 4 : g.cls == C_TAIL ? 1 : g.cls == C_INDL ? 2 : g.cls == C_INDR ? 3 : g.cls == C_BCNA ? 5 : 6;
                             m.SetFloat("_LampAll", 1); m.SetColor("_LampColor", g.cls == C_TAIL ? new Color(.22f, .01f, .005f) : Color.black);
-                            m.SetFloat("_LampMetal", g.cls == C_HEAD ? .6f : .05f);
+                            m.SetFloat("_LampMetal", g.cls == C_HEAD ? cfg.headMetal : .05f);
                             on = Mat(mn + suf + "_on", sh); Setup(on, ts, Hex(colors[0])); on.SetFloat("_LampAll", 1); on.SetFloat("_LampMetal", m.GetFloat("_LampMetal"));
-                            on.SetColor("_LampColor", g.cls == C_HEAD ? new Color(4f, 3.9f, 3.6f) : g.cls == C_TAIL ? new Color(7f, .3f, .15f) : new Color(6f, 2.6f, .3f));
+                            on.SetColor("_LampColor", g.cls == C_HEAD ? new Color(4f, 3.9f, 3.6f) : g.cls == C_TAIL ? new Color(7f, .3f, .15f)
+                                : g.cls == C_BCNA || g.cls == C_BCNB ? new Color(.35f, 1.1f, 9f) : new Color(6f, 2.6f, .3f));
                         }
                     }
                     lodMat.Add(null);
@@ -886,6 +1116,13 @@ namespace Magistrala.EditorTools
             var gm0 = groups.Select(g => GroupMesh(c, g.t, Vector3.zero)).ToList();
             gm0[0] = CombineSame(gm0[0], plates);
             int nonInt = groups.Select((g, i) => g.role == "interior" ? 0 : Tris(gm0[i])).Sum();
+            // LOD0 cap (dense models): body share of cfg.lod0 after the wheels' share (4 × 4 %)
+            int wheelAll = c.tris.Count(t => t.wheel >= 0);
+            // the paint panels are what one sees close up: kept whole, the rest takes the cut
+            int paintTris = groups.Select((g, i) => g.role == "body" && g.cls == C_BASE ? Tris(gm0[i]) : 0).Sum();
+            bool keepPaint = paintTris < cfg.lod0 * .45f;   // a dense paint mesh (Yugo: 21k) is cut like the rest
+            float q0 = cfg.lod0 <= 0 ? 1 : keepPaint ? Mathf.Clamp((cfg.lod0 - Mathf.Min(wheelAll, cfg.lod0 * .16f) - paintTris) / (float)Mathf.Max(1, nonInt - paintTris), .2f, 1)
+                : Mathf.Clamp01((cfg.lod0 - Mathf.Min(wheelAll, cfg.lod0 * .16f)) / (float)Mathf.Max(1, nonInt));
             Mesh Level(int lod, int target)
             {
                 float q = Mathf.Clamp01(target / (float)Mathf.Max(1, nonInt));
@@ -893,12 +1130,13 @@ namespace Magistrala.EditorTools
                 for (int i = 0; i < groups.Count; i++)
                 {
                     var g = groups[i]; int n = Tris(gm0[i]);
-                    if (g.role == "interior") { ms.Add(lod == 0 ? Simplify(gm0[i], cfg.interiorLod0) : null); continue; }
-                    if (lod == 0 || n < 120 || (g.cls != C_BASE && lod == 1)) { ms.Add(gm0[i]); continue; }   // lamps / small pieces kept whole (LOD2: lamps simplified too)
+                    if (g.role == "interior") { ms.Add(lod == 0 ? Simplify(gm0[i], cfg.interiorLod0, true, true) : null); continue; }
+                    if ((lod == 0 && q0 >= .999f) || n < 120 || (g.cls != C_BASE && lod <= 1)) { ms.Add(gm0[i]); continue; }   // lamps / small pieces kept whole (LOD2: lamps simplified too)
+                    if (lod == 0) { ms.Add(keepPaint && g.role == "body" && g.cls == C_BASE ? gm0[i] : Simplify(gm0[i], Mathf.Max(q0, 60f / n), true, true)); continue; }
                     ms.Add(Simplify(gm0[i], Mathf.Max(q, 60f / n)));
                 }
                 // plates survive the simplifier? keep them whole: re-add to the paint submesh
-                if (lod > 0) ms[0] = CombineSame(Strip2(ms[0]), plates);
+                if (lod > 0 || q0 < .999f) ms[0] = CombineSame(Strip2(ms[0]), plates);
                 return Combine(ms.Select(m => m ?? new Mesh()).ToList(), $"{k}_lod{lod}");
             }
             var b0 = Level(0, int.MaxValue);
@@ -917,7 +1155,7 @@ namespace Magistrala.EditorTools
                 int n = parts.Sum(Tris);
                 for (int lod = 0; lod < 3; lod++)
                 {
-                    float q = lod == 0 ? 1 : lod == 1 ? Mathf.Clamp01(cfg.lod1 * .045f / Mathf.Max(1, n)) : Mathf.Clamp01(cfg.lod2 * .04f / Mathf.Max(1, n));
+                    float q = lod == 0 ? (cfg.lod0 > 0 ? Mathf.Clamp01(cfg.lod0 * .04f / Mathf.Max(1, n)) : 1) : lod == 1 ? Mathf.Clamp01(cfg.lod1 * .045f / Mathf.Max(1, n)) : Mathf.Clamp01(cfg.lod2 * .04f / Mathf.Max(1, n));
                     var m = Combine(parts.Select(p => Simplify(p, q)).ToList(), $"{k}_wheel{w}_lod{lod}");
                     SaveMesh(m, $"{dir}/{k}_wheel{w}_lod{lod}.asset");
                     if (lod == 0) wTris0 += Tris(m); else if (lod == 1) wTris1 += Tris(m); else wTris2 += Tris(m);
@@ -974,12 +1212,12 @@ namespace Magistrala.EditorTools
                     else if (cuv.x > 1.5f) col = new Color(.9f, .9f, .88f);
                     else
                     {
-                        col = c.bc[mat] != null ? c.bc[mat].At(cuv) : Color.gray;
+                        col = (c.bc[mat] != null ? c.bc[mat].At(cuv) : Color.white) * c.g.mats[mat].factor;
                         if (g != null && g.cls == C_TAIL) sub = 2;
                         else if (g != null && g.role == "body" && g.cls == C_BASE && sets[mat] != null && sets[mat].paint)
                         {
                             Color.RGBToHSV(col, out float h, out float s, out float vv);
-                            if (s > c.cfg.paintSatMin && vv > .2f) sub = 1;
+                            if (sets[mat].hue0 < 0 || (PaintTexel(h, s, vv, sets[mat].hue0, c.cfg) && InPaintRect(c.cfg, cuv.x - Mathf.Floor(cuv.x), cuv.y - Mathf.Floor(cuv.y)))) sub = 1;
                         }
                     }
                     for (int q = 0; q < 3; q++) { int j = mb.Add(v[t[i + q]], nn != null && nn.Length == v.Length ? nn[t[i + q]] : Vector3.up, Vector2.zero); mb.C.Add(col); mb.T[sub].Add(j); }
@@ -1067,7 +1305,7 @@ namespace Magistrala.EditorTools
             var kd = new TrafficKind
             {
                 name = k, len = info.len, halfW = info.halfW, h = info.h, vMul = cfg.vMul, a = cfg.a, b = cfg.b, T = cfg.T, weight = cfg.weight,
-                lod0 = Parts(0), lod1 = Parts(1), lod2 = Parts(2), lodNear = cfg.lodNear, lodMid = cfg.lodMid, beaconShare = 0,
+                lod0 = Parts(0), lod1 = Parts(1), lod2 = Parts(2), lodNear = cfg.lodNear, lodMid = cfg.lodMid, beaconShare = cfg.beaconShare,
                 paints = colors.Select(cc => Mt($"{k}_paint_{cc.TrimStart('#')}")).ToArray(),
                 paintW = cfg.colorWeights != null && cfg.colorWeights.Length == colors.Length ? cfg.colorWeights.ToArray() : colors.Select(_ => 1f).ToArray(),
             };
@@ -1115,6 +1353,32 @@ namespace Magistrala.EditorTools
             var b = rs[0].bounds; foreach (var r in rs) b.Encapsulate(r.bounds); return b;
         }
 
+        /// batch: several candidates in one editor run: import + before / after shots each
+        /// -executeMethod Magistrala.EditorTools.KandidatImporter.BatchMany -kandidati bmw,w124 -shotroot <dir> [-faze prije,poslije] [-noimport]
+        public static void BatchMany()
+        {
+            string list = "", root = "Builds/kandidati/slike", faze = "prije,poslije"; bool noImport = false;
+            var a = Environment.GetCommandLineArgs();
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (i + 1 < a.Length && a[i] == "-kandidati") list = a[i + 1];
+                if (i + 1 < a.Length && a[i] == "-shotroot") root = a[i + 1];
+                if (i + 1 < a.Length && a[i] == "-faze") faze = a[i + 1];
+                if (a[i] == "-noimport") noImport = true;
+            }
+            if (Array.IndexOf(a, "-parkscene") >= 0 || !File.Exists("Assets/Scenes/AutiParking.unity")) AutiParking.BuildScene();
+            foreach (var k in list.Split(',').Where(x => x.Length > 0))
+            {
+                var cfg = Configs().FirstOrDefault(c => c.kind == k); if (cfg == null) { Debug.LogError("[kandidat] no config " + k); continue; }
+                try
+                {
+                    if (!noImport) { Debug.Log(Import(cfg)); AssetDatabase.SaveAssets(); }
+                    foreach (var f in faze.Split(',').Where(x => x.Length > 0)) Shots(cfg, $"{root}/{k}", f, 0);
+                }
+                catch (Exception e) { Debug.LogError($"[kandidat] {k} FAILED: {e}"); }
+            }
+        }
+
         /// batch: -executeMethod Magistrala.EditorTools.KandidatImporter.BatchShots -kandidat zastava -shotdir <dir> -faza prije|poslije [-paint i]
         public static void BatchShots()
         {
@@ -1129,7 +1393,8 @@ namespace Magistrala.EditorTools
         {
             if (!File.Exists("Assets/Scenes/AutiParking.unity")) AutiParking.BuildScene();
             EditorSceneManager.OpenScene("Assets/Scenes/AutiParking.unity");
-            var holder = ParkedCandidate(cfg.label); if (!holder) throw new Exception("no parked " + cfg.label);
+            string pl = string.IsNullOrEmpty(cfg.parkLabel) ? cfg.label : cfg.parkLabel;
+            var holder = ParkedCandidate(pl); if (!holder) throw new Exception("no parked " + pl);
             var model = holder.GetComponentsInChildren<Transform>().First(t => t.parent == holder && !t.GetComponent<TextMesh>()).gameObject;
             // only this car: the neighbours (3 m bays) would block the side view, the painted bay labels draw over everything
             foreach (Transform t in holder.parent) if (t != holder) t.gameObject.SetActive(false);

@@ -138,6 +138,7 @@ namespace Magistrala.Game.Phone
         {
             var kb = Keyboard.current;
             float dt = Time.unscaledDeltaTime;
+            if (Current != Screen.About) aboutPage = 0;
             bool show = Open || Ringing != null;
             slide = Mathf.MoveTowards(slide, show ? 1 : 0, dt * 5);
             if (Ringing != null && !Open && clock() - Ringing.ringAt >= Ringing.timeoutMin)
@@ -454,13 +455,30 @@ namespace Magistrala.Game.Phone
             "Street-level imagery: Mapillary contributors (CC BY-SA 4.0) — boje fasada i položaji svjetiljki.\n\n" +
             "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).\n\n" +
             "Galeb: 3D model autora Max (sketchfab.com/Max-5532), licenca CC BY 4.0, izmijenjeno (uklonjene oznake, nova boja).\n" +
-            "Auto: „Zastava 101 (Stojadin)” — Tomislav Tomljenović, Sketchfab, CC BY 4.0, izmijenjeno.";
+            AboutPage +
+            "Prometni auti — 3D modeli sa Sketchfaba, licenca CC BY 4.0, izmijenjeni (uklonjene oznake marke, naše tablice, boje, LOD):\n" +
+            "„Zastava 101 (Stojadin)” — Tomislav Tomljenović.\n" +
+            "„Yugo Koral 45” — Tomislav Tomljenović.\n" +
+            "„BMW E46 MSport” — Ricy.\n" +
+            "„Mercedes-Benz E-class W124 (unfinished)” — OverLord.\n" +
+            "„Volkswagen Golf II” — ARDmation.\n" +
+            "„Volkswagen Passat (2004 V6 4Motion)” — I3D99.\n" +
+            "„Compact Hatchback” — RCC Design.\n" +
+            "„Executive Sedan” — RCC Design.\n" +
+            "„European Delivery Van” — Evan Hiltz.\n" +
+            "„Mercedes Benz Sprinter 2006” — Max (Max-7215); policijska izvedba i svjetla na krovu naši.";
+        /// AboutText is shown in pages (the phone screen is short): the marker splits them
+        const string AboutPage = "\f";
+        int aboutPage;
         void DrawAbout(Rect a)
         {
-            float y = Title(a, "O igri", "Izvori podataka");
-            GUI.Label(new Rect(a.x, y, a.width, a.yMax - 60 - y), AboutText, small);
-            items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
-            List(a, a.yMax - 50);
+            var pages = AboutText.Split('\f');
+            aboutPage = Mathf.Clamp(aboutPage, 0, pages.Length - 1);
+            float y = Title(a, "O igri", pages.Length > 1 ? $"Izvori podataka · {aboutPage + 1}/{pages.Length}" : "Izvori podataka");
+            GUI.Label(new Rect(a.x, y, a.width, a.yMax - 110 - y), pages[aboutPage].Trim('\n'), small);
+            if (aboutPage + 1 < pages.Length) items.Add(("Dalje", null, () => { aboutPage++; sel = 0; }, null));
+            items.Add(("Natrag", null, () => { if (aboutPage > 0) { aboutPage--; sel = 0; } else { Current = Screen.Home; sel = 0; } }, null));
+            List(a, a.yMax - (items.Count > 1 ? 100 : 50));
         }
 
         int MissedCount() { int n = 0; foreach (var l in data.log) if (l.kind == 1) n++; return n; }

@@ -27,7 +27,7 @@ namespace Magistrala.EditorTools
             { "01", ("BMW E46", 4.47f) }, { "02", ("Mercedes W124", 4.74f) }, { "03", ("Zastava 101", 3.83f) },
             { "04", ("Yugo 45", 3.49f) }, { "05", ("Golf 2", 3.99f) }, { "06", ("Compact Hatchback (RCC)", 4.0f) },
             { "07", ("Executive Sedan (RCC)", 4.74f) }, { "08", ("Dostavni kombi TN", 5.0f) },
-            { "09", ("auto 9", 4.3f) }, { "10", ("auto 10", 4.3f) },
+            { "09", ("Mercedes Sprinter", 5.9f) }, { "10", ("VW Passat B5.5", 4.70f) },
         };
 
         [MenuItem("Magistrala/Auti: parking kandidata")]
@@ -94,7 +94,7 @@ namespace Magistrala.EditorTools
                 foreach (var tr in inst.GetComponentsInChildren<Transform>(true))
                     if (System.Text.RegularExpressions.Regex.IsMatch(tr.name, "TILES|_ground|groundplane|Floor_", System.Text.RegularExpressions.RegexOptions.IgnoreCase)) tr.gameObject.SetActive(false);
                 OpaqueBody(inst, key);
-                Upright(inst, key == "08");
+                Upright(inst, key == "08" || key == "09");
                 var b = Bounds(inst);
                 float s = len / Mathf.Max(0.01f, b.size.z);
                 inst.transform.localScale *= s; b = Bounds(inst);
