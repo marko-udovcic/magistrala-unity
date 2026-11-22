@@ -12,8 +12,8 @@
 //            = fair × (character + 5 %·urgency + 5 %·Mate's standing) × 0.95–1.05, never above 130 % of fair; at most three of
 //            Mate's rounds, all prices end in 0 or 5; asking more than 150 % of his maximum insults him. Choices (≤ 4): accept his
 //            price · ask more (Mate's suggestions: fair, +10 %, +20 %) · "držim se svoga" (bluff on the last ask) · "Danas ne mogu".
-//   payment  once the price stands the customer pays through the trade only ("preko obrta": full price on the trade account, an
-//            invoice into the folder "Za Ljubicu"; Marko 22.11. — no cash in hand; the "ruke" path stays for old saves).
+//   payment  once the price stands the customer says how: on hand ("na ruke", ~10 % less, cash wallet, no invoice) or through
+//            the trade ("preko obrta": full price on the trade account, an invoice into the folder "Za Ljubicu").
 //   drive    accepted → the GPS leads to the Galeb if Mate is in the Atego, then to the pickup (E – load, a timer), then to the
 //            drop (E – unload) → the payout card (MagistralaGame.Payout.cs): the agreed price, less cargo damage and missing the
 //            customer's window; the customer's thanks (or complaint) arrives as a message.
@@ -295,7 +295,7 @@ namespace Magistrala.Game
             float price = o.price, cash = Mathf.Max(5, Round5(price * 0.9f)); if (cash >= price) cash = Mathf.Max(5, price - 5);
             var st = new PhoneStep { sub = $"{j.what} · dogovoreno {E0(price)}" };
             var lines = new List<string>(); if (!string.IsNullOrEmpty(line)) lines.Add(line); lines.Add(Fill(c.lines.payment, o.offer, price, cash)); st.lines = lines.ToArray();
-            // Marko 22.11.: Mate is paid only through the trade account, with an invoice (no cash in hand)
+            st.choices.Add(new PhoneChoice { label = Fill(fat.mate.cash, price: price, cash: cash), act = () => Accepted(o, j, c, cash, "ruke") });
             st.choices.Add(new PhoneChoice { label = Fill(fat.mate.invoice, price: price, cash: cash), act = () => Accepted(o, j, c, price, "racun") });
             return st;
         }
