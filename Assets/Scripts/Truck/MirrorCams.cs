@@ -1,6 +1,6 @@
 // Working side mirrors in the cab view: one small camera per outside mirror (nodes mglass_L / mglass_R of the vehicle
 // model), rendered into a low-resolution texture shown on a quad over the mirror glass. Cheap on purpose:
-//   256×192 per mirror, a camera renders every 2nd frame (left / right alternate), no shadows, no post, far 160 m,
+//   256×192 per mirror, each mirror renders every 4th frame (left / right on alternate even frames, none on odd), no shadows, no post, far 160 m,
 //   only while this vehicle is the chase camera's target AND the cab view is on, off on the "brzo" quality level.
 // The mirror camera sits at the glass, looking along the eye→glass ray reflected about the glass normal (a real mirror).
 using UnityEngine;
@@ -91,10 +91,10 @@ public sealed class MirrorCams : MonoBehaviour
             var nW = m.glass.TransformDirection(m.normalLocal).normalized;
             if (Vector3.Dot(eye - c, nW) < 0) nW = -nW;
             m.quad.transform.SetPositionAndRotation(c + nW * 0.004f, Quaternion.LookRotation(-nW, transform.up));
-            // the reflected view; one mirror per frame (alternating) → each refreshes every 2nd frame
+            // the reflected view; at most one mirror per frame: L on frames 0, 4, 8…, R on 2, 6, 10… (measured: every 2nd frame cost ~5–11 % in the cab view)
             var refl = Vector3.Reflect((c - eye).normalized, nW);
             m.cam.transform.SetPositionAndRotation(c, Quaternion.LookRotation(refl, transform.up));
-            if (now) m.cam.Render(); else m.cam.enabled = (frame + i) % 2 == 0;
+            if (now) m.cam.Render(); else m.cam.enabled = frame % 4 == (i % 2) * 2;
         }
         frame++;
     }
