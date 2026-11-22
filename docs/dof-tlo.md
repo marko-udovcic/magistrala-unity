@@ -1,4 +1,4 @@
-# Ortofoto kao boja tla (proba: Kaštel Lukšić)
+# Ortofoto kao boja tla (cijela Kaštela)
 
 Izvor: DGU **Digitalni ortofoto LiDAR 2022./23.** (25 cm), registrirani WMS
 (`services/auth/inspire/orthophoto_lidar_2022_2023/wms`, sloj `OI.OrthoimageCoverage`, EPSG:3765), Otvorena dozvola.
@@ -37,9 +37,56 @@ pa spremiti scenu. Bez toga teren ostaje na standardnom materijalu.
 - Memorija: 3 × 2048² BC1 s mipovima = 3 × 2,7 MB. Build (macOS) 1767 → 1777 MB (+9,7 MB: teksture ≈ 8,4 MB + varijante kopije terenskog shadera). Cijela Kaštela (~30 pločica) ≈ +85 MB memorije i builda; opcija 1024² (1 m/px) = četvrtina.
 - GPU (srednje, parkiran na D8 kod skladišta, 4–5 prozora po 10 s): prije 37–43 ms, poslije 37–47 ms, `-dof 0` 39–46 ms, ponovljeni „prije” 39–52 ms — razlika je ispod šuma (zagrijavanje Maca ±5 ms); shader dodaje jedno uzorkovanje teksture po pikselu terena.
 
-## Cijela Kaštela (kad Marko odobri; ključ vrijedi do 22. 11. 2026. 21:25)
+## Cijela Kaštela (22. 11. 2026.)
 
-    PYTHONPATH=<numpy, Pillow, pyproj> python3 -I Tools/dof/dof_mosaic.py --src lidar --x0 -10240 --x1 -1 --z0 -7168 --z1 -4097
+Marko: „osim Lukšića sva mjesta su žuta pustinja, a uz kamion ravno tlo”. Napravljeno na grani `tlo`:
 
-(30 jezgrenih pločica, ≈ 25 zahtjeva po pločici, ≈ 3 s svaki → ≈ 40 min; već preuzeto se ne traži ponovno), zatim
-`OrthoGround.TILES` na te pločice i izbornik 2.
+**Preuzimanje.** Svih 30 jezgrenih pločica (TX −10…−1 × TZ −7…−5) preuzeto je već 20. 11. (533 odgovora LiDAR WMS-a u
+`cache/dof/wms-lidar/`); 22. 11. `dof_mosaic.py` ponovno složen samo iz cachea: 0 novih zahtjeva, pokrivenost 100 % na
+svakoj pločici, ostatak afine ≤ 0,08 mm. Ključ (istekao 22. 11. 21:25) više nije potreban dok se područje ne širi.
+(`python3 -I` ne čita PYTHONPATH: pokretati kroz omotač koji doda put do numpy / Pillow / pyproj u `sys.path` pa `runpy`.)
+
+**OrthoGround** (`Magistrala/Grafika: ortofoto tlo`, ~7,5 min za 30 pločica):
+- `TILES` = sve jezgrene pločice (iz `WorldBuilder.TX0…TZ1`).
+- `OutN = 1024`: makro tekstura 1 m/px, BC1 + mipovi = 0,7 MB po pločici, 30 × = 21 MB (2048² bi bilo 85 MB). Omjer boje je
+  blag i mutan, detalj blizu daju slojevi i detalji terena, razlika 0,5 → 1 m/px se s 2 m ne vidi. Pass-1 podaci čuvaju se
+  na izlaznoj veličini (30 × 2048² floatova bilo bi ~3,4 GB u editoru).
+- Boja: uzrok „pustinje” bio je usklađivanje boje – prosjek fotografije po kanalu sveden na prosjek NAŠIH slojeva (žuti
+  `NM_DryScrub`), pa je zelena fotografija (sRGB prosjek 103/113/105) postajala žuta. Sad: svjetlina se usklađuje u
+  potpunosti, nijansa samo 30 % (`HueMatch`); pojačanje 0,74 / 0,66 / 0,62. Zatim po pikselu (`Grade`): vegetacija
+  (excess green > 0) malo zelenija (`Green` 0,22), narančasta / oker gola zemlja 40 % prema sivoj (`Earth`), svjetlina
+  ostaje. `Strength` 0,7 → 0,85 (manje žutog sloja ispod), `FADE` 64 → 128 m prema pločicama bez fotografije.
+- Šavova među pločicama nema (jedno usklađivanje za cijelo područje); prijelaz prema moru i rubu kao prije.
+
+**Detalji terena** (`Magistrala/Grafika: detalji terena`):
+- Glavni uzrok „ravnog tla”: Unity od 2022.2 terenske detalje po zadanom raspoređuje u *coverage* načinu (vrijednost
+  0–255 = pokrivenost), a naši slojevi su brojevi primjeraka po ćeliji 4 m (1–3) → crtalo se ~1 % trave. Sad
+  `SetDetailScatterMode(InstanceCountMode)`.
+- `NaturePass.Details` čita ortofoto po ćeliji (`OrthoGround.PhotoCells`: zeleno = excess green, golo = svijetlo i nezeleno):
+  zelena trava (`beach_grass_02_2 / 02_4`, lagano zeleno tonirana) i nisko bilje (`kidney_vetch`) gdje je fotografija
+  zelena, manje suhih busena tamo; lišće / grančice (`litter_01_A`) i naši kamenčići na golim dvorištima i putevima;
+  korov 2–5 m uz ceste (kao uz zidove).
+- Bez detalja na popločenju (`GraphicsPass.Paved`): ćelija ispod koje zraka odozgo pogodi ne-terenski kolajder
+  5 cm – 3 m iznad terena. Terase / ploče uz zgrade postoje samo u render mrežama (`town/**/near`), pa im prolaz dodaje
+  privremeni MeshCollider i na kraju ga briše – u coverage načinu se to nije vidjelo, sad je trava rasla kroz pločnik.
+- Sitni detalji (trava, kamenčići, sve iz paketa) bez bacanja sjene (`NaturePass.NoShadow` kopije u
+  `Generated/Nature/NoShadow`): tisuće busena u 4 kaskade sjena koštale su više od samih busena. Makija baca sjenu.
+- Detalja ukupno: 4,0 M → 7,9 M (u 30 pločica; crta se samo do 140 m od kamere). „Grafika: detalji terena” ~1 min.
+
+**Mjerenja** (Mac, „oštro”, 1600×900, kamera fiksna `-campose`, GPU iz FrameTimingManagera, prozori od 10 s nakon 30 s):
+- Build (macOS): 1629 → 1638 MB (+9 MB, +0,6 %). Makro teksture u memoriji: prije 6 × 2,7 = 16 MB (2048²), sad 30 × 0,7 =
+  21 MB (1024²) → +5 MB GPU memorije za cijela Kaštela.
+- GPU, s ulice na 2 m u Kaštel Starom (najgušći detalji), 4 izmjenična para po ~5 × 10 s, editor zatvoren:
+  prije 28,5 / 28,4 / 28,1 / 28,5 ms, poslije 26,9 / 26,9 / 26,7 / 26,5 ms → **28,4 → 26,8 ms (−6 %)**; glavna nit
+  4,6 → 4,9 ms. Brže jer sitni detalji više ne bacaju sjenu (i oni stari koji su se crtali).
+- Usput izmjereno: prva verzija (detalji stvarno crtani, ali sa sjenama) bila je +20–38 % GPU (u rasponu šuma s otvorenim
+  editorom); bez trave (`-skip grass`) prije = poslije (27,8 / 27,1 ms) – makro tekstura sama ne košta ništa mjerljivo;
+  kraća udaljenost trave (`-trava 80` / `50`) nije bitno pomogla – trošak su bile sjene, ne udaljenost.
+- GPU, dron 120 m koso iznad Kaštel Starog: prije 25,2 ms, poslije 25,2 ms (glavna nit 3,9 → 4,0 ms).
+
+Slike prije / poslije (dron 120 m koso i 2 m s ulice: Kaštel Stari, Kambelovac, Gomilica, Sućurac, Lukšić (stara proba
+i istok), D8): `BalkanDriver/references/fotografije/unity-proba/tlo/`.
+
+**Otvoreno:** zasjenjeno tlo uz zidove ponegdje plavkasto-zeleno (sjena na fotografiji × zelena korekcija; `Green` /
+`ShadowLift` za doradu); nagib Kozjaka (pločice TZ −7) dosta taman (omjer p50 0,54–0,8: makija i sjene na fotografiji); detalji su i dalje rijetki (prirodno, ali ne „vrt”); na glavnoj kopiji nakon spajanja (scena nije u gitu) pokrenuti
+„Grafika: ortofoto tlo” pa „Grafika: detalji terena” i spremiti scenu.

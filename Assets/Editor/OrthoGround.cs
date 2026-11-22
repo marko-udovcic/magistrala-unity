@@ -23,7 +23,17 @@ namespace Magistrala.EditorTools
 {
     public static class OrthoGround
     {
-        public static readonly (int tx, int tz)[] TILES = { (-8, -6), (-7, -6), (-6, -6), (-9, -5), (-8, -5), (-7, -5) };
+        /// all of Kaštela: every core tile (WorldBuilder TX0…TX1 × TZ0…TZ1, 30 × 1 km², docs/dof-tlo.md)
+        public static readonly (int tx, int tz)[] TILES = CoreTiles();
+        static (int, int)[] CoreTiles()
+        {
+            var l = new List<(int, int)>();
+            for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++) for (int tx = WorldBuilder.TX0; tx <= WorldBuilder.TX1; tx++) l.Add((tx, tz));
+            return l.ToArray();
+        }
+        /// size of the macro texture in the game: 1024² = 1 m/px, BC1 + mips 0.7 MB per tile (2048² = 2.7 MB, ×30 = +85 MB of
+        /// memory and build for a difference seen only from a few metres; the layers give the detail up close)
+        public static int OutN = 1024;
         public static string Source = "lidar"; // Tools/dof/dof_mosaic.py --src (lidar = DOF LiDAR 2022./23., dof2526 = DOF 2025./26.)
         static string MOSAIC => W.BD + $"/tools/world/dgu/cache/dof/mosaic-{Source}/";
         const string OUT = WorldBuilder.GEN + "/Terrain/Macro";
@@ -31,7 +41,13 @@ namespace Magistrala.EditorTools
         public static float Bright = 1f, Sat = 1f, Contrast = 1f, RMin = .45f, RMax = 2.4f;
         // the photo's own shadows (trees, houses, walls our world doesn't have there) are lifted (Deshadow); Strength = how much
         // of the photo's ratio is applied (0.7 = 70 %), RMin: the photo never darkens our ground below 45 %
-        public static float Strength = .7f, ShadowHi = .85f, ShadowLift = .75f; const int SHADOW_R = 24; const double FADE = 64, BDIL = 3, RDIL = 2;
+        public static float Strength = .85f, ShadowHi = .85f, ShadowLift = .75f; const int SHADOW_R = 24; const double FADE = 128, BDIL = 3, RDIL = 2;
+        // Mediterranean grading (Marko 22. 11.: "pustinja"): the summer photo is itself yellow-orange and our dry layers are too.
+        //   HueMatch  how much of our layers' average hue the photo is pulled to (0 = the photo's own hue, 1 = the old full match
+        //             that made every town the yellow of the dry-scrub layer); its brightness is still matched in full
+        //   Green     vegetated pixels (excess green (2g − r − b) / (r + g + b) > 0) a little greener: g up, r down
+        //   Earth     bare orange / ochre pixels (r > g > b) desaturated toward their grey
+        public static float HueMatch = .3f, Green = .22f, Earth = .4f;
 
         static float Lin(float s) => s <= .04045f ? s / 12.92f : Mathf.Pow((s + .055f) / 1.055f, 2.4f);
 
@@ -218,11 +234,68 @@ namespace Magistrala.EditorTools
             }
         }
 
+        /// box-downsample N² channels to OutN²
+        static float[][] Down(float[][] a)
+        {
+            int M = OutN, f = N / M; if (f <= 1) return a;
+            var o = new float[a.Length][]; float inv = 1f / (f * f);
+            for (int k = 0; k < a.Length; k++)
+            {
+                o[k] = new float[M * M];
+                for (int y = 0; y < M; y++)
+                    for (int x = 0; x < M; x++)
+                    {
+                        float v = 0; for (int dy = 0; dy < f; dy++) for (int dx = 0; dx < f; dx++) v += a[k][(y * f + dy) * N + x * f + dx];
+                        o[k][y * M + x] = v * inv;
+                    }
+            }
+            return o;
+        }
+
         static void Blur3(float[] a)
         {
             var t = new float[a.Length];
             for (int r = 0; r < N; r++) for (int i = 0; i < N; i++) { int i0 = Math.Max(0, i - 1), i1 = Math.Min(N - 1, i + 1); t[r * N + i] = (a[r * N + i0] + a[r * N + i] + a[r * N + i1]) / 3; }
             for (int r = 0; r < N; r++) { int r0 = Math.Max(0, r - 1), r1 = Math.Min(N - 1, r + 1); for (int i = 0; i < N; i++) a[r * N + i] = (t[r0 * N + i] + t[r * N + i] + t[r1 * N + i]) / 3; }
+        }
+
+        /// Mediterranean grading of one linear photo pixel (see Green / Earth): luminance kept
+        static void Grade(ref float r, ref float g, ref float b)
+        {
+            float sum = r + g + b + 1e-4f, y = .2126f * r + .7152f * g + .0722f * b;
+            float exg = (2 * g - r - b) / sum;
+            float wg = Mathf.Clamp01(exg / .12f) * Green;                       // vegetation: a little greener
+            r *= 1 - .6f * wg; g *= 1 + wg; b *= 1 - .2f * wg;
+            float orange = Mathf.Clamp01((r - b) / sum / .35f) * Mathf.Clamp01(-exg / .06f + .5f); // ochre / orange, not green
+            float k = orange * Earth;
+            r = Mathf.Lerp(r, y, k); g = Mathf.Lerp(g, y, k); b = Mathf.Lerp(b, y, k);
+            float y2 = .2126f * r + .7152f * g + .0722f * b; if (y2 > 1e-5f) { float q = y / y2; r *= q; g *= q; b *= q; }
+        }
+
+        /// for NaturePass.Details: the photo per detail cell of tile tx, tz (R², rows from the NORTH edge like the detail
+        /// layers there): green = vegetation (excess green, 0..1), bare = bright earth / gravel / dry ground (0..1); null without the mosaic
+        public static (float[,] green, float[,] bare) PhotoCells(int tx, int tz, int R)
+        {
+            string src = MOSAIC + $"t_{tx}_{tz}.png"; if (!File.Exists(src)) return (null, null);
+            var img = new Texture2D(2, 2); img.LoadImage(File.ReadAllBytes(src));
+            if (img.width != N) { UnityEngine.Object.DestroyImmediate(img); return (null, null); }
+            var px = img.GetPixels32(); UnityEngine.Object.DestroyImmediate(img);
+            int f = N / R; var gr = new float[R, R]; var ba = new float[R, R];
+            for (int r = 0; r < R; r++)
+                for (int c = 0; c < R; c++)
+                {
+                    int tr0 = (R - 1 - r) * f; float sg = 0, sb = 0; int n = 0; // texture row 0 = south
+                    for (int a = 0; a < f; a += 2)
+                        for (int q = 0; q < f; q += 2)
+                        {
+                            var p = px[(tr0 + a) * N + c * f + q]; float R0 = p.r / 255f, G0 = p.g / 255f, B0 = p.b / 255f;
+                            float sum = R0 + G0 + B0 + 1e-3f, exg = (2 * G0 - R0 - B0) / sum, lum = .2126f * R0 + .7152f * G0 + .0722f * B0;
+                            sg += Mathf.Clamp01((exg - .01f) / .09f) * Mathf.Clamp01((lum - .08f) / .1f); // green, not deep shadow
+                            sb += Mathf.Clamp01((lum - .36f) / .18f) * Mathf.Clamp01((.03f - exg) / .05f); n++;
+                        }
+                    gr[r, c] = sg / n; ba[r, c] = sb / n;
+                }
+            return (gr, ba);
         }
 
         // ---------------------------------------------------------------- build
@@ -306,36 +379,43 @@ namespace Magistrala.EditorTools
                         S[o] = s;
                         if (s > .99f && valid[o]) for (int k = 0; k < 3; k++) { sumP[k] += ch[k][o]; sumM[k] += mean[k][o]; }
                     }
-                work.Add((tx, tz, terrain, ch, mean, S, $"masked buildings {nb * 100f / px.Length:F1} %, roads {nr * 100f / px.Length:F1} %, photo roofs {np * 100f / px.Length:F1} %"));
+                // kept for pass 2 at the output size (30 tiles × 2048² floats would be ~3.4 GB in the editor)
+                work.Add((tx, tz, terrain, Down(ch), Down(mean), Down(new[] { S })[0], $"masked buildings {nb * 100f / px.Length:F1} %, roads {nr * 100f / px.Length:F1} %, photo roofs {np * 100f / px.Length:F1} %"));
             }
             // colour match (one per channel for the whole photo area, no seams between tiles): the photo's average ground colour
             // becomes our layers' average × Bright — the photo gives where it is lighter / darker / greener / drier, the palette
             // (and the lighting tuned for it) stays ours
-            var G = new float[3]; for (int k = 0; k < 3; k++) G[k] = sumP[k] > 0 ? (float)(sumM[k] / sumP[k]) * Bright : 1;
+            double Yl(double[] c) => .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+            double yP = Yl(sumP), yM = Yl(sumM);
+            var G = new float[3];
+            for (int k = 0; k < 3; k++)
+                G[k] = sumP[k] > 0 && yP > 0 ? (float)(yM / yP * Math.Pow(sumM[k] / yM / (sumP[k] / yP), HueMatch)) * Bright : 1;
             log.Append($"colour match gain {G[0]:F2}/{G[1]:F2}/{G[2]:F2}; ");
             var assign = new List<(Terrain t, Material m, string p)>();
+            int M = OutN;
             foreach (var (tx, tz, terrain, ch, mean, S, stat) in work)
             {
-                var outPx = new Color32[N * N]; var lums = new List<float>();
-                for (int o = 0; o < N * N; o++)
+                var outPx = new Color32[M * M]; var lums = new List<float>();
+                for (int o = 0; o < M * M; o++)
                 {
                     float s = S[o];
                     float pr = ch[0][o] * G[0], pg = ch[1][o] * G[1], pb = ch[2][o] * G[2];
                     float y = .2126f * pr + .7152f * pg + .0722f * pb;
                     pr = y + (pr - y) * Sat; pg = y + (pg - y) * Sat; pb = y + (pb - y) * Sat;
+                    Grade(ref pr, ref pg, ref pb);
                     float R(float p, float m) => Mathf.Lerp(1, Mathf.Clamp(Mathf.Pow(p / Mathf.Max(m, .005f), Contrast), RMin, RMax), s * Strength);
                     float rr = R(pr, mean[0][o]), rg = R(pg, mean[1][o]), rb = R(pb, mean[2][o]);
                     if (s > .99f && (o & 63) == 0) lums.Add(.2126f * rr + .7152f * rg + .0722f * rb);
                     outPx[o] = new Color32((byte)Mathf.Clamp(Mathf.RoundToInt(rr * 127.5f), 0, 255), (byte)Mathf.Clamp(Mathf.RoundToInt(rg * 127.5f), 0, 255), (byte)Mathf.Clamp(Mathf.RoundToInt(rb * 127.5f), 0, 255), 255);
                 }
                 lums.Sort();
-                var tex = new Texture2D(N, N, TextureFormat.RGBA32, false, true); tex.SetPixels32(outPx);
+                var tex = new Texture2D(M, M, TextureFormat.RGBA32, false, true); tex.SetPixels32(outPx);
                 string p = $"{OUT}/macro_{tx}_{tz}.png"; File.WriteAllBytes(p, tex.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(tex);
                 AssetDatabase.ImportAsset(p);
                 var imp = (TextureImporter)AssetImporter.GetAtPath(p);
-                imp.sRGBTexture = false; imp.mipmapEnabled = true; imp.wrapMode = TextureWrapMode.Clamp; imp.anisoLevel = 4; imp.maxTextureSize = N;
+                imp.sRGBTexture = false; imp.mipmapEnabled = true; imp.wrapMode = TextureWrapMode.Clamp; imp.anisoLevel = 4; imp.maxTextureSize = OutN;
                 imp.textureCompression = TextureImporterCompression.Compressed; imp.alphaSource = TextureImporterAlphaSource.None;
-                imp.SetPlatformTextureSettings(new TextureImporterPlatformSettings { name = "Standalone", overridden = true, maxTextureSize = N, format = TextureImporterFormat.DXT1 });
+                imp.SetPlatformTextureSettings(new TextureImporterPlatformSettings { name = "Standalone", overridden = true, maxTextureSize = OutN, format = TextureImporterFormat.DXT1 });
                 imp.SaveAndReimport();
                 var mt = AssetDatabase.LoadAssetAtPath<Material>($"{OUT}/terrain_{tx}_{tz}.mat");
                 if (!mt) { mt = new Material(shader); AssetDatabase.CreateAsset(mt, $"{OUT}/terrain_{tx}_{tz}.mat"); }
