@@ -118,6 +118,8 @@ public sealed class TruckController : MonoBehaviour
         var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
         if (spec.id == "galeb") { rig.speedMax = 180f; rig.rpmMax = 5000f; }   // the Sprinter dials (kabina v2)
         rig.Bind(this, model);
+        // side mirrors that show the road behind in the cab view (nodes mglass_L / mglass_R)
+        (GetComponent<MirrorCams>() ?? gameObject.AddComponent<MirrorCams>()).Bind(this, model);
         if (spec.antiRollFront >= 0) AntiRollFront = spec.antiRollFront;
         if (spec.antiRollRear >= 0) AntiRollRear = spec.antiRollRear;
         Transform[] nodes = model.GetComponentsInChildren<Transform>(true);

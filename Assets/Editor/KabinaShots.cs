@@ -31,7 +31,11 @@ namespace Magistrala.EditorTools
                 var model = truck.GetComponentsInChildren<Renderer>()[0].transform;
                 while (model.parent && model.parent != truck.transform) model = model.parent;
                 model.localRotation = Quaternion.AngleAxis(180, Vector3.up) * model.localRotation;
-                Shoot(cam, truck.transform, model, V(a, "-ategoeye", new Vector3(0.55f, 1.3f, -2.75f)), outDir, "atego");
+                var eyeA = V(a, "-ategoeye", new Vector3(0.55f, 1.3f, -2.75f));
+                // the side mirrors as in the cab view (MirrorCams, rendered once from the eye)
+                var tcA = truck.GetComponent<TruckController>();
+                if (tcA) { var mc = truck.AddComponent<MirrorCams>(); mc.Bind(tcA, model); mc.RenderNow(model.TransformPoint(eyeA)); }
+                Shoot(cam, truck.transform, model, eyeA, outDir, "atego");
             }
             // Galeb: the van as MagistralaGame builds it (glb under an unscaled root, modelYawDegrees 0), next to the truck
             var src = Resources.Load<GameObject>("Vehicles/Galeb/galeb");
@@ -40,7 +44,9 @@ namespace Magistrala.EditorTools
                 var root = new GameObject("Galeb_shot");
                 root.transform.SetPositionAndRotation(truck.transform.position + truck.transform.right * 6f, truck.transform.rotation);
                 var m = UnityEngine.Object.Instantiate(src, root.transform, false);
-                Shoot(cam, root.transform, m.transform, V(a, "-galebeye", new Vector3(-0.42f, 0.58f, 0.65f)), outDir, "galeb");
+                var eyeGb = V(a, "-galebeye", new Vector3(-0.42f, 0.58f, 0.65f));
+                var mcG = root.AddComponent<MirrorCams>(); mcG.Bind(null, m.transform); mcG.RenderNow(m.transform.TransformPoint(eyeGb));
+                Shoot(cam, root.transform, m.transform, eyeGb, outDir, "galeb");
             }
             EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity", OpenSceneMode.Single); // discard, main scene stays the last one
             Debug.Log("[kabina] shots -> " + outDir);
@@ -64,6 +70,13 @@ namespace Magistrala.EditorTools
             {
                 cam.transform.SetPositionAndRotation(eye, root.rotation * Quaternion.Euler(v.pitch, v.yaw, 0));
                 Shot(cam, Path.Combine(dir, $"{name}-{v.tag}.png"));
+            }
+            // the outside mirrors, looked at straight from the eye (narrower view)
+            foreach (var g in model.GetComponentsInChildren<MeshRenderer>(true).Where(r => r.name == "mglass_L" || r.name == "mglass_R"))
+            {
+                cam.fieldOfView = 12;
+                cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(g.bounds.center - eye, root.up));
+                Shot(cam, Path.Combine(dir, $"{name}-retrovizor-{(g.name.EndsWith("L") ? "lijevo" : "desno")}.png"));
             }
             Debug.Log($"[kabina] {name}: eye {eye}");
         }
