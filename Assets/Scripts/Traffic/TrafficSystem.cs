@@ -78,6 +78,7 @@ namespace Magistrala.Traffic
 
         // drawing
         Matrix4x4[][] mats; int[] matN; // per draw bucket
+        Vector3[] bLo, bHi;  // per draw bucket: the instances' positions this frame (tight bounds: per-cascade / view culling)
         readonly List<(Mesh mesh, int sub, Material mat, int lod)> buckets = new List<(Mesh, int, Material, int)>();
         int[][][] kindParts; // [kind][lod][part] -> bucket, paint parts: bucket of paint 0, + paint index
         int[] farB;          // [kind] -> first bucket of the merged far mesh (palette, paints…, tail, tail lit), -1 none
@@ -134,6 +135,7 @@ namespace Magistrala.Traffic
             }
             mats = new Matrix4x4[buckets.Count][]; matN = new int[buckets.Count];
             for (int i = 0; i < buckets.Count; i++) mats[i] = new Matrix4x4[16];
+            bLo = new Vector3[buckets.Count]; bHi = new Vector3[buckets.Count];
         }
 
         /// parts of level lod (0 / 1 / 2), falling back to the next finer level the kind has
@@ -695,6 +697,8 @@ namespace Magistrala.Traffic
         void Add(int b, Matrix4x4 m)
         {
             if (matN[b] == mats[b].Length) System.Array.Resize(ref mats[b], mats[b].Length * 2);
+            var p = new Vector3(m.m03, m.m13, m.m23);
+            if (matN[b] == 0) { bLo[b] = p; bHi[b] = p; } else { bLo[b] = Vector3.Min(bLo[b], p); bHi[b] = Vector3.Max(bHi[b], p); }
             mats[b][matN[b]++] = m;
         }
 
@@ -747,7 +751,9 @@ namespace Magistrala.Traffic
                 {
                     // far cars are merged meshes (3 draws per kind): their shadows are cheap, keep them (no shadow pop at the LOD switch)
                     shadowCastingMode = ShadowCastingMode.On, receiveShadows = true,
-                    worldBounds = new Bounds(PlayerPos, Vector3.one * 2000), layer = gameObject.layer,
+                    // bounds of this bucket's instances (+ a coach's half length / height), not 2 km round the player: with ~230
+                    // buckets of 1–2 cars each, the 2 km box put every bucket into the view and all 4 shadow cascades (22. 11.)
+                    worldBounds = new Bounds((bLo[b] + bHi[b]) * .5f + Vector3.up * 2, bHi[b] - bLo[b] + new Vector3(16, 10, 16)), layer = gameObject.layer,
                 };
                 Graphics.RenderMeshInstanced(rp, bk.mesh, bk.sub, mats[b], matN[b]);
             }
