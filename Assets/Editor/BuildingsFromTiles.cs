@@ -95,7 +95,8 @@ namespace Magistrala.EditorTools
         const float CELL = 64, CHUNK = 256, NEAR_END = 120, MID_END = 450, FAR_START = 300, BOX_START = 1500;
 
         // Tile artefacts must not become pillars. Metres / m²; deliberately below normal house sizes.
-        // Keep owner corrections (and explicitly tagged OSM footprints) when skipping; cap only small houses.
+        // Keep owner corrections. Below minimum width, reject slivers of any kind (including apartment/school).
+        // Explicit OSM heights protect only the tiny-house rule; cap only small houses.
         // Tools/zgrade/stupovi.py reads these constants for the offline audit. Roof rise is additional to the eaves.
         public const double SHAPE_MIN_WIDTH = 1.5, SHAPE_TINY_AREA = 10, SHAPE_TINY_WIDTH = 2;
         public const double SHAPE_SMALL_AREA = 80, SHAPE_SMALL_WIDTH = 5, SHAPE_HEIGHT_WIDTH = 2.5;
@@ -226,8 +227,8 @@ namespace Magistrala.EditorTools
                         double h = BuildingFloors.Height(id, b, MiniJson.D(MiniJson.G(b, "h") ?? 7.0), out var hSrc, out var storeys);
                         var shape = ShapeSize(P);
                         bool ownerHeight = hSrc == "ispravak", taggedHeight = hSrc == "osm-levels" || hSrc == "osm-height";
-                        if (kind == "house" && !ownerHeight && !taggedHeight &&
-                            (shape.width < SHAPE_MIN_WIDTH || shape.area < SHAPE_TINY_AREA && shape.width < SHAPE_TINY_WIDTH))
+                        if (!ownerHeight && (shape.width < SHAPE_MIN_WIDTH ||
+                            kind == "house" && !taggedHeight && shape.area < SHAPE_TINY_AREA && shape.width < SHAPE_TINY_WIDTH))
                         { nShapeSkipped++; continue; }
                         double gmin = double.MaxValue, gmax = double.MinValue;
                         foreach (var p in P) { double g = Ground(models, p.x, p.z); gmin = Math.Min(gmin, g); gmax = Math.Max(gmax, g); }

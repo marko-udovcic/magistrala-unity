@@ -1,7 +1,7 @@
 id,village,gx,gz,unity_x,unity_z,area,width,length,compactness,height,height_source,height_width,overlap,overlap_id,validity,action,fixed_height,builder_outcomes,rule
 -9_-6:257,Kaštel Novi,-8259.0264,-5179.0175,-4059.0264,-120.9825,13.0163,0.98,13.35,0.1993,10.1796,game,10.3874,0.0,,Valid Geometry,skip,0.0,skip,width<2.5|height/width>2.5
--6_-5:409,Kaštel Lukšić,-6141.4907,-5093.4829,-1941.4907,-206.5171,48.9623,1.4101,34.8494,0.1171,13.0,game,9.219,0.0,,Valid Geometry,keep,13.0,keep,width<2.5|height/width>2.5|sliver
--6_-5:407,Kaštel Lukšić,-6103.49,-5091.005,-1903.49,-208.995,50.3005,1.4203,35.4208,0.1165,13.0,game,9.153,0.0,,Valid Geometry,keep,13.0,keep,width<2.5|height/width>2.5|sliver
+-6_-5:409,Kaštel Lukšić,-6141.4907,-5093.4829,-1941.4907,-206.5171,48.9623,1.4101,34.8494,0.1171,13.0,game,9.219,0.0,,Valid Geometry,skip,0.0,skip,width<2.5|height/width>2.5|sliver
+-6_-5:407,Kaštel Lukšić,-6103.49,-5091.005,-1903.49,-208.995,50.3005,1.4203,35.4208,0.1165,13.0,game,9.153,0.0,,Valid Geometry,skip,0.0,skip,width<2.5|height/width>2.5|sliver
 -4_-5:343,Kaštel Gomilica,-3843.6792,-4508.2236,356.3208,-791.7764,20.3358,1.1612,19.7774,0.1483,10.284,game,8.8562,0.0,,Valid Geometry,skip,0.0,skip,width<2.5|height/width>2.5|sliver
 -9_-5:1016,Kaštel Novi,-8193.9728,-4605.2251,-3993.9728,-694.7749,14.0882,1.171,12.0373,0.2539,9.8959,default,8.4506,0.0,,Valid Geometry,skip,0.0,skip,width<2.5|height/width>2.5
 -9_-6:398,Kaštel Novi,-8985.0514,-5178.2419,-4785.0514,-121.7581,14.2218,1.1924,12.0376,0.2561,9.8368,default,8.2498,0.0,,Valid Geometry,skip,0.0,skip,width<2.5|height/width>2.5

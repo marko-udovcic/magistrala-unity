@@ -120,9 +120,13 @@ def height_of(id_, b, measured, overrides, cx, cz):
 
 
 def action(area, width, h, src, kind):
-    if kind != 'house' or src == 'ispravak':
+    if src == 'ispravak':
         return 'keep', h
-    if src not in ('osm-levels', 'osm-height') and (width < C['SHAPE_MIN_WIDTH'] or
+    if width < C['SHAPE_MIN_WIDTH']:
+        return 'skip', 0.
+    if kind != 'house':
+        return 'keep', h
+    if src not in ('osm-levels', 'osm-height') and (
             area < C['SHAPE_TINY_AREA'] and width < C['SHAPE_TINY_WIDTH']):
         return 'skip', 0.
     cap = C['SHAPE_HEIGHT_WIDTH'] * width
