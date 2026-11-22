@@ -284,6 +284,9 @@ namespace Magistrala.EditorTools
                 if (!core) { td.detailPrototypes = new DetailPrototype[0]; continue; }
                 const int R = 256; // 4 m cells
                 td.SetDetailResolution(R, 16); td.detailPrototypes = protos;
+                // the layers below are instance COUNTS per 4 m cell; Unity's default (since 2022.2) is coverage mode, where 1–3 out of
+                // 255 drew ~1 % of them: the ground near the truck looked bare (Marko 22. 11.)
+                td.SetDetailScatterMode(DetailScatterMode.InstanceCountMode);
                 var layers = new int[3][,]; for (int k = 0; k < 3; k++) layers[k] = new int[R, R];
                 var protoL = new List<DetailPrototype>(protos);
                 var A = td.GetAlphamaps(0, 0, td.alphamapWidth, td.alphamapHeight); int ar = td.alphamapWidth;

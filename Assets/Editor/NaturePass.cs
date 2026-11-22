@@ -89,6 +89,11 @@ namespace Magistrala.EditorTools
             ("Prefab_sea_wormwood_01_Unity_Terrain", .6f, 1.0f),            // grey Artemisia (Mediterranean garrigue)
             ("Prefab_hedge_bedstraw_01_Unity_Terrain", .6f, 1.0f),          // weeds along wall bases / plots
             ("Prefab_eastern_groundsel_01_Unity_Terrain", .6f, 1.0f),
+            // 22. 11. (Marko: "pustinja", ravno tlo uz kamion) driven by the orthophoto (OrthoGround.PhotoCells):
+            ("Prefab_beach_grass_02_2_Unity_Terrain", .45f, .85f),         // green grass where the photo is green (gardens, lawns, field edges)
+            ("Prefab_beach_grass_02_4_Unity_Terrain", .45f, .8f),
+            ("Prefab_kidney_vetch_01_Unity_Terrain", .6f, 1.0f),            // low flowering herbs in the green
+            ("Prefab_litter_01_A_Unity_Terrain", .8f, 1.2f),                // leaves / twigs on bare yards and earth
         };
         static GameObject DetailPrefab(string n)
         {
@@ -112,10 +117,11 @@ namespace Magistrala.EditorTools
                 protos.Add(new DetailPrototype
                 {
                     usePrototypeMesh = true, prototype = s.g, renderMode = DetailRenderMode.VertexLit, useInstancing = true,
-                    minWidth = s.min, maxWidth = s.max, minHeight = s.min, maxHeight = s.max, healthyColor = Color.white, dryColor = new Color(.95f, .9f, .78f), noiseSpread = .4f,
+                    minWidth = s.min, maxWidth = s.max, minHeight = s.min, maxHeight = s.max, healthyColor = s.g.name.Contains("beach_grass_02_2") || s.g.name.Contains("beach_grass_02_4") ? new Color(.82f, 1f, .7f) : Color.white, dryColor = new Color(.95f, .9f, .78f), noiseSpread = .4f,
                 });
             var L = new int[src.Count][,]; for (int k = 0; k < src.Count; k++) L[k] = new int[R, R];
             var wall = WallMask(tx, tz, R);
+            var (pg, pb) = OrthoGround.PhotoCells(tx, tz, R);
             for (int r = 0; r < R; r++)
                 for (int c = 0; c < R; c++)
                 {
@@ -123,7 +129,11 @@ namespace Magistrala.EditorTools
                     if (!In(gx, gz)) continue;
                     double h = Tiles.Height(gx, gz); if (h < .8) continue;
                     bool w = wall != null && wall[r, c];
-                    if (WorldData.SurfDist(models, gx, gz) < 2 || StreetsBuilder.Covered(gx, gz, .8) || RivaBuilder.Class(gx, gz) != 0) continue;
+                    double sd = WorldData.SurfDist(models, gx, gz);
+                    if (sd < 2 || StreetsBuilder.Covered(gx, gz, .8) || RivaBuilder.Class(gx, gz) != 0) continue;
+                    // the verge: 2–5 m from a road model / graph street (weeds, as at the wall bases)
+                    bool edge = sd < 5 || StreetsBuilder.Covered(gx, gz, 4);
+                    float g = pg != null ? pg[r, c] : 0, bare = pb != null ? pb[r, c] : 0;
                     if (!w && WorldData.FootDist(models, gx, gz) < 1.5) continue;
                     int ai = Mathf.Min(ar - 1, r * ar / R), aj = Mathf.Min(ar - 1, c * ar / R);
                     float grassW = A[ai, aj, 0], soilW = A[ai, aj, 1], rockW = A[ai, aj, 2];
@@ -132,14 +142,21 @@ namespace Magistrala.EditorTools
                     // under the clumps' closed crowns and in the olive groves (VegetationMask): bare soil and litter, a few dry tufts
                     int vm = VegetationMask.At(gx, gz); bool under = (vm & VegetationMask.CLUMP) >= 6 || (vm & VegetationMask.ORCHARD) != 0;
                     if (layers.Count > 0) layers[0][r, c] = under ? 0 : Mathf.RoundToInt(layers[0][r, c] * .35f);
-                    float dry = (grassW * (1.1f + 2.4f * n) + soilW * .5f) * (under ? .35f : 1);          // tufts per 4 m cell
+                    float dry = (grassW * (1.1f + 2.4f * n) + soilW * .5f) * (under ? .35f : 1) * (1 - .65f * g) * (1 - .5f * bare); // tufts per 4 m cell
                     int Cnt(float mean, int salt) { float f = mean * (.7f + .6f * R01(gx, gz, salt)); int i = (int)f; return i + (R01(gx, gz, salt + 7) < f - i ? 1 : 0); }
                     L[0][r, c] = Cnt(dry * .55f, 1);
                     if (src.Count > 1) L[1][r, c] = Cnt(dry * .45f, 2);
                     if (src.Count > 2) L[2][r, c] = Cnt((rockW * .9f + soilW * .2f) * (n2 + .2f), 3);
                     if (src.Count > 3) L[3][r, c] = Cnt((grassW * .35f + rockW * .3f) * n2, 4);
-                    if (src.Count > 4) L[4][r, c] = Cnt(w ? 1.6f : grassW * .12f, 5);
-                    if (src.Count > 5) L[5][r, c] = Cnt(w ? 1.0f : grassW * .08f * n, 6);
+                    if (src.Count > 4) L[4][r, c] = Cnt(w ? 1.6f : edge ? .9f * (.4f + n) : grassW * .12f, 5);
+                    if (src.Count > 5) L[5][r, c] = Cnt(w ? 1.0f : edge ? .6f * n : grassW * .08f * n, 6);
+                    // the orthophoto's green (gardens, lawns, field edges, the green under olives) and bare (yards, tracks)
+                    float gg = under ? g * .3f : g;
+                    if (src.Count > 6) L[6][r, c] = Cnt(gg * (2.2f + 3.2f * n), 8);
+                    if (src.Count > 7) L[7][r, c] = Cnt(gg * (1.0f + 1.8f * n2), 9);
+                    if (src.Count > 8) L[8][r, c] = Cnt(gg * .35f * n2, 10);
+                    if (src.Count > 9) L[9][r, c] = Cnt(bare * .5f * (.3f + n2) + (under ? .4f : 0), 11);
+                    if (layers.Count > 1 && bare > .25f) layers[1][r, c] += Cnt(bare * .9f, 12);   // our pebbles on bare yards / tracks
                 }
             for (int k = 0; k < src.Count; k++) layers.Add(L[k]);
         }
