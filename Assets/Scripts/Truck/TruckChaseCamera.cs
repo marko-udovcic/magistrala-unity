@@ -25,6 +25,8 @@ public sealed class TruckChaseCamera : MonoBehaviour
     {
         view = GetComponent<Camera>();
         view.nearClipPlane = 0.08f;
+        // test switch: -kabina  start in the cab view (screenshots of the interior with -shot)
+        if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-kabina") >= 0) CabinView = true;
         if (!target) target = FindFirstObjectByType<TruckController>();
     }
 

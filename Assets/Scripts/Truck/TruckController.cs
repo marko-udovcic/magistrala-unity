@@ -27,6 +27,8 @@ public sealed class TruckController : MonoBehaviour
     public float SpeedKmh => body ? body.linearVelocity.magnitude * 3.6f : 0f;
     public int Gear { get; private set; } = 1;
     public float EngineRpm { get; private set; } = 600f;
+    /// current front road-wheel angle (rad, + = right); the cab's steering wheel follows it (CabinRig)
+    public float SteerAngle => steerAngle;
     public int Grounded { get; private set; }
     public bool IsReady => ready;
     /// 0..1 service-brake pressure (brake lights)
@@ -110,6 +112,10 @@ public sealed class TruckController : MonoBehaviour
         model.localRotation = Quaternion.AngleAxis(modelYawDegrees, Vector3.up) * model.localRotation;
         // glTFast mirrors X. Before yaw: eye (+.55, 1.3, -2.75); after 180 yaw it is the left seat.
         CabinEyeLocal = transform.InverseTransformPoint(model.TransformPoint(spec.eyeModel));
+        // cab interior: steering wheel and instrument needles (nodes steering / needle_speed / needle_rpm, if the model has them)
+        var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
+        if (spec.id == "galeb") { rig.speedMax = 180f; rig.rpmMax = 5000f; }   // the Sprinter dials (kabina v2)
+        rig.Bind(this, model);
         if (spec.antiRollFront >= 0) AntiRollFront = spec.antiRollFront;
         if (spec.antiRollRear >= 0) AntiRollRear = spec.antiRollRear;
         Transform[] nodes = model.GetComponentsInChildren<Transform>(true);
