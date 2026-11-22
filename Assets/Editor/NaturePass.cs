@@ -104,13 +104,27 @@ namespace Magistrala.EditorTools
             return null;
         }
 
+        /// a copy of a detail prefab (Generated/Nature/NoShadow) whose renderers cast no shadow: instanced terrain details follow the
+        /// prefab's shadow mode, and thousands of tufts in 4 shadow cascades cost more than the tufts themselves (22. 11.)
+        static readonly Dictionary<string, GameObject> noShadow = new Dictionary<string, GameObject>();
+        public static GameObject NoShadow(GameObject g)
+        {
+            if (!g) return null;
+            if (noShadow.TryGetValue(g.name, out var c) && c) return c;
+            Dir(OUT + "/NoShadow");
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(g); PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+            foreach (var r in go.GetComponentsInChildren<Renderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
+            var pf = PrefabUtility.SaveAsPrefabAsset(go, $"{OUT}/NoShadow/{g.name}.prefab"); UnityEngine.Object.DestroyImmediate(go);
+            noShadow[g.name] = pf; return pf;
+        }
+
         /// GraphicsPass.Details hook for one core tile: adds the package detail layers (inside the boxes) and thins our own grass
         /// there. R = detail resolution (4 m cells), A = the tile's alphamap, wall = cells within 1.5 m of a building wall
         public static void Details(int tx, int tz, int R, List<DetailPrototype> protos, List<int[,]> layers, float[,,] A, int ar, List<ModelJ> models)
         {
             if (!On || !TileIn(tx, tz)) return;
             var src = new List<(GameObject g, float min, float max)>();
-            foreach (var d in DetailSrc) { var g = DetailPrefab(d.prefab); if (g) src.Add((g, d.min, d.max)); else Debug.LogWarning("[priroda] detail prefab missing " + d.prefab); }
+            foreach (var d in DetailSrc) { var g = NoShadow(DetailPrefab(d.prefab)); if (g) src.Add((g, d.min, d.max)); else Debug.LogWarning("[priroda] detail prefab missing " + d.prefab); }
             if (src.Count == 0) return;
             int k0 = protos.Count;
             foreach (var s in src)

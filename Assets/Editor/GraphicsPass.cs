@@ -243,7 +243,7 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ terrain details near the camera: dry grass tufts, stones, maquis
-        static GameObject Flat(string id, string src)
+        static GameObject Flat(string id, string src, bool shadows = true)
         {
             string dir = GEN + "/Plants", mp = $"{dir}/detail_{id}.mesh.asset", pp = $"{dir}/detail_{id}.prefab";
             var g = AssetDatabase.LoadAssetAtPath<GameObject>(src);
@@ -258,6 +258,7 @@ namespace Magistrala.EditorTools
             mesh.Clear(); mesh.indexFormat = IndexFormat.UInt32; mesh.CombineMeshes(combine.ToArray(), false, true); mesh.RecalculateBounds();
             EditorUtility.SetDirty(mesh); AssetDatabase.SaveAssets();
             var go = new GameObject("detail_" + id); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterials = mats.ToArray();
+            if (!shadows) go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off; // small details: no shadow-map cost
             foreach (var mm in mats) if (mm) mm.enableInstancing = true;
             var pf = PrefabUtility.SaveAsPrefabAsset(go, pp); UnityEngine.Object.DestroyImmediate(go);
             return pf;
@@ -266,8 +267,8 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Grafika: detalji terena")]
         public static void Details()
         {
-            var grass = Flat("grass", "Assets/Models/Plants/grass.glb");
-            var stone = Flat("stone", "Assets/Models/Plants/rock_a.glb");
+            var grass = Flat("grass", "Assets/Models/Plants/grass.glb", false);
+            var stone = Flat("stone", "Assets/Models/Plants/rock_a.glb", false);
             var maquis = Flat("maquis", "Assets/Models/Plants/shrub_b.glb");
             DetailPrototype P(GameObject g, float min, float max) => new DetailPrototype
             {
@@ -276,6 +277,15 @@ namespace Magistrala.EditorTools
             };
             var protos = new[] { P(grass, .7f, 1.3f), P(stone, .08f, .22f), P(maquis, .45f, .9f) };
             var models = WorldData.Models(); int total = 0;
+            // the buildings' terraces / yard slabs are in their render meshes only (no collider): temporary mesh colliders on the
+            // near meshes so Paved() sees them (removed below)
+            var tmpCols = new List<MeshCollider>();
+            var town = GameObject.Find("town");
+            if (town)
+                foreach (var mf in town.GetComponentsInChildren<MeshFilter>(true))
+                    if (mf.name == "near" && mf.sharedMesh && !mf.GetComponent<Collider>()) { var mc = mf.gameObject.AddComponent<MeshCollider>(); mc.sharedMesh = mf.sharedMesh; tmpCols.Add(mc); }
+            Physics.SyncTransforms();
+            try {
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
                 var parts = t.name.Split(' ')[1].Split(','); int tx = int.Parse(parts[0]), tz = int.Parse(parts[1]);
@@ -311,15 +321,32 @@ namespace Magistrala.EditorTools
                 // no grass on the pitches, car parks, pools, courts and playgrounds (GroundCover)
                 for (int r = 0; r < R; r++)
                     for (int c = 0; c < R; c++)
-                        if (GroundCover.Hard(tx * 1024 + (c + .5) * 4, (tz + 1) * 1024 - (r + .5) * 4, 1.5))
+                    {
+                        double gx = tx * 1024 + (c + .5) * 4, gz = (tz + 1) * 1024 - (r + .5) * 4;
+                        if (GroundCover.Hard(gx, gz, 1.5) || Paved(t, gx, gz))
                             foreach (var L in layerL) L[r, c] = 0;
+                    }
                 if (protoL.Count != protos.Length) td.detailPrototypes = protoL.ToArray();
                 for (int k = 0; k < layerL.Count; k++) td.SetDetailLayer(0, 0, k, layerL[k]);
                 t.detailObjectDistance = 140; t.detailObjectDensity = 1f;
                 EditorUtility.SetDirty(td);
             }
+            } finally { foreach (var mc in tmpCols) if (mc) UnityEngine.Object.DestroyImmediate(mc); }
             AssetDatabase.SaveAssets();
             Debug.Log($"[Magistrala] terrain details: {total}");
+        }
+
+        /// a cell under paving / a plaza / a yard slab (any non-terrain collider 5 cm – 3 m above the terrain at the cell centre):
+        /// with instance-count details these grew through the paving (22. 11.)
+        static bool Paved(UnityEngine.Terrain t, double gx, double gz)
+        {
+            foreach (var (ox, oz) in new[] { (0.0, 0.0) })
+            {
+                var u = W.U(gx + ox, 0, gz + oz); float h = t.SampleHeight(u) + t.transform.position.y;
+                if (Physics.Raycast(new Vector3(u.x, h + 60, u.z), Vector3.down, out var hit, 61, ~0, QueryTriggerInteraction.Ignore)
+                    && !(hit.collider is TerrainCollider) && hit.point.y > h + .05f && hit.point.y < h + 3f) return true;
+            }
+            return false;
         }
 
         /// fixed camera spots for before / after comparison: truck parked on the D8 at game x, chase camera pose
