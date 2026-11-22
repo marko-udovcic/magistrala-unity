@@ -12,6 +12,8 @@ namespace Magistrala.EditorTools
 {
     public static class KabinaShots
     {
+        /// the cab view's look-down (TruckChaseCamera: headPitch + CabPitch)
+        const float PITCH = TruckChaseCamera.CabPitch;
         public static void Batch()
         {
             var a = Environment.GetCommandLineArgs();
@@ -29,7 +31,7 @@ namespace Magistrala.EditorTools
                 var model = truck.GetComponentsInChildren<Renderer>()[0].transform;
                 while (model.parent && model.parent != truck.transform) model = model.parent;
                 model.localRotation = Quaternion.AngleAxis(180, Vector3.up) * model.localRotation;
-                Shoot(cam, truck.transform, model, new Vector3(0.55f, 1.3f, -2.75f), outDir, "atego");
+                Shoot(cam, truck.transform, model, V(a, "-ategoeye", new Vector3(0.55f, 1.3f, -2.75f)), outDir, "atego");
             }
             // Galeb: the van as MagistralaGame builds it (glb under an unscaled root, modelYawDegrees 0), next to the truck
             var src = Resources.Load<GameObject>("Vehicles/Galeb/galeb");
@@ -38,10 +40,18 @@ namespace Magistrala.EditorTools
                 var root = new GameObject("Galeb_shot");
                 root.transform.SetPositionAndRotation(truck.transform.position + truck.transform.right * 6f, truck.transform.rotation);
                 var m = UnityEngine.Object.Instantiate(src, root.transform, false);
-                Shoot(cam, root.transform, m.transform, new Vector3(-0.42f, 0.74f, 0.8f), outDir, "galeb");
+                Shoot(cam, root.transform, m.transform, V(a, "-galebeye", new Vector3(-0.42f, 0.58f, 0.65f)), outDir, "galeb");
             }
             EditorSceneManager.OpenScene("Assets/Scenes/Magistrala.unity", OpenSceneMode.Single); // discard, main scene stays the last one
             Debug.Log("[kabina] shots -> " + outDir);
+        }
+
+        /// -ategoeye x,y,z / -galebeye x,y,z: try another eye (model frame, as spec.eyeModel)
+        static Vector3 V(string[] a, string key, Vector3 def)
+        {
+            int i = Array.IndexOf(a, key); if (i < 0 || i + 1 >= a.Length) return def;
+            var p = a[i + 1].Split(','); var c = System.Globalization.CultureInfo.InvariantCulture;
+            return new Vector3(float.Parse(p[0], c), float.Parse(p[1], c), float.Parse(p[2], c));
         }
 
         static void Shoot(Camera cam, Transform root, Transform model, Vector3 eyeModel, string dir, string name)
@@ -49,7 +59,7 @@ namespace Magistrala.EditorTools
             var eye = model.TransformPoint(eyeModel);
             float aspect = 16f / 9f;
             cam.fieldOfView = Mathf.Clamp(2f * Mathf.Atan(Mathf.Tan(90f * Mathf.Deg2Rad * 0.5f) / aspect) * Mathf.Rad2Deg, 40f, 85f);
-            (string tag, float yaw, float pitch)[] views = { ("naprijed", 0, 2.3f), ("ploca", 0, 22f), ("lijevo", -60, 5), ("desno", 55, 12) };
+            (string tag, float yaw, float pitch)[] views = { ("naprijed", 0, PITCH), ("ploca", 0, 22f), ("lijevo", -60, 5), ("desno", 55, 12) };
             foreach (var v in views)
             {
                 cam.transform.SetPositionAndRotation(eye, root.rotation * Quaternion.Euler(v.pitch, v.yaw, 0));

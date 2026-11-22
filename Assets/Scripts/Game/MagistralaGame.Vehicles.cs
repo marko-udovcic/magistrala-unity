@@ -44,7 +44,7 @@ namespace Magistrala.Game
             ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 1.9f, steerRate = 1.9f,
             wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.45f, comFront = 0.56f, cargoAboveAxle = 0.55f, cargoRefKg = 4000,
             brakeEmpty = 6.5f, brakeLoaded = 4.8f, engineBrake = 0.25f, cabFloor = 0.45f, boxFloor = 0.4f,
-            eyeModel = new Vector3(-0.42f, 0.74f, 0.8f), antiRollFront = 5200, antiRollRear = 3800,
+            eyeModel = new Vector3(-0.42f, 0.58f, 0.65f), antiRollFront = 5200, antiRollRear = 3800,
         };
 
         // ------------------------------------------------------------------ setup (MagistralaGame.Start)

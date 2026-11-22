@@ -12,6 +12,8 @@ public sealed class TruckChaseCamera : MonoBehaviour
     [Range(0.65f, 2f)] public float zoom = 1f;
     public LayerMask terrainMask = ~0;
     public bool CabinView { get; private set; }
+    /// cab view look-down (deg): the road ahead and the top of the instrument cluster above the wheel rim
+    public const float CabPitch = 6f;
 
     Camera view;
     TruckController previousTarget;
@@ -85,7 +87,7 @@ public sealed class TruckChaseCamera : MonoBehaviour
             Vector3 eye = truck.TransformPoint(target.CabinEyeLocal);
             KeepAboveTerrain(ref eye);
             // Follow the interpolated cab rigidly so the eye cannot drift into the windscreen on corners.
-            transform.SetPositionAndRotation(eye, truck.rotation * Quaternion.Euler(headPitch + 2.3f, headYaw, 0));
+            transform.SetPositionAndRotation(eye, truck.rotation * Quaternion.Euler(headPitch + CabPitch, headYaw, 0));
             float aspect = Mathf.Max(0.1f, view.aspect);
             view.fieldOfView = Mathf.Clamp(2f * Mathf.Atan(Mathf.Tan(90f * Mathf.Deg2Rad * 0.5f) / aspect) * Mathf.Rad2Deg, 40f, 85f);
             initialized = false;
