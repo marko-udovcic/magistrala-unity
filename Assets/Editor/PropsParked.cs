@@ -94,12 +94,11 @@ namespace Magistrala.EditorTools
             var data = AssetDatabase.LoadAssetAtPath<TrafficData>("Assets/Generated/Traffic/TrafficData.asset");
             var proot = WorldBuilder.Root("ParkedCars");
             if (!data) { log.Add("  parkirani auti: nema TrafficData (Build traffic)"); return; }
-            var ks = Enumerable.Range(0, data.kinds.Length).Where(k =>
-            {
-                var kd = data.kinds[k]; string nm = kd.name.ToLowerInvariant();
-                return kd.len >= 3.3f && kd.len <= 5.4f && kd.h <= 2.1f && kd.beaconShare <= 0 && kd.farMesh && kd.paints != null && kd.paints.Length > 0
-                       && !nm.Contains("bus") && !nm.Contains("coach") && !nm.Contains("truck") && !nm.Contains("benzer") && kd.weight > 0;
-            }).OrderByDescending(k => data.kinds[k].weight).Take(16).ToArray();   // 16 commonest kinds × 3 colours: parked cars draw the merged far mesh (palette + paint + tail per kind and colour), ~80 instanced draws at most (16: the web kinds and the downloaded ones, auti-kandidati.json)
+            // the parking filter (ParkedBake.Parkable: 3.3–5.4 m long, ≤ 2.1 m high, no beacons / bus / truck), the 32 commonest kinds:
+            // a baked kind (ParkedBake) costs one instanced draw per distance level whatever its colours (paint per instance);
+            // a kind without the bake falls back to the merged far mesh (palette + paint + tail per kind and colour)
+            var ks = Enumerable.Range(0, data.kinds.Length).Where(k => ParkedBake.Parkable(data.kinds[k]) && data.kinds[k].farMesh)
+                .OrderByDescending(k => data.kinds[k].weight).Take(32).ToArray();
             if (ks.Length == 0) { log.Add("  parkirani auti: nema vrsta"); return; }
             float wsum = ks.Sum(k => data.kinds[k].weight);
             gates = new List<Vector3>(); gateN = new Dictionary<Vector3, Vector2>();
@@ -119,8 +118,10 @@ namespace Magistrala.EditorTools
                 var K = data.kinds[kd];
                 var c = W.U(gx, 0, gz); var rot = Quaternion.Euler(0, yawU, 0);
                 if (!CarFree(c, K.halfW + .12f, K.len / 2 + .2f, rot, street, out float y, out string w, yard)) { Why(w); return false; }
-                // the kind's three commonest colours only (every colour is one more instanced draw per kind)
-                var top = Enumerable.Range(0, K.paintW.Length).OrderByDescending(i => K.paintW[i]).Take(3).ToArray();
+                // baked kinds: every colour by its weight (the paint is per instance); far mesh kinds: the three commonest only
+                // (every colour is one more instanced draw per kind there)
+                bool baked = K.parked != null && K.parked.Length == 3 && K.parkedMat;
+                var top = Enumerable.Range(0, K.paintW.Length).OrderByDescending(i => K.paintW[i]).Take(baked ? K.paintW.Length : 3).ToArray();
                 float pr = ((h >> 16) & 0xffff) / 65536f * top.Sum(i => K.paintW[i]); int pi = top[0];
                 foreach (int i in top) { pr -= K.paintW[i]; if (pr <= 0) { pi = i; break; } }
                 cars.Add(new Vector4(c.x, y, c.z, yawU)); kinds.Add(kd); paints.Add(Mathf.Min(pi, K.paints.Length - 1));

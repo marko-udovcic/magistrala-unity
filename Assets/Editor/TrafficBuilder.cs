@@ -617,6 +617,8 @@ namespace Magistrala.EditorTools
             data.plans = plans.ToArray();
             data.kinds = Kinds();
             data.farPalette = PaletteMat(pal);
+            // parked cars: one mesh per level + one atlas material per parkable kind (ParkedBake)
+            foreach (var kd in data.kinds) if (ParkedBake.Parkable(kd)) ParkedBake.Bake(kd);
             EditorUtility.SetDirty(data);
             AssetDatabase.SaveAssets();
 

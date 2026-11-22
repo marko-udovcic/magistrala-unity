@@ -33,6 +33,10 @@ namespace Magistrala.Traffic
         /// far LOD: the lod1 model merged into one mesh (submesh 0 = everything else on a shared colour palette, 1 = paint,
         /// 2 = tail lamps) — three instanced draws per kind instead of ~20; farPaints parallel to paints
         public Mesh farMesh; public Material[] farPaints; public Material farTail, farTailOn;
+        /// parked cars (Assets/Editor/ParkedBake.cs, Magistrala/ParkedCar shader): the kind merged into one mesh per level
+        /// (0 = lod1, 1 = lod2, 2 = the far mesh) on one texture atlas material; the paint is per instance (parkedTint: linear
+        /// colour per entry of paints), so all parked cars of the kind are one instanced draw per level. Null: the far mesh path.
+        public Mesh[] parked; public Material parkedMat; public Vector4[] parkedTint;
     }
 
     [Serializable]
