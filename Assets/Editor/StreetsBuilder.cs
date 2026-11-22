@@ -1294,6 +1294,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Build streets")]
         public static string Build()
         {
+            MainScene.Ensure();
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var log = new List<string>();
             log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts();

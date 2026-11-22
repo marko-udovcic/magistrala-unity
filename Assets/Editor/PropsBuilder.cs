@@ -82,7 +82,7 @@ namespace Magistrala.EditorTools
         static Dictionary<string, (Vector3 size, GameObject pf)> info;
 
         [MenuItem("Magistrala/Rekviziti: postavi")]
-        public static string BuildMenu() { var s = Build(); Debug.Log(s); return s; }
+        public static string BuildMenu() { MainScene.Ensure(); var s = Build(); Debug.Log(s); return s; }
 
         public static string Build()
         {
