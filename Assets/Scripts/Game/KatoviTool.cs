@@ -245,7 +245,8 @@ namespace Magistrala
             var st2 = HudStyle.St(15, false, HudStyle.Muted, TextAnchor.MiddleCenter);
             string help = "F7 Katovi   PgUp / PgDn  ±1 kat   Enter spremi   Del poništi";
             float w = Mathf.Max(HudStyle.Width(st, info ?? ""), HudStyle.Width(st2, recent ? status : help)) + 48 * K;
-            var r = new Rect((Screen.width - w) / 2, 20 * K, w, (On ? 72 : 40) * K);
+            // below the drone help (two lines at the top centre)
+            var r = new Rect((Screen.width - w) / 2, 104 * K, w, (On ? 72 : 40) * K);
             HudStyle.PanelBg(r);
             if (On) HudStyle.Label(new Rect(r.x, r.y + 8 * K, r.width, 30 * K), info ?? "", st);
             HudStyle.Label(new Rect(r.x, r.y + (On ? 40 : 6) * K, r.width, 26 * K), recent ? status : help, st2);
