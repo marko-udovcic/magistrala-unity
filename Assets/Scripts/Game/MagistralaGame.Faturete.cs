@@ -102,7 +102,7 @@ namespace Magistrala.Game
             };
             Phone.jobsNote = () =>
                 Current != null && Current.fatureta ? $"Fatureta u tijeku: {Current.label}." :
-                S.fatQueue.Count > 0 ? $"Dogovoreno i čeka: {S.fatQueue[0].label}." :
+                S.fatQueue.Count > 0 ? $"Na čekanju: {S.fatQueue[0].label}." :
                 Day % 7 == 6 ? "Nedjelja je za obitelj." :
                 Day % 7 == 5 ? (S.fatOffers.Exists(o => o.state == "new" || o.state == "talk") ? "Subota: faturete s Galebom do 20 h." : "Subota: faturete stižu porukama, 8–20 h.") :
                 Hour >= 17 && !S.fatOffers.Exists(o => o.state == "new" || o.state == "talk") ? "Faturete stižu porukama, radnim danom 17–22 h." :
@@ -183,7 +183,7 @@ namespace Magistrala.Game
             if (test) o.expires = Mathf.Max(o.expires, S.clockMin + 60);
             S.fatOffers.Add(o);
             Phone.Message(c.id, Fill(j.text, o.offer), true);
-            Banner($"Fatureta: {c.name} pita za {j.what.ToLower()}. Tab → Poslovi");
+            Banner($"Fatureta: {c.name} · {j.what.ToLower()} · Tab → Poslovi");
             Debug.Log($"[fatureta] offer {j.id} from {c.name}: {World.Stop(j.from).name} → {World.Stop(j.to).name} {km:0.00} km, fair {fair:0.0} €, opens {o.offer:0} €, max {o.max:0.0} € (hidden), answer by {Hm(o.expires)}, done by {Hm(o.windowEnd)}");
             SaveNow("fatureta offer");
             return o;

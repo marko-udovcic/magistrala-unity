@@ -452,11 +452,11 @@ namespace Magistrala.Game.Phone
             "Magistrala — Kaštela, Split.\n\n" +
             "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni " +
             "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
-            "Street-level imagery: Mapillary contributors (CC BY-SA 4.0) — boje fasada, položaji svjetiljki, parkirališta i stabala uz cestu.\n\n" +
-            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).\n\n" +
+            "Snimke s razine ulice: suradnici Mapillaryja (CC BY-SA 4.0) — boje fasada, položaji svjetiljki, parkirališta i stabala uz cestu.\n\n" +
+            "Teksture i nebo: Poly Haven (CC0). Pismo Inter (SIL OFL 1.1).\n\n" +
             "Galeb: 3D model autora Max (sketchfab.com/Max-5532), licenca CC BY 4.0, izmijenjeno (uklonjene oznake, nova boja).\n" +
             AboutPage +
-            "Prometni auti — 3D modeli sa Sketchfaba, licenca CC BY 4.0, izmijenjeni (uklonjene oznake marke, naše tablice, boje, LOD):\n" +
+            "Prometni automobili — 3D modeli sa Sketchfaba, licenca CC BY 4.0, izmijenjeni (uklonjene oznake marke, naše tablice, boje, LOD):\n" +
             "„Zastava 101 (Stojadin)” — Tomislav Tomljenović.\n" +
             "„Yugo Koral 45” — Tomislav Tomljenović.\n" +
             "„BMW E46 MSport” — Ricy.\n" +
@@ -468,7 +468,7 @@ namespace Magistrala.Game.Phone
             "„European Delivery Van” — Evan Hiltz.\n" +
             "„Mercedes Benz Sprinter 2006” — Max (Max-7215); policijska izvedba i svjetla na krovu naši.\n" +
             AboutPage +
-            "Prometni auti (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
+            "Prometni automobili (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
             "„Asti Stradale '89 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
             "„Milano '95 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
             "„Olympic '95 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
@@ -481,7 +481,7 @@ namespace Magistrala.Game.Phone
             "„LCT 3000 '07- Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
             "„Volkswagen Golf IV” — Fratzica (vasilebetivu62).\n" +
             AboutPage +
-            "Prometni auti (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
+            "Prometni automobili (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
             "„low-poly Škoda Octavia RS 2020” — D_U (DU1701).\n" +
             "„2015 Mazda 6” — Dave Bored (Tyler_Dave).\n" +
             "„Dacia Duster Low Poly” — Danut_Stanciu (solid3ddd / solidmodelsproject).\n" +

@@ -127,7 +127,7 @@ namespace Magistrala.Game
             if (l == null) return "";
             if (Current != null && Current.fatureta) return l.K == 'u' ? "Utovar" : "Istovar";
             if (l.K == 'u') return "Utovar";
-            if (l.K == 'r') return "Natrag u skladište s praznim gajbama";
+            if (l.K == 'r') return "Povrat praznih gajbi u skladište";
             int n = 0; foreach (var x in Current.legs) { if (x == l) break; if (x.K == 'd') n++; }
             return $"Dostava {n + 1} / {Current.drops}";
         }

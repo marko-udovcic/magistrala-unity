@@ -149,7 +149,7 @@ public sealed class DroneCamera : MonoBehaviour
     {
         if (!Active || Magistrala.GpuSwitches.NoHud || Event.current.type != EventType.Repaint) return;
         var st = Magistrala.HudStyle.St(14, false, Color.white, TextAnchor.MiddleCenter);
-        string s = $"DRON {agl:0} m  ·  WASD let · E/Q gore/dolje · desni klik + miš ili Z/X R/T okret · Shift brže · F kamion";
+        string s = $"DRON {agl:0} m · WASD let · E/Q visina · desni klik + miš ili Z/X R/T pogled · Shift brže · F kamion";
         float K = Magistrala.HudStyle.K, w = Mathf.Min(Screen.width - 2 * Magistrala.HudStyle.Margin, Magistrala.HudStyle.Width(st, s) + 36 * K);
         // top centre, on the HUD margin (the HUD panel is at the bottom right)
         var r = new Rect(Mathf.Round((Screen.width - w) / 2), Magistrala.HudStyle.Margin, w, 34 * K);

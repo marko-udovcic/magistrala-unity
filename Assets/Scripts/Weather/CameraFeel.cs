@@ -218,7 +218,7 @@ namespace Magistrala
         {
             if (Time.unscaledTime > toastUntil) return;
             toastStyle ??= new GUIStyle(GUI.skin.box) { fontSize = 22, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white } };
-            GUI.Box(new Rect(Screen.width * .5f - 200, Screen.height * .32f, 400, 46), "Kamera: " + (Live ? "živa (njihanje, trešnja, blur)" : "mirna") + "  (B)", toastStyle);
+            GUI.Box(new Rect(Screen.width * .5f - 200, Screen.height * .32f, 400, 46), "Kamera: " + (Live ? "živa (njihanje, trešnja, zamućenje)" : "mirna") + "  (B)", toastStyle);
         }
 
         void OnDisable()
