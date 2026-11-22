@@ -158,7 +158,7 @@ namespace Magistrala.Game.Phone
                 if (kb.upArrowKey.wasPressedThisFrame) sel--;
                 if (kb.downArrowKey.wasPressedThisFrame) sel++;
                 if (items.Count > 0) sel = (sel % items.Count + items.Count) % items.Count;
-                if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) { if (sel < items.Count) items[sel].act?.Invoke(); }
+                if (!KatoviTool.Active && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) { if (sel < items.Count) items[sel].act?.Invoke(); }
                 else if (kb.backspaceKey.wasPressedThisFrame) Back();
                 else for (int i = 0; i < 9 && i < items.Count; i++)
                     if (kb[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame) { items[i].act?.Invoke(); break; }

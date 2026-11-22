@@ -19,6 +19,7 @@ namespace Magistrala
     {
         const float OX = -4200, OZ = -5300, FLOOR = 3f;
         public static bool On { get; private set; }
+        public static bool Active => On;
 
         sealed class Bld { public string id, src; public int n; public float baseY, h; public Vector2[] P; public Vector2 min, max; }
         List<Bld> all; Dictionary<long, List<int>> grid;
@@ -53,6 +54,8 @@ namespace Magistrala
             if (on && all == null) Load();
             Say(on ? (all != null && all.Count > 0 ? $"Katovi: {all.Count} zgrada. PgUp / PgDn katovi, Enter spremi, Del poništi, F7 kraj" : "Katovi: nema katovi-index (Build tile buildings)") : "");
         }
+
+        void OnDisable() { On = false; }
 
         void Say(string s) { status = s; statusT = Time.unscaledTime; if (s.Length > 0) Debug.Log("[katovi] " + s); }
 

@@ -327,7 +327,7 @@ namespace Magistrala.Game
             {
                 bool zin = kb.equalsKey.isPressed || kb.numpadPlusKey.isPressed, zout = kb.minusKey.isPressed || kb.slashKey.isPressed || kb.numpadMinusKey.isPressed;
                 if (zin != zout) ZoomAt(Mathf.Exp((zin ? -1 : 1) * dt * 1.8f));
-                if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) click = true;
+                if (!KatoviTool.Active && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) click = true;
             }
             ClampView();
             if (click) ToggleWaypoint();
