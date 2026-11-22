@@ -39,7 +39,12 @@ namespace Magistrala
         readonly System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         const float CELL = 128;
 
-        class Bucket { public Bounds bounds; public Vector3 centre; public List<Matrix4x4>[] perProto; public Matrix4x4[][] arr; public int[] start; }
+        class Bucket { public Bounds bounds; public Vector3 centre; public List<Matrix4x4>[] perProto; public Matrix4x4[][] arr; public int[] start; public int block; }
+        /// 256 m blocks of 2 x 2 cells: where a whole block is impostor-only and past the impostor shadow distance, one draw per
+        /// prototype for the block instead of one per cell (22. 11.: ~2 k impostor draws a frame at oštro, -15 ms GPU without them)
+        const float BLOCK = 256;
+        readonly List<Bucket> blocks = new List<Bucket>();
+        bool[] blockDone; // [block * prototypes + p]: drawn as a block this frame
         /// per plant: bit 0 full mesh, bit 1 full-mesh shadow (the hysteresis state)
         byte[] state;
         const float HYST = 4, FADE = .12f, FADE_MAX = 30; // m either side of a switch distance; plants grow in over the last 12 % of their draw distance, at most 30 m
@@ -96,6 +101,20 @@ namespace Magistrala
                 for (int k = 0; k < meshes.Length; k++) bk.arr[k] = bk.perProto[k].ToArray();
                 bk.perProto = null; bk.centre = bk.bounds.center; buckets.Add(bk);
             }
+            var bmap = new Dictionary<long, (Bucket b, List<Bucket> kids)>();
+            foreach (var bk in buckets)
+            {
+                var c = bk.centre; long key = ((long)Mathf.FloorToInt(c.x / BLOCK) << 32) ^ (uint)Mathf.FloorToInt(c.z / BLOCK);
+                if (!bmap.TryGetValue(key, out var e)) { e = (new Bucket { bounds = bk.bounds }, new List<Bucket>()); bmap[key] = e; }
+                e.b.bounds.Encapsulate(bk.bounds); e.kids.Add(bk);
+            }
+            foreach (var (blk, kids) in bmap.Values)
+            {
+                blk.arr = new Matrix4x4[meshes.Length][];
+                for (int k = 0; k < meshes.Length; k++) { var l = new List<Matrix4x4>(); foreach (var kb in kids) l.AddRange(kb.arr[k]); blk.arr[k] = l.ToArray(); }
+                blk.centre = blk.bounds.center; foreach (var kb in kids) kb.block = blocks.Count; blocks.Add(blk);
+            }
+            blockDone = new bool[blocks.Count * meshes.Length];
             int total = 0;
             foreach (var bk in buckets) { bk.start = new int[meshes.Length]; for (int k = 0; k < meshes.Length; k++) { bk.start[k] = total; total += bk.arr[k].Length; } }
             state = new byte[total];
@@ -142,6 +161,25 @@ namespace Magistrala
             sunFwd = sun ? sun.transform.forward : Vector3.down;
             float k = Mathf.Max(.2f, Distance), shD = shadowDistance * k, impShD = impShadowDistance * k;
             float shMax = Mathf.Max(shD, impShD); bool fix = !NoFix && !Legacy;
+            System.Array.Clear(blockDone, 0, blockDone.Length);
+            if (fix && impMeshes != null)
+                for (int bi = 0; bi < blocks.Count; bi++)
+                {
+                    var bl = blocks[bi];
+                    float dc = Vector3.Distance(new Vector3(cp.x, 0, cp.z), new Vector3(bl.centre.x, 0, bl.centre.z));
+                    float d = dc - BLOCK * .71f, dmax = dc + BLOCK * .71f;
+                    if (d <= impShD || d > 1400 * k) continue; // shadows / per-plant switches near the camera: per cell below
+                    bool view = GeometryUtility.TestPlanesAABB(planes, bl.bounds);
+                    for (int p = 0; p < meshes.Length; p++)
+                    {
+                        if (p >= impMeshes.Length || !impMeshes[p]) continue;
+                        float draw = drawDistance[p] * k;
+                        if (d <= nearDistance[p] * k + HYST || dmax > draw - Mathf.Min(draw * FADE, FADE_MAX)) continue; // straddles a switch: cells
+                        blockDone[bi * meshes.Length + p] = true;
+                        var arr = bl.arr[p]; if (!view || arr.Length == 0) continue; // no shadows this far: off screen = nothing
+                        Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bl.bounds, ShadowCastingMode.Off); Stat(p, false, arr.Length, false); drawn += arr.Length;
+                    }
+                }
             foreach (var bk in buckets)
             {
                 float dc = Vector3.Distance(new Vector3(cp.x, 0, cp.z), new Vector3(bk.centre.x, 0, bk.centre.z));
@@ -152,6 +190,7 @@ namespace Magistrala
                 for (int p = 0; p < meshes.Length; p++)
                 {
                     var arr = bk.arr[p]; if (arr.Length == 0) continue;
+                    if (fix && blockDone[bk.block * meshes.Length + p]) continue;
                     bool hasImp = impMeshes != null && p < impMeshes.Length && impMeshes[p];
                     if (Legacy) { if (d > drawDistance[p]) continue; DrawLegacy(bk, p, arr, d, hasImp); drawn += arr.Length; continue; }
                     float draw = drawDistance[p] * k; if (d > draw) continue;
