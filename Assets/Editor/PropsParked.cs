@@ -4,7 +4,8 @@
 //   parked cars    the traffic kinds (TrafficData: passenger cars and vans, no buses / trucks / beacons), static, one BoxCollider each:
 //                  * car parks: the ground build's occupied bays (~60 %, OSM amenity=parking with bay lines)
 //                  * Mapillary car parks (GroundCoverMapillary.cs, CC BY-SA 4.0): the lots the street photos saw cars in and
-//                    OSM has no car park for, nose-in bays packed on their standing room, 45–80 % taken
+//                    OSM has no car park for, nose-in bays packed on their standing room, 45–80 % taken; a lot with
+//                    fewer than 3 bays or 3 cars is left out (GroundCover.MlyFinish builds the asphalt of the rest)
 //                  * the village streets: on the verge beside our streets (not the D8, no model road) in built-up land (OSM
 //                    landuse=residential), parallel 1.45 m off the asphalt edge, in runs (noise along the street) — a spot only
 //                    on the verge or up on our footway (not paving / the riva / a wall), flat, clear of gates (3.2 m), stop bays, junctions
@@ -144,27 +145,14 @@ namespace Magistrala.EditorTools
                 if (Place(c[0], c[1], yawU, Hs(c[0], c[1], 1), false)) nLot++;
             }
             // 1b. the Mapillary car parks without an OSM car park (GroundCoverMapillary.cs): nose-in bays across the lot's long
-            //     axis (2.7 m wide, 5.2 m deep), packed on the lot's standing room; the share
+            //     axis (2.7 m wide, 5.2 m deep), packed on the lot's standing room by GroundCover.MlyPrepare; the share
             //     taken follows what the photos saw (cars seen per pass over the bays), 45–80 %
             int nMly = 0, triedMly = 0;
             foreach (var L in GroundCover.MLots)
             {
-                if (L.osm || L.cells.Count == 0) continue;
-                var bays = new List<(double u, double v)>();
-                // packed greedily: rows 1 m apart, a bay where the whole bay is standing room and clear of the bays taken
-                bool along = L.v1 - L.v0 < 4.6;                  // a narrow strip: the cars along it
-                double du = along ? 5.8 : 2.7, dv = along ? 2.4 : 5.2, hu = along ? 2.2 : .8, hv = along ? .8 : 2.2;
-                for (double v = L.v0 + hv + .4; v <= L.v1 - hv; v += 1)
-                    for (double u = L.u0 + hu + .4; u <= L.u1 - hu; u += .9)
-                    {
-                        bool ok = true;
-                        foreach (var (a, b) in new[] { (-hu, -hv), (hu, -hv), (hu, hv), (-hu, hv), (0.0, 0.0), (0.0, -hv), (0.0, hv) })
-                            if (!L.cells.ContainsKey(GroundCover.MLot.Cell(u + a, v + b))) { ok = false; break; }
-                        if (!ok) continue;
-                        foreach (var q in bays) if (Math.Abs(q.u - u) < du - .05 && Math.Abs(q.v - v) < dv - .05) { ok = false; break; }
-                        if (ok) bays.Add((u, v));
-                    }
-                if (bays.Count == 0) continue;
+                if (!L.keep || L.bays.Count == 0) continue;
+                var bays = L.bays; bool along = L.along;
+                int c0 = cars.Count, p0 = placed.Count, k0 = colRoot.childCount;
                 double share = Math.Max(.45, Math.Min(.8, L.seen / (double)Math.Max(1, L.seqs) / bays.Count));
                 foreach (var (u, v) in bays)
                 {
@@ -173,9 +161,18 @@ namespace Magistrala.EditorTools
                     triedMly++;
                     double ax = along ? L.ux : -L.uz, az = along ? L.uz : L.ux; // the car's long axis
                     float yawU = (float)(Math.Atan2(ax, -az) * 180 / Math.PI) + ((Hs(x, z, 22) & 3) == 0 ? 180 : 0); // most nose-in
-                    if (Place(x, z, yawU, Hs(x, z, 23), false, false, true)) nMly++;
+                    if (Place(x, z, yawU, Hs(x, z, 23), false, false, true)) { nMly++; L.nCars++; }
+                }
+                // under 3 cars: no car park (no asphalt in an empty field), its cars out again
+                if (L.nCars > 0 && L.nCars < 3)
+                {
+                    cars.RemoveRange(c0, cars.Count - c0); kinds.RemoveRange(c0, kinds.Count - c0); paints.RemoveRange(c0, paints.Count - c0);
+                    placed.RemoveRange(p0, placed.Count - p0);
+                    while (colRoot.childCount > k0) UnityEngine.Object.DestroyImmediate(colRoot.GetChild(colRoot.childCount - 1).gameObject);
+                    nMly -= L.nCars; L.nCars = 0;
                 }
             }
+            log.Add(GroundCover.MlyFinish());   // the asphalt of the lots that got a car
             // 2. the village streets: verge spots in runs
             // (the carriageway list is each street's polyline in 4 m pieces: walk it as one line, a spot every 5.8 m)
             double sNext = 3, s0 = 0, lx = double.NaN, lz = double.NaN;

@@ -136,7 +136,7 @@ namespace Magistrala.EditorTools
                         if (inside(HX0 + (i + .5) * HC, HZ0 + (j + .5) * HC)) hard[j * HNX + i] = true;
             }
             foreach (var p in pitches) Mark(p.bx0, p.bz0, p.bx1, p.bz1, (x, z) => Dist(p, x, z) <= .5);
-            foreach (var l in MLots) if (!l.osm) Mark(l.ring.Where((_, i) => i % 2 == 0).Min(), l.ring.Where((_, i) => i % 2 == 1).Min(), l.ring.Where((_, i) => i % 2 == 0).Max(), l.ring.Where((_, i) => i % 2 == 1).Max(), (x, z) => InRing(l.ring, x, z));
+            MarkMly(Mark);                   // the Mapillary car parks that were built (GroundCoverMapillary.cs)
             foreach (var s in surf)
             {
                 if (s.k == "paint") continue;
@@ -310,7 +310,7 @@ namespace Magistrala.EditorTools
             nPitches = nGoals = nHoops = nFenceM = nTris = nDropped = 0;
             var models = WorldData.Models();
             Surfaces(models);
-            MlyLots(models);
+            MlyPrepare(models);              // the Mapillary car parks: ground grid and bays (their asphalt after the parked cars)
             foreach (var p in pitches) PitchBuild(p);
             int nm = Flush();
             var s = $"[tlo] {nPitches} pitches ({nGoals} goals, {nHoops} hoops, {nFenceM} m fence), {surf.Count} surfaces ({nTris} triangles, {nDropped} dropped), {nm} meshes";
