@@ -13,8 +13,8 @@ namespace Magistrala
         static readonly Level[] Levels =
         {
             new Level { name = "brzo",   mpix = 1.0f, shadowDist = 160, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .9f, veg = .8f, aoOff = true, aa = AntialiasingMode.SubpixelMorphologicalAntiAliasing },
-            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .85f, veg = 1f, aoHalf = true, aoDepth = true, aa = AntialiasingMode.TemporalAntiAliasing },
-            new Level { name = "oštro",  mpix = 99f,  shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f, aa = AntialiasingMode.TemporalAntiAliasing },
+            new Level { name = "srednje", mpix = 2.0f, shadowDist = 230, shadowRes = 2048, cascades = 2, soft = SoftShadowQuality.Low,    fsrSharp = .85f, veg = 1f, aoHalf = true, aoDepth = true, aoAfter = true, aa = AntialiasingMode.TemporalAntiAliasing },
+            new Level { name = "oštro",  mpix = 4.0f, shadowDist = 300, shadowRes = 4096, cascades = 4, soft = SoftShadowQuality.High,   fsrSharp = .8f, veg = 1.2f, aoDepth = true, aoAfter = true, aa = AntialiasingMode.TemporalAntiAliasing },
         };
         const string PREF = "kvaliteta";
 
@@ -34,6 +34,9 @@ namespace Magistrala
         // but that was a stripped shader: the player only gets the _SOURCE_DEPTH_* variants because PC_RPAsset also lists
         // PC_Renderer_SSAOdubina (a copy of PC_Renderer with SSAO from depth, Medium normals; no camera uses it, it only keeps
         // the variants). Depth is D32 float reversed-Z, so the 0.08 m near / 9 km far planes cost no precision.
+        // 22. 11.: srednje / oštro take AO from the depth copy after the opaque pass (aoAfter, depth source): the Depth / DepthNormals
+        // prepass drew the whole scene a second time (~3.5 M triangles, ~2.4 k draws, ~12 ms GPU on the M2 at oštro on the D8 at
+        // Lukšić) and with the new vegetation, details and houses that pass alone cost more than the whole frame of 21. 11.
         // AA: TAA blurs a lot under FSR (brzo draws at ~74 %), SMAA is sharper and cheaper there; srednje / oštro keep TAA.
         ScriptableRendererFeature aoFeature; bool o_aoActive; object ao; System.Reflection.FieldInfo aoSource, aoDown, aoAfter; object o_aoSource; bool o_aoDown, o_aoAfter;
 

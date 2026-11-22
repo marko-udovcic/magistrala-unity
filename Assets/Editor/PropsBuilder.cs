@@ -7,7 +7,7 @@
 //                    entrance from the east stay free), Burin drinks wholesale (stacks of crates / water / pallets / kegs along the
 //                    hall's south wall, the doorway free)
 //   rivas            white benches facing the sea on the riva slots of coast.json (the web game's riva furniture, OSM rivas), every
-//                    ~30 m, Kaštela only
+//                    ~30 m, Kaštela only (its boat / yacht / sail slots: BoatsBuilder, run at the end)
 //   landmarks        the horseman "Vjesnik slobode" on its column (OSM tourism=artwork, 43.54934 N 16.34159 E, next to Tommy "kod
 //                    konjanika"), the 1500-year-old olive of Kaštel Štafilić (OSM natural=tree "Stara Maslina", 43.55056 N 16.33565 E,
 //                    height 10 m): OSM lon / lat -> game by the region's 1:1 azimuthal-equidistant frame (centre Split 43.5083 / 16.44)
@@ -134,6 +134,7 @@ namespace Magistrala.EditorTools
             Terrace();
             log.Add(Lamps());                // street lamps (StreetLights.cs): before the cars, which keep off the poles
             ParkedCars();                    // last: the cars keep off every prop placed before
+            log.Add(BoatsBuilder.Place());   // moored boats (World/Boats, Assets/Editor/BoatsBuilder.cs): on the water, no props in the way
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             int rend = root.GetComponentsInChildren<MeshRenderer>(true).Length, lg = root.GetComponentsInChildren<LODGroup>(true).Length, cols = root.GetComponentsInChildren<Collider>(true).Length;
             log.Insert(0, $"[rekviziti] {nPlaced} props placed ({lg} LOD groups, {rend} renderers, {cols} colliders), {nRejected} rejected; " +

@@ -12,6 +12,10 @@
 //   vehicle   maxVehicle "mali" (van or small truck) on the waterfront points ("(riva)" in the package: README "meant for the small
 //             truck or a van", BILJESKE "velikim kamionom ne možeš na rivu"); stored only, not enforced; the Atego counts as allowed on the riva (Marko 2026-11-20), the rule is for bigger trucks later
 //   distances every pair with a package point: our graph's road metres (Dijkstra pad → pad, one-ways, closed edges skipped)
+//   customers Assets/Editor/stops-musterije.json (the faturete customers' own places: houses, yards, workshops, a konoba, in each
+//             village): appended after the package points, snapped the same way (nearest open street, edge split there, bay
+//             along it) but never onto the D8, a dual carriageway or a ramp; no tours; the stop's id is the file's id. A snap
+//             onto another street than the file's `street` (or more than 12 m away) is logged as a warning
 // The tours themselves (which points, how many stops) are put together in the game (MagistralaGame.Tours.cs).
 using System;
 using System.Collections.Generic;
@@ -26,6 +30,8 @@ namespace Magistrala.EditorTools
     {
         const string PKG = "/Users/macair/Documents/mag-11-19/world_1to1.json";
         const string NAMES = "Assets/Editor/imena-firmi.json";
+        const string CUSTOMERS = "Assets/Editor/stops-musterije.json";
+        const int CustomerId0 = 500;      // PK.id of the customers' stops (node / edge ids PkNode0 / PkEdge0 + id; package ids < 500)
         const string REPORT = "Logs/ture-uvoz.txt";
         const double SnapMax = 45, D8Penalty = 40;
         const long PkNode0 = 9_800_000, PkEdge0 = 9_850_000;
@@ -34,6 +40,7 @@ namespace Magistrala.EditorTools
         {
             public int id; public string name, real, kind, role; public double ox, oz, sx, sz; public List<string> tours = new List<string>();
             public long node = -1; public double bx, by, bz, tx, tz, snapD; public string edgeName, why; public bool riva;
+            public string sid, street;    // a customer's stop (stops-musterije.json): its id, the street it is meant to snap to
         }
 
         static readonly List<string> report = new List<string>();
@@ -42,7 +49,7 @@ namespace Magistrala.EditorTools
         {
             report.Clear(); tourDefs = new List<GTour>();
             var res = new List<PK>();
-            if (!File.Exists(PKG)) { Debug.LogWarning($"[igra] {PKG} missing: no delivery points"); return res; }
+            if (!File.Exists(PKG)) { Debug.LogWarning($"[igra] {PKG} missing: no delivery points"); AddCustomers(res); Snap(res, nodes, edges, closed); return res; }
             var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(PKG)));
             var pa = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "paket-approaches.json")));
             var T = MiniJson.O(MiniJson.G(MiniJson.O(pa["alignment"]), "transform") ?? pa["transform"]);
@@ -81,16 +88,40 @@ namespace Magistrala.EditorTools
             }
             // houses on the same street: the package id as the house number
             foreach (var p in res) if (p.kind == "obiteljska kuća" && houses[p.name] > 1) p.name += " " + p.id;
+            AddCustomers(res);
+            Snap(res, nodes, edges, closed);
+            return res;
+        }
 
+        /// the faturete customers' own places (stops-musterije.json), game frame
+        static void AddCustomers(List<PK> res)
+        {
+            if (!File.Exists(CUSTOMERS)) { Debug.LogWarning($"[igra] {CUSTOMERS} missing: no customers' stops"); return; }
+            int i = 0;
+            foreach (var so in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(CUSTOMERS)))["stops"]))
+            {
+                var s = MiniJson.O(so);
+                var p = new PK { id = CustomerId0 + i++, sid = (string)s["id"], name = (string)s["name"], real = (string)s["name"], kind = (string)s["kind"], role = "mušterija", street = MiniJson.G(s, "street") as string };
+                p.sx = p.ox = MiniJson.D(s["gx"]); p.sz = p.oz = MiniJson.D(s["gz"]);
+                res.Add(p);
+            }
+        }
+
+        static bool Dual(E e) => (e.name ?? "").StartsWith("D8") || (e.rf ?? "").Contains("D8") || (e.oneway && e.lanes >= 2);
+
+        static void Snap(List<PK> res, Dictionary<long, N> nodes, Dictionary<long, E> edges, HashSet<long> closed)
+        {
             foreach (var p in res)
             {
-                if (p.tours.Count == 0) { p.why = $"bez tura ({p.role})"; continue; }
+                bool cust = p.sid != null;
+                if (p.tours.Count == 0 && !cust) { p.why = $"bez tura ({p.role})"; continue; }
                 if (!(p.sx >= StreetsBuilder.AX0 && p.sx < StreetsBuilder.AX1 && p.sz >= StreetsBuilder.AZ0 && p.sz < StreetsBuilder.AZ1)) { p.why = $"izvan Unity svijeta (game x {p.sx:0}, z {p.sz:0}: Split / Solin)"; continue; }
-                // nearest open street
+                // nearest open street (a customer's place: never the D8 / a dual carriageway / a ramp)
                 E best = null; double bd = double.MaxValue, bs = 0; int bi = 0; double bt = 0;
                 foreach (var e in edges.Values)
                 {
                     if (closed.Contains(e.id) || e.pts == null || e.pts.Count < 2 || e.spur != null) continue;
+                    if (cust && (Dual(e) || e.type == "ramp" || e.type == "motorway" || e.type == "trunk")) continue;
                     double pen = (e.name ?? "").StartsWith("D8") || (e.oneway && e.lanes >= 2) ? D8Penalty : 0;
                     double s = 0;
                     for (int i = 0; i + 1 < e.pts.Count; i++)
@@ -107,6 +138,7 @@ namespace Magistrala.EditorTools
                 p.bx = A[0] + (B[0] - A[0]) * bt; p.by = A[1] + (B[1] - A[1]) * bt; p.bz = A[2] + (B[2] - A[2]) * bt;
                 double tl = Math.Sqrt(Sq(B[0] - A[0]) + Sq(B[2] - A[2])); p.tx = (B[0] - A[0]) / Math.Max(1e-6, tl); p.tz = (B[2] - A[2]) / Math.Max(1e-6, tl);
                 p.snapD = bd; p.edgeName = best.name;
+                if (cust && (bd > 12 || (p.street != null && best.name != p.street))) Debug.LogWarning($"[igra] customer stop {p.sid} '{p.name}': snapped onto {best.name} ({best.id}) {bd:0.0} m away, meant for {p.street}");
                 double len = PolyLen(best.pts);
                 if (bs < 2.5) p.node = best.a;
                 else if (len - bs < 2.5) p.node = best.b;
@@ -119,7 +151,6 @@ namespace Magistrala.EditorTools
                     p.node = nid;
                 }
             }
-            return res;
         }
 
         static void AddPackageStops(List<PK> pk, List<GStop> stops, Dictionary<long, int> nIndex, List<GEdge> eList, List<Vector3> pts, int nNodes, List<GTour> tourDefs)
@@ -137,14 +168,14 @@ namespace Magistrala.EditorTools
                 if (!there || !home) { p.why = $"GPS: nema puta {(there ? "natrag u skladište" : home ? "od skladišta" : "ni od skladišta ni natrag")} (ulica {p.edgeName}, otok u grafu)"; continue; }
                 var st = new GStop
                 {
-                    id = "p" + p.id, name = p.name, kind = p.kind, pid = p.id, tours = p.tours.ToArray(), maxVehicle = p.riva ? "mali" : "",
-                    pos = W.U(p.ox, p.by, p.oz), bay = W.U(p.bx, p.by, p.bz), bayDir = new Vector2((float)p.tx, -(float)p.tz).normalized,
+                    id = p.sid ?? "p" + p.id, name = p.name, kind = p.kind, pid = p.sid != null ? -1 : p.id, tours = p.tours.ToArray(), maxVehicle = p.riva ? "mali" : "",
+                    pos = p.sid != null ? W.U(p.bx, p.by, p.bz) : W.U(p.ox, p.by, p.oz), bay = W.U(p.bx, p.by, p.bz), bayDir = new Vector2((float)p.tx, -(float)p.tz).normalized,
                     bayHl = 9.5f, bayHw = 2.6f, padNode = ni, accessNode = ni,
                 };
                 stops.Add(st); kept++;
-                report.Add($"ok   {p.id,3} {p.name} ← {p.real} [{p.kind}] {string.Join(" ", p.tours)} · ulica {p.edgeName} ({p.snapD:0} m) · od skladišta {from[ni] / 1000:0.0} km, natrag {back[ni] / 1000:0.0} km");
+                report.Add($"ok   {p.sid ?? p.id.ToString(),3} {p.name} ← {p.real} [{p.kind}] {string.Join(" ", p.tours)} · ulica {p.edgeName} ({p.snapD:0} m) · od skladišta {from[ni] / 1000:0.0} km, natrag {back[ni] / 1000:0.0} km");
             }
-            foreach (var p in pk) if (p.why != null) report.Add($"van  {p.id,3} {p.real} [{p.kind}]: {p.why}");
+            foreach (var p in pk) if (p.why != null) { report.Add($"van  {p.sid ?? p.id.ToString(),3} {p.real} [{p.kind}]: {p.why}"); if (p.sid != null) Debug.LogWarning($"[igra] customer stop {p.sid} '{p.name}' dropped: {p.why}"); }
             foreach (var t in tourDefs)
             {
                 t.pickups = stops.Count(s => s.Has(t.id, 'u')); t.drops = stops.Count(s => s.Has(t.id, 'd'));

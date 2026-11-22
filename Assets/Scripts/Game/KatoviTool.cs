@@ -52,7 +52,7 @@ namespace Magistrala
         {
             On = on;
             if (on && all == null) Load();
-            Say(on ? (all != null && all.Count > 0 ? $"Katovi: {all.Count} zgrada. PgUp / PgDn katovi, Enter spremi, Del poništi, F7 kraj" : "Katovi: nema katovi-index (Build tile buildings)") : "");
+            Say(on ? (all != null && all.Count > 0 ? $"Katovi: {all.Count} zgrada. PgUp / PgDn katovi, Enter spremi, Del poništi, F7 kraj" : "Katovi: nedostaje indeks zgrada") : "");
         }
 
         void OnDisable() { On = false; }
@@ -246,7 +246,7 @@ namespace Magistrala
             // the panel: top centre
             var st = HudStyle.St(20, true, Color.white, TextAnchor.MiddleCenter);
             var st2 = HudStyle.St(15, false, HudStyle.Muted, TextAnchor.MiddleCenter);
-            string help = "F7 Katovi   PgUp / PgDn  ±1 kat   Enter spremi   Del poništi";
+            string help = "F7 katovi · PgUp/PgDn ±1 kat · Enter spremi · Del poništi";
             float w = Mathf.Max(HudStyle.Width(st, info ?? ""), HudStyle.Width(st2, recent ? status : help)) + 48 * K;
             // below the drone help (two lines at the top centre)
             var r = new Rect((Screen.width - w) / 2, 104 * K, w, (On ? 72 : 40) * K);

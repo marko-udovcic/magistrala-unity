@@ -55,6 +55,9 @@ namespace Magistrala.Game
         [System.Serializable] public class Leg { public string stop, kind = "d"; public int rows = -1; public char K => string.IsNullOrEmpty(kind) ? 'd' : kind[0]; }
 
         public static MagistralaGame I { get; private set; }
+        /// test switches (-appath, -tpxz, -autopilot, bench): the vehicle the player drives (Atego by default), not whichever
+        /// TruckController Unity finds first (that was the Galeb)
+        public static TruckController DrivenTruck() => I && I.Truck ? I.Truck : FindFirstObjectByType<TruckController>();
         public GameWorld World { get; private set; }
         public RoadRouter Router { get; private set; }
         public TruckController Truck { get; private set; }
@@ -331,7 +334,7 @@ namespace Magistrala.Game
             if (WorldMap.IsOpen) kb = null;
             else if (Phone.Open) { kb = null; help.Add("Tab zatvori mobitel"); }
             else if (Phone.Ringing != null) help.Add($"Y javi se ({MatePhone.Who(Phone.Ringing.caller).name}) · N odbij");
-            else help.Add(Phone.Unread > 0 ? $"Tab mobitel ({Phone.Unread} nova poruka) · M karta" : "Tab mobitel · M karta");
+            else help.Add(Phone.Unread > 0 ? $"Tab mobitel (poruke: {Phone.Unread}) · M karta" : "Tab mobitel · M karta");
             bool ringing = Phone.Ringing != null;
             if (card != null)
             {
@@ -371,7 +374,7 @@ namespace Magistrala.Game
                 case Phase.Loading:
                     phaseT -= dt;
                     prompt = loadingKind == 'u' ? $"Utovar{(Current.fatureta ? $" ({Current.cargo})" : $" u {World.Stop(Current.to)?.name}")}… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : loadingKind == 'r' ? $"Predaja praznih gajbi i otpremnica… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : Current.loaded ? "Utovar paleta…" : "Preuzimanje naloga…";
-                    if (loadingKind != 'a') { help.Add("J otkaži turu"); if (kb != null && kb.jKey.wasPressedThisFrame) { Cancel(); break; } }
+                    if (loadingKind != 'a') { help.Add("J otkaži posao"); if (kb != null && kb.jKey.wasPressedThisFrame) { Cancel(); break; } }
                     if (phaseT <= 0)
                     {
                         if (loadingKind == 'a') { State = Phase.Driving; routeT = 0; Banner($"Zdravko: „{CargoLine(Current)} Javi kad istovariš.“"); }
@@ -384,23 +387,23 @@ namespace Magistrala.Game
                     inBay = InBay(s, out bayReversed);
                     float d = Vector3.Distance(Flat(TruckCentre()), Flat(s.bay));
                     if (swap) { }
-                    else if (Current.fatureta && !InGaleb && d < 40) prompt = "Faturete se voze Galebom – GPS te vodi do njega";
+                    else if (Current.fatureta && !InGaleb && d < 40) prompt = "Faturete voziš Galebom · slijedi GPS";
                     else if (inBay && Truck.SpeedKmh < 1.5f && Current.fatureta)
                     {
                         char lk = Current.Leg?.K ?? 'd';
-                        prompt = lk == 'u' ? $"E – Utovar ({Current.cargo})" : "E – Istovar";
+                        prompt = lk == 'u' ? $"E – utovar ({Current.cargo})" : "E – istovar";
                         help.Add(lk == 'u' ? "E utovar" : "E istovar");
                         if ((kb != null && kb.eKey.wasPressedThisFrame && !DroneCamera.Active) || auto) StartLeg();
                     }
                     else if (inBay && Truck.SpeedKmh < 1.5f)
                     {
                         char lk = Current.Leg?.K ?? 'd';
-                        prompt = lk == 'u' ? "E – Utovar" : lk == 'r' ? "E – Predaj prazne gajbe" : bayReversed ? "E – Istovari dizalicom (unazad +10 %)" : "E – Istovari dizalicom";
+                        prompt = lk == 'u' ? "E – utovar" : lk == 'r' ? "E – predaj prazne gajbe" : bayReversed ? "E – istovari dizalicom (unazad +10 %)" : "E – istovari dizalicom";
                         help.Add(lk == 'u' ? "E utovar" : lk == 'r' ? "E predaj" : "E istovar");
                         if ((kb != null && kb.eKey.wasPressedThisFrame && !DroneCamera.Active) || auto) StartLeg(); // (E is "up" for the drone)
                     }
                     else if (inBay) prompt = Current.Leg?.K == 'u' ? "Stani za utovar" : "Stani za istovar";
-                    else if (d < 35) prompt = Current.Leg?.K == 'u' ? "Parkiraj u označeno mjesto za utovar" : "Parkiraj u označeno mjesto za istovar";
+                    else if (d < 35) prompt = Current.Leg?.K == 'u' ? "Parkiraj na označeno mjesto za utovar" : "Parkiraj na označeno mjesto za istovar";
                     help.Add(Current.fatureta ? "J otkaži faturetu" : "J otkaži turu");
                     if (kb != null && kb.jKey.wasPressedThisFrame) Cancel();
                     // test: the autopilot stuck on a tight town corner (it cannot reverse) for 20 s → jump into the bay, logged
@@ -416,14 +419,14 @@ namespace Magistrala.Game
                     phaseT -= dt;
                     int off = Unload && !handCrates ? Unload.RowsOff : 0, rows = Unload && !handCrates ? Unload.SeqRows : 0;
                     prompt = Current.fatureta ? $"Istovar… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : handCrates ? $"Gajbe rukom… {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : rows > 0 ? $"Istovar dizalicom… paleta {Mathf.Min(rows, off + 1)} / {rows} · {Mathf.CeilToInt(Mathf.Max(0, phaseT))} s" : $"Istovar dizalicom… {Mathf.CeilToInt(phaseT)} s";
-                    help.Add("W / S prekini istovar · J otkaži turu");
+                    help.Add("W/S prekini istovar · J otkaži posao");
                     bool drive = kb != null && !DroneCamera.Active && (kb.wKey.wasPressedThisFrame || kb.sKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame || kb.downArrowKey.wasPressedThisFrame);
                     // test: -jobabort s  the first unload is broken off after s seconds (as if the player drove off), the autopilot restarts it
                     if (abortAt > 0 && Unload && Unload.T >= abortAt) { abortAt = -1; drive = true; }
                     if (drive || Truck.SpeedKmh > 3)
                     {
                         StopUnload(false); State = Phase.Driving;
-                        Banner("Istovar prekinut – stani u mjesto pa ponovno E.");
+                        Banner("Istovar prekinut · parkiraj pa pritisni E.");
                         Debug.Log("[job] unload aborted");
                     }
                     else if (kb != null && kb.jKey.wasPressedThisFrame) Cancel();
@@ -589,7 +592,7 @@ namespace Magistrala.Game
                 else
                 {
                     l.Add(($"Tura: {Current.label} – {Current.cargo}", 0));
-                    l.Add(($"{Magistrala.HudStyle.Dec(Current.km)} km · plaća {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
+                    l.Add(($"{Magistrala.HudStyle.Dec(Current.km)} km · zarada {Eur(Current.pay)} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
                 }
                 if (Current.cargoDamage > 0.5f) l.Add(($"Šteta na teretu {Current.cargoDamage:0} %", 3));
             }
@@ -600,7 +603,7 @@ namespace Magistrala.Game
                 for (int k = 0; k < of.Count && k < 9; k++) l.Add(($"{k + 1}   {OfferLine(of[k])}", 1));
             }
             else if (atWarehouse)
-                l.Add((S.closedDay == Day && FirmHours ? "Danas nema firmine ture." : !FirmHours ? (Hour < 6 && Day % 7 < 5 ? "Skladište otvara u 6:00. Zdravko zove." : "Smjena je gotova. Firma radi radnim danom 6–17 h.") : "Čeka se Zdravkov poziv.", 1));
+                l.Add((S.closedDay == Day && FirmHours ? "Danas nema firmine ture." : !FirmHours ? (Hour < 6 && Day % 7 < 5 ? "Skladište otvara u 6:00. Zdravko zove." : "Smjena gotova · radno vrijeme: pon–pet 6–17 h.") : "Čeka se Zdravkov poziv.", 1));
             // slobodan i daleko od skladišta: bez kartice (odredište "Skladište u Lukšiću" je već na HUD-u)
         }
 

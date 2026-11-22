@@ -26,7 +26,7 @@ public sealed class TruckHud : MonoBehaviour
     float cardT = -1; // JobCard is rebuilt 4× a second
     static readonly string[] Days = { "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota", "Nedjelja" };
     const string Keys1 = "WASD vozi · Space ručna · C kabina · F dron · R vrati · miš kamera",
-        Keys2 = "G zalazak · V kiša · B kamera · L svjetla · P autopilot · K kvaliteta · F1 graf i pomoć · F2 konzola";
+        Keys2 = "G zalazak · V kiša · B kamera · L svjetla · P autopilot · K kvaliteta · F1 pomoć · F2 konzola";
 
     void Awake()
     {
@@ -83,7 +83,7 @@ public sealed class TruckHud : MonoBehaviour
         {
             float cm = g.ClockMin;
             HudStyle.Label(new Rect(X(PW - Pad - 150), Y(9), 150 * K, 30 * K), tClock.Get((long)(cm % 1440), k => MagistralaGame.Hm(k)), HudStyle.St(26, true, Color.white, TextAnchor.MiddleRight));
-            HudStyle.Label(new Rect(X(PW - Pad - 180), Y(38), 180 * K, 18 * K), tDay.Get(g.Day, k => $"{Days[k % 7]} · Dan {k + 1}"), HudStyle.St(13, false, new Color(1, 1, 1, 0.85f), TextAnchor.MiddleRight));
+            HudStyle.Label(new Rect(X(PW - Pad - 180), Y(38), 180 * K, 18 * K), tDay.Get(g.Day, k => $"{Days[k % 7]} · dan {k + 1}"), HudStyle.St(13, false, new Color(1, 1, 1, 0.85f), TextAnchor.MiddleRight));
         }
         if (!map) { Extras(g, P); return; }
 

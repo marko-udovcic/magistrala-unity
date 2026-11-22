@@ -17,13 +17,13 @@ namespace Magistrala
             "Gfx.WaitForPresentOnGfxThread", "Gfx.WaitForGfxCommandsFromMainThread", "Gfx.WaitForRenderThread", "WaitForTargetFPS" };
         Unity.Profiling.ProfilerRecorder[] rec; double[] recSum;
         static readonly string[] Counters = { "Batches Count", "SetPass Calls Count", "Draw Calls Count", "Shadow Casters Count", "Triangles Count" };
-        Unity.Profiling.ProfilerRecorder[] cnt;
+        Unity.Profiling.ProfilerRecorder[] cnt; double[] cntSum; int cntN;
         readonly FrameTiming[] ft = new FrameTiming[1]; double ftMain, ftRender, ftGpu; int ftN;
         void OnEnable()
         {
             rec = new Unity.Profiling.ProfilerRecorder[Markers.Length]; recSum = new double[Markers.Length];
             for (int i = 0; i < Markers.Length; i++) rec[i] = Unity.Profiling.ProfilerRecorder.StartNew(new Unity.Profiling.ProfilerCategory("Any"), Markers[i]);
-            cnt = new Unity.Profiling.ProfilerRecorder[Counters.Length];
+            cnt = new Unity.Profiling.ProfilerRecorder[Counters.Length]; cntSum = new double[Counters.Length];
             for (int i = 0; i < Counters.Length; i++) cnt[i] = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Render, Counters[i]);
         }
         void OnDisable() { if (rec != null) foreach (var r in rec) r.Dispose(); if (cnt != null) foreach (var r in cnt) r.Dispose(); }
@@ -32,7 +32,7 @@ namespace Magistrala
             t0 = Time.realtimeSinceStartup;
             foreach (var a in System.Environment.GetCommandLineArgs())
                 {
-                    if (a == "-autopilot") { var ap = FindFirstObjectByType<Autopilot>(); if (ap) ap.drive = true; }
+                    if (a == "-autopilot") { var ap = Magistrala.Game.MagistralaGame.DrivenTruck()?.GetComponent<Autopilot>(); if (ap) ap.drive = true; }
                     if (a == "-mute") AudioListener.volume = 0; // measuring runs: no engine / radio on the speakers
                 }
             // measuring only: -skip trees,terrain,World/Buildings,shadows,... turns groups off to see what each one costs
@@ -62,22 +62,26 @@ namespace Magistrala
         {
             float dt = Time.unscaledDeltaTime; acc += dt; frames++; worst = Mathf.Max(worst, dt);
             if (dt > .025f) over25++;
-            if (dt > .05f) { over50++; if (Time.realtimeSinceStartup - t0 > 15 && spikeLines++ < 20) { var tr0 = FindFirstObjectByType<TruckController>(); Debug.Log($"[spike] t={Time.realtimeSinceStartup - t0:F1}s {dt * 1000:F0}ms trees={TreeRenderer.LastMs:F1}ms truck x={(tr0 ? tr0.transform.position.x - 4200 : 0):F0} z={(tr0 ? tr0.transform.position.z : 0):F0}"); } }
+            if (dt > .05f) { over50++; if (Time.realtimeSinceStartup - t0 > 15 && spikeLines++ < 20) { var tr0 = Magistrala.Game.MagistralaGame.DrivenTruck(); Debug.Log($"[spike] t={Time.realtimeSinceStartup - t0:F1}s {dt * 1000:F0}ms trees={TreeRenderer.LastMs:F1}ms truck x={(tr0 ? tr0.transform.position.x - 4200 : 0):F0} z={(tr0 ? tr0.transform.position.z : 0):F0}"); } }
             treeMax = Mathf.Max(treeMax, TreeRenderer.LastMs);
             for (int i = 0; i < rec.Length; i++) if (rec[i].Valid) recSum[i] += rec[i].LastValue * 1e-6;
+            // render counters: LastValue read here is 0 or two frames summed every so often (the 10 / 20 M "alternating"
+            // triangles of 22. 11.), so the window average of the frames whose draw-call count is not 0
+            if (cnt[2].Valid && cnt[2].LastValue > 0) { for (int i = 0; i < cnt.Length; i++) if (cnt[i].Valid) cntSum[i] += cnt[i].LastValue; cntN++; }
             FrameTimingManager.CaptureFrameTimings();
             if (FrameTimingManager.GetLatestTimings(1, ft) > 0) { ftMain += ft[0].cpuMainThreadFrameTime; ftRender += ft[0].cpuRenderThreadFrameTime; ftGpu += ft[0].gpuFrameTime; ftN++; }
             // -trafdbg: once a second the cars around the truck (TrafficSystem.DebugNear)
             dbgT += dt;
-            if (dbgT >= 1f) { dbgT = 0; if (trafDbg) { var tsD = FindFirstObjectByType<Magistrala.Traffic.TrafficSystem>(); var trD = FindFirstObjectByType<TruckController>(); if (tsD && trD) Debug.Log($"[traf] t={Time.realtimeSinceStartup - t0:F0} x={trD.transform.position.x - 4200:F0} v={trD.SpeedKmh:F0}" + tsD.DebugNear()); } }
+            if (dbgT >= 1f) { dbgT = 0; if (trafDbg) { var tsD = FindFirstObjectByType<Magistrala.Traffic.TrafficSystem>(); var trD = Magistrala.Game.MagistralaGame.DrivenTruck(); if (tsD && trD) Debug.Log($"[traf] t={Time.realtimeSinceStartup - t0:F0} x={trD.transform.position.x - 4200:F0} v={trD.SpeedKmh:F0}" + tsD.DebugNear()); } }
             if (acc >= 10f)
             {
-                var tr = FindFirstObjectByType<TruckController>();
+                var tr = Magistrala.Game.MagistralaGame.DrivenTruck();
                 Debug.Log($"[bench] t={Time.realtimeSinceStartup - t0:F0}s fps={frames / acc:F1} worst={worst * 1000:F0}ms res={Screen.width}x{Screen.height} q={RenderQuality.Label} w={WeatherSystem.Label} truck x={(tr ? tr.transform.position.x - 4200 : 0):F0} z={(tr ? -tr.transform.position.z - 5300 : 0):F0} y={(tr ? tr.transform.position.y : 0):F1} v={(tr ? tr.SpeedKmh : 0):F0}");
                 var sb = new System.Text.StringBuilder("[perf]");
                 if (ftN > 0) sb.Append($" main={ftMain / ftN:F1} render={ftRender / ftN:F1} gpu={ftGpu / ftN:F1}");
                 for (int i = 0; i < rec.Length; i++) if (rec[i].Valid && recSum[i] > 0) sb.Append($" {Markers[i]}={recSum[i] / frames:F2}");
-                for (int i = 0; i < cnt.Length; i++) if (cnt[i].Valid) sb.Append($" [{Counters[i].Replace(" Count", "")}={cnt[i].LastValue}]");
+                for (int i = 0; i < cnt.Length; i++) if (cnt[i].Valid) sb.Append($" [{Counters[i].Replace(" Count", "")}={(cntN > 0 ? cntSum[i] / cntN : 0):F0}]");
+                System.Array.Clear(cntSum, 0, cntSum.Length); cntN = 0;
                 Debug.Log(sb.ToString());
                 int gc = System.GC.CollectionCount(0);
                 Debug.Log($"[hitch] t={Time.realtimeSinceStartup - t0:F0}s >25ms={over25} >50ms={over50} worst={worst * 1000:F0}ms trees max={treeMax:F2}ms avg={TreeRenderer.SumMs / Mathf.Max(1, frames):F2}ms gc={gc - gc0}");

@@ -64,7 +64,7 @@ namespace Magistrala.Game.Phone
         public static void AddContact(Contact c) { extra.RemoveAll(x => x.id == c.id); extra.Add(c); }
         public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; foreach (var c in extra) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
 
-        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About }
+        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About, Settings }
         public bool Open { get; private set; }
         public Screen Current { get; private set; } = Screen.Home;
         public PhoneCall Ringing { get; private set; }
@@ -313,6 +313,7 @@ namespace Magistrala.Game.Phone
                 case Screen.Outgoing: DrawOutgoing(scr, area); break;
                 case Screen.Soon: DrawSoon(area); break;
                 case Screen.About: DrawAbout(area); break;
+                case Screen.Settings: DrawSettings(area); break;
             }
             Fill(new Rect(x + W / 2 - 62, scr.yMax - 13, 124, 5), new Color(1, 1, 1, 0.85f), 2.5f); // home bar
             if (Open)
@@ -397,6 +398,7 @@ namespace Magistrala.Game.Phone
                 new App { name = "Karta", glyph = PhoneArt.Map, c = new Color(0.3f, 0.75f, 0.55f), s = Screen.Soon },
                 new App { name = "Banka", glyph = PhoneArt.Bank, c = new Color(0.2f, 0.32f, 0.62f), s = Screen.Soon },
                 new App { name = "O igri", glyph = PhoneArt.Person, c = new Color(0.45f, 0.47f, 0.52f), s = Screen.About },
+                new App { name = "Postavke", glyph = PhoneArt.Gear, c = new Color(0.42f, 0.44f, 0.5f), s = Screen.Settings },
             };
             var dock = new[]
             {
@@ -418,7 +420,8 @@ namespace Magistrala.Game.Phone
                 if (ap.badge > 0) { var b = new Rect(r.xMax - 15, r.y - 7, 22, 22); Fill(b, new Color(1f, 0.23f, 0.19f), 11); GUI.Label(b, ap.badge.ToString(), St(12, true, Color.white, TextAnchor.MiddleCenter, false)); }
             }
             float top = scr.y + 176;
-            for (int i = 0; i < grid.Length; i++) Icon(grid[i], new Rect(gx + i * cell + (cell - icon) / 2, top, icon, icon), true);
+            for (int i = 0; i < grid.Length; i++) Icon(grid[i], new Rect(gx + (i % 4) * cell + (cell - icon) / 2, top + (i / 4) * 92, icon, icon), true);
+            top += ((grid.Length - 1) / 4) * 92; // (a second row of apps pushes the notification card down)
             // the latest message as a notification card
             if (data.msgs.Count > 0)
             {
@@ -447,46 +450,239 @@ namespace Magistrala.Game.Phone
             List(a, a.yMax - 50);
         }
 
+        // settings: sound volumes (Audio/MagistralaAudio: the mixer groups, remembered in PlayerPrefs "zvuk.*"); Enter or → / ← change
+        // the selected one by 10 % (Enter wraps 100 % → 0 %), a short tick plays through the changed group although the game is paused
+        void DrawSettings(Rect a)
+        {
+            float y = Title(a, "Postavke", "Zvuk · Enter / ← → mijenja");
+            int n = Magistrala.Audio.MagistralaAudio.VolLabels.Length;
+            for (int i = 0; i < n; i++)
+            {
+                int k = i; float v = Magistrala.Audio.MagistralaAudio.Volume(i);
+                items.Add(($"{Magistrala.Audio.MagistralaAudio.VolLabels[i]}  {Mathf.RoundToInt(v * 100)} %", Bar(v), () => Magistrala.Audio.MagistralaAudio.SetVolume(k, Magistrala.Audio.MagistralaAudio.Volume(k) >= 0.95f ? 0 : Magistrala.Audio.MagistralaAudio.Volume(k) + 0.1f), null));
+            }
+            items.Add(($"Kvaliteta slike: {Magistrala.RenderQuality.Label}", "tipka K mijenja", null, null));
+            items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
+            var kb = Keyboard.current;
+            if (kb != null && sel < n && Event.current.type == EventType.Repaint)
+            {
+                if (kb.rightArrowKey.wasPressedThisFrame) Magistrala.Audio.MagistralaAudio.SetVolume(sel, Magistrala.Audio.MagistralaAudio.Volume(sel) + 0.1f);
+                if (kb.leftArrowKey.wasPressedThisFrame) Magistrala.Audio.MagistralaAudio.SetVolume(sel, Magistrala.Audio.MagistralaAudio.Volume(sel) - 0.1f);
+            }
+            List(a, y);
+        }
+        static string Bar(float v) { int f = Mathf.RoundToInt(v * 10); return new string('●', f) + new string('·', 10 - f); } // (● is in Inter, used by Poruke)
+
         // credits / sources (the attribution the data licences ask for; full list in CREDITS.md)
         public const string AboutText =
-            "Magistrala — Kaštela, Split.\n\n" +
-            "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni " +
-            "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
-            "Street-level imagery: Mapillary contributors (CC BY-SA 4.0) — boje fasada i položaji svjetiljki.\n\n" +
-            "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).\n\n" +
-            "Galeb: 3D model autora Max (sketchfab.com/Max-5532), licenca CC BY 4.0, izmijenjeno (uklonjene oznake, nova boja).\n" +
+            "Magistrala — Kaštela, Split.\n" +
+            "\n" +
+            "Karta i prostor\n" +
+            "© OpenStreetMap contributors\n" +
+            "openstreetmap.org/copyright\n" +
+            "Podaci: ODbL 1.0\n" +
+            "opendatacommons.org/licenses/odbl/1-0/\n" +
+            "\n" +
+            "Ceste, nazivi, zgrade i namjena tla; podaci prilagođeni igri." +
             AboutPage +
-            "Prometni auti — 3D modeli sa Sketchfaba, licenca CC BY 4.0, izmijenjeni (uklonjene oznake marke, naše tablice, boje, LOD):\n" +
-            "„Zastava 101 (Stojadin)” — Tomislav Tomljenović.\n" +
-            "„Yugo Koral 45” — Tomislav Tomljenović.\n" +
-            "„BMW E46 MSport” — Ricy.\n" +
-            "„Mercedes-Benz E-class W124 (unfinished)” — OverLord.\n" +
-            "„Volkswagen Golf II” — ARDmation.\n" +
-            "„Volkswagen Passat (2004 V6 4Motion)” — I3D99.\n" +
-            "„Compact Hatchback” — RCC Design.\n" +
-            "„Executive Sedan” — RCC Design.\n" +
-            "„European Delivery Van” — Evan Hiltz.\n" +
-            "„Mercedes Benz Sprinter 2006” — Max (Max-7215); policijska izvedba i svjetla na krovu naši.\n" +
+            "Državna geodetska uprava\n" +
+            "\n" +
+            "Sadrži podatke Državne geodetske uprave, Digitalni ortofoto LiDAR 2022./23., preuzeto 19. 11. 2026., podaci su dorađeni.\n" +
+            "\n" +
+            "Tlo, obala, krošnje i procjene katova iz sjena; teren i tlocrti dijelom iz DGU podataka.\n" +
+            "Ne predstavlja službeni geodetski dokument.\n" +
+            "\n" +
+            "Otvorena dozvola\n" +
+            "data.gov.hr/otvorena-dozvola/\n" +
+            "dgu.gov.hr/otvoreni-podaci/6596" +
             AboutPage +
-            "Prometni auti (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
-            "„Asti Stradale '89 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Milano '95 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Olympic '95 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Tozzo '98 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Sigil '07 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Compact '07 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Kiri '10 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Urban '10 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Ace '11 - Low Poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„LCT 3000 '07- Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
-            "„Volkswagen Golf IV” — Fratzica (vasilebetivu62).\n" +
+            "Fotografije i opažanja\n" +
+            "\n" +
+            "Street-level imagery: Mapillary contributors (CC BY-SA 4.0)\n" +
+            "mapillary.com\n" +
+            "creativecommons.org/licenses/by-sa/4.0/\n" +
+            "\n" +
+            "Boje i vrsta fasada, škure, položaji svjetiljki, stupova, parkirališta i stabala; vrsta i visina stabala.\n" +
+            "Izmjereno, filtrirano i prilagođeno igri. Fotografije nisu isporučene. Za zaštićene prerade vrijedi ista licenca." +
             AboutPage +
-            "Prometni auti (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
-            "„low-poly Škoda Octavia RS 2020” — D_U (DU1701).\n" +
-            "„2015 Mazda 6” — Dave Bored (Tyler_Dave).\n" +
-            "„Dacia Duster Low Poly” — Danut_Stanciu (solid3ddd / solidmodelsproject).\n" +
-            "„Jeep Renegade 2016” — Jose Bronze (pinceladas3d).\n" +
-            "„Lowpoly Generic SUV” — mk2design.";
+            "Teksture, nebo i biljke\n" +
+            "\n" +
+            "Poly Haven — CC0\n" +
+            "polyhaven.com\n" +
+            "\n" +
+            "ambientCG — Lennart Demes, CC0\n" +
+            "ambientcg.com\n" +
+            "\n" +
+            "NatureManufacture — Coast & Dunes Environment – Dynamic Nature, Unity Asset Store.\n" +
+            "\n" +
+            "Punat: „2005 Fiat Grande Punto” — ActsOfDoge / Sketchfab, izmijenjeno. Izvor navodi „Free Standard”; uvjeti su u provjeri." +
+            AboutPage +
+            "Fontovi — SIL OFL 1.1\n" +
+            "\n" +
+            "Inter — Copyright (c) 2016 The Inter Project Authors\n" +
+            "github.com/rsms/inter\n" +
+            "\n" +
+            "D-DIN Condensed Bold — Copyright (C) 2017 Datto Inc.\n" +
+            "datto.com/fonts/d-din\n" +
+            "\n" +
+            "Liberation Sans — Copyright (c) 2010 Google Corporation; (c) 2012 Red Hat, Inc.\n" +
+            "\n" +
+            "Licenca: openfontlicense.org\n" +
+            "Puni tekstovi licenci priloženi su fontovima." +
+            AboutPage +
+            "3D modeli — Sketchfab\n" +
+            "\n" +
+            "Sljedeći modeli: CC BY 4.0\n" +
+            "creativecommons.org/licenses/by/4.0/\n" +
+            "\n" +
+            "Izmijenjeno: uklonjene oznake, naše tablice i boje, materijali i razine detalja (LOD). Sprinter ima i našu policijsku izvedbu.\n" +
+            "\n" +
+            "Galeb koristi „Mercedes Benz Sprinter 2006” autora Max (Max-7215 / Max-5532), uz našu grafiku GALEB TRANSPORT. Izvor je naveden uz Sprinter." +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Zastava 101 (Stojadin)”\n" +
+            "Tomislav Tomljenović\n" +
+            "sketchfab.com/models/52c885cfc52a4ac1acb14f84a3feacfa\n" +
+            "\n" +
+            "„Yugo Koral 45”\n" +
+            "Tomislav Tomljenović\n" +
+            "sketchfab.com/models/f5d14e34c9064b49b943e0c4a3add6ca\n" +
+            "\n" +
+            "„BMW E46 MSport”\n" +
+            "Ricy\n" +
+            "sketchfab.com/models/614c2f1660474178a1d4717b7492d1c7" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Mercedes-Benz E-class W124 (unfinished)”\n" +
+            "OverLord\n" +
+            "sketchfab.com/models/4b468dbe4b6d4ca994bc7066b90781e2\n" +
+            "\n" +
+            "„Volkswagen Golf II”\n" +
+            "ARDmation\n" +
+            "sketchfab.com/models/740500f10bc94e7a91c2290e445fcb39\n" +
+            "\n" +
+            "„Volkswagen Passat (2004 V6 4Motion)”\n" +
+            "I3D99\n" +
+            "sketchfab.com/models/480c0793f02b43d78b0d0c4a0eb6acb6" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Compact Hatchback”\n" +
+            "RCC Design\n" +
+            "sketchfab.com/models/abbd4e65bbf1475b866d84735088b8ff\n" +
+            "\n" +
+            "„Executive Sedan”\n" +
+            "RCC Design\n" +
+            "sketchfab.com/models/eadf0e3171d74e4999e37898f95578c8\n" +
+            "\n" +
+            "„European Delivery Van”\n" +
+            "Evan Hiltz\n" +
+            "sketchfab.com/models/0b2f1ad95a79419f9a092420024d329c" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Asti Stradale '89 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/97b15b067111443ebe05840137b49c65\n" +
+            "\n" +
+            "„Milano '95 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/122a22d210234596ad23623588d0d166\n" +
+            "\n" +
+            "„Olympic '95 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/4809a093a0f341409757298a9e7e0003" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Tozzo '98 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/d43bb748da364af2b3f0a9348365f0fb\n" +
+            "\n" +
+            "„Sigil '07 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/22abe5284d4c4b55920b8462eb24a8c1\n" +
+            "\n" +
+            "„Compact '07 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/25c6874d173a4f6ca63e150bbd505686" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Kiri '10 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/7fd6e15785fa4aa9bfd6e31eb7c97ba6\n" +
+            "\n" +
+            "„Urban '10 - Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/2866efdfa943484391ef8313768e074d\n" +
+            "\n" +
+            "„Ace '11 - Low Poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/055ff8a21b8d4d279debca089e2fafcd" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„LCT 3000 '07- Low poly model”\n" +
+            "Daniel Zhabotinsky (DanielZhabotinsky)\n" +
+            "sketchfab.com/models/3be03b6a43aa41898c9ca806b8787052\n" +
+            "\n" +
+            "„Volkswagen Golf IV”\n" +
+            "Fratzica (vasilebetivu62)\n" +
+            "sketchfab.com/models/3e40ac80ec044394999715a18e2dbe33\n" +
+            "\n" +
+            "„low-poly Škoda Octavia RS 2020”\n" +
+            "D_U (DU1701)\n" +
+            "sketchfab.com/models/d567807ce57e415ba9a1ffdf07e0cf5b" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„2015 Mazda 6”\n" +
+            "Dave Bored (Tyler_Dave)\n" +
+            "sketchfab.com/models/24fb449e5f4243f49666ccf22d10c834\n" +
+            "\n" +
+            "„Dacia Duster Low Poly”\n" +
+            "Danut_Stanciu (solid3ddd / solidmodelsproject)\n" +
+            "sketchfab.com/models/ea275644cd634593b6a97eacf0ede405\n" +
+            "\n" +
+            "„Jeep Renegade 2016”\n" +
+            "Jose Bronze (pinceladas3d)\n" +
+            "sketchfab.com/models/192f7e81dce84c6780434f692a0f96c5" +
+            AboutPage +
+            "Prometni auti — CC BY 4.0\n" +
+            "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
+            "\n" +
+            "„Lowpoly Generic SUV”\n" +
+            "mk2design\n" +
+            "sketchfab.com/models/edc994ad28ed438cb365c0e0389ac177\n" +
+            "\n" +
+            "„Mercedes Benz Sprinter 2006”\n" +
+            "Max (Max-7215; u metapodacima Max-5532)\n" +
+            "sketchfab.com/models/f69de1315bb049c8946d57f6006acd73" +
+            AboutPage +
+            "Zvuk\n" +
+            "\n" +
+            "Motor, sirene, truba i zrak: Work With Sounds — Technical Museum of Slovenia, Werstas, Museum of Municipal Engineering (Kraków), Konrad Gutkowski. CC BY 4.0, izmijenjeno.\n" +
+            "\n" +
+            "Cvrčci noću: Glaneur de sons, CC BY 3.0, izmijenjeno.\n" +
+            "Kiša po krovu: Beeld en Geluid, CC BY-SA 3.0, izmijenjeno (izvedenica pod istom licencom).\n" +
+            "creativecommons.org/licenses/by/4.0/ · /by/3.0/ · /by-sa/3.0/" +
+            AboutPage +
+            "Zvuk — CC0 i javno dobro\n" +
+            "\n" +
+            "Kenney (kenney.nl), GGBotNet, Rango Mango, HaelDB, isaiah658, Thimras, qubodup, rubberduck, bmaczero, Helge Klaus Rieder, Nostrifikator, Tvabutzku1234, earthcalling, DavidDelon, cori, stephan, ezwa, Extemporalist.\n" +
+            "\n" +
+            "Wikimedia Commons, OpenGameArt. Ostalo: vlastita sinteza.";
         /// AboutText is shown in pages (the phone screen is short): the marker splits them
         const string AboutPage = "\f";
         int aboutPage;
@@ -633,6 +829,14 @@ namespace Magistrala.Game.Phone
     public static class PhoneArt
     {
         static Texture2D wall, wallBlur, handset, bubble, person, box, map, bank, wifi;
+        static Texture2D gear;
+        /// settings: an 8-tooth cog with a hole
+        public static Texture2D Gear => gear ??= Make(96, (u, v) =>
+        {
+            float dx = u - 0.5f, dy = v - 0.5f, r = Mathf.Sqrt(dx * dx + dy * dy), a = Mathf.Atan2(dy, dx);
+            float outer = Mathf.Cos(a * 8) > 0.25f ? 0.42f : 0.33f;
+            return Mathf.Clamp01((outer - r) * 60f) * Mathf.Clamp01((r - 0.13f) * 60f);
+        });
         public static Texture2D Wall => wall ??= Wallpaper(false);
         public static Texture2D WallBlur => wallBlur ??= Wallpaper(true);
         public static Texture2D Handset => handset ??= Make(96, HandsetA);

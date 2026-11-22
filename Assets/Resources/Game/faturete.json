@@ -1,7 +1,7 @@
 {
   "README": "Faturete s Galebom (MagistralaGame.Faturete.cs). Marko: ovdje mijenjaš rečenice, cijene i dane. {offer} = kupčeva ponuda, {price} = dogovorena cijena, {ask} = koliko Mate traži. Cijena: 8 € + 4 €/km naše ceste (zaokruženo na 0,5 €, najmanje 45 €), osim gdje piše fair. Cjenkanje: najviše 3 kruga, ponude na 0 ili 5 €, kupac nikad više od 130 % poštene cijene. Narav (personality): posten, skrtica, zuri_se, turist, rodbina. days: wd = radnim danom 17–22 h, sat = subotom 8–20 h; nedjeljom ništa. Jurine rečenice su odobrene (dijalozi-prijedlog Q11), ostale su prijedlog. Plaćanje (Marko 22.11.): kad dostaviš, kupac plati dogovoreno (manje šteta / kašnjenje), Mate pita „Triba li ti račun?“; invoice = vjerojatnost da kupac kaže triba (0–1): triba → račun obrta + račun u fascikl „Za Ljubicu“, ne triba → gotovina Mati u džep. Rečenice: payment (pri dogovoru), invoiceYes / invoiceNo (na isporuci).",
   "mate": {
-    "acceptOffer": "Može {offer}. Stižen.",
+    "acceptOffer": "Može za {offer}. Stižen.",
     "ask": "Malo je to. Tražin {ask}.",
     "firm": "{ask}, i to je to. Držin se svoga.",
     "acceptCounter": "Ajde, {price}. Krećen.",
@@ -13,7 +13,7 @@
   },
   "customers": [
     {
-      "id": "jure", "invoice": 0.4, "name": "Susjed Jure", "role": "Susjed, Kaštel Lukšić", "color": "#8A6A3A",
+      "id": "jure", "invoice": 0.4, "name": "Susid Jure", "role": "Susid, Kaštel Lukšić", "color": "#8A6A3A",
       "personality": "posten", "urgency": 0,
       "lines": {
         "counter": "Ajde, {price}. Ti si blizu, ja san blizu. Nemoj da se zbog pet eura više ne pozdravljamo.",
@@ -31,7 +31,7 @@
       }
     },
     {
-      "id": "anka", "invoice": 0.6, "name": "Šjora Anka", "role": "Susjeda, Kaštel Lukšić", "color": "#B05A7A",
+      "id": "anka", "invoice": 0.6, "name": "Šjora Anka", "role": "Susida, Kaštel Lukšić", "color": "#B05A7A",
       "personality": "posten", "urgency": 0,
       "lines": {
         "counter": "Ajme, sine… Ajde, {price}, ali samo zbog tebe.",
@@ -39,11 +39,11 @@
         "agree": "Bog te blagoslovija, sine.",
         "walkAway": "Dobro, sine. Pitat ću unuka, on ima kombi.",
         "insulted": "Isusa ti, to ti je moja mirovina!",
-        "final": "Više od {price} nemam, sine. Kunem ti se.",
+        "final": "Više od {price} neman, sine. Kunen ti se.",
         "payment": "Može {price}, platit ću ti kad dovezeš.", "invoiceYes": "Triba, dušo, za svaki slučaj.", "invoiceNo": "Ma ne triba, evo ti u ruke.",
         "expired": "Ništa, sine, unuk će doć u nedilju.",
         "cancel": "Nema veze, sine. Ormar je čeka trideset godina.",
-        "thanks": "Kćer kaže da nijedna ladica nije ni škripnula. Hvala ti, sine.",
+        "thanks": "Ćer kaže da ladice nisu ni škripnile. Fala ti, sine.",
         "thanksBad": "Ladica je pukla, sine. Nema veze… ali je pukla.",
         "phone": "Ormar je prazan, sine, samo ga digni."
       }
@@ -53,13 +53,13 @@
       "personality": "zuri_se", "urgency": 2,
       "lines": {
         "counter": "Ajde, {price}, samo dođi već!",
-        "giveIn": "Dobro, dobro, plaćam. Samo vozi!",
-        "agree": "E, to! Čekam te.",
-        "walkAway": "Nemam vrimena za cjenkanje. Zovem drugoga.",
+        "giveIn": "Dobro, dobro, plaćan. Samo vozi!",
+        "agree": "E, to! Čekan te.",
+        "walkAway": "Neman vrimena za cjenkanje. Zoven drugoga.",
         "insulted": "Za te pare ću ih sam nosit na leđima!",
         "final": "{price}, zadnje. Majstori stoje.",
-        "payment": "Ajde, {price}. Plaćam kad bude gotovo.", "invoiceYes": "Triba, firma mi to priznaje.", "invoiceNo": "Ne triba, evo gotovina.",
-        "expired": "Ništa, našao san drugoga. Majstori nisu mogli čekat.",
+        "payment": "Ajde, {price}. Plaćan kad bude gotovo.", "invoiceYes": "Triba, firma mi to priznaje.", "invoiceNo": "Ne triba, evo gotovina.",
+        "expired": "Ništa, naša san drugoga. Majstori nisu mogli čekat.",
         "cancel": "Lipo, a majstori i dalje stoje.",
         "thanks": "Majstori kažu svaka čast. Dobar si, Mate.",
         "thanksBad": "Pola blokova razbijeno. Ajde, nećemo sad o tome.",
@@ -67,14 +67,14 @@
       }
     },
     {
-      "id": "zorka", "invoice": 0.1, "name": "Teta Zorka", "role": "Kaštel Štafilić", "color": "#6A8A3A",
+      "id": "zorka", "invoice": 0.1, "name": "Teta Zorka", "role": "Kaštel Lukšić", "color": "#6A8A3A",
       "personality": "skrtica", "urgency": 0,
       "lines": {
         "counter": "{price}. I to je puno, da znaš.",
         "giveIn": "Dereš me, Mate. Ajde.",
         "agree": "Eto vidiš da se more.",
         "walkAway": "Ništa onda. Doće zet u nedilju.",
-        "insulted": "Ma jesi normalan? Za te pare kupim još ulja!",
+        "insulted": "Ma jesi normalan? Za te pare kupin još ulja!",
         "final": "{price}, i ni centa više.",
         "payment": "Dobro, {price}. Platit ću ti na kraju.", "invoiceYes": "Ajde, napiši ga kad baš moraš.", "invoiceNo": "Ne triba mi to, evo ti pare.",
         "expired": "Ništa, Mate, zet će.",
@@ -93,8 +93,8 @@
         "agree": "Znan ja da ćeš ti.",
         "walkAway": "Ništa, zvat ću šogora.",
         "insulted": "Od familije pare? Ma lipo.",
-        "final": "{price}, brate. Više nemam.",
-        "payment": "{price}, ajde. Platim kad bude unutra.", "invoiceYes": "Ajde, piši, nek se zna.", "invoiceNo": "Kakav račun među nama? Evo ti na ruke.",
+        "final": "{price}, brate. Više neman.",
+        "payment": "{price}, ajde. Platin kad bude unutra.", "invoiceYes": "Ajde, piši, nek se zna.", "invoiceNo": "Kakav račun među nama? Evo ti na ruke.",
         "expired": "Ništa, šogor će.",
         "cancel": "Lipo, brate. Lipo.",
         "thanks": "Radi ko nov. Pivo te čeka.",
@@ -108,14 +108,14 @@
       "lines": {
         "counter": "Neka bude {price}. Samo da ga više ne gledan.",
         "giveIn": "Ajde, može. Granje mi je dojadilo.",
-        "agree": "Super, čekam te pri dvoru.",
+        "agree": "Super, čekan te pri dvoru.",
         "walkAway": "Dobro, pričekat ću jesen.",
         "insulted": "Za granje?! Ma ajde.",
         "final": "{price}, Mate. Granje je granje.",
-        "payment": "Dobro, {price}. Platit ću ti kad dovezeš.", "invoiceYes": "Triba, molim te.", "invoiceNo": "Ne triba, evo ti.",
+        "payment": "Dobro, {price}. Platit ću ti kad dovezeš.", "invoiceYes": "Triba, molin te.", "invoiceNo": "Ne triba, evo ti.",
         "expired": "Ništa, Mate, brat će doć s traktorom.",
         "cancel": "Dobro, nek stoji još malo.",
-        "thanks": "Vrt ko nov. Hvala, Mate.",
+        "thanks": "Vrt ko nov. Fala, Mate.",
         "thanksBad": "Pola granja ostalo po cesti. Susidi su zvali.",
         "phone": "Granje je složeno uza zid."
       }
@@ -126,33 +126,511 @@
       "lines": {
         "counter": "Ajde {price}, ali pomozi nosit.",
         "giveIn": "Ok, ok, dogovoreno.",
-        "agree": "Super, hvala! Kutije su dolje.",
-        "walkAway": "Hvala, naći ću nekoga s prikolicom.",
+        "agree": "Super, fala! Kutije su doli.",
+        "walkAway": "Fala, nać ću nekoga s prikolicon.",
         "insulted": "Ozbiljno? To mi je stanarina.",
-        "final": "{price} je sve što imam.",
-        "payment": "Može {price}. Platim kad bude isporučeno.", "invoiceYes": "Triba, pošalji mi ga pa ti uplatim.", "invoiceNo": "Ovaj put ne triba, evo ti na ruke.",
-        "expired": "Hvala, našao sam nekoga.",
+        "final": "{price} je sve šta iman.",
+        "payment": "Može {price}. Platin kad sve stigne.", "invoiceYes": "Triba, pošalji mi ga pa ti uplatin.", "invoiceNo": "Ovaj put ne triba, evo ti na ruke.",
+        "expired": "Fala, naša san nekoga.",
         "cancel": "Ok… snaći ću se.",
-        "thanks": "Sve na mjestu, čak i lampa. Hvala!",
-        "thanksBad": "Lampa je gotova… ali dobro, ostalo je čitavo.",
+        "thanks": "Sve na mistu, čak i lampa. Fala!",
+        "thanksBad": "Lampa je gotova… ali dobro, ostalo je cilo.",
         "phone": "Kutije su složene, krevet je rastavljen."
+      }
+    },
+    {
+      "id": "matea", "invoice": 0.95, "name": "Matea, frizerka", "role": "Frizerka, Kaštel Štafilić", "color": "#D46B92",
+      "personality": "zuri_se", "urgency": 1,
+      "lines": {
+        "counter": "Ajde {price}, samo prije zadnje mušterije.",
+        "giveIn": "Može, upisat ću i taj trošak.",
+        "agree": "Dogovoreno, iman još jednu glavu pa san slobodna.",
+        "walkAway": "Onda ću pitat dostavu, ne mogu zatvorit salon.",
+        "insulted": "Mate, za toliko moran cili dan šišat!",
+        "final": "{price}, toliko mi ostaje za vožnju.",
+        "payment": "{price}, platin kad istovarimo.", "invoiceYes": "Triba, na salon, molin te.", "invoiceNo": "Danas ne triba, ovo je za kuću.",
+        "expired": "Rišila san, susida je našla kombi.",
+        "cancel": "Dobro, pomaknit ću termin.",
+        "thanks": "Lipo si to donija, sve je na mistu.",
+        "thanksBad": "Ajme, ogrebano je baš di se vidi.",
+        "phone": "Nazovi kad si blizu da maknen auto isprid."
+      }
+    },
+    {
+      "id": "duje", "invoice": 0.05, "name": "Nono Duje", "role": "Penzioner, Kaštel Štafilić", "color": "#8B785E",
+      "personality": "skrtica", "urgency": 0,
+      "lines": {
+        "counter": "{price}, a nosin i ja, nisan od cukra.",
+        "giveIn": "Ajde, popustija san ti više nego ti meni.",
+        "agree": "Dobro, obujen postole pa te čekan.",
+        "walkAway": "Ostavit ćemo za kad unuk dođe.",
+        "insulted": "Za te pare san nekad misec dana radija!",
+        "final": "{price}, toliko san odvojija u kuvertu.",
+        "payment": "Dogovoreno, {price}. Dobit ćeš kad stigne.", "invoiceYes": "Napiši, unuk mi skuplja te papire.", "invoiceNo": "Ne triba, sitno san ti pripremija.",
+        "expired": "Prošlo je vrime, spremija san sve nazad.",
+        "cancel": "Neka, ne triba na silu.",
+        "thanks": "Dobro si ti to, još ima poštena svita.",
+        "thanksBad": "Nisan ti da razbijeno, znaš i sam.",
+        "phone": "Ne zvoni, doć ću na portun."
+      }
+    },
+    {
+      "id": "pero", "invoice": 0.25, "name": "Pero, maslinar", "role": "Maslinar, Kaštel Štafilić", "color": "#718645",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Može {price}, samo da vriće ostanu suve.",
+        "giveIn": "Ajde, i tvoj trud nešto vridi.",
+        "agree": "Znan da ćeš pazit ka na svoje.",
+        "walkAway": "Onda ću u dvi ture prikolicon.",
+        "insulted": "Mate, masline još nisu zlato!",
+        "final": "{price} mogu dat, ostatak mi triba za polje.",
+        "payment": "{price}, platin čim spustimo zadnju vriću.", "invoiceYes": "Triba, spreman račune za gospodarstvo.", "invoiceNo": "Ne triba mi ovaj put, evo gotovina.",
+        "expired": "Snaša san se, rođak je završija svoju turu.",
+        "cancel": "Dobro, masline ne znaju za naše dogovore.",
+        "thanks": "Sve cilo, sad mogu u miru dalje.",
+        "thanksBad": "Šteta je, svaku san ovu maslinu rukon ubra.",
+        "phone": "Čekan kraj složenih vrića, ne ulazi u zemlju."
+      }
+    },
+    {
+      "id": "kata", "invoice": 0.7, "name": "Učiteljica Kata", "role": "Učiteljica pred mirovinom, Kaštel Novi", "color": "#5B8EA6",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Neka bude {price}, pošteno za oboje.",
+        "giveIn": "Dobro, svaki se rad triba platit.",
+        "agree": "Dogovoreno, sve san označila.",
+        "walkAway": "Dobro, potražit ću drugoga za vozit.",
+        "insulted": "Mate, nisi ti to izračuna kako triba.",
+        "final": "{price}, tu ćemo stavit točku.",
+        "payment": "Za {price} smo se dogovorili, platin na kraju.", "invoiceYes": "Triba, volin imat uredne papire.", "invoiceNo": "Ne triba, ovo ide iz moje kuverte.",
+        "expired": "Već smo našli ko će vozit, fala ti.",
+        "cancel": "Dobro, prilagodit ću raspored.",
+        "thanks": "Sve uredno, čista petica za vožnju.",
+        "thanksBad": "Ovo ćemo morat popravit prije upotrebe.",
+        "phone": "Na svakoj kutiji piše di ide, samo prati natpise."
+      }
+    },
+    {
+      "id": "ante", "invoice": 0.9, "name": "Ante, zidar", "role": "Zidar, Kaštel Novi", "color": "#BA7048",
+      "personality": "zuri_se", "urgency": 2,
+      "lines": {
+        "counter": "{price}, ali kreni dok još iman pomoćnike.",
+        "giveIn": "Ajde, ne mogu bez kombija.",
+        "agree": "Dobro, ekipa će bit pri istovaru.",
+        "walkAway": "Zoven drugoga, mort mi ne čeka.",
+        "insulted": "Pa ne zidan hotel, Mate!",
+        "final": "{price}, toliko mi je ostalo za posal.",
+        "payment": "Platin {price} kad materijal bude na suvon.", "invoiceYes": "Obavezno račun, vodin sve za obrt.", "invoiceNo": "Ovo je za mene doma, ne triba.",
+        "expired": "Dogovorija san da mi dovezu materijal.",
+        "cancel": "Sad moran minjat cili redoslid posla.",
+        "thanks": "Dobro je, možemo nastavit radit.",
+        "thanksBad": "S ovin kršon iman još jedan posal viška.",
+        "phone": "Samo stani uz ulaz, nosimo mi dalje."
+      }
+    },
+    {
+      "id": "iva", "invoice": 0.4, "name": "Iva i momak", "role": "Mladi par, Kaštel Novi", "color": "#C87862",
+      "personality": "posten", "urgency": 1,
+      "lines": {
+        "counter": "Može {price}, toliko smo još ostavili za selidbu.",
+        "giveIn": "Dobro, uštedili smo na policama pa ćemo ovo pokrit.",
+        "agree": "Super, oboje smo tu za nosit.",
+        "walkAway": "Onda ćemo još jednu noć bit među kutijama.",
+        "insulted": "Ajme, toliko nas je doša cili polovni stol!",
+        "final": "{price}, priko toga više ne možemo.",
+        "payment": "Dogovoreno {price}, platimo kad sve unesemo.", "invoiceYes": "Triba, čuvamo sve za stan.", "invoiceNo": "Ne triba, pripremili smo gotovinu.",
+        "expired": "Uspili smo posudit kombi, fala svejedno.",
+        "cancel": "Dobro, samo da javin momku.",
+        "thanks": "Napokon nan stan liči na kuću, fala ti!",
+        "thanksBad": "Baš šteta, jedva smo ovo našli da nan paše.",
+        "phone": "Kutije s kužinon idu zadnje da ih prve izvadimo."
+      }
+    },
+    {
+      "id": "marin", "invoice": 0.35, "name": "Marin, ribar", "role": "Ribar u pedesetima, Kaštel Stari", "color": "#377E95",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Ajde {price}, ako vežeš kako triba.",
+        "giveIn": "Može, bolje platit nego posli krpat.",
+        "agree": "Dogovoreno, čekan te na suvon.",
+        "walkAway": "Pitat ću kolegu kad se vrati s mora.",
+        "insulted": "Mate, nije ovo ulov za cili misec!",
+        "final": "{price}, više mi se ne isplati.",
+        "payment": "Platin {price} kad iskrcamo, ruka ruci.", "invoiceYes": "Triba, ide mi u trošak broda.", "invoiceNo": "Ne triba, ovo je za mene.",
+        "expired": "Kolega je već priskočija, rišeno je.",
+        "cancel": "Dobro, samo mi javi na vrime drugi put.",
+        "thanks": "Sve na broju, može se opet na more.",
+        "thanksBad": "Ovo je tribalo privezat, sad iman popravljat.",
+        "phone": "Čekan kraj tereta, ne tribaš tražit po rivi."
+      }
+    },
+    {
+      "id": "tonka", "invoice": 0.05, "name": "Nona Tonka", "role": "Udovica, Kaštel Stari", "color": "#A8789A",
+      "personality": "rodbina", "urgency": 0,
+      "lines": {
+        "counter": "{price}, sinko, ipak san ti rodici kuma.",
+        "giveIn": "Ajde, nemoj da mi kažeš da san te zakinila.",
+        "agree": "Dobro, skuvat ću kavu dok dođeš.",
+        "walkAway": "Onda će nećak kad bude moga.",
+        "insulted": "Ajme meni, zar i našima tako računaš?",
+        "final": "{price}, toliko mi je ostalo od penzije.",
+        "payment": "{price} ću ti dat kad doneseš, neću ti ostat dužna.", "invoiceYes": "Triba, nećakinja je rekla da sačuvan.", "invoiceNo": "Ne triba, sinko, pare su na stolu.",
+        "expired": "Nećak je bija, nema više potrebe.",
+        "cancel": "Neka, familija ima i svojih briga.",
+        "thanks": "Fala ti, sad se mogu lipo okrenit po kući.",
+        "thanksBad": "Ajme, osta mi je trag baš na sridi.",
+        "phone": "Portun je otključan, samo ga zatvori za sobon."
+      }
+    },
+    {
+      "id": "boro", "invoice": 0.75, "name": "Boro, vinar", "role": "Vinar, Kaštel Stari", "color": "#87466A",
+      "personality": "skrtica", "urgency": 0,
+      "lines": {
+        "counter": "{price}, a bačve nisu ni pune do vrha.",
+        "giveIn": "Ajde, bolje to nego tri puta autom.",
+        "agree": "Dobro, konoba je otvorena.",
+        "walkAway": "Pričekat ću da susid ide istin puten.",
+        "insulted": "Za te pare moran prodat po konobe!",
+        "final": "{price}, nema više u računici.",
+        "payment": "Za {price} vozimo, platin na istovaru.", "invoiceYes": "Triba, sve pišen za gospodarstvo.", "invoiceNo": "Ne triba, ovo ostaje u familiji.",
+        "expired": "Rišija san s prikolicon, nema posla danas.",
+        "cancel": "Dobro, vraćan sve u konobu.",
+        "thanks": "Ni kapi proliveno, tako se radi.",
+        "thanksBad": "Vino je za čašu, Mate, nije za pod kombija.",
+        "phone": "Bačve su zatvorene, provirit ćemo skupa prije ukrcaja."
+      }
+    },
+    {
+      "id": "mirjana", "invoice": 1, "name": "Mirjana, apartmani", "role": "Vlasnica apartmana, Kaštel Lukšić", "color": "#9672B5",
+      "personality": "zuri_se", "urgency": 2,
+      "lines": {
+        "counter": "Može {price}, gosti samo šta nisu.",
+        "giveIn": "Dobro, samo mi potvrdi da stižeš.",
+        "agree": "Odlično, iman ljude za unosit.",
+        "walkAway": "Morat ću zvat dostavu, soba mora bit spremna.",
+        "insulted": "Toliko ne naplatin ni noćenje u sezoni!",
+        "final": "{price}, više danas ne mogu dat.",
+        "payment": "Platin {price} kad sve bude u apartmanu.", "invoiceYes": "Triba, za apartmane, sve uredno.", "invoiceNo": "Za ovo moje ne triba.",
+        "expired": "Našla san ko će vozit, gosti već dolaze.",
+        "cancel": "Ajme, sad mi cili raspored pada u vodu.",
+        "thanks": "Lipo, još samo posteljina i gotovo.",
+        "thanksBad": "S ovin oštećenjen ne mogu dočekat goste.",
+        "phone": "Javi prije dolaska da oslobodin prilaz."
+      }
+    },
+    {
+      "id": "tomislav", "invoice": 0.85, "name": "Tomo, konobar", "role": "Konobar, Kaštel Lukšić", "color": "#CE964C",
+      "personality": "zuri_se", "urgency": 1,
+      "lines": {
+        "counter": "{price}, samo da stigne prije večernje smjene.",
+        "giveIn": "Ajde, gazda će razumit kad vidi da je stiglo.",
+        "agree": "Može, zadržat ću kolegu za istovar.",
+        "walkAway": "Zvat ću dostavljača, iman otvorit lokal.",
+        "insulted": "Mate, ovo mi pojede sve manče!",
+        "final": "{price}, toliko mi je gazda ostavija.",
+        "payment": "Dogovoreno {price}, isplatin kad dovezeš.", "invoiceYes": "Triba, račun ostavljan gazdi.", "invoiceNo": "Ovo je za moj stan, ne triba.",
+        "expired": "Kolega je doveza, već slažemo.",
+        "cancel": "Dobro, samo da ne ostanen bez smjene radi ovoga.",
+        "thanks": "Sve spremno, fala ti, spašen san.",
+        "thanksBad": "Sad ovo moran prvo sredit pa tek otvorit.",
+        "phone": "Nazovi mene, gazda je u nabavi."
+      }
+    },
+    {
+      "id": "neda", "invoice": 0.65, "name": "Neda, švelja", "role": "Krojačica, Kaštel Lukšić", "color": "#B56380",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Može {price}, samo bez potezanja po podu.",
+        "giveIn": "Ajde, i ti živiš od svoga zanata.",
+        "agree": "Dobro, sve san umotala.",
+        "walkAway": "Pitat ću dostavu kad dođe po platno.",
+        "insulted": "Mate, to je više nego šta san zaradila od šivanja!",
+        "final": "{price}, toliko mogu odvojit.",
+        "payment": "{price}, platin kad vidimo da je sve cilo.", "invoiceYes": "Triba, spremit ću uz račune od radnje.", "invoiceNo": "Ovo je privatno, ne triba.",
+        "expired": "Već je odneseno, fala šta si se javija.",
+        "cancel": "Neka, pribacit ću posal za sutra.",
+        "thanks": "Ništa se nije pomaklo, baš uredno.",
+        "thanksBad": "Sad mi triba i majstor, a ne samo kombi.",
+        "phone": "Stani di je širi prilaz, iznit ćemo do tebe."
+      }
+    },
+    {
+      "id": "stipe", "invoice": 0.2, "name": "Stipe, ribar", "role": "Ribar, Kaštel Kambelovac", "color": "#3F8990",
+      "personality": "skrtica", "urgency": 0,
+      "lines": {
+        "counter": "Ajde {price}, mreže su lake kad su suve.",
+        "giveIn": "Može, ali drugi put ja prvi kažen koliko.",
+        "agree": "Dogovoreno, zaveza san sve u snopove.",
+        "walkAway": "Pribacit ću s kolegon kad završi krpanje.",
+        "insulted": "Pa nije brod u kombiju, samo oprema!",
+        "final": "{price}, toliko i gotovo.",
+        "payment": "{price}, dobit ćeš kad sve skinemo.", "invoiceYes": "Triba, rekli su mi da skupljan račune.", "invoiceNo": "Ne triba, platit ću ti odma u ruke.",
+        "expired": "Snašli smo se na rivi, ne triba više.",
+        "cancel": "Dobro, odmrsit ćemo i ovo nekako.",
+        "thanks": "Dobro je, sve spremno za opet na more.",
+        "thanksBad": "Sad mi je sve zapetljano, a bilo je složeno.",
+        "phone": "Ne vuci snopove po asfaltu, dignit ćemo ih udvoje."
+      }
+    },
+    {
+      "id": "jelena", "invoice": 0.35, "name": "Jelena, studentica", "role": "Studentica iz Kambelovca, podstanarka", "color": "#617FBF",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Može {price}, ako za to voziš i stol.",
+        "giveIn": "Dobro, polica će pričekat.",
+        "agree": "Super, cimerica će mi pomoć nosit.",
+        "walkAway": "Onda ću pitat po grupi s faksa.",
+        "insulted": "Za to mogu kupit još jedan rabljeni krevet!",
+        "final": "{price}, ostalo mi triba za pokaz.",
+        "payment": "Platin {price} kad istovarimo, spremila san.", "invoiceYes": "Triba, mater voli vidit di su otišle pare.", "invoiceNo": "Ne triba, iman pare sa sobon.",
+        "expired": "Prijatelj je uspija posudit kombi.",
+        "cancel": "Dobro, javin stanodavki da kasnimo.",
+        "thanks": "Čak su i skripte ostale složene, fala!",
+        "thanksBad": "Ajme, ovo mi je tribalo još bar do diplome.",
+        "phone": "Knjige su najteže, te san kutije označila crton."
+      }
+    },
+    {
+      "id": "josip", "invoice": 0.9, "name": "Jozo, vrtlar", "role": "Vrtlar, Kaštel Kambelovac", "color": "#52915A",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Ajde {price}, samo da ostanu uspravno.",
+        "giveIn": "Dobro, uračunat ću u posal.",
+        "agree": "Može, stavit ću ceradu u kombi.",
+        "walkAway": "Onda ću svojim u više tura.",
+        "insulted": "Za toliko san ih moga i sam uzgojit!",
+        "final": "{price}, to mi stane u trošak.",
+        "payment": "Platin {price} kad spustimo zadnju stvar.", "invoiceYes": "Triba, na obrt, molin te.", "invoiceNo": "Za moj vrt ne triba, evo na ruke.",
+        "expired": "Već san pribacija, sutra iman drugi vrt.",
+        "cancel": "Dobro, prominit ću redoslid posla.",
+        "thanks": "Sve zdravo i cilo, lipo si vozija.",
+        "thanksBad": "Šteta, ovo se neće oporavit priko noći.",
+        "phone": "Pripremija san ceradu, da ti ne ostane zemlje unutra."
+      }
+    },
+    {
+      "id": "roko", "invoice": 0.95, "name": "Roko, brodski mehaničar", "role": "Mladi mehaničar, Kaštel Gomilica", "color": "#4C739C",
+      "personality": "zuri_se", "urgency": 1,
+      "lines": {
+        "counter": "{price}, ali ne naginji teret.",
+        "giveIn": "Dobro, bitnije mi je da sigurno dođe.",
+        "agree": "Može, iman kolegu za iskrcat.",
+        "walkAway": "Pitat ću u radioni za kombi.",
+        "insulted": "Mate, vožnja mi je skuplja od servisa!",
+        "final": "{price}, više mi gazda ne da.",
+        "payment": "{price}, platin nakon istovara i pregleda.", "invoiceYes": "Triba, bez računa ne mogu zatvorit radni nalog.", "invoiceNo": "Privatno je, danas ne triba.",
+        "expired": "Radiona je poslala kombi, rišeno.",
+        "cancel": "Dobro, javit ću čoviku da pomakne termin.",
+        "thanks": "Sve cilo, mogu nastavit slagat.",
+        "thanksBad": "Sad moran pregledat šta je dobilo udarac.",
+        "phone": "Teret je na postolju, vezat ćemo ga za ušice."
+      }
+    },
+    {
+      "id": "vesna", "invoice": 0.1, "name": "Vesna, penzionerka", "role": "Penzionerka, Kaštel Gomilica", "color": "#AD835A",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Može {price}, samo polako priko rupa.",
+        "giveIn": "Dobro, valja platit čovika koji pomogne.",
+        "agree": "Dogovoreno, čekan te u dvoru.",
+        "walkAway": "Neka, pitat ću sina kad uhvati vrimena.",
+        "insulted": "Ajme, toliko mi ode na svu spizu!",
+        "final": "{price}, više ne mogu obećat.",
+        "payment": "Platin {price} kad dovezeš, spremila san točno.", "invoiceYes": "Triba, da ne zaboravin koliko san dala.", "invoiceNo": "Ne triba, evo ti u ruke, sine.",
+        "expired": "Sin je doša ranije pa smo rišili.",
+        "cancel": "Dobro, nema veze, samo mi drugi put javi.",
+        "thanks": "Sve lipo, sad mogu sist u miru.",
+        "thanksBad": "Vidin da je udareno, nije prije tako bilo.",
+        "phone": "Čekan pri ulazu, da ne tražiš zvono."
+      }
+    },
+    {
+      "id": "goran", "invoice": 1, "name": "Goran, tapetar", "role": "Tapetar iz Solina, radi u Gomilici", "color": "#9A674C",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "{price}, ako stavimo deku između komada.",
+        "giveIn": "Može, znan koliko ode na gorivo i vrime.",
+        "agree": "Dogovoreno, pomoćnik je sa mnon.",
+        "walkAway": "Onda ću pomaknit preuzimanje za drugi dan.",
+        "insulted": "Za te pare neman ništa od tapeciranja!",
+        "final": "{price}, to je najviše šta posal podnosi.",
+        "payment": "Platin {price} kad mušterija preuzme na istovaru.", "invoiceYes": "Triba, sve ide kroz obrt.", "invoiceNo": "Za ovo moje doma ne triba.",
+        "expired": "Posudija san kombi iz radione, gotovo je.",
+        "cancel": "Dobro, javin mušteriji novi termin.",
+        "thanks": "Platno čisto, rubovi cili, tako triba.",
+        "thanksBad": "Sad moran ponovo zatezat di je zapelo.",
+        "phone": "Sve je zamotano, samo nemoj naslanjat na oštri rub."
+      }
+    },
+    {
+      "id": "davor", "invoice": 0.95, "name": "Davor, stolar", "role": "Stolar, Kaštel Sućurac", "color": "#A6823D",
+      "personality": "posten", "urgency": 0,
+      "lines": {
+        "counter": "Ajde {price}, plohe ćemo odvojit kartonon.",
+        "giveIn": "Može, rad je rad.",
+        "agree": "Dogovoreno, ostavija san prolaz.",
+        "walkAway": "Nać ću nekoga iz radione.",
+        "insulted": "Za toliko mi moraš i montirat!",
+        "final": "{price}, to san uračuna u ponudu.",
+        "payment": "Dogovoreno, {price}. Platin kad stigne.", "invoiceYes": "Triba, na obrt, napiši šta si vozija.", "invoiceNo": "Ne triba, ovo uređujen sebi doma.",
+        "expired": "Kolega je oslobodija kombi, rišili smo.",
+        "cancel": "Dobro, sad moran pribacit montažu.",
+        "thanks": "Rubovi cili, to mi je najvažnije.",
+        "thanksBad": "Ovu ogrebotinu ne mogu sakrit šarkon.",
+        "phone": "Pripremija san deke i kartone, skupa ćemo složit."
+      }
+    },
+    {
+      "id": "ruzica", "invoice": 0.9, "name": "Ružica, cvićarka", "role": "Cvjećarka, Kaštel Sućurac", "color": "#CB6689",
+      "personality": "zuri_se", "urgency": 1,
+      "lines": {
+        "counter": "Može {price}, samo da mi ništa ne polegne.",
+        "giveIn": "Ajde, iman i ja rokove.",
+        "agree": "Dogovoreno, sve je pod nastrešnicon.",
+        "walkAway": "Morat ću pitat drugoga, ne mogu ostavit na suncu.",
+        "insulted": "Ajme, toliko ne zaradin na svim ovin teglama!",
+        "final": "{price}, to je sve za vožnju.",
+        "payment": "Platin {price} čim završimo istovar.", "invoiceYes": "Triba, na radnju, molin te.", "invoiceNo": "Ovo mi je za doma, ne triba.",
+        "expired": "Već san dogovorila s dobavljačen da doveze.",
+        "cancel": "Dobro, samo da mi se ne osuši dok čekan.",
+        "thanks": "Lipo je stiglo, nijedna grančica nije pukla.",
+        "thanksBad": "Ovo sad ne mogu prodat kako je bilo.",
+        "phone": "Kad kreneš, zoven susidu da pomogne pridržat."
+      }
+    },
+    {
+      "id": "nikola", "invoice": 1, "name": "Nikola, voditelj radione", "role": "Voditelj male firme, Kaštel Sućurac", "color": "#647B87",
+      "personality": "skrtica", "urgency": 0,
+      "lines": {
+        "counter": "{price}, triba mi to stat u troškove.",
+        "giveIn": "Dobro, odobrit ću toliko.",
+        "agree": "Može, upisan si za preuzimanje.",
+        "walkAway": "Uzet ću ponudu od drugoga.",
+        "insulted": "S tin bi mi vožnja bila skuplja od robe!",
+        "final": "{price}, toliko mogu potpisat.",
+        "payment": "Dogovoreno, {price}. Platimo kad dovezeš.", "invoiceYes": "Triba, knjigovođa mi bez toga ne prizna trošak.", "invoiceNo": "Ovo plaćan privatno, ne triba.",
+        "expired": "Drugi je već doša po robu.",
+        "cancel": "Dobro, prominit ću nalog.",
+        "thanks": "Sve na broju, gotov je posal.",
+        "thanksBad": "Moran zapisat da je ovo stiglo oštećeno.",
+        "phone": "Javi se meni na ulazu da ti pokažen di stat."
+      }
+    },
+    {
+      "id": "sanja", "invoice": 0.8, "name": "Sanja, gošća", "role": "Turistkinja iz Splita, najam u Gomilici", "color": "#8A79C7",
+      "personality": "turist", "urgency": 0,
+      "lines": {
+        "counter": "Može {price}, samo da znan kad vas čekat.",
+        "giveIn": "Dobro, vi znate put i prilaz.",
+        "agree": "Dogovoreno, javin domaćici.",
+        "walkAway": "Onda ću pitat domaćicu zna li još koga.",
+        "insulted": "To mi je previše za ovu malu dostavu.",
+        "final": "{price} mi je granica za danas.",
+        "payment": "Platin {price} kad dovezete, dogovoreno.", "invoiceYes": "Triba, čuvan troškove boravka.", "invoiceNo": "Ne triba ovaj put, pripremila san gotovinu.",
+        "expired": "Domaćica je našla ko će vozit, fala van.",
+        "cancel": "Dobro, javit ću svima da ne čekaju.",
+        "thanks": "Baš lipo, sad nan je boravak puno lakši.",
+        "thanksBad": "Šteta, ovo smo tribali koristit cili odmor.",
+        "phone": "Bit ću kraj ulaza, još se ne snalazin po mistu."
+      }
+    },
+    {
+      "id": "ivan", "invoice": 0.85, "name": "Ivan, monter", "role": "Monter iz Segeta, radi u Kaštel Novom", "color": "#5E998A",
+      "personality": "rodbina", "urgency": 1,
+      "lines": {
+        "counter": "Ajde {price}, znamo se još priko rođaka.",
+        "giveIn": "Dobro, nećemo se radi ovoga natezat.",
+        "agree": "Može, ja ću bit na istovaru.",
+        "walkAway": "Pitat ću rođaka je li mu slobodna prikolica.",
+        "insulted": "Mate, za te pare ću zvat cilu familiju da nosi!",
+        "final": "{price}, više ne mogu izvuć iz posla.",
+        "payment": "{price}, platin kad sve skinemo, ka i uvik.", "invoiceYes": "Triba, ovo ide na montažu za obrt.", "invoiceNo": "Ne triba, ovo je familiji za doma.",
+        "expired": "Rođak je već krenija, rišili smo.",
+        "cancel": "Dobro, pomaknit ću montažu.",
+        "thanks": "Fala, sve je spremno za ugradnju.",
+        "thanksBad": "Sad moran popravljat prije nego išta ugradin.",
+        "phone": "Prilaz je čist, iman još jednoga za nosit."
       }
     }
   ],
   "jobs": [
     { "id": "jure_drva", "customer": "jure", "cargo": "drva", "what": "Dva metra drva", "kg": 2500, "from": "dvor_basica", "to": "kupac_drva_sucurac", "days": "wd,sat", "fair": 60, "open": 50, "max": 65, "loadSec": 25, "unloadSec": 20, "cooldown": 7,
-      "text": "Mate, možeš li mi danas odvest dva metra drva iz vašeg dvora u Sućurac? Pedeset eura, Mate, to je pošteno za susjeda." },
+      "text": "Mate, možeš li mi danas odvest dva metra drva iz vašeg dvora u Sućurac? Pedeset eura, Mate, to je pošteno za susida." },
     { "id": "anka_ormar", "customer": "anka", "cargo": "namještaj", "what": "Ormar i dvi komode", "kg": 400, "from": "p76", "to": "p68", "days": "wd,sat", "loadSec": 18, "unloadSec": 18, "cooldown": 6,
-      "text": "Mate, sine, ormar i dvi komode bi tribalo prinit kćeri u Kaštel Novi. Dala bi {offer} eura, ako ti nije teško." },
+      "text": "Mate, sine, ormar i dvi komode triba prinit ćeri u Novi. Dala bi {offer} eura, ako ti nije teško." },
     { "id": "ivica_blokovi", "customer": "ivica", "cargo": "građevinski materijal", "what": "Paleta blokova i deset vrića cementa", "kg": 2800, "from": "p74", "to": "p75", "days": "wd,sat", "loadSec": 22, "unloadSec": 22, "cooldown": 5,
-      "text": "Mate, triba mi odma prebacit paletu blokova i deset vrića cementa gore na Zagorski put. Majstori čekaju. {offer} eura?" },
+      "text": "Mate, odma mi triba paleta blokova i deset vrića cementa gori na Zagorski put. Majstori čekaju. {offer} eura?" },
     { "id": "zorka_ulje", "customer": "zorka", "cargo": "maslinovo ulje", "what": "Deset kanistara ulja", "kg": 250, "from": "p70", "to": "p71", "days": "wd,sat", "loadSec": 12, "unloadSec": 12, "cooldown": 7,
       "text": "Mate, deset kanistara ulja od sestre iz Štafilića do mene u Lukšić. Ono, to ti je usput. {offer} eura." },
     { "id": "frane_frizider", "customer": "frane", "cargo": "frižider", "what": "Frižider iz stare kuće", "kg": 90, "from": "p69", "to": "p30", "days": "wd,sat", "loadSec": 12, "unloadSec": 12, "cooldown": 6,
       "text": "Brate, frižider iz stare kuće triba prinit kod mene. Ti si familija… {offer} eura?" },
     { "id": "nevenka_granje", "customer": "nevenka", "cargo": "granje iz vrta", "what": "Granje od orezivanja maslina", "kg": 600, "from": "p77", "to": "p68", "days": "sat", "loadSec": 20, "unloadSec": 15, "cooldown": 7,
-      "text": "Mate, imam pun vrt granja od maslina. Brat u Novom ga uzme za komin. {offer} eura, je li dosta?" },
+      "text": "Mate, iman pun vrt granja od maslina. Brat u Novom ga uzme za komin. {offer} eura, je li dosta?" },
     { "id": "luka_selidba", "customer": "luka", "cargo": "selidba", "what": "Kutije, krevet i stol", "kg": 700, "from": "p32", "to": "p29", "days": "wd,sat", "loadSec": 20, "unloadSec": 20, "cooldown": 9,
-      "text": "Pozdrav! Selim se sutra, a stvari su još u kutijama. Kutije, krevet, stol. Može {offer} €?" }
+      "text": "Pozdrav! Selin se sutra, a stvari su još u kutijama. Kutije, krevet, stol. Može {offer} €?" },
+    { "id": "matea_salon", "customer": "matea", "cargo": "namještaj", "what": "Dvi stolice i ogledalo za salon", "kg": 110, "from": "m_novi_uzvrtle", "to": "m_matea_salon", "days": "wd", "loadSec": 18, "unloadSec": 20, "cooldown": 10,
+      "text": "Mate, triba mi prinit dvi stolice i zapakirano ogledalo iz Novoga do salona u Štafiliću. Može za {offer} eura posli zatvaranja?" },
+    { "id": "matea_perilica", "customer": "matea", "cargo": "perilica", "what": "Perilica s učvršćenim bubnjem", "kg": 75, "from": "p29", "to": "m_matea_kuca", "days": "sat", "loadSec": 15, "unloadSec": 18, "cooldown": 14,
+      "text": "Mate, uzela san rabljenu perilicu u Novome za kuću u Štafiliću. Bubanj je učvršćen, triba je samo uspravno dovest." },
+    { "id": "duje_drva", "customer": "duje", "cargo": "drva", "what": "Suve cjepanice u vrićama", "kg": 450, "from": "m_novi_stude", "to": "m_duje", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 12,
+      "text": "Mate, iman složene vriće drva kod nećaka u Novome, tribalo bi do mene u Štafilić. Pomoga bi i ja, ako more za {offer} eura." },
+    { "id": "pero_masline", "customer": "pero", "cargo": "masline", "what": "Osam vrića ubranih maslina", "kg": 240, "from": "m_pero", "to": "p69", "days": "wd,sat", "loadSec": 18, "unloadSec": 16, "cooldown": 7,
+      "text": "Mate, moreš osan vrića maslina iz Štafilića do brata u Novi? On ih dalje nosi na preradu, sve san zaveza da ne ispada." },
+    { "id": "pero_sadnice", "customer": "pero", "cargo": "sadnice", "what": "Sadnice maslina u posudama", "kg": 160, "from": "p31", "to": "m_pero", "days": "sat", "loadSec": 20, "unloadSec": 25, "cooldown": 14,
+      "text": "Mate, sadnice su mi kod znanca u Lukšiću, a tribaju do dvora u Štafiliću. Vozi ih uspravno, neman drugih za zaminit." },
+    { "id": "kata_police", "customer": "kata", "cargo": "namještaj", "what": "Rastavljene police i kutije knjiga", "kg": 210, "from": "p72", "to": "m_kata", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 12,
+      "text": "Mate, selin police i knjige iz Staroga u Novi. Sve san rastavila i označila, moreš li mi to pribacit?" },
+    { "id": "ante_cement", "customer": "ante", "cargo": "građevinski materijal", "what": "Dvanaest vrića cementa", "kg": 300, "from": "p74", "to": "m_ante", "days": "wd,sat", "loadSec": 20, "unloadSec": 20, "cooldown": 5,
+      "text": "Mate, dvanaest vrića cementa iz Lukšića triba mi u dvor u Novome za posal. Dok ima svitla, ekipa će nosit." },
+    { "id": "ante_plocice", "customer": "ante", "cargo": "pločice", "what": "Zapakirane podne pločice", "kg": 650, "from": "p73", "to": "m_novi_kumbata", "days": "sat", "loadSec": 30, "unloadSec": 30, "cooldown": 8,
+      "text": "Mate, triba pribacit pločice iz Staroga u Novi. Na paleti su, ukrca ih viličar, a mi skidamo kutiju po kutiju." },
+    { "id": "iva_selidba", "customer": "iva", "cargo": "selidba", "what": "Rastavljen krevet, stol i kutije", "kg": 380, "from": "m_stari_danila", "to": "m_iva", "days": "sat", "loadSec": 30, "unloadSec": 35, "cooldown": 14,
+      "text": "Mate, nas dvoje napokon selimo iz Staroga u Novi. Krevet je rastavljen, kutije složene, triba nan kombi i malo strpljenja." },
+    { "id": "iva_frizider", "customer": "iva", "cargo": "frižider", "what": "Rabljeni frižider za prvi stan", "kg": 85, "from": "m_luksic_klaica", "to": "m_iva", "days": "wd,sat", "loadSec": 15, "unloadSec": 18, "cooldown": 11,
+      "text": "Mate, našli smo frižider u Lukšiću za stan u Novome. Moreš ga dovest uspravno? Pustit ćemo ga da odstoji prije paljenja." },
+    { "id": "marin_motor", "customer": "marin", "cargo": "brodski motor", "what": "Mali brodski motor na postolju", "kg": 95, "from": "m_marin", "to": "p44", "days": "wd,sat", "loadSec": 20, "unloadSec": 20, "cooldown": 10,
+      "text": "Mate, triba motor iz dvora u Starome do marine u Gomilici. Na postolju je, gorivo san ispustija i sve zatvorija." },
+    { "id": "marin_mreze", "customer": "marin", "cargo": "ribarska oprema", "what": "Suve mreže i prazne kašete", "kg": 130, "from": "p42", "to": "m_marin", "days": "sat", "loadSec": 15, "unloadSec": 15, "cooldown": 6,
+      "text": "Mate, suve mreže i prazne kašete su kraj ribarnice u Starome. Triba ih dignit do kuće, nema ribe ni mokroga tereta." },
+    { "id": "tonka_ormar", "customer": "tonka", "cargo": "namještaj", "what": "Stari ormar rastavljen za popravak", "kg": 140, "from": "m_tonka", "to": "p32", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 14,
+      "text": "Mate, sinko, rastavljeni ormar triba iz Staroga nećaku u Lukšić na popravak. Samo da nan ne izgrebeš vrata." },
+    { "id": "boro_bacve", "customer": "boro", "cargo": "bačve vina", "what": "Dvi zatvorene bačvice vina po 50 litara", "kg": 130, "from": "p75", "to": "m_boro", "days": "wd,sat", "loadSec": 22, "unloadSec": 22, "cooldown": 9,
+      "text": "Mate, dvi zatvorene bačvice vina od brata sa Zagorskoga puta do moje konobe u Starome. More za {offer} eura?" },
+    { "id": "boro_prese", "customer": "boro", "cargo": "vinarska oprema", "what": "Rastavljena ručna preša i kace", "kg": 190, "from": "m_novi_stude", "to": "m_boro", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 14,
+      "text": "Mate, kupija san polovnu prešu i dvi prazne kace u Novome. Triba do konobe u Starome. Prešu san rastavija." },
+    { "id": "mirjana_madraci", "customer": "mirjana", "cargo": "madraci", "what": "Četiri zamotana madraca za apartmane", "kg": 100, "from": "p83", "to": "m_mirjana", "days": "wd,sat", "loadSec": 18, "unloadSec": 25, "cooldown": 10,
+      "text": "Mate, četiri madraca su u salonu u Sućurcu, još zapakirana. Moreš ih dovest u Lukšić? Gosti samo šta nisu." },
+    { "id": "mirjana_stolovi", "customer": "mirjana", "cargo": "namještaj", "what": "Dva rastavljena stola i šest stolica", "kg": 170, "from": "m_novi_uzvrtle", "to": "m_mirjana", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 12,
+      "text": "Mate, stolovi i stolice za apartmane su kod sestre u Novome. Triba ih dovest u Lukšić prije nego počnen spremat sobe." },
+    { "id": "tomislav_frizider", "customer": "tomislav", "cargo": "frižider", "what": "Mali ugostiteljski frižider", "kg": 120, "from": "m_servis_kambelovac", "to": "p61", "days": "wd", "loadSec": 20, "unloadSec": 20, "cooldown": 8,
+      "text": "Mate, frižider od majstora u Kambelovcu triba do konobe na lukšićkoj rivi. Od jučer je isključen, nas dva nosimo." },
+    { "id": "neda_stroj", "customer": "neda", "cargo": "krojačka oprema", "what": "Šivaći stroj u stolu i bale platna", "kg": 145, "from": "m_stari_tudmana", "to": "m_neda", "days": "wd,sat", "loadSec": 20, "unloadSec": 20, "cooldown": 12,
+      "text": "Mate, šivaći stroj u stolu i bale platna su kod sestre u Starome. Moreš do radnje u Lukšiću? Sve san pokrila dekon." },
+    { "id": "stipe_mreze", "customer": "stipe", "cargo": "ribarska oprema", "what": "Snopovi suvih mreža i prazne vrše", "kg": 180, "from": "p42", "to": "m_stipe", "days": "sat", "loadSec": 20, "unloadSec": 20, "cooldown": 7,
+      "text": "Mate, Stipe je. Mreže su na krpanju kraj ribarnice u Starome. Triba ih s praznin vršama pribacit doma u Kambelovac." },
+    { "id": "jelena_soba", "customer": "jelena", "cargo": "selidba", "what": "Knjige, rastavljen stol i mali krevet", "kg": 260, "from": "m_luksic_svisveti", "to": "m_jelena", "days": "sat", "loadSec": 25, "unloadSec": 30, "cooldown": 14,
+      "text": "Mate, Jelena je. Selin iz sobe u Lukšiću doma u Kambelovac. Knjige su u malin kutijama da ih moremo dignit." },
+    { "id": "josip_sadnice", "customer": "josip", "cargo": "sadnice", "what": "Ukrasne sadnice i vriće zemlje", "kg": 320, "from": "m_josip", "to": "p63", "days": "wd,sat", "loadSec": 25, "unloadSec": 25, "cooldown": 8,
+      "text": "Mate, Jozo iz Kambelovca, uređujen terasu kafića u Gomilici. Sadnice i zemlja su mi u vrtu u Kambelovcu, triba ih dovest na rivu." },
+    { "id": "josip_pijesak", "customer": "josip", "cargo": "pijesak", "what": "Zatvoren big-bag s 500 kg pijeska", "kg": 500, "from": "m_ante", "to": "m_luksic_vrt", "days": "sat", "loadSec": 30, "unloadSec": 35, "cooldown": 10,
+      "text": "Mate, pola tone piska u zatvorenon big-bagu od Ante iz Novoga do vrta u Lukšiću. Utovarivač ukrca, mi lopatamo na ceradu." },
+    { "id": "roko_motor", "customer": "roko", "cargo": "brodski motor", "what": "Servisirani motor na vezanom postolju", "kg": 160, "from": "m_roko", "to": "p44", "days": "wd,sat", "loadSec": 25, "unloadSec": 25, "cooldown": 6,
+      "text": "Mate, motor iz moje radione u Gomilici triba do marine. Gorivo san ispustija, sve zatvorija. Na postolju su ušice za vezat." },
+    { "id": "vesna_komoda", "customer": "vesna", "cargo": "namještaj", "what": "Komoda i mali stol", "kg": 120, "from": "m_luksic_klaica", "to": "m_vesna", "days": "sat", "loadSec": 20, "unloadSec": 20, "cooldown": 14,
+      "text": "Mate, komoda i stolić su kod ćeri u Lukšiću, tribaju do mene u Gomilicu. Čekan te pri kući, u dvor se ulazi s ulice." },
+    { "id": "goran_garnitura", "customer": "goran", "cargo": "namještaj", "what": "Obnovljeni dvosjed i dvi fotelje", "kg": 180, "from": "m_goran", "to": "m_luksic_kasteline", "days": "wd,sat", "loadSec": 30, "unloadSec": 30, "cooldown": 9,
+      "text": "Mate, Goran tapetar je. Garnitura iz radione u Gomilici triba mušteriji u Lukšić. Čuvaj novu presvlaku, sve je zamotano." },
+    { "id": "davor_elementi", "customer": "davor", "cargo": "namještaj", "what": "Rastavljeni kuhinjski elementi", "kg": 280, "from": "m_davor", "to": "m_kambelovac_kuca", "days": "wd,sat", "loadSec": 30, "unloadSec": 30, "cooldown": 8,
+      "text": "Mate, elementi iz moje stolarije u Sućurcu tribaju na montažu u Kambelovac. Rastavljeni su i označeni, posli ih sastavin." },
+    { "id": "ruzica_tegle", "customer": "ruzica", "cargo": "sadnice", "what": "Velike tegle sa sadnicama", "kg": 260, "from": "m_ruzica", "to": "p65", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 7,
+      "text": "Mate, tegle sa sadnicama triba iz rasadnika gori u Sućurcu do rive, uređujemo terasu. Stavila san kartone među tegle." },
+    { "id": "nikola_police", "customer": "nikola", "cargo": "namještaj", "what": "Metalne police za radionu", "kg": 350, "from": "p76", "to": "m_nikola", "days": "wd", "loadSec": 25, "unloadSec": 25, "cooldown": 10,
+      "text": "Mate, metalne police iz Lukšića tribaju za radionu u Sućurcu. Rastavljene su i vezane u snopove. Triba nan račun." },
+    { "id": "sanja_krevetic", "customer": "sanja", "cargo": "namještaj", "what": "Sklopivi dječji krevetić i visoka stolica", "kg": 25, "from": "m_luksic_kasteline", "to": "m_sanja", "days": "wd,sat", "loadSec": 10, "unloadSec": 12, "cooldown": 14,
+      "text": "Dobar dan, Sanja iz Splita je. U Gomilici smo. Morete li iz Lukšića dovest krevetić i stolicu za dite od domaćičine sestre?" },
+    { "id": "ivan_vrata", "customer": "ivan", "cargo": "stolarija", "what": "Troja zapakirana unutarnja vrata", "kg": 135, "from": "p31", "to": "m_ivan", "days": "sat", "loadSec": 25, "unloadSec": 25, "cooldown": 12,
+      "text": "Mate, Ivan iz Segeta je. Troja vrata tribaju iz Lukšića na montažu u Novome. Rođak mi je da tvoj broj, pomažen nosit." },
+    { "id": "vesna_fotelja", "customer": "vesna", "cargo": "namještaj", "what": "Fotelja i mali stolić", "kg": 65, "from": "p81", "to": "m_vesna", "days": "sat", "loadSec": 15, "unloadSec": 18, "cooldown": 14,
+      "text": "Mate, uzela san fotelju i mali stolić u Sućurcu. Triba do mene u Gomilicu. Nije puno, ali sama ne mogu. Moreš mi dovest?" }
   ]
 }

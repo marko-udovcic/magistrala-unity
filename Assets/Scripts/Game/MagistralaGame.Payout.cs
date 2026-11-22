@@ -39,7 +39,7 @@ namespace Magistrala.Game
             if (j.fatureta)
             {
                 // a fatureta pays the agreed price; the customer takes off for broken cargo and for missing his window, no bonuses
-                if (p.late) { float over = gameMinutes - j.deadlineMin; p.lines.Add(($"Kasno ({Mathf.Round(over):0} min iza dogovora)", -Mathf.Round(b * Mathf.Min(0.5f, 0.15f + over / 600f)))); }
+                if (p.late) { float over = gameMinutes - j.deadlineMin; p.lines.Add(($"Kašnjenje ({Mathf.Round(over):0} min)", -Mathf.Round(b * Mathf.Min(0.5f, 0.15f + over / 600f)))); }
                 if (j.cargoDamage > 0.5f) p.lines.Add(($"Šteta na teretu ({Mathf.Round(j.cargoDamage):0} %)", -Mathf.Round(b * Mathf.Min(0.9f, j.cargoDamage / 100f))));
                 float sum = b; foreach (var l in p.lines) sum += l.amount;
                 p.total = Mathf.Max(0, Mathf.Round(sum * 2) / 2);

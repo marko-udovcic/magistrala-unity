@@ -3,6 +3,9 @@
 //   park benches   OSM leisure=park: every ~22 m of the outline, 2.5 m inside it, facing in (at most 8 a park)
 //   parked cars    the traffic kinds (TrafficData: passenger cars and vans, no buses / trucks / beacons), static, one BoxCollider each:
 //                  * car parks: the ground build's occupied bays (~60 %, OSM amenity=parking with bay lines)
+//                  * Mapillary car parks (GroundCoverMapillary.cs, CC BY-SA 4.0): the lots the street photos saw cars in and
+//                    OSM has no car park for, nose-in bays packed on their standing room, 45–80 % taken; a lot with
+//                    fewer than 3 bays or 3 cars is left out (GroundCover.MlyFinish builds the asphalt of the rest)
 //                  * the village streets: on the verge beside our streets (not the D8, no model road) in built-up land (OSM
 //                    landuse=residential), parallel 1.45 m off the asphalt edge, in runs (noise along the street) — a spot only
 //                    on the verge or up on our footway (not paving / the riva / a wall), flat, clear of gates (3.2 m), stop bays, junctions
@@ -85,7 +88,8 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ parked cars
-        public static float StreetShare = .26f; // mean share of the verge spots taken (Kaštela photo: ~1 car per 15–25 m of village street)
+        public static float StreetShare = .22f; // mean share of the verge spots taken (Kaštela photo: ~1 car per 15–25 m of village street;
+                                                // .26 before the Mapillary lots: the total stays ~1800, moved towards the measured lots)
         public static float YardShare = .4f;
         static List<Vector3> gates; static Dictionary<Vector3, Vector2> gateN;
 
@@ -111,13 +115,13 @@ namespace Magistrala.EditorTools
             var why = new Dictionary<string, int>();
             void Why(string w) { why.TryGetValue(w, out int c); why[w] = c + 1; }
 
-            bool Place(double gx, double gz, float yawU, uint h, bool street, bool yard = false)
+            bool Place(double gx, double gz, float yawU, uint h, bool street, bool yard = false, bool lot = false)
             {
                 float r = (h & 0xffff) / 65536f * wsum; int kd = ks[0];
                 foreach (int k in ks) { r -= data.kinds[k].weight; if (r <= 0) { kd = k; break; } }
                 var K = data.kinds[kd];
                 var c = W.U(gx, 0, gz); var rot = Quaternion.Euler(0, yawU, 0);
-                if (!CarFree(c, K.halfW + .12f, K.len / 2 + .2f, rot, street, out float y, out string w, yard)) { Why(w); return false; }
+                if (!CarFree(c, K.halfW + .12f, K.len / 2 + .2f, rot, street, out float y, out string w, yard, lot)) { Why(w); return false; }
                 // baked kinds: every colour by its weight (the paint is per instance); far mesh kinds: the three commonest only
                 // (every colour is one more instanced draw per kind there)
                 bool baked = K.parked != null && K.parked.Length == 3 && K.parkedMat;
@@ -140,6 +144,35 @@ namespace Magistrala.EditorTools
                 float yawU = (float)(Math.Atan2(Math.Sin(yaw), -Math.Cos(yaw)) * 180 / Math.PI) + ((Hs(c[0], c[1], 3) & 1) == 0 ? 180 : 0);
                 if (Place(c[0], c[1], yawU, Hs(c[0], c[1], 1), false)) nLot++;
             }
+            // 1b. the Mapillary car parks without an OSM car park (GroundCoverMapillary.cs): nose-in bays across the lot's long
+            //     axis (2.7 m wide, 5.2 m deep), packed on the lot's standing room by GroundCover.MlyPrepare; the share
+            //     taken follows what the photos saw (cars seen per pass over the bays), 45–80 %
+            int nMly = 0, triedMly = 0;
+            foreach (var L in GroundCover.MLots)
+            {
+                if (!L.keep || L.bays.Count == 0) continue;
+                var bays = L.bays; bool along = L.along;
+                int c0 = cars.Count, p0 = placed.Count, k0 = colRoot.childCount;
+                double share = Math.Max(.45, Math.Min(.8, L.seen / (double)Math.Max(1, L.seqs) / bays.Count));
+                foreach (var (u, v) in bays)
+                {
+                    var (x, z) = L.World(u, v);
+                    if ((Hs(x, z, 21) & 0xff) / 256f > share) continue;
+                    triedMly++;
+                    double ax = along ? L.ux : -L.uz, az = along ? L.uz : L.ux; // the car's long axis
+                    float yawU = (float)(Math.Atan2(ax, -az) * 180 / Math.PI) + ((Hs(x, z, 22) & 3) == 0 ? 180 : 0); // most nose-in
+                    if (Place(x, z, yawU, Hs(x, z, 23), false, false, true)) { nMly++; L.nCars++; }
+                }
+                // under 3 cars: no car park (no asphalt in an empty field), its cars out again
+                if (L.nCars > 0 && L.nCars < 3)
+                {
+                    cars.RemoveRange(c0, cars.Count - c0); kinds.RemoveRange(c0, kinds.Count - c0); paints.RemoveRange(c0, paints.Count - c0);
+                    placed.RemoveRange(p0, placed.Count - p0);
+                    while (colRoot.childCount > k0) UnityEngine.Object.DestroyImmediate(colRoot.GetChild(colRoot.childCount - 1).gameObject);
+                    nMly -= L.nCars; L.nCars = 0;
+                }
+            }
+            log.Add(GroundCover.MlyFinish());   // the asphalt of the lots that got a car
             // 2. the village streets: verge spots in runs
             // (the carriageway list is each street's polyline in 4 m pieces: walk it as one line, a spot every 5.8 m)
             double sNext = 3, s0 = 0, lx = double.NaN, lz = double.NaN;
@@ -195,7 +228,7 @@ namespace Magistrala.EditorTools
             var pc = proot.AddComponent<ParkedCars>();
             pc.data = data; pc.cars = cars.ToArray(); pc.kind = kinds.ToArray(); pc.paint = paints.ToArray();
             EditorUtility.SetDirty(pc);
-            log.Add($"  parkirani auti: {cars.Count} ({nLot} / {triedLot} na parkiralištima, {nStreet} / {triedStreet} uz ulice, {nYard} / {triedYard} u dvorištima iza kapija; vrste {string.Join(",", ks.Select(k => data.kinds[k].name))}); odbijeno: " +
+            log.Add($"  parkirani auti: {cars.Count} ({nLot} / {triedLot} na parkiralištima, {nMly} / {triedMly} na Mapillary parkiralištima, {nStreet} / {triedStreet} uz ulice, {nYard} / {triedYard} u dvorištima iza kapija; vrste {string.Join(",", ks.Select(k => data.kinds[k].name))}); odbijeno: " +
                     string.Join(", ", why.OrderByDescending(x => x.Value).Select(x => $"{x.Key} {x.Value}")));
         }
 
@@ -220,7 +253,7 @@ namespace Magistrala.EditorTools
 
         /// can a car stand here: every probe on the ground (street cars: bare terrain only), flat, off carriageways / model roads,
         /// stop bays, gates, pitches / pools, props and other cars, walls / fences / buildings in its volume
-        static bool CarFree(Vector3 c, float hx, float hz, Quaternion rot, bool street, out float y, out string why, bool yard = false)
+        static bool CarFree(Vector3 c, float hx, float hz, Quaternion rot, bool street, out float y, out string why, bool yard = false, bool lot = false)
         {
             y = float.NaN; why = null;
             var ys = new List<float>(9);
@@ -235,6 +268,8 @@ namespace Magistrala.EditorTools
                     foreach (var hh in hits)
                     {
                         if (Ignored(hh.collider) || HasAncestor(hh.collider.transform, "ParkedCars") || HasAncestor(hh.collider.transform, "Tlo") && !(hh.collider is BoxCollider)) continue;
+                        // a Mapillary lot reaches to ~1.5 m off the road edge: the D8 / model road meshes are carriageway there
+                        if (lot && HasAncestor(hh.collider.transform, "Roads")) { why = "kolnik (D8)"; return false; }
                         // a building's flat yard paving / paved front (≤ 0.3 m over the ground) is ground for a car in a yard
                         bool paving = HasAncestor(hh.collider.transform, "Buildings") && hh.point.y < terr + .3 && yard;
                         if (!paving && (HasAncestor(hh.collider.transform, "Buildings") || hh.collider is BoxCollider)) { why = "zgrada / zid / ograda"; return false; }
@@ -243,7 +278,7 @@ namespace Magistrala.EditorTools
                         ys.Add(hh.point.y); got = true; break;
                     }
                     if (!got) { why = "nema tla"; return false; }
-                    if (OnRoad(p, .25f)) { why = "kolnik"; return false; }
+                    if (OnRoad(p, lot ? 1f : .25f)) { why = "kolnik"; return false; }   // a lot car: a metre clear of the road edge
                 }
             ys.Sort(); if (ys[8] - ys[0] > .45f) { why = "nagib"; return false; }
             y = ys[4]; if (y < .4f) { why = "more"; return false; }
