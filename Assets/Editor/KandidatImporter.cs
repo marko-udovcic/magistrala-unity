@@ -72,6 +72,9 @@ namespace Magistrala.EditorTools
         {
             public string kind, glb, label, source;
             public float length = 4.3f;
+            /// real height (m) when the model is taller than the car at its real length (Marko 22.11.: Yugo / Zastava); 0 = keep
+            /// the model's proportions. Only the body above the axles is squashed (wheels stay round)
+            public float height;
             public string up = "auto", front = "auto";   // up: auto | x | -x | y | -y | z | -z (raw glTF axis); front: auto | + | - (along the long axis)
             public string glassNode = "glass|staklo|window";
             public KMat[] materials;
@@ -522,6 +525,25 @@ namespace Magistrala.EditorTools
             var b = B(); float s2 = c.cfg.length / b.size.z;
             foreach (var p in c.g.prims) for (int i = 0; i < p.P.Length; i++) p.P[i] = new Vector3((p.P[i].x - b.center.x) * s2, (p.P[i].y - b.min.y) * s2, (p.P[i].z - b.center.z) * s2);
             b = B();
+            if (c.cfg.height > 0 && b.size.y > c.cfg.height)
+            {
+                // pivot = the axle height (mean centre of the wheel material), wheel vertices untouched
+                var wv = new HashSet<(int, int)>(); var wsum3 = Vector3.zero; int wn3 = 0;
+                foreach (var t in c.tris) if (c.km[t.mat].role == "wheel") { var pr = c.g.prims[t.prim]; for (int q = 0; q < 3; q++) wv.Add((t.prim, pr.I[t.t + q])); wsum3 += Ctr(c, t); wn3++; }
+                float yc = wn3 > 0 ? wsum3.y / wn3 : 0, k = (c.cfg.height - yc) / (b.max.y - yc);
+                for (int pi = 0; pi < c.g.prims.Count; pi++)
+                {
+                    var p = c.g.prims[pi];
+                    for (int i = 0; i < p.P.Length; i++)
+                    {
+                        if (wv.Contains((pi, i))) continue;
+                        p.P[i].y = yc + (p.P[i].y - yc) * k;
+                        p.N[i] = new Vector3(p.N[i].x, p.N[i].y / k, p.N[i].z).normalized;
+                    }
+                }
+                log.Append($"; height {b.size.y:F2} -> {c.cfg.height:F2} m (body ×{k:F3} above the axle at {yc:F2} m)");
+                b = B();
+            }
             c.L = b.size.z; c.H = b.size.y;
             // body half width below the mirrors (lower 55 %)
             float hw = 0; foreach (var t in kept) for (int q = 0; q < 3; q++) { var v = P(c, t, q); if (v.y < .55f * c.H) hw = Mathf.Max(hw, Mathf.Abs(v.x)); }
