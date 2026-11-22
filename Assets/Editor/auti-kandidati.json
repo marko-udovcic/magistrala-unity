@@ -1,0 +1,158 @@
+{
+  "cars": [
+    {
+      "kind": "zastava",
+      "glb": "03_zastava_101.glb",
+      "label": "Zastava 101",
+      "source": "Zastava 101 (Stojadin) - Tomislav Tomljenović - https://sketchfab.com/3d-models/x-52c885cfc52a4ac1acb14f84a3feacfa - CC BY 4.0",
+      "length": 3.83,
+      "up": "auto",
+      "front": "auto",
+      "parkFront": "+",
+      "glassNode": "glass",
+      "materials": [
+        {
+          "name": "Karoserija",
+          "role": "body",
+          "size": 2048
+        },
+        {
+          "name": "SmallStuf",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "unutri",
+          "role": "interior",
+          "size": 1024,
+          "smoothMax": 0.35
+        },
+        {
+          "name": "Tyre",
+          "role": "wheel",
+          "size": 1024,
+          "smoothMax": 0.5
+        }
+      ],
+      "strip": [
+        {
+          "mat": "SmallStuf",
+          "px": [
+            1440,
+            1845,
+            1480,
+            1965
+          ],
+          "fill": "auto",
+          "note": "natpis ZASTAVA u atlasu sitnih dijelova"
+        },
+        {
+          "mat": "SmallStuf",
+          "box": [
+            -0.09,
+            0.755,
+            -1.93,
+            0.09,
+            0.825,
+            -1.86
+          ],
+          "note": "krilati amblem (krom) na poklopcu prtljažnika"
+        },
+        {
+          "mat": "SmallStuf",
+          "box": [
+            -0.07,
+            0.675,
+            1.89,
+            0.075,
+            0.72,
+            1.92
+          ],
+          "pieceMax": 12,
+          "note": "pločica s natpisom na rešetki"
+        },
+        {
+          "mat": "SmallStuf",
+          "box": [
+            -0.56,
+            0.77,
+            -1.9,
+            -0.42,
+            0.81,
+            -1.87
+          ],
+          "pieceMax": 12,
+          "note": "pločica s natpisom na prtljažniku"
+        },
+        {
+          "mat": "Karoserija",
+          "at": [
+            0,
+            0.792,
+            -1,
+            0.15,
+            0.03
+          ],
+          "note": "sjena krilatog amblema u teksturi karoserije"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "SmallStuf",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.15
+        },
+        {
+          "type": "ind",
+          "mat": "SmallStuf",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.15
+        },
+        {
+          "type": "head",
+          "mat": "",
+          "color": "light",
+          "end": "front",
+          "depth": 0.08,
+          "yMin": 0.45,
+          "yMax": 0.85,
+          "facing": 0.5,
+          "axMin": 0.38,
+          "axMax": 0.8
+        }
+      ],
+      "probe": [],
+      "colors": [
+        "#e6e2d6",
+        "#d6c7a1",
+        "#9c2a22",
+        "#7e9cc4",
+        "#2f4a35",
+        "#c49a2c"
+      ],
+      "colorWeights": [
+        22,
+        16,
+        18,
+        16,
+        14,
+        10
+      ],
+      "weight": 9,
+      "vMul": 0.86,
+      "a": 0.9,
+      "b": 2.7,
+      "T": 1.6,
+      "lod1": 13000,
+      "lod2": 4000,
+      "far": 600,
+      "interiorLod0": 0.4,
+      "plateStyle": 1,
+      "plateFrontY": 0.38,
+      "plateRearY": 0.62
+    }
+  ]
+}

@@ -453,7 +453,8 @@ namespace Magistrala.Game.Phone
             "(boja tla). Visine terena i tlocrti zgrada dijelom iz podataka DGU, izmijenjeni.\n\n" +
             "Street-level imagery: Mapillary contributors (CC BY-SA 4.0) — boje fasada i položaji svjetiljki.\n\n" +
             "Teksture i nebo: Poly Haven (CC0). Font Inter (SIL OFL 1.1).\n\n" +
-            "Galeb: 3D model autora Max (sketchfab.com/Max-5532), licenca CC BY 4.0, izmijenjeno (uklonjene oznake, nova boja).";
+            "Galeb: 3D model autora Max (sketchfab.com/Max-5532), licenca CC BY 4.0, izmijenjeno (uklonjene oznake, nova boja).\n" +
+            "Auto: „Zastava 101 (Stojadin)” — Tomislav Tomljenović, Sketchfab, CC BY 4.0, izmijenjeno.";
         void DrawAbout(Rect a)
         {
             float y = Title(a, "O igri", "Izvori podataka");

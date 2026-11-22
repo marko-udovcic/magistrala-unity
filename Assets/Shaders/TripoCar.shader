@@ -25,6 +25,16 @@ Shader "Magistrala/TripoCar"
         _LivTop("Bonnet text: z centre, width, mirrored, -", Vector) = (0,0,0,0)
         _LivRear("Rear text: y centre, width, -, -", Vector) = (0,0,0,0)
         _LivColor("Livery tint (multiplies the sheet)", Color) = (1,1,1,1)
+        // Sketchfab candidates (Assets/Editor/KandidatImporter.cs): whole-submesh lamps, plates, grime
+        _LampAll("Lamp emission on every texel (lamp submeshes)", Float) = 0
+        _LampMetal("Lamp submeshes: reflector metal (head lamps)", Range(0,1)) = 0
+        _PlateTex("Plate atlas (Tools/vehicles/tablice.sh)", 2D) = "white" {}
+        _PlateRect("Plate cell in the atlas (u0, v0, du, dv); quads with uv.x > 1.5", Vector) = (0,0,1,1)
+        _GrimeTex("Grime (r micro imperfections, g smear)", 2D) = "gray" {}
+        _Grime("Grime strength (0 off)", Range(0,1)) = 0
+        _GrimeH("Sill grime height (object m)", Float) = 0.45
+        _WheelZ("Wheel arches: z front, z rear, radius, -", Vector) = (0,0,0,0)
+        _GrimeColor("Grime colour", Color) = (0.30,0.27,0.22,1)
     }
     SubShader
     {
@@ -45,7 +55,14 @@ Shader "Magistrala/TripoCar"
             float _Livery;
             float4 _LivBand, _LivSide, _LivTop, _LivRear;
             half4 _LivColor;
+            half _LampAll, _LampMetal;
+            float4 _PlateRect;
+            half _Grime, _GrimeH;
+            float4 _WheelZ;
+            half4 _GrimeColor;
         CBUFFER_END
+        TEXTURE2D(_PlateTex); SAMPLER(sampler_PlateTex);
+        TEXTURE2D(_GrimeTex); SAMPLER(sampler_GrimeTex);
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_MaskMap); SAMPLER(sampler_MaskMap);
         TEXTURE2D(_LiveryTex); SAMPLER(sampler_LiveryTex);
@@ -155,7 +172,16 @@ Shader "Magistrala/TripoCar"
 
             half4 alb = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
             half4 mask = SAMPLE_TEXTURE2D(_MaskMap, sampler_MaskMap, input.uv);
-            half paint = mask.r, glass = mask.g, metal = mask.b, lamp = mask.a;
+            // registration plates: our own quads in the paint submesh with uv.x in 2..3 -> this material's cell of the plate atlas
+            // (gradients taken outside the branch: the quads are whole, the branch is coherent)
+            float2 puv = _PlateRect.xy + frac(input.uv) * _PlateRect.zw;
+            float2 pdx = ddx(puv), pdy = ddy(puv);
+            UNITY_BRANCH if (input.uv.x > 1.5)
+            {
+                alb = half4(SAMPLE_TEXTURE2D_GRAD(_PlateTex, sampler_PlateTex, puv, pdx, pdy).rgb, 0.35);
+                mask = 0;
+            }
+            half paint = mask.r, glass = mask.g, metal = mask.b, lamp = max(mask.a, _LampAll);
 
             // paint: the baked shading of the white body (its luminance against plain paint) times the body colour
             half shade = max(0.55h, saturate(dot(alb.rgb, half3(0.299, 0.587, 0.114)) / max(0.05h, _PaintRef)));
@@ -171,6 +197,9 @@ Shader "Magistrala/TripoCar"
             s.smoothness = lerp(alb.a, _PaintSmooth, paint);
             s.smoothness = lerp(s.smoothness, 0.97, glass);
             s.albedo = lerp(s.albedo, s.albedo * 0.55, glass); // tinted glass: let the reflection carry it
+            // lamp submeshes (candidates): glass lens over a reflector
+            s.smoothness = lerp(s.smoothness, max(s.smoothness, 0.9), _LampAll);
+            s.metallic = lerp(s.metallic, max(s.metallic, _LampMetal), _LampAll);
             s.clearCoatMask = paint;
             s.clearCoatSmoothness = _CoatSmooth;
             s.alpha = 1;
@@ -187,6 +216,21 @@ Shader "Magistrala/TripoCar"
                 s.smoothness = lerp(s.smoothness, max(s.smoothness, 0.8), w * rough);
                 s.clearCoatSmoothness = lerp(s.clearCoatSmoothness, 0.98, w);
                 s.albedo = lerp(s.albedo, s.albedo * 0.9, w * paint);       // wet paint reads a touch deeper
+            }
+            // grime (Sketchfab candidates): dust / road film towards the sills and round the wheel arches, broken up by a CC0 smear
+            // mask (ambientCG Smear007) projected on the sides; micro imperfections (SurfaceImperfections014) dull the clear coat a little
+            UNITY_BRANCH if (_Grime > 0.001)
+            {
+                float3 po = input.positionOS;
+                half4 gt = SAMPLE_TEXTURE2D(_GrimeTex, sampler_GrimeTex, float2(po.z, po.y) * 0.45 + po.x * 0.13);
+                half sill = 1 - smoothstep(0.08, _GrimeH, po.y);
+                float2 af = float2(po.z - _WheelZ.x, po.y - _WheelZ.z), ar = float2(po.z - _WheelZ.y, po.y - _WheelZ.z);
+                half arch = _WheelZ.z > 0 ? 1 - smoothstep(_WheelZ.z * 1.05, _WheelZ.z * 1.6, min(length(af), length(ar))) : 0;
+                half g = saturate(max(sill, arch * 0.8) * (0.35 + 0.9 * gt.g)) * _Grime * (1 - glass);
+                s.albedo = lerp(s.albedo, _GrimeColor.rgb * (0.8 + 0.4 * gt.r), g * 0.75);
+                s.smoothness *= 1 - 0.7 * g;
+                s.clearCoatMask *= 1 - g;
+                s.clearCoatSmoothness *= lerp(1, 0.9 + 0.1 * gt.r, _Grime);
             }
             s.emission = _LampColor.rgb * lamp;
 
