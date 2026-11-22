@@ -256,12 +256,56 @@ namespace Magistrala.EditorTools
             var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(mp);
             if (!mesh) { mesh = new Mesh { name = "detail_" + id }; AssetDatabase.CreateAsset(mesh, mp); }
             mesh.Clear(); mesh.indexFormat = IndexFormat.UInt32; mesh.CombineMeshes(combine.ToArray(), false, true); mesh.RecalculateBounds();
+            if (id == "stone") Pebble(mesh); // 8–22 cm pebbles: the 748-triangle rock_a was ~40 % of all detail triangles
             EditorUtility.SetDirty(mesh); AssetDatabase.SaveAssets();
             var go = new GameObject("detail_" + id); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterials = mats.ToArray();
             if (!shadows) go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off; // small details: no shadow-map cost
             foreach (var mm in mats) if (mm) mm.enableInstancing = true;
             var pf = PrefabUtility.SaveAsPrefabAsset(go, pp); UnityEngine.Object.DestroyImmediate(go);
             return pf;
+        }
+
+        /// the mesh replaced in place by a lumpy once-subdivided icosahedron (80 triangles) of the same bounds, spherical UVs on the
+        /// same material: terrain detail pebbles are 8–22 cm and drawn up to 140 m (with instance-count scatter, 22. 11., ~600 k
+        /// of them over Kaštela), where the 748-triangle rock_a cost ~0.8 M triangles per pass for a few pixels each
+        static void Pebble(Mesh mesh)
+        {
+            var b = mesh.bounds;
+            float t = (1 + Mathf.Sqrt(5)) / 2;
+            var v = new List<Vector3> { new(-1, t, 0), new(1, t, 0), new(-1, -t, 0), new(1, -t, 0), new(0, -1, t), new(0, 1, t), new(0, -1, -t), new(0, 1, -t), new(t, 0, -1), new(t, 0, 1), new(-t, 0, -1), new(-t, 0, 1) };
+            int[] f = { 0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1 };
+            var mid = new Dictionary<long, int>(); var tri = new List<int>();
+            int Mid(int a, int c) { long k = a < c ? ((long)a << 32) | (uint)c : ((long)c << 32) | (uint)a; if (!mid.TryGetValue(k, out int i)) { i = v.Count; v.Add((v[a] + v[c]) * .5f); mid[k] = i; } return i; }
+            for (int i = 0; i < f.Length; i += 3)
+            {
+                int a = f[i], c = f[i + 1], d = f[i + 2], ab = Mid(a, c), bc = Mid(c, d), ca = Mid(d, a);
+                tri.AddRange(new[] { a, ab, ca, c, bc, ab, d, ca, bc, ab, bc, ca });
+            }
+            var rnd = new System.Random(7); var uv = new Vector2[v.Count]; var pos = new Vector3[v.Count];
+            for (int i = 0; i < v.Count; i++)
+            {
+                var n = v[i].normalized; float r = .5f * (.82f + .3f * (float)rnd.NextDouble());
+                pos[i] = b.center + Vector3.Scale(n * r, b.size);
+                uv[i] = new Vector2(.5f + Mathf.Atan2(n.z, n.x) / (2 * Mathf.PI), .5f + Mathf.Asin(Mathf.Clamp(n.y, -1, 1)) / Mathf.PI);
+            }
+            // the lower ~quarter sits flat in the ground (as the rock did)
+            float floorY = b.min.y + b.size.y * .22f; for (int i = 0; i < pos.Length; i++) if (pos[i].y < floorY) pos[i].y = floorY;
+            mesh.Clear(); mesh.indexFormat = IndexFormat.UInt16; mesh.vertices = pos; mesh.uv = uv; mesh.triangles = tri.ToArray();
+            mesh.RecalculateNormals(); mesh.RecalculateTangents(); mesh.RecalculateBounds();
+        }
+
+        /// only the pebble mesh (no rescatter): the terrains keep their layers, the detail_stone mesh asset becomes Pebble
+        [MenuItem("Magistrala/Grafika: lagani kamenčići (detalji terena)")]
+        public static string LightPebbles()
+        {
+            MainScene.Ensure();
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(GEN + "/Plants/detail_stone.mesh.asset");
+            if (!mesh) return "no detail_stone mesh (run Grafika: detalji terena)";
+            int before = mesh.triangles.Length / 3;
+            if (before > 100)
+            { Pebble(mesh); EditorUtility.SetDirty(mesh); AssetDatabase.SaveAssets(); }
+            int n = 0; foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None)) if (t.terrainData.detailPrototypes.Length > 0) { t.terrainData.RefreshPrototypes(); n++; }
+            var msg = $"[Magistrala] detail pebbles: {before} -> {mesh.triangles.Length / 3} triangles ({n} terrains)"; Debug.Log(msg); return msg;
         }
 
         [MenuItem("Magistrala/Grafika: detalji terena")]
