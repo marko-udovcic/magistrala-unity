@@ -579,7 +579,7 @@ namespace Magistrala.Game
                 if (Current.fatureta)
                 {
                     l.Add(($"Fatureta: {Current.label}", 0));
-                    l.Add(($"{(Current.loaded ? "Istovar: " + World.Stop(Current.legs[Current.legs.Count - 1].stop)?.name : InGaleb ? "Utovar: " + World.Stop(Current.legs[0].stop)?.name : "Prvo po Galeba")} · {Eur(Current.pay)} {(Current.payMode == "racun" ? "(račun)" : "(na ruke)")} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
+                    l.Add(($"{(Current.loaded ? "Istovar: " + World.Stop(Current.legs[Current.legs.Count - 1].stop)?.name : InGaleb ? "Utovar: " + World.Stop(Current.legs[0].stop)?.name : "Prvo po Galeba")} · {Eur(Current.pay)} {(Current.payMode == "racun" ? "(račun)" : Current.payMode == "ruke" ? "(na ruke)" : "")} · rok {Hm(Current.startMin + Current.deadlineMin)}", 2));
                 }
                 else if (Current.tour != "")
                 {

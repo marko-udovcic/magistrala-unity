@@ -1,5 +1,5 @@
 {
-  "README": "Faturete s Galebom (MagistralaGame.Faturete.cs). Marko: ovdje mijenjaš rečenice, cijene i dane. {offer} = kupčeva ponuda, {price} = dogovorena cijena, {cash} = cijena na ruke, {ask} = koliko Mate traži. Cijena: 8 € + 4 €/km naše ceste (zaokruženo na 0,5 €, najmanje 45 €), osim gdje piše fair. Cjenkanje: najviše 3 kruga, ponude na 0 ili 5 €, kupac nikad više od 130 % poštene cijene. Narav (personality): posten, skrtica, zuri_se, turist, rodbina. days: wd = radnim danom 17–22 h, sat = subotom 8–20 h; nedjeljom ništa. Jurine rečenice su odobrene (dijalozi-prijedlog Q11), ostale su prijedlog.",
+  "README": "Faturete s Galebom (MagistralaGame.Faturete.cs). Marko: ovdje mijenjaš rečenice, cijene i dane. {offer} = kupčeva ponuda, {price} = dogovorena cijena, {ask} = koliko Mate traži. Cijena: 8 € + 4 €/km naše ceste (zaokruženo na 0,5 €, najmanje 45 €), osim gdje piše fair. Cjenkanje: najviše 3 kruga, ponude na 0 ili 5 €, kupac nikad više od 130 % poštene cijene. Narav (personality): posten, skrtica, zuri_se, turist, rodbina. days: wd = radnim danom 17–22 h, sat = subotom 8–20 h; nedjeljom ništa. Jurine rečenice su odobrene (dijalozi-prijedlog Q11), ostale su prijedlog. Plaćanje (Marko 22.11.): kad dostaviš, kupac plati dogovoreno (manje šteta / kašnjenje), Mate pita „Triba li ti račun?“; invoice = vjerojatnost da kupac kaže triba (0–1): triba → račun obrta + račun u fascikl „Za Ljubicu“, ne triba → gotovina Mati u džep. Rečenice: payment (pri dogovoru), invoiceYes / invoiceNo (na isporuci).",
   "mate": {
     "acceptOffer": "Može {offer}. Stižen.",
     "ask": "Malo je to. Tražin {ask}.",
@@ -7,11 +7,13 @@
     "acceptCounter": "Ajde, {price}. Krećen.",
     "decline": "Danas ne mogu.",
     "cash": "Na ruke, {cash}.",
-    "invoice": "Preko obrta, s računon. {price}."
+    "invoice": "Preko obrta, s računon. {price}.",
+    "go": "Dogovoreno, {price}. Krećen.",
+    "invoiceAsk": "Triba li ti račun?"
   },
   "customers": [
     {
-      "id": "jure", "name": "Susjed Jure", "role": "Susjed, Kaštel Lukšić", "color": "#8A6A3A",
+      "id": "jure", "invoice": 0.4, "name": "Susjed Jure", "role": "Susjed, Kaštel Lukšić", "color": "#8A6A3A",
       "personality": "posten", "urgency": 0,
       "lines": {
         "counter": "Ajde, {price}. Ti si blizu, ja san blizu. Nemoj da se zbog pet eura više ne pozdravljamo.",
@@ -20,7 +22,7 @@
         "walkAway": "Ništa onda, pitat ću maloga od Bilića.",
         "insulted": "Ma jesi normalan? Za te pare kupim ja kamion.",
         "final": "{price} san reka. Sad ili vozimo ili obojica idemo doma.",
-        "payment": "Na ruke ti dam {cash}. Ako triba račun, onda {price}.",
+        "payment": "Dobro, {price}. Pa kad dovezeš, platin.", "invoiceYes": "Triba, piši na moje ime.", "invoiceNo": "Ne triba, evo ti na ruke.",
         "expired": "Ništa, Mate. Drva mogu i pričekati.",
         "cancel": "Dobro, Mate. Drugi put.",
         "thanks": "Eto drva. Kad zapuše bura, znat ću koga se sitit.",
@@ -29,7 +31,7 @@
       }
     },
     {
-      "id": "anka", "name": "Šjora Anka", "role": "Susjeda, Kaštel Lukšić", "color": "#B05A7A",
+      "id": "anka", "invoice": 0.6, "name": "Šjora Anka", "role": "Susjeda, Kaštel Lukšić", "color": "#B05A7A",
       "personality": "posten", "urgency": 0,
       "lines": {
         "counter": "Ajme, sine… Ajde, {price}, ali samo zbog tebe.",
@@ -38,7 +40,7 @@
         "walkAway": "Dobro, sine. Pitat ću unuka, on ima kombi.",
         "insulted": "Isusa ti, to ti je moja mirovina!",
         "final": "Više od {price} nemam, sine. Kunem ti se.",
-        "payment": "Na ruke ću ti dat {cash}. A za račun bi bilo {price}, jel tako?",
+        "payment": "Može {price}, platit ću ti kad dovezeš.", "invoiceYes": "Triba, dušo, za svaki slučaj.", "invoiceNo": "Ma ne triba, evo ti u ruke.",
         "expired": "Ništa, sine, unuk će doć u nedilju.",
         "cancel": "Nema veze, sine. Ormar je čeka trideset godina.",
         "thanks": "Kćer kaže da nijedna ladica nije ni škripnula. Hvala ti, sine.",
@@ -47,7 +49,7 @@
       }
     },
     {
-      "id": "ivica", "name": "Ivica", "role": "Gradi kat, Kaštel Lukšić", "color": "#C08A20",
+      "id": "ivica", "invoice": 0.5, "name": "Ivica", "role": "Gradi kat, Kaštel Lukšić", "color": "#C08A20",
       "personality": "zuri_se", "urgency": 2,
       "lines": {
         "counter": "Ajde, {price}, samo dođi već!",
@@ -56,7 +58,7 @@
         "walkAway": "Nemam vrimena za cjenkanje. Zovem drugoga.",
         "insulted": "Za te pare ću ih sam nosit na leđima!",
         "final": "{price}, zadnje. Majstori stoje.",
-        "payment": "Na ruke {cash}, s računom {price}. Kako ti je lakše.",
+        "payment": "Ajde, {price}. Plaćam kad bude gotovo.", "invoiceYes": "Triba, firma mi to priznaje.", "invoiceNo": "Ne triba, evo gotovina.",
         "expired": "Ništa, našao san drugoga. Majstori nisu mogli čekat.",
         "cancel": "Lipo, a majstori i dalje stoje.",
         "thanks": "Majstori kažu svaka čast. Dobar si, Mate.",
@@ -65,7 +67,7 @@
       }
     },
     {
-      "id": "zorka", "name": "Teta Zorka", "role": "Kaštel Štafilić", "color": "#6A8A3A",
+      "id": "zorka", "invoice": 0.1, "name": "Teta Zorka", "role": "Kaštel Štafilić", "color": "#6A8A3A",
       "personality": "skrtica", "urgency": 0,
       "lines": {
         "counter": "{price}. I to je puno, da znaš.",
@@ -74,7 +76,7 @@
         "walkAway": "Ništa onda. Doće zet u nedilju.",
         "insulted": "Ma jesi normalan? Za te pare kupim još ulja!",
         "final": "{price}, i ni centa više.",
-        "payment": "Na ruke {cash}. Račun mi ne triba, ali ako baš oćeš, {price}.",
+        "payment": "Dobro, {price}. Platit ću ti na kraju.", "invoiceYes": "Ajde, napiši ga kad baš moraš.", "invoiceNo": "Ne triba mi to, evo ti pare.",
         "expired": "Ništa, Mate, zet će.",
         "cancel": "Znala san ja.",
         "thanks": "Nijedan kanister nije curija. Dobro je.",
@@ -83,7 +85,7 @@
       }
     },
     {
-      "id": "frane", "name": "Bratić Frane", "role": "Rodbina", "color": "#3A7A8A",
+      "id": "frane", "invoice": 0.1, "name": "Bratić Frane", "role": "Rodbina", "color": "#3A7A8A",
       "personality": "rodbina", "urgency": 1,
       "lines": {
         "counter": "Ajde, {price}. Al nemoj tetki reć.",
@@ -92,7 +94,7 @@
         "walkAway": "Ništa, zvat ću šogora.",
         "insulted": "Od familije pare? Ma lipo.",
         "final": "{price}, brate. Više nemam.",
-        "payment": "Na ruke {cash}, ajde. Kakav račun među nama? Ali ako moraš, {price}.",
+        "payment": "{price}, ajde. Platim kad bude unutra.", "invoiceYes": "Ajde, piši, nek se zna.", "invoiceNo": "Kakav račun među nama? Evo ti na ruke.",
         "expired": "Ništa, šogor će.",
         "cancel": "Lipo, brate. Lipo.",
         "thanks": "Radi ko nov. Pivo te čeka.",
@@ -101,7 +103,7 @@
       }
     },
     {
-      "id": "nevenka", "name": "Gospođa Nevenka", "role": "Kaštel Stari", "color": "#5A9A5A",
+      "id": "nevenka", "invoice": 0.5, "name": "Gospođa Nevenka", "role": "Kaštel Stari", "color": "#5A9A5A",
       "personality": "posten", "urgency": 0,
       "lines": {
         "counter": "Neka bude {price}. Samo da ga više ne gledan.",
@@ -110,7 +112,7 @@
         "walkAway": "Dobro, pričekat ću jesen.",
         "insulted": "Za granje?! Ma ajde.",
         "final": "{price}, Mate. Granje je granje.",
-        "payment": "Na ruke {cash}, ili {price} s računom?",
+        "payment": "Dobro, {price}. Platit ću ti kad dovezeš.", "invoiceYes": "Triba, molim te.", "invoiceNo": "Ne triba, evo ti.",
         "expired": "Ništa, Mate, brat će doć s traktorom.",
         "cancel": "Dobro, nek stoji još malo.",
         "thanks": "Vrt ko nov. Hvala, Mate.",
@@ -119,7 +121,7 @@
       }
     },
     {
-      "id": "luka", "name": "Luka", "role": "Student, seli se", "color": "#7A5AB0",
+      "id": "luka", "invoice": 0.9, "name": "Luka", "role": "Student, seli se", "color": "#7A5AB0",
       "personality": "zuri_se", "urgency": 1,
       "lines": {
         "counter": "Ajde {price}, ali pomozi nosit.",
@@ -128,7 +130,7 @@
         "walkAway": "Hvala, naći ću nekoga s prikolicom.",
         "insulted": "Ozbiljno? To mi je stanarina.",
         "final": "{price} je sve što imam.",
-        "payment": "Mogu na ruke {cash}, ili uplatom {price} pa mi pošalji račun.",
+        "payment": "Može {price}. Platim kad bude isporučeno.", "invoiceYes": "Triba, pošalji mi ga pa ti uplatim.", "invoiceNo": "Ovaj put ne triba, evo ti na ruke.",
         "expired": "Hvala, našao sam nekoga.",
         "cancel": "Ok… snaći ću se.",
         "thanks": "Sve na mjestu, čak i lampa. Hvala!",

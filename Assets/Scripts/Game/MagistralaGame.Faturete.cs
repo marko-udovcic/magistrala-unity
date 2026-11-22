@@ -12,8 +12,9 @@
 //            = fair × (character + 5 %·urgency + 5 %·Mate's standing) × 0.95–1.05, never above 130 % of fair; at most three of
 //            Mate's rounds, all prices end in 0 or 5; asking more than 150 % of his maximum insults him. Choices (≤ 4): accept his
 //            price · ask more (Mate's suggestions: fair, +10 %, +20 %) · "držim se svoga" (bluff on the last ask) · "Danas ne mogu".
-//   payment  once the price stands the customer says how: on hand ("na ruke", ~10 % less, cash wallet, no invoice) or through
-//            the trade ("preko obrta": full price on the trade account, an invoice into the folder "Za Ljubicu").
+//   payment  (Marko 22.11.) the price stands → Mate sets off; on delivery the customer pays the agreed price (less damage /
+//            lateness) and Mate asks "Triba li ti račun?": the customer's answer (FatCustomer.invoice = his chance of wanting one)
+//            decides — yes: the trade account + an invoice into the folder "Za Ljubicu"; no: cash straight into Mate's pocket.
 //   drive    accepted → the GPS leads to the Galeb if Mate is in the Atego, then to the pickup (E – load, a timer), then to the
 //            drop (E – unload) → the payout card (MagistralaGame.Payout.cs): the agreed price, less cargo damage and missing the
 //            customer's window; the customer's thanks (or complaint) arrives as a message.
@@ -33,9 +34,9 @@ namespace Magistrala.Game
     public partial class MagistralaGame
     {
         [Serializable] class FatData { public FatMate mate; public FatCustomer[] customers; public FatJob[] jobs; }
-        [Serializable] class FatMate { public string acceptOffer, ask, firm, acceptCounter, decline, cash, invoice; }
-        [Serializable] class FatCustomer { public string id, name, role, color, personality; public int urgency; public FatLines lines; }
-        [Serializable] class FatLines { public string counter, giveIn, agree, walkAway, insulted, final, payment, expired, cancel, thanks, thanksBad, phone; }
+        [Serializable] class FatMate { public string acceptOffer, ask, firm, acceptCounter, decline, cash, invoice, go, invoiceAsk; }
+        [Serializable] class FatCustomer { public string id, name, role, color, personality; public int urgency; public float invoice = 0.5f; public FatLines lines; }
+        [Serializable] class FatLines { public string counter, giveIn, agree, walkAway, insulted, final, payment, expired, cancel, thanks, thanksBad, phone, invoiceYes, invoiceNo; }
         [Serializable] class FatJob { public string id, customer, cargo, what, from, to, days, text; public float kg, fair, open, max, loadSec = 15, unloadSec = 15; public int cooldown = 7; }
 
         /// one offer of the day and its haggling state (saved)
@@ -292,11 +293,11 @@ namespace Magistrala.Game
 
         PhoneStep PayStep(FatOffer o, FatJob j, FatCustomer c, string line)
         {
-            float price = o.price, cash = Mathf.Max(5, Round5(price * 0.9f)); if (cash >= price) cash = Mathf.Max(5, price - 5);
+            // how he pays is asked on delivery (FaturetaPayMode), not here
+            float price = o.price;
             var st = new PhoneStep { sub = $"{j.what} · dogovoreno {E0(price)}" };
-            var lines = new List<string>(); if (!string.IsNullOrEmpty(line)) lines.Add(line); lines.Add(Fill(c.lines.payment, o.offer, price, cash)); st.lines = lines.ToArray();
-            st.choices.Add(new PhoneChoice { label = Fill(fat.mate.cash, price: price, cash: cash), act = () => Accepted(o, j, c, cash, "ruke") });
-            st.choices.Add(new PhoneChoice { label = Fill(fat.mate.invoice, price: price, cash: cash), act = () => Accepted(o, j, c, price, "racun") });
+            var lines = new List<string>(); if (!string.IsNullOrEmpty(line)) lines.Add(line); lines.Add(Fill(c.lines.payment, o.offer, price)); st.lines = lines.ToArray();
+            st.choices.Add(new PhoneChoice { label = Fill(fat.mate.go, price: price), act = () => Accepted(o, j, c, price, "pitaj") });
             return st;
         }
 
@@ -313,7 +314,7 @@ namespace Magistrala.Game
                 loadSec = j.loadSec, unloadSec = j.unloadSec, startMin = S.clockMin, deadlineMin = Mathf.Max(60, o.windowEnd - S.clockMin),
             };
             job.legs.Add(new Leg { stop = j.from, kind = "u" }); job.legs.Add(new Leg { stop = j.to, kind = "d" });
-            Debug.Log($"[fatureta] accepted {j.id}: {price:0} € {(mode == "ruke" ? "na ruke" : "preko obrta (račun)")}, {World.Stop(j.from).name} → {World.Stop(j.to).name}, by {Hm(o.windowEnd)}; standing {S.fatRep:0.00}");
+            Debug.Log($"[fatureta] accepted {j.id}: {price:0} € {(mode == "ruke" ? "na ruke" : mode == "racun" ? "preko obrta (račun)" : "račun se pita na isporuci")}, {World.Stop(j.from).name} → {World.Stop(j.to).name}, by {Hm(o.windowEnd)}; standing {S.fatRep:0.00}");
             if (Current == null) StartFatureta(job);
             else { S.fatQueue.Add(job); Banner($"Fatureta dogovorena: {j.what}. Kad završiš ovo, GPS vodi dalje."); SaveNow("fatureta queued"); }
         }
@@ -338,8 +339,18 @@ namespace Magistrala.Game
 
         // ------------------------------------------------------------------ delivery, cancel
         /// Deliver(): the agreed price (less damage / lateness) into the cash wallet or the trade account (+ an invoice)
+        /// on delivery Mate asks "Triba li ti račun?" — the customer's answer (his FatCustomer.invoice chance) sets j.payMode once
+        void FaturetaPayMode(Job j)
+        {
+            if (j.payMode == "racun" || j.payMode == "ruke") return; // decided (or an old save's choice at the deal)
+            var c = FCust(j.customer);
+            j.payMode = UnityEngine.Random.value < (c != null ? c.invoice : 0.5f) ? "racun" : "ruke";
+            Debug.Log($"[fatureta] {j.fatId}: račun? → {(j.payMode == "racun" ? "triba" : "ne triba")}");
+        }
+
         void FaturetaPaid(Job j, Payout p)
         {
+            FaturetaPayMode(j);
             if (j.payMode == "racun") { S.account += p.total; S.invoices.Add($"{Day}|{Hm(S.clockMin)}|{Who(j.customer)}|{p.total:0.0}"); }
             else S.cash += p.total;
             S.fatDone++;
@@ -353,7 +364,10 @@ namespace Magistrala.Game
         public string FaturetaQuip(Job j, Payout p)
         {
             var c = FCust(j.customer); if (c == null) return "";
-            return !p.late && j.cargoDamage <= 10 ? c.lines.thanks : c.lines.thanksBad;
+            FaturetaPayMode(j);
+            string ans = j.payMode == "racun" ? c.lines.invoiceYes : c.lines.invoiceNo;
+            if (string.IsNullOrEmpty(ans)) return !p.late && j.cargoDamage <= 10 ? c.lines.thanks : c.lines.thanksBad;
+            return $"{fat.mate.invoiceAsk}“ – „{ans}";
         }
 
         void FaturetaCancelled(Job j)
