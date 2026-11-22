@@ -257,6 +257,7 @@ namespace Magistrala.EditorTools
             if (!mesh) { mesh = new Mesh { name = "detail_" + id }; AssetDatabase.CreateAsset(mesh, mp); }
             mesh.Clear(); mesh.indexFormat = IndexFormat.UInt32; mesh.CombineMeshes(combine.ToArray(), false, true); mesh.RecalculateBounds();
             if (id == "stone") Pebble(mesh); // 8–22 cm pebbles: the 748-triangle rock_a was ~40 % of all detail triangles
+            if (id == "stone") mats = new List<Material> { PebbleMaterial() };
             EditorUtility.SetDirty(mesh); AssetDatabase.SaveAssets();
             var go = new GameObject("detail_" + id); go.AddComponent<MeshFilter>().sharedMesh = mesh; go.AddComponent<MeshRenderer>().sharedMaterials = mats.ToArray();
             if (!shadows) go.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off; // small details: no shadow-map cost
@@ -265,8 +266,27 @@ namespace Magistrala.EditorTools
             return pf;
         }
 
-        /// the mesh replaced in place by a lumpy once-subdivided icosahedron (80 triangles) of the same bounds, spherical UVs on the
-        /// same material: terrain detail pebbles are 8–22 cm and drawn up to 140 m (with instance-count scatter, 22. 11., ~600 k
+        static Material PebbleMaterial()
+        {
+            var src = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/Plants/rock_a.glb")
+                .GetComponentInChildren<MeshRenderer>().sharedMaterial;
+            var m = Mat("DetailPebble", "Universal Render Pipeline/Lit");
+            if (!m) throw new InvalidOperationException("URP Lit shader missing for terrain pebbles");
+            // Keep the rock's albedo, but not its normal map on the replacement spherical UVs.
+            // Tiny details need no specular lobes or probe reflections; URP Lit ignores global _Wetness.
+            m.SetTexture("_BaseMap", src.HasProperty("baseColorTexture") ? src.GetTexture("baseColorTexture") : src.mainTexture);
+            m.SetColor("_BaseColor", src.HasProperty("baseColorFactor") ? src.GetColor("baseColorFactor") : src.color);
+            m.SetFloat("_Metallic", 0); m.SetFloat("_Smoothness", .08f);
+            m.SetTexture("_BumpMap", null); m.DisableKeyword("_NORMALMAP");
+            m.SetFloat("_SpecularHighlights", 0); m.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            m.SetFloat("_EnvironmentReflections", 0); m.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+            m.SetColor("_EmissionColor", Color.black); m.DisableKeyword("_EMISSION");
+            EditorUtility.SetDirty(m);
+            return m;
+        }
+
+        /// the mesh replaced in place by a lumpy once-subdivided icosahedron (80 triangles) of the same bounds, spherical UVs on a
+        /// matte detail material: terrain detail pebbles are 8–22 cm and drawn up to 140 m (with instance-count scatter, 22. 11., ~600 k
         /// of them over Kaštela), where the 748-triangle rock_a cost ~0.8 M triangles per pass for a few pixels each
         static void Pebble(Mesh mesh)
         {
@@ -294,7 +314,7 @@ namespace Magistrala.EditorTools
             mesh.RecalculateNormals(); mesh.RecalculateTangents(); mesh.RecalculateBounds();
         }
 
-        /// only the pebble mesh (no rescatter): the terrains keep their layers, the detail_stone mesh asset becomes Pebble
+        /// repair the pebble mesh and material (no rescatter): the terrains keep their layers
         [MenuItem("Magistrala/Grafika: lagani kamenčići (detalji terena)")]
         public static string LightPebbles()
         {
@@ -304,8 +324,18 @@ namespace Magistrala.EditorTools
             int before = mesh.triangles.Length / 3;
             if (before > 100)
             { Pebble(mesh); EditorUtility.SetDirty(mesh); AssetDatabase.SaveAssets(); }
+            // Also repair already simplified pebbles, without scattering details or changing other rocks.
+            string pp = GEN + "/Plants/detail_stone.prefab";
+            var go = PrefabUtility.LoadPrefabContents(pp);
+            try
+            {
+                go.GetComponent<MeshRenderer>().sharedMaterials = new[] { PebbleMaterial() };
+                PrefabUtility.SaveAsPrefabAsset(go, pp);
+                AssetDatabase.SaveAssets();
+            }
+            finally { PrefabUtility.UnloadPrefabContents(go); }
             int n = 0; foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None)) if (t.terrainData.detailPrototypes.Length > 0) { t.terrainData.RefreshPrototypes(); n++; }
-            var msg = $"[Magistrala] detail pebbles: {before} -> {mesh.triangles.Length / 3} triangles ({n} terrains)"; Debug.Log(msg); return msg;
+            var msg = $"[Magistrala] detail pebbles: {before} -> {mesh.triangles.Length / 3} triangles, matte material ({n} terrains)"; Debug.Log(msg); return msg;
         }
 
         [MenuItem("Magistrala/Grafika: detalji terena")]
