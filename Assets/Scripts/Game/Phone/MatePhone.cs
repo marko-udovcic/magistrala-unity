@@ -466,7 +466,20 @@ namespace Magistrala.Game.Phone
             "„Compact Hatchback” — RCC Design.\n" +
             "„Executive Sedan” — RCC Design.\n" +
             "„European Delivery Van” — Evan Hiltz.\n" +
-            "„Mercedes Benz Sprinter 2006” — Max (Max-7215); policijska izvedba i svjetla na krovu naši.";
+            "„Mercedes Benz Sprinter 2006” — Max (Max-7215); policijska izvedba i svjetla na krovu naši.\n" +
+            AboutPage +
+            "Prometni auti (nastavak), Sketchfab, CC BY 4.0, izmijenjeni:\n" +
+            "„Asti Stradale '89 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Milano '95 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Olympic '95 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Tozzo '98 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Sigil '07 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Compact '07 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Kiri '10 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Urban '10 - Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Ace '11 - Low Poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„LCT 3000 '07- Low poly model” — Daniel Zhabotinsky (DanielZhabotinsky).\n" +
+            "„Volkswagen Golf IV” — Fratzica (vasilebetivu62).";
         /// AboutText is shown in pages (the phone screen is short): the marker splits them
         const string AboutPage = "\f";
         int aboutPage;

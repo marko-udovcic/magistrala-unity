@@ -35,6 +35,17 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
 - **"Compact Hatchback"** — RCC Design — https://sketchfab.com/3d-models/compact-hatchback-abbd4e65bbf1475b866d84735088b8ff — CC BY 4.0. U igri „rcc_hatch”.
 - **"Executive Sedan"** — RCC Design — https://sketchfab.com/3d-models/executive-sedan-eadf0e3171d74e4999e37898f95578c8 — CC BY 4.0. U igri „rcc_sedan”.
 - **"European Delivery Van"** — Evan Hiltz — https://sketchfab.com/3d-models/european-delivery-van-0b2f1ad95a79419f9a092420024d329c — CC BY 4.0. U igri „kombi_tn”.
+- **"Asti Stradale '89 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/asti-stradale-89-low-poly-model-97b15b067111443ebe05840137b49c65 — CC BY 4.0. U igri „dz_asti_89”.
+- **"Milano '95 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/milano-95-low-poly-model-122a22d210234596ad23623588d0d166 — CC BY 4.0. U igri „dz_milano_95”.
+- **"Olympic '95 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/olympic-95-low-poly-model-4809a093a0f341409757298a9e7e0003 — CC BY 4.0. U igri „dz_olympic_95”.
+- **"Tozzo '98 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/tozzo-98-low-poly-model-d43bb748da364af2b3f0a9348365f0fb — CC BY 4.0. U igri „dz_tozzo_98”.
+- **"Sigil '07 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/sigil-07-low-poly-model-22abe5284d4c4b55920b8462eb24a8c1 — CC BY 4.0. U igri „dz_sigil_07”.
+- **"Compact '07 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/compact-07-low-poly-model-25c6874d173a4f6ca63e150bbd505686 — CC BY 4.0. U igri „dz_compact_07”.
+- **"Kiri '10 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/kiri-10-low-poly-model-7fd6e15785fa4aa9bfd6e31eb7c97ba6 — CC BY 4.0. U igri „dz_kiri_10”.
+- **"Urban '10 - Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/urban-10-low-poly-model-2866efdfa943484391ef8313768e074d — CC BY 4.0. U igri „dz_urban_10”.
+- **"Ace '11 - Low Poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/ace-11-low-poly-model-055ff8a21b8d4d279debca089e2fafcd — CC BY 4.0. U igri „dz_ace_11”.
+- **"LCT 3000 '07- Low poly model"** — Daniel Zhabotinsky (DanielZhabotinsky) — https://sketchfab.com/3d-models/lct-3000-07-low-poly-model-3be03b6a43aa41898c9ca806b8787052 — CC BY 4.0. U igri „dz_lct3000_07”.
+- **"Volkswagen Golf IV"** — Fratzica (vasilebetivu62) — https://sketchfab.com/3d-models/volkswagen-golf-iv-3e40ac80ec044394999715a18e2dbe33 — CC BY 4.0. U igri „vw_golf_4”.
 - **"Mercedes Benz Sprinter 2006"** — Max (Max-7215; u metapodacima Max-5532) — https://sketchfab.com/3d-models/mercedes-benz-sprinter-2006-f69de1315bb049c8946d57f6006acd73 — CC BY 4.0.
   U igri „sprinter” (civilni) i „sprinter_policija” (naša policijska grafika POLICIJA s logom igre, svjetla na krovu naša; razdvojen UV).
   **Izmijenjeno (svi gore):** uklonjeni amblemi, natpisi i oznake proizvođača (geometrija i teksture: priprema

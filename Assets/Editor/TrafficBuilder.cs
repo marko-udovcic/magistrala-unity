@@ -103,8 +103,8 @@ namespace Magistrala.EditorTools
         }
 
         static readonly bool OLD_KINDS = false;
-        // old kinds kept while OLD_KINDS is false: the bus and the box truck (no new model for them yet; Marko decides)
-        static readonly string[] KEEP_OLD = { "coach", "boxtruck" };
+        // old kinds kept while OLD_KINDS is false: the bus (no new model yet; the box truck is replaced by dz_lct3000_07)
+        static readonly string[] KEEP_OLD = { "coach" };
         static Palette pal;
         static TrafficKind[] Kinds()
         {
@@ -112,7 +112,7 @@ namespace Magistrala.EditorTools
             pal = new Palette();
             var list = new List<TrafficKind>();
             // Marko 2026-11-22: only the downloaded candidates drive / park ("ove lose izbacit sve"); the web kinds (golub … van, kombi)
-            // and the old Tripo police / ambulance stay in the project, back with OLD_KINDS = true (bus + box truck: KEEP_OLD)
+            // and the old Tripo police / ambulance stay in the project, back with OLD_KINDS = true (the bus: KEEP_OLD)
             foreach (var k in OLD_KINDS ? KINDS : KINDS.Where(k => KEEP_OLD.Contains(k.name)).ToArray())
             {
                 var p0 = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Models/Vehicles/Traffic/{k.name}.glb");

@@ -28,6 +28,8 @@ namespace Magistrala.EditorTools
             { "04", ("Yugo 45", 3.49f) }, { "05", ("Golf 2", 3.99f) }, { "06", ("Compact Hatchback (RCC)", 4.0f) },
             { "07", ("Executive Sedan (RCC)", 4.74f) }, { "08", ("Dostavni kombi TN", 5.0f) },
             { "09", ("Mercedes Sprinter", 5.9f) }, { "10", ("VW Passat B5.5", 4.70f) },
+            // tura 2 (22.11.): labels / lengths as in auti-kandidati.json
+            { "11", ("Asti Stradale 89", 3.9f) }, { "12", ("Milano 95", 3.85f) }, { "13", ("Olympic 95", 4.22f) }, { "14", ("Tozzo 98", 4.4f) }, { "15", ("Sigil 07", 4.33f) }, { "16", ("Compact 07", 2.7f) }, { "17", ("Kiri 10", 4.36f) }, { "18", ("Urban 10", 4.3f) }, { "19", ("Ace 11", 3.85f) }, { "20", ("LCT3000 07", 5.86f) }, { "21", ("Golf IV", 4.15f) },
         };
 
         [MenuItem("Magistrala/Auti: parking kandidata")]

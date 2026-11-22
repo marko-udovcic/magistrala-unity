@@ -1651,6 +1651,1348 @@
           ]
         }
       ]
+    },
+    {
+      "kind": "dz_asti_89",
+      "glb": "11_dz_asti_89.glb",
+      "label": "Asti Stradale 89",
+      "source": "Asti Stradale '89 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/asti-stradale-89-low-poly-model-97b15b067111443ebe05840137b49c65 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/11_dz_asti_89",
+      "length": 3.9,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "APGRPA89_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "UCB_BOTTOM",
+          "role": "trim",
+          "size": 2048
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 3,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 1,
+      "paintMode": "all",
+      "plateRearY": 0.745,
+      "plateFrontY": 0.42
+    },
+    {
+      "kind": "dz_milano_95",
+      "glb": "12_dz_milano_95.glb",
+      "label": "Milano 95",
+      "source": "Milano '95 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/milano-95-low-poly-model-122a22d210234596ad23623588d0d166 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/12_dz_milano_95",
+      "length": 3.85,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Milano95_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "UCB_BOTTOM",
+          "role": "trim",
+          "size": 2048
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 7,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 1,
+      "paintMode": "all",
+      "plateFrontY": 0.397,
+      "plateRearY": 0.755
+    },
+    {
+      "kind": "dz_olympic_95",
+      "glb": "13_dz_olympic_95.glb",
+      "label": "Olympic 95",
+      "source": "Olympic '95 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/olympic-95-low-poly-model-4809a093a0f341409757298a9e7e0003 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/13_dz_olympic_95",
+      "length": 4.22,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Olimpic95_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "UCB_BOTTOM",
+          "role": "trim",
+          "size": 2048
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 4,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 1,
+      "paintMode": "all",
+      "plateFrontY": 0.345,
+      "plateRearY": 0.434
+    },
+    {
+      "kind": "dz_tozzo_98",
+      "glb": "14_dz_tozzo_98.glb",
+      "label": "Tozzo 98",
+      "source": "Tozzo '98 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/tozzo-98-low-poly-model-d43bb748da364af2b3f0a9348365f0fb - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/14_dz_tozzo_98",
+      "length": 4.4,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Tozzo98_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UCB_BOTTOM_LT",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 4,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 1,
+      "paintMode": "all",
+      "plateFrontY": 0.346,
+      "plateRearY": 0.743
+    },
+    {
+      "kind": "dz_sigil_07",
+      "glb": "15_dz_sigil_07.glb",
+      "label": "Sigil 07",
+      "source": "Sigil '07 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/sigil-07-low-poly-model-22abe5284d4c4b55920b8462eb24a8c1 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/15_dz_sigil_07",
+      "length": 4.33,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Cowagon08_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "UCB_BOTTOM_LT",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 9,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "plateFrontY": 0.358,
+      "plateRearY": 0.719
+    },
+    {
+      "kind": "dz_compact_07",
+      "glb": "16_dz_compact_07.glb",
+      "label": "Compact 07",
+      "source": "Compact '07 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/compact-07-low-poly-model-25c6874d173a4f6ca63e150bbd505686 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/16_dz_compact_07",
+      "length": 2.7,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Comp07_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UCB_BOTTOM_LT",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 1,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "plateFrontY": 0.315,
+      "plateRearY": 0.828
+    },
+    {
+      "kind": "dz_kiri_10",
+      "glb": "17_dz_kiri_10.glb",
+      "label": "Kiri 10",
+      "source": "Kiri '10 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/kiri-10-low-poly-model-7fd6e15785fa4aa9bfd6e31eb7c97ba6 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/17_dz_kiri_10",
+      "length": 4.36,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Kiri10_bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UCB_BOTTOM_LT",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 8,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "plateFrontY": 0.378,
+      "plateRearY": 0.574
+    },
+    {
+      "kind": "dz_urban_10",
+      "glb": "18_dz_urban_10.glb",
+      "label": "Urban 10",
+      "source": "Urban '10 - Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/urban-10-low-poly-model-2866efdfa943484391ef8313768e074d - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/18_dz_urban_10",
+      "length": 4.3,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "Urban10_bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "UCB_BOTTOM_LT",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 7,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "plateFrontY": 0.456,
+      "plateRearY": 0.788
+    },
+    {
+      "kind": "dz_ace_11",
+      "glb": "19_dz_ace_11.glb",
+      "label": "Ace 11",
+      "source": "Ace '11 - Low Poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/ace-11-low-poly-model-055ff8a21b8d4d279debca089e2fafcd - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/19_dz_ace_11",
+      "length": 3.85,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Ace11_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "UCB_BOTTOM_LT",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 10,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "plateFrontY": 0.41,
+      "plateRearY": 0.743
+    },
+    {
+      "kind": "dz_lct3000_07",
+      "glb": "20_dz_lct3000_07.glb",
+      "label": "LCT3000 07",
+      "source": "LCT 3000 '07- Low poly model - Daniel Zhabotinsky (DanielZhabotinsky) - https://sketchfab.com/3d-models/lct-3000-07-low-poly-model-3be03b6a43aa41898c9ca806b8787052 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/20_dz_lct3000_07",
+      "length": 5.86,
+      "up": "y",
+      "front": "-",
+      "parkFront": "-",
+      "glassNode": "(?i)^(?!.*(headlight|taillight|rearlight)).*(windshield|_glass_(body|driver|passenger|passanger|rear)|_(body|rear|trunkdoor)_glass_|_glass_UCB)",
+      "materials": [
+        {
+          "name": "UCB_Lights_and_Glass_Transperent_svjetla",
+          "role": "cover",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass_Transperent",
+          "role": "glass",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Lights_and_Glass",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Numberplates_Misk_U",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "LCT13_07_Bodymat",
+          "role": "body",
+          "size": 2048,
+          "smoothMax": 0.75
+        },
+        {
+          "name": "Carbadges_misc_U",
+          "role": "hide",
+          "size": 2048
+        },
+        {
+          "name": "UCB_Interiors_2",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "RB1c_Tire_1k",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "UCB_BOTTOM",
+          "role": "trim",
+          "size": 2048
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [
+        {
+          "path": "(?i)(headlights?_glass|taillights_glass|rearlights_glass)",
+          "suffix": "svjetla"
+        }
+      ],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "UCB_Lights_and_Glass",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 4,
+      "vMul": 0.88,
+      "a": 1.0,
+      "b": 2.8,
+      "T": 1.7,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "all",
+      "plateFrontY": 0.438,
+      "plateRearY": 0.593
+    },
+    {
+      "kind": "vw_golf_4",
+      "glb": "21_vw_golf_4.glb",
+      "label": "Golf IV",
+      "source": "Volkswagen Golf IV - Fratzica (vasilebetivu62) - https://sketchfab.com/3d-models/volkswagen-golf-iv-3e40ac80ec044394999715a18e2dbe33 - CC BY 4.0",
+      "codex": "../BalkanDriver/assets-src/auti-kandidati/21_vw_golf_4",
+      "length": 4.15,
+      "up": "y",
+      "front": "+",
+      "parkFront": "+",
+      "glassNode": "(?!)",
+      "materials": [
+        {
+          "name": "Extra20121Mtl",
+          "role": "hide",
+          "size": 1024
+        },
+        {
+          "name": "Extra20091Mtl",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Extra20111Mtl",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Extra20041Mtl",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Extra20071Mtl",
+          "role": "body",
+          "size": 1024
+        },
+        {
+          "name": "Extra20081Mtl",
+          "role": "interior",
+          "size": 1024
+        },
+        {
+          "name": "Extra20161Mtl",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Extra20171Mtl",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Extra20131Mtl",
+          "role": "trim",
+          "size": 1024
+        },
+        {
+          "name": "Extra20051Mtl",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Extra21Mtl",
+          "role": "glass",
+          "size": 1024
+        },
+        {
+          "name": "Extra20141Mtl",
+          "role": "trim",
+          "size": 1024
+        }
+      ],
+      "strip": [],
+      "probe": [],
+      "nodeMats": [],
+      "lamps": [
+        {
+          "type": "tail",
+          "mat": "Extra20141Mtl",
+          "color": "red",
+          "end": "rear",
+          "depth": 0.22
+        },
+        {
+          "type": "head",
+          "mat": "Extra20091Mtl",
+          "color": "light",
+          "end": "front",
+          "depth": 0.18
+        },
+        {
+          "type": "ind",
+          "mat": "Extra20111Mtl",
+          "color": "amber",
+          "end": "front",
+          "depth": 0.18
+        }
+      ],
+      "colors": [
+        "#c0c2c4",
+        "#eeeeea",
+        "#202328",
+        "#273b56",
+        "#75272b",
+        "#385044"
+      ],
+      "colorWeights": [
+        28,
+        22,
+        20,
+        12,
+        10,
+        8
+      ],
+      "weight": 12,
+      "vMul": 1.0,
+      "a": 1.6,
+      "b": 3.2,
+      "T": 1.4,
+      "lod0": 30000,
+      "lod1": 12000,
+      "lod2": 4000,
+      "far": 700,
+      "interiorLod0": 0.4,
+      "plateStyle": 0,
+      "paintMode": "light",
+      "paintSatMax": 0.3,
+      "paintVMin": 0.22,
+      "plateFrontY": 0.427,
+      "plateRearY": 0.455
     }
   ]
 }
