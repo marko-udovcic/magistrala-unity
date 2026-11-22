@@ -579,7 +579,7 @@ namespace Magistrala.Game
 
         // ------------------------------------------------------------------ the overlay (IMGUI)
         static readonly (float m, string t)[] Bars = { (20, "20 m"), (50, "50 m"), (100, "100 m"), (200, "200 m"), (500, "500 m"), (1000, "1 km"), (2000, "2 km"), (5000, "5 km") };
-        const string Hints = "WASD / strelice pomak · miš povuci · kotačić / + − zoom · Enter / klik oznaka (opet: makni) · Tab stil · M / Esc zatvori";
+        const string Hints = "W gore · S dolje · A lijevo · D desno · kotačić zoom · Enter zakači / otkači · Tab stil · M zatvori";
 
         void OnGUI()
         {

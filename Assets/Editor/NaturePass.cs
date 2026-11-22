@@ -375,6 +375,7 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Priroda: postavi")]
         public static string Place()
         {
+            MainScene.Ensure();
             var root = WorldBuilder.Root("Nature");
             if (!On) return "[priroda] no package";
             var log = new System.Text.StringBuilder("[priroda] ");
