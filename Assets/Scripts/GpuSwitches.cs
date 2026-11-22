@@ -185,7 +185,7 @@ namespace Magistrala
         System.Collections.IEnumerator Tp(float[] gx)
         {
             yield return new WaitForSeconds(1f);
-            var ap = FindFirstObjectByType<Autopilot>();
+            var ap = Magistrala.Game.MagistralaGame.DrivenTruck()?.GetComponent<Autopilot>();
             if (ap && TryF("-cor", out var cf))
             {
                 var ts = FindFirstObjectByType<Magistrala.Traffic.TrafficSystem>(); int ci = (int)cf;
@@ -213,7 +213,7 @@ namespace Magistrala
                     var dense = new System.Collections.Generic.List<Vector3>();
                     for (int i = 0; i + 1 < pts.Count; i++) { int n = Mathf.Max(1, Mathf.CeilToInt(Vector3.Distance(pts[i], pts[i + 1]) / 2)); for (int k = 0; k < n; k++) dense.Add(Vector3.Lerp(pts[i], pts[i + 1], k / (float)n)); }
                     dense.Add(pts[pts.Count - 1]);
-                    var tr = FindFirstObjectByType<TruckController>(); var rb = tr ? tr.GetComponent<Rigidbody>() : null;
+                    var tr = Magistrala.Game.MagistralaGame.DrivenTruck(); var rb = tr ? tr.GetComponent<Rigidbody>() : null;
                     if (tr) { var d = dense[1] - dense[0]; d.y = 0; var p0 = dense[0] + Vector3.up * 1.1f; tr.transform.SetPositionAndRotation(p0, Quaternion.LookRotation(d)); if (rb) { rb.position = p0; rb.rotation = tr.transform.rotation; rb.linearVelocity = Vector3.zero; } }
                     ap.UsePath(dense.ToArray()); if (TryF("-apkmh", out var kmh)) ap.cruiseKmh = kmh; ap.drive = true;
                     Debug.Log($"[gpu] appath {pts.Count} points, {dense.Count} samples");
@@ -224,7 +224,7 @@ namespace Magistrala
                 foreach (var t in xz.Split(';'))
                 {
                     var v = System.Array.ConvertAll(t.Split(','), q => float.Parse(q, System.Globalization.CultureInfo.InvariantCulture));
-                    var tr = FindFirstObjectByType<TruckController>();
+                    var tr = Magistrala.Game.MagistralaGame.DrivenTruck();
                     if (tr)
                     {
                         var u = new Vector3(v[0] + 4200, 300, -(v[1] + 5300));
@@ -267,7 +267,7 @@ namespace Magistrala
                 return;
             }
             if (camHigh <= 0 || !Camera.main) return;
-            var tr = FindFirstObjectByType<TruckController>(); if (!tr) return;
+            var tr = Magistrala.Game.MagistralaGame.DrivenTruck(); if (!tr) return;
             var chase = Camera.main.GetComponent<TruckChaseCamera>(); if (chase) chase.enabled = false;
             var f = tr.transform.forward; f.y = 0; f.Normalize();
             Camera.main.transform.position = tr.transform.position + Vector3.up * camHigh - f * camHigh * 1.2f;
@@ -280,7 +280,7 @@ namespace Magistrala
             {
                 if (shotsI < shots.Length && Time.realtimeSinceStartup - t0 > shots[shotsI])
                 {
-                    var tr = FindFirstObjectByType<TruckController>();
+                    var tr = Magistrala.Game.MagistralaGame.DrivenTruck();
                     string f = shot.Replace(".png", $"_t{shots[shotsI]:000}.png"); ScreenCapture.CaptureScreenshot(f);
                     Debug.Log($"[gpu] shot {f} truck x={(tr ? tr.transform.position.x - 4200 : 0):F0} z={(tr ? -tr.transform.position.z - 5300 : 0):F0}"); shotsI++;
                 }

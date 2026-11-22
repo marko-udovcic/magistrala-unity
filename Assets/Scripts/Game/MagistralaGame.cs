@@ -55,6 +55,9 @@ namespace Magistrala.Game
         [System.Serializable] public class Leg { public string stop, kind = "d"; public int rows = -1; public char K => string.IsNullOrEmpty(kind) ? 'd' : kind[0]; }
 
         public static MagistralaGame I { get; private set; }
+        /// test switches (-appath, -tpxz, -autopilot, bench): the vehicle the player drives (Atego by default), not whichever
+        /// TruckController Unity finds first (that was the Galeb)
+        public static TruckController DrivenTruck() => I && I.Truck ? I.Truck : FindFirstObjectByType<TruckController>();
         public GameWorld World { get; private set; }
         public RoadRouter Router { get; private set; }
         public TruckController Truck { get; private set; }
