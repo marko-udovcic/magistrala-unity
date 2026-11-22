@@ -336,7 +336,7 @@ namespace Magistrala.Game
             if (card != null)
             {
                 cardT -= dt;
-                if (cardT <= 0 || (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))) card = null;
+                if (cardT <= 0 || (!KatoviTool.Active && kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))) card = null;
                 else help.Add("Enter zatvori");
             }
             // the other vehicle close by: E takes it (MagistralaGame.Vehicles.cs)
