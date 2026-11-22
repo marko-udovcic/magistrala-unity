@@ -90,10 +90,10 @@ public sealed class MirrorCams : MonoBehaviour
             var c = m.glass.TransformPoint(m.centerLocal);
             var nW = m.glass.TransformDirection(m.normalLocal).normalized;
             if (Vector3.Dot(eye - c, nW) < 0) nW = -nW;
-            m.quad.transform.SetPositionAndRotation(c + nW * 0.004f, Quaternion.LookRotation(-nW, tc.transform.up));
+            m.quad.transform.SetPositionAndRotation(c + nW * 0.004f, Quaternion.LookRotation(-nW, transform.up));
             // the reflected view; one mirror per frame (alternating) → each refreshes every 2nd frame
             var refl = Vector3.Reflect((c - eye).normalized, nW);
-            m.cam.transform.SetPositionAndRotation(c, Quaternion.LookRotation(refl, tc.transform.up));
+            m.cam.transform.SetPositionAndRotation(c, Quaternion.LookRotation(refl, transform.up));
             if (now) m.cam.Render(); else m.cam.enabled = (frame + i) % 2 == 0;
         }
         frame++;
