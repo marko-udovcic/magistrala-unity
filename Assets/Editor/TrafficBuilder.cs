@@ -102,13 +102,18 @@ namespace Magistrala.EditorTools
             return parts.ToArray();
         }
 
+        static readonly bool OLD_KINDS = false;
+        // old kinds kept while OLD_KINDS is false: the bus and the box truck (no new model for them yet; Marko decides)
+        static readonly string[] KEEP_OLD = { "coach", "boxtruck" };
         static Palette pal;
         static TrafficKind[] Kinds()
         {
             Dir(OUT + "/Materials");
             pal = new Palette();
             var list = new List<TrafficKind>();
-            foreach (var k in KINDS)
+            // Marko 2026-11-22: only the downloaded candidates drive / park ("ove lose izbacit sve"); the web kinds (golub … van, kombi)
+            // and the old Tripo police / ambulance stay in the project, back with OLD_KINDS = true (bus + box truck: KEEP_OLD)
+            foreach (var k in OLD_KINDS ? KINDS : KINDS.Where(k => KEEP_OLD.Contains(k.name)).ToArray())
             {
                 var p0 = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Models/Vehicles/Traffic/{k.name}.glb");
                 var p1 = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Models/Vehicles/Traffic/{k.name}_lod1.glb");
@@ -158,7 +163,7 @@ namespace Magistrala.EditorTools
                 list.Add(kd);
             }
             // the Tripo cars (Magistrala/Auti: uvezi Tripo modele): their own parts / LODs, far mesh colours onto the shared palette
-            list.AddRange(TripoCarImporter.TrafficKinds(c => pal.UV(c), (n, c, sm, e) => Urp(n, c, sm, e)));
+            if (OLD_KINDS) list.AddRange(TripoCarImporter.TrafficKinds(c => pal.UV(c), (n, c, sm, e) => Urp(n, c, sm, e)));
             // the downloaded candidates (Magistrala/Auti: uvezi kandidata, Assets/Editor/auti-kandidati.json)
             list.AddRange(KandidatImporter.TrafficKinds(c => pal.UV(c), (n, c, sm, e) => Urp(n, c, sm, e)));
             return list.ToArray();
