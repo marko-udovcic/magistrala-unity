@@ -174,6 +174,13 @@ namespace Magistrala.EditorTools
             var closed = new HashSet<long>();
             foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "road-closures.json")))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
 
+            // Same s11 producer correction as the GPS graph: do not place a works barrier on
+            // the short Lindlarska arm that continues openly towards the warehouse.
+            if (!closed.Contains(GameDataBuilder.LindlarskaArm) && es.TryGetValue(GameDataBuilder.LindlarskaArm, out var arm)
+                && es.TryGetValue(GameDataBuilder.LindlarskaContinuation, out var continuation)
+                && GameDataBuilder.IsWarehouseLink(arm.b, arm.name, arm.oneway, continuation.a, continuation.name, continuation.oneway, continuation.closedOwn))
+                arm.closedOwn = false;
+
             nodes = ns.Values.ToList(); var ids = new HashSet<long>(ns.Keys);
             edges = es.Values.Where(e => e.pts != null && e.pts.Count >= 2 && ids.Contains(e.a) && ids.Contains(e.b)).ToList();
             int fitted = 0; double fitMax = 0;

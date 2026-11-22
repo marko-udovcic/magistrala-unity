@@ -61,7 +61,25 @@ namespace Magistrala.EditorTools
             closed = new HashSet<long>();
             var cf = W.REGION + "road-closures.json";
             if (File.Exists(cf)) foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(cf)))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
+            RepairWarehouseLink(edges, closed);
             foreach (var e in edges.Values) if (e.closedOwn == true) closed.Add(e.id); else if (e.closedOwn == false) closed.Remove(e.id);
+        }
+
+        // s11 leaves its north Lindlarska arm closed even though the same override adds an open
+        // continuation to Bardejovska. This cuts the warehouse's direct link to Tuđmanova.
+        // Keep this correction scoped to that producer error; other closed model arms stay closed.
+        internal const long LindlarskaArm = -7000000096509, LindlarskaContinuation = -7000000096516;
+        internal static bool IsWarehouseLink(long armB, string armName, bool armOneway,
+            long continuationA, string continuationName, bool continuationOneway, bool? continuationClosed)
+            => armB == continuationA && armName == "Lindlarska ulica" && armName == continuationName
+                && !armOneway && !continuationOneway && continuationClosed != true;
+
+        static void RepairWarehouseLink(Dictionary<long, E> edges, HashSet<long> fileClosed)
+        {
+            if (!fileClosed.Contains(LindlarskaArm) && edges.TryGetValue(LindlarskaArm, out var arm)
+                && edges.TryGetValue(LindlarskaContinuation, out var continuation)
+                && IsWarehouseLink(arm.b, arm.name, arm.oneway, continuation.a, continuation.name, continuation.oneway, continuation.closedOwn))
+                arm.closedOwn = false;
         }
 
         [MenuItem("Magistrala/Igra: podaci (stajališta, graf cesta)")]
@@ -97,6 +115,7 @@ namespace Magistrala.EditorTools
             var cf = W.REGION + "road-closures.json";
             if (File.Exists(cf)) foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(cf)))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
             // (graphIndex.ts: an edge's own `closed` wins over the file — the models' closed arms, mag-11-20 c09's D8 to Trogir)
+            RepairWarehouseLink(edges, closed);
             foreach (var e in edges.Values) if (e.closedOwn == true) closed.Add(e.id); else if (e.closedOwn == false) closed.Remove(e.id);
 
             // ---- streets outside the models (OutsideStreets, the same network StreetsBuilder draws): new nodes / edges, graph edges
