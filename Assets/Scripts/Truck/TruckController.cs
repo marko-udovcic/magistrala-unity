@@ -116,7 +116,8 @@ public sealed class TruckController : MonoBehaviour
         CabinEyeLocal = transform.InverseTransformPoint(model.TransformPoint(spec.eyeModel));
         // cab interior: steering wheel and instrument needles (nodes steering / needle_speed / needle_rpm, if the model has them)
         var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
-        if (spec.id == "galeb") { rig.speedMax = 180f; rig.rpmMax = 5000f; }   // the Sprinter dials (kabina v2)
+        // the Galeb's old-van dial (kabina v3 round 2): one speedo 10…140 km/h over 270°, no tachometer
+        if (spec.id == "galeb") { rig.speedMin = 10f; rig.speedMax = 140f; rig.speedSweepDeg = 270f; }
         rig.Bind(this, model);
         // side mirrors that show the road behind in the cab view (nodes mglass_L / mglass_R)
         (GetComponent<MirrorCams>() ?? gameObject.AddComponent<MirrorCams>()).Bind(this, model);

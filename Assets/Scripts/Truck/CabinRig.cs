@@ -11,6 +11,8 @@ using UnityEngine;
 public sealed class CabinRig : MonoBehaviour
 {
     public float speedMax = 140f, rpmMax = 3500f, sweepDeg = 260f;
+    /// the speedo's first printed mark (the needle's rest; the Galeb's T1-style dial starts at 10) and its own sweep
+    public float speedMin = 0f, speedSweepDeg = 260f;
     /// road-wheel angle (rad) → steering-wheel angle (rad); ~0.6 rad full lock → ~9.4 rad (540°)
     public float steerRatio = 15f;
 
@@ -33,7 +35,7 @@ public sealed class CabinRig : MonoBehaviour
     {
         if (!tc) return;
         if (steering) steering.localRotation = steering0 * Quaternion.AngleAxis(Mathf.Clamp(tc.SteerAngle * steerRatio * Mathf.Rad2Deg, -560f, 560f), Vector3.forward);
-        if (needleSpeed) needleSpeed.localRotation = speed0 * Quaternion.AngleAxis(sweepDeg * Mathf.Clamp(tc.SpeedKmh / speedMax, 0f, 1.01f), Vector3.forward);
+        if (needleSpeed) needleSpeed.localRotation = speed0 * Quaternion.AngleAxis(speedSweepDeg * Mathf.Clamp((tc.SpeedKmh - speedMin) / (speedMax - speedMin), 0f, 1.01f), Vector3.forward);
         if (needleRpm) needleRpm.localRotation = rpm0 * Quaternion.AngleAxis(sweepDeg * Mathf.Clamp(tc.EngineRpm / rpmMax, 0f, 1.01f), Vector3.forward);
     }
 }
