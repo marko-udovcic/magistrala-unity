@@ -480,10 +480,8 @@ namespace Magistrala.EditorTools
         static List<MX> models;
         static List<double[]> Ring(object o) { var r = new List<double[]>(); foreach (var p in MiniJson.L(o)) { var q = MiniJson.L(p); r.Add(new[] { MiniJson.D(q[0]), MiniJson.D(q[1]) }); } return r; }
         static double[] V3(object o) { var q = MiniJson.L(o); return new[] { MiniJson.D(q[0]), MiniJson.D(q[1]), MiniJson.D(q[2]) }; }
-        static int armFixed; static double armFixMax;
         static void LoadModels()
         {
-            armFixed = 0; armFixMax = 0;
             var all = WorldData.Models(-1e9, 1e9).ToDictionary(m => m.key);
             models = new List<MX>();
             var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "model-junctions.json")));
@@ -496,16 +494,7 @@ namespace Magistrala.EditorTools
                 foreach (var ao in MiniJson.L(MiniJson.G(j, "arms")) ?? new List<object>())
                 {
                     var a = MiniJson.O(ao);
-                    var arm = new Arm { edge = (long)MiniJson.D(a["edge"]), outA = (string)a["outside"] == "a", cut = V3(a["cut"]), left = V3(a["left"]), right = V3(a["right"]) };
-                    // ceste-pregled 2: the arm corners' heights from the model's surface as loaded (the json corners can predate a re-export:
-                    // mag-23-11-v2 lifted 47's north arms and the link roads, the arm data kept the old height → a 1.2 m lip at 47 Zagorski put)
-                    foreach (var c in new[] { arm.left, arm.right, arm.cut })
-                    {
-                        double sy = double.NaN;
-                        for (int k = 0; k < 5 && double.IsNaN(sy); k++) { double fk = k * .25; sy = m.j.Surface(c[0] + (arm.cut[0] - c[0]) * fk * (c == arm.cut ? 0 : 1), c[2] + (arm.cut[2] - c[2]) * fk * (c == arm.cut ? 0 : 1)); }
-                        if (!double.IsNaN(sy) && Math.Abs(sy - c[1]) > .05 && Math.Abs(sy - c[1]) < 4) { armFixMax = Math.Max(armFixMax, Math.Abs(sy - c[1])); if (c != arm.cut) armFixed++; c[1] = sy; }
-                    }
-                    m.arms.Add(arm);
+                    m.arms.Add(new Arm { edge = (long)MiniJson.D(a["edge"]), outA = (string)a["outside"] == "a", cut = V3(a["cut"]), left = V3(a["left"]), right = V3(a["right"]) });
                 }
                 foreach (var oo in MiniJson.L(MiniJson.G(j, "outline")) ?? new List<object>())
                 {
@@ -623,7 +612,7 @@ namespace Magistrala.EditorTools
             endHeights = 0; endHeightMax = 0; var modelNodesAll = new HashSet<long>(models.SelectMany(m => m.nodes));
             foreach (var e in edges)
             {
-                if (e.outside || e.sp == null || e.pts.Count < 2 || e.L < 6) continue;
+                if (e.outside || e.sp == null || e.pts.Count < 2 || e.L < 30 || e.type == "ramp") continue;
                 foreach (bool atA in new[] { true, false })
                 {
                     long nid = atA ? e.a : e.b; if (!modelNodesAll.Contains(nid)) continue;
@@ -820,7 +809,7 @@ namespace Magistrala.EditorTools
         /// paving some metres further in lost that stretch to OwnedByModel: barrier on the model's stub, grass, then our street 5–15 m
         /// later (05 Suvača, s06, 04, 53, 54, c05, c08). Such an approach — owned ground from where the street enters it until the centre
         /// line first reaches the model's paving, ≤ 40 m — is drawn and dropped only on the paving itself (+ 2 m under it).
-        static int approaches;
+        static int approaches, approachSkipped;
         static List<(double a, double b)> Approach(int ei)
         {
             var e = edges[ei]; var r = new List<(double, double)>(); double L = e.L; int N = (int)Math.Ceiling(L);
@@ -841,6 +830,48 @@ namespace Magistrala.EditorTools
                     var pc = PointAt(ei, s1); double sy = double.NaN;
                     foreach (var m in models) { sy = m.j.Surface(pc.x, pc.z); if (!double.IsNaN(sy)) break; }
                     double dy = double.IsNaN(sy) ? 0 : sy - pc.y;
+                    // round 2b: not where it made a new step — ramps (04), short connector edges (02 Fulgencija Careva, 22 m), and where
+                    // the model's paving across our width is not level with its centre (45 Marina Studina: a 0.7 m seam at the T)
+                    if (e.type == "ramp" || L < 30) { approachSkipped++; continue; }
+                    double hwE = e.sp.halfWidth, cross = 0;
+                    foreach (int sg in new[] { -1, 1 })
+                    {
+                        double ex = pc.x - pc.tz * hwE * sg, ez = pc.z + pc.tx * hwE * sg, ey = double.NaN;
+                        foreach (var m in models) { ey = m.j.Surface(ex, ez); if (!double.IsNaN(ey)) break; }
+                        if (!double.IsNaN(ey) && !double.IsNaN(sy)) cross = Math.Max(cross, Math.Abs(ey - sy));
+                    }
+                    if (cross > .3) { approachSkipped++; continue; }
+                    // … nor a short (< 8 m) T onto a model road running across ours (45 Marina Studina × Žanića: our verge dropped beside its carriageway,
+                    // a 0.7 m seam); longer approaches stay (d21 Kafana Kaštela 2, 15 m) as do stubs carrying our street on (05 Suvača)
+                    {
+                        double bd = 1e9, mdx = 0, mdz = 0;
+                        foreach (var m in models)
+                            foreach (var mr in m.j.roads)
+                            {
+                                if (mr.lvl != 0) continue;
+                                for (int k = 0; k + 1 < mr.p.Count; k++)
+                                {
+                                    double ax = mr.p[k][0], az = mr.p[k][1], bx = mr.p[k + 1][0] - ax, bz = mr.p[k + 1][1] - az, l2 = bx * bx + bz * bz; if (l2 < 1e-6) continue;
+                                    double tt = Math.Max(0, Math.Min(1, ((pc.x - ax) * bx + (pc.z - az) * bz) / l2)), dd = Sq(pc.x - ax - bx * tt) + Sq(pc.z - az - bz * tt);
+                                    if (dd < bd) { bd = dd; double l = Math.Sqrt(l2); mdx = bx / l; mdz = bz / l; }
+                                }
+                            }
+                        if (Math.Abs(s1 - s0) < 8 && bd < 15 * 15 && Math.Abs(mdx * pc.tx + mdz * pc.tz) < .6) { approachSkipped++; continue; }
+                    }
+                    // … nor where a model surface (its kerb / sidewalk / island colliders, World/Roads) sits 0.3–3 m off the drawn approach
+                    bool clash = false;
+                    for (double sq = Math.Min(s0, s1); sq <= Math.Max(s0, s1) + 2 && !clash; sq += 1)
+                    {
+                        var pq = PointAt(ei, Math.Min(L, sq)); double yq = pq.y + dy;
+                        foreach (int sg in new[] { -1, 0, 1 })
+                        {
+                            var uq = W.U(pq.x - pq.tz * hwE * .9 * sg, 0, pq.z + pq.tx * hwE * .9 * sg); uq.y = (float)yq + 4;
+                            foreach (var h in Physics.RaycastAll(uq, Vector3.down, 8, ~0, QueryTriggerInteraction.Ignore))
+                                if (h.collider.transform.parent && h.collider.transform.parent.name == "Roads" && Math.Abs(h.point.y - yq) > .3) { clash = true; break; }
+                            if (clash) break;
+                        }
+                    }
+                    if (clash) { approachSkipped++; continue; }
                     if (Math.Abs(dy) > .05 && Math.Abs(dy) < 2.5)
                     {
                         double F = Math.Min(Math.Max(12, Math.Abs(dy) / .04), Math.Max(6, L - 2)); var P = e.pts;
@@ -1495,10 +1526,10 @@ namespace Magistrala.EditorTools
         [MenuItem("Magistrala/Build streets")]
         public static string Build()
         {
-            MainScene.Ensure();
+            MainScene.Ensure(); Physics.SyncTransforms();
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var log = new List<string>();
-            log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts(); log.Add($"{endSnaps} street ends snapped onto the model road they start at; {armFixed} arm corners set to the model surface (max {armFixMax:F2} m)"); approaches = 0; log.Add($"{endHeights} street ends brought to the model paving they leave (max {endHeightMax:F2} m)");
+            log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts(); log.Add($"{endSnaps} street ends snapped onto the model road they start at"); approaches = 0; approachSkipped = 0; log.Add($"{endHeights} street ends brought to the model paving they leave (max {endHeightMax:F2} m)");
             log.Add(LoadFeet()); walkOurs = new Dictionary<string, double>();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
@@ -1512,7 +1543,7 @@ namespace Magistrala.EditorTools
                 if (near) BuildEdge(ei);
             }
             for (int ni = 0; ni < nodes.Count; ni++) BuildJunction(ni);
-            BuildCourts(log); log.Add($"{approaches} street approaches drawn up to a model's paving (ceste-pregled 2)");
+            BuildCourts(log); log.Add($"{approaches} street approaches drawn up to a model's paving, {approachSkipped} left as before (ramp / short edge / paving not level across) (ceste-pregled 2)");
             log.Add(BuildModelWalks());
             log.Add(WalkStats());
             FindClosures();
