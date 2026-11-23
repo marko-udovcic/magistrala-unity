@@ -365,7 +365,11 @@ namespace Magistrala
                 Color fc = RenderSettings.fogColor.linear;
                 rainMat.SetColor(ID_RainColor, new Color(fc.r * 1.7f, fc.g * 1.7f, fc.b * 1.75f, 1));
             }
-            if (lensMat && lensGo)
+            if (!chase) chase = cam.GetComponent<TruckChaseCamera>();
+            // cab view: the drops are on the windscreen (WindscreenFx), not on the lens — the lens drops sat over the roof and pillars
+            bool cab = chase && chase.CabinView;
+            if (lensGo && cab && lensGo.activeSelf) lensGo.SetActive(false);
+            if (lensMat && lensGo && !cab)
             {
                 if (!lensGo.activeSelf) lensGo.SetActive(true);
                 // under a bridge / dry: no new drops (the existing ones just dry with k)
