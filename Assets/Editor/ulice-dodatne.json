@@ -1,5 +1,5 @@
 {
- "note": "Ulice koje nedostaju u igri, a na njih gledaju semafori: Gomilica pomaknuto i T (semafori-bez-modela.json) i južni krak križanja 03 (Tamunić). Isti oblik kao ceste_izvan_modela.json, ali koordinate su već u okviru igre (x istok, z jug; y približno, OutsideStreets ga zamjenjuje tlom). Čita ih OutsideStreets (Build streets, Igra: podaci); semafori_gen.py iz njih uzima osi sporednih krakova Gomilice.",
+ "note": "Ulice koje nedostaju u igri, a na njih gledaju semafori: Gomilica pomaknuto i T (semafori-bez-modela.json). Isti oblik kao ceste_izvan_modela.json, ali koordinate su već u okviru igre (x istok, z jug; y približno, OutsideStreets ga zamjenjuje tlom). Čita ih OutsideStreets (Build streets, Igra: podaci); semafori_gen.py iz njih uzima osi sporednih krakova Gomilice. (tamunic-spoj maknut 23. 11.: od mag-23-11-v2 paket sam vodi Tamunić do kraka modela 03 – dvije ulice jedna preko druge.)",
  "units": "metres",
  "axes": "game: x east, y up, z south",
  "roads": [
@@ -217,40 +217,6 @@
      -4375.0,
      9.0,
      -4837.5
-    ]
-   ]
-  },
-  {
-   "id": "tamunic-spoj",
-   "name": "Tamunić",
-   "cls": "residential",
-   "width": 5.5,
-   "lanes": 2,
-   "lanesForward": 1,
-   "lanesBackward": 1,
-   "oneway": false,
-   "maxspeed": 40,
-   "src": "OSM 45485673 (streets.json), provjereno DGU ortofotom: južni krak križanja 03 (semafor) završavao je 54 m prije Tamunića igre – spoj kraja kraka modela i kraja ulice",
-   "points": [
-    [
-     -1485.3,
-     38.7,
-     -4705.2
-    ],
-    [
-     -1450.5,
-     34.5,
-     -4677.2
-    ],
-    [
-     -1447.2,
-     33.8,
-     -4674.5
-    ],
-    [
-     -1443.0,
-     33.1,
-     -4671.7
     ]
    ]
   }
