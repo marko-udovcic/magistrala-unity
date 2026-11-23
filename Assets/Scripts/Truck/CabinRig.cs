@@ -10,9 +10,9 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class CabinRig : MonoBehaviour
 {
-    public float speedMax = 140f, rpmMax = 3500f, sweepDeg = 260f;
+    public float speedMax = 120f, rpmMax = 3000f, sweepDeg = 240f;   // the Atego v3 dials (0…120 km/h, 0…30 ×100 r/min, 240°)
     /// the speedo's first printed mark (the needle's rest; the Galeb's T1-style dial starts at 10) and its own sweep
-    public float speedMin = 0f, speedSweepDeg = 260f;
+    public float speedMin = 0f, speedSweepDeg = 240f;
     /// road-wheel angle (rad) → steering-wheel angle (rad); ~0.6 rad full lock → ~9.4 rad (540°)
     public float steerRatio = 15f;
 
