@@ -48,3 +48,7 @@ Assets/Models/Vehicles/Kandidati/
 /Assets/Audio/*
 !/Assets/Audio/README.md
 !/Assets/Audio/README.md.meta
+
+# billboard pictures (ours, made by BalkanDriver/assets-src/reklame/gen_reklame.py), copied in by hand; import settings: Assets/Editor/ReklameImport.cs
+/Assets/Resources/Reklame/
+/Assets/Resources/Reklame.meta
