@@ -47,6 +47,7 @@ namespace Magistrala.EditorTools
         static string Path2(Transform t) => t.parent ? t.parent.name + "/" + t.name : t.name;
 
         static double x0 = -10240, x1 = 0; static int dump; static string at;
+        static string Arg2(string k) { var a = Environment.GetCommandLineArgs(); int i = Array.IndexOf(a, k); return i >= 0 && i + 1 < a.Length ? a[i + 1] : null; }
         static List<Flag> flags;
 
         /// one line: samples every 1 m; `yHint` NaN = take the top road
@@ -218,6 +219,38 @@ namespace Magistrala.EditorTools
             File.WriteAllText(Path.Combine(dir, "problemi.md"), md.ToString());
             Debug.Log($"[ceste-pregled] {rows.Count} clusters -> {dir}");
 
+            // -probe gx,gz,r,step: terrain / top road / model ground (strip) / model surface on a grid, rows north → south
+            if (Arg2("-probe") is string prs) for (int pi = 0; pi < prs.Split(';').Length; pi++)
+            {
+                var pr = prs.Split(';')[pi]; var v = pr.Split(',').Select(q => double.Parse(q, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                var sbp = new StringBuilder(FormattableString.Invariant($"probe {v[0]},{v[1]} r {v[2]} step {v[3]}: T terrain, R road (top), G model strip ground, S model surface\n"));
+                var ms = WorldData.Models(-1e9, 1e9);
+                for (double z = v[1] - v[2]; z <= v[1] + v[2] + 1e-6; z += v[3])
+                {
+                    sbp.Append(FormattableString.Invariant($"z {z,7:F0}:"));
+                    for (double x = v[0] - v[2]; x <= v[0] + v[2] + 1e-6; x += v[3])
+                    {
+                        var hs = Cast(x, z); var t = hs.FirstOrDefault(h => h.k == K.Terrain); var rd = hs.FirstOrDefault(h => h.k == K.Road);
+                        double g = double.NaN, sf = double.NaN;
+                        foreach (var m in ms) { if (m.gnd == null) continue; int c = m.grid.Cell(x, z); if (c >= 0 && !float.IsNaN(m.gnd[c])) { g = m.gnd[c]; break; } }
+                        foreach (var m in ms) { var q = m.Surface(x, z); if (!double.IsNaN(q)) { sf = q; break; } }
+                        sbp.Append(FormattableString.Invariant($" [{(t != null ? t.y : float.NaN):F1}|{(rd != null ? rd.y : float.NaN):F1}|{g:F1}|{sf:F1}]"));
+                    }
+                    sbp.AppendLine();
+                }
+                File.WriteAllText(Path.Combine(dir, $"probe{pi}.txt"), sbp.ToString());
+            }
+            if (Arg2("-near") is string nearArg)
+            {
+                var sbn = new StringBuilder();
+                foreach (var t in nearArg.Split(';'))
+                {
+                    var v = t.Split(',').Select(q => double.Parse(q, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+                    sbn.AppendLine(FormattableString.Invariant($"## ({v[0]:F0},{v[1]:F0}) {Near(v[0], v[1])}"));
+                    foreach (var l in StreetsBuilder.EdgesNear(v[0], v[1], v.Length > 2 ? v[2] : 30)) sbn.AppendLine("  " + l);
+                }
+                File.WriteAllText(Path.Combine(dir, "blizu.txt"), sbn.ToString());
+            }
             if (dump > 0)
             {
                 var sbd = new StringBuilder();
@@ -229,12 +262,13 @@ namespace Magistrala.EditorTools
                 File.WriteAllText(Path.Combine(dir, "rubovi.txt"), sbd.ToString());
             }
             // shots of the worst (or of the given spots: -at gx,gz,dx,dz;..  as the csv's `shot` column)
-            var poses = new List<(string name, double gx, double gz, Vector3 dir)>();
+            var poses = new List<(string name, double gx, double gz, Vector3 dir)>(); var tops = new Dictionary<string, float>();
             if (at != null)
                 foreach (var t in at.Split(';'))
                 {
                     var v = t.Split(',').Select(q => double.Parse(q, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
-                    poses.Add((FormattableString.Invariant($"at_{v[0]:F0}_{v[1]:F0}"), v[0], v[1], new Vector3((float)v[2], 0, (float)v[3])));
+                    var nm = FormattableString.Invariant($"at_{v[0]:F0}_{v[1]:F0}") + (v.Length > 4 ? "_top" : "");
+                    poses.Add((nm, v[0], v[1], new Vector3((float)v[2], 0, (float)v[3]))); if (v.Length > 4) tops[nm] = (float)v[4];
                 }
             else
                 for (int i = 0; i < Math.Min(nShots, rows.Count); i++)
@@ -254,7 +288,7 @@ namespace Magistrala.EditorTools
                 var hs = Cast(ps.gx, ps.gz); p.y = hs.Count > 0 ? hs.FirstOrDefault(h => h.k == K.Road)?.y ?? hs[0].y : 0;
                 // oblique along the road, from the side a little (the seam reads across the line)
                 var d = ps.dir.sqrMagnitude > .1f ? ps.dir : Vector3.forward; var side = new Vector3(d.z, 0, -d.x);
-                var eye = p - d * 16 + side * 7 + Vector3.up * 11;
+                var eye = tops.TryGetValue(ps.name, out var th) ? p - d * (th * .15f) + Vector3.up * th : p - d * 16 + side * 7 + Vector3.up * 11;
                 cam.transform.SetPositionAndRotation(eye, Quaternion.LookRotation(p - eye));
                 cam.Render(); cam.Render();
                 RenderTexture.active = rt; tex.ReadPixels(new Rect(0, 0, Wd, Ht), 0, 0); tex.Apply(); RenderTexture.active = null;
