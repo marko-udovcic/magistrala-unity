@@ -667,6 +667,7 @@ namespace Magistrala.EditorTools
             NaturePass.Finish(tr);
             Debug.Log(MapillaryTrees.Apply(tr, models)); // Mapillary street trees the build lacks (MapillaryTrees.cs)
             Debug.Log(VegetationClean.Apply(tr, models)); // off roads / bays / embankments, onto the built ground (VegetationClean.cs)
+            Debug.Log(Drvoredi.Apply(tr, models)); // Marko's surveyed street trees replace the rules in their bands (Drvoredi.cs)
             Debug.Log($"[Magistrala] trees: {total} (yard crowns kept {VegetationMask.YardKept}, dropped {VegetationMask.YardDropped})");
         }
 

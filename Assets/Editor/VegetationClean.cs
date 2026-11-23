@@ -59,6 +59,7 @@ namespace Magistrala.EditorTools
             var riva = new HashSet<long>(RivaBuilder.Trees().Select(t => Key(t.x, t.z)));
             var mapillary = new HashSet<string>(); string added = WorldBuilder.GEN + "/Nature/stabla-mapillary-added.bytes";
             if (File.Exists(added)) { var a = File.ReadAllBytes(added); for (int o = 0; o + 24 <= a.Length; o += 24) mapillary.Add(Convert.ToBase64String(a, o, 24)); }
+            var survey = Drvoredi.BandTest();   // the surveyed streets' plants are placed as surveyed (Drvoredi.cs)
             var b = File.ReadAllBytes(path); var outB = new List<byte>(b.Length);
             int road = 0, mouth = 0, bay = 0, hard = 0, steep = 0, thin = 0, moved = 0, kept = 0;
             for (int o = 0; o + 24 <= b.Length; o += 24)
@@ -66,7 +67,7 @@ namespace Magistrala.EditorTools
                 var u = new Vector3(BitConverter.ToSingle(b, o), BitConverter.ToSingle(b, o + 4), BitConverter.ToSingle(b, o + 8));
                 float s = BitConverter.ToSingle(b, o + 16); int p = (int)BitConverter.ToSingle(b, o + 20);
                 var g = W.G(u); double x = g.x, z = g.y;
-                if (p < 0 || p >= np || !NaturePass.In(x, z) || riva.Contains(Key(x, z)) || mapillary.Contains(Convert.ToBase64String(b, o, 24))) { Keep(b, o, outB, u.y); continue; }
+                if (p < 0 || p >= np || !NaturePass.In(x, z) || riva.Contains(Key(x, z)) || mapillary.Contains(Convert.ToBase64String(b, o, 24)) || (survey != null && survey(x, z))) { Keep(b, o, outB, u.y); continue; }
                 bool tree = !hedge[p] && !rock[p] && h1[p] * s >= 3;
                 double sd = WorldData.SurfDist(models, x, z), r = hedge[p] ? .6 : tree ? 2.5 : 1.2;
                 if (GustaVegetacija.NearAsphalt(models, x, z, sd, r) || StreetsBuilder.Covered(x, z, r)) { road++; continue; }
@@ -100,7 +101,7 @@ namespace Magistrala.EditorTools
         }
 
         /// 0.5 m cells (the riva's trees: game x / z as in RivaBuilder, the records through W.U / W.G as float)
-        static long Key(double x, double z) => ((long)Math.Round(x * 2) << 32) ^ (uint)Math.Round(z * 2);
+        internal static long Key(double x, double z) => ((long)Math.Round(x * 2) << 32) ^ (uint)Math.Round(z * 2);
 
         static void Keep(byte[] b, int o, List<byte> outB, float y)
         {
