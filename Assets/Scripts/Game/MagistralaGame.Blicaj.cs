@@ -3,8 +3,8 @@
 //   (GameWorld.PlaceAt, the baked OSM boundaries), the one nearest their middle; stop spots take the stop's position.
 //   Spots that do not resolve are left out of the posts.
 //   reading the group while driving (IDEJE_IGRA.md §7 "Gledanje u mobitel dok voziš je rizik"): opening the app above
-//   PhoneRiskKmh has a PhoneRiskChance chance that a patrol sees it – the first time a day a warning, then PhoneFine € from
-//   Mate's pocket (the trade account covers what the pocket lacks). SaveData.phoneWarnDay / phoneWarns.
+//   PhoneRiskKmh has a PhoneRiskChance chance that a patrol sees it – always only a warning, no fine (Marko, 23. 11.:
+//   "može upozorenje"); repeats the same day say so. SaveData.phoneWarnDay / phoneWarns.
 // Test switches: -blicajdemo  eight posts from the last hour and a report of Mate's, unread · -phone blicaj  open the app
 //   (with -clockx 20 the day's posts arrive quickly; the log prints each as "[blicaj] hh:mm who: text")
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ namespace Magistrala.Game
 {
     public partial class MagistralaGame
     {
-        public const float PhoneRiskKmh = 40, PhoneRiskChance = 0.15f, PhoneFine = 40;
+        public const float PhoneRiskKmh = 40, PhoneRiskChance = 0.15f;
 
         void SetupBlicaj()
         {
@@ -55,13 +55,8 @@ namespace Magistrala.Game
             if (!Truck || Truck.SpeedKmh < PhoneRiskKmh || UnityEngine.Random.value >= PhoneRiskChance) return;
             if (S.phoneWarnDay != Day) { S.phoneWarnDay = Day; S.phoneWarns = 0; }
             S.phoneWarns++;
-            if (S.phoneWarns == 1) Banner("Patrola te vidila s mobitelom u ruci. Ovaj put samo upozorenje.");
-            else
-            {
-                float fromCash = Mathf.Min(Mathf.Max(0, S.cash), PhoneFine);
-                S.cash -= fromCash; S.account -= PhoneFine - fromCash;
-                Banner($"Mobitel u vožnji: kazna {PhoneFine:0} € iz tvog džepa.");
-            }
+            Banner(S.phoneWarns == 1 ? "Patrola te vidila s mobitelom u ruci. Ovaj put samo upozorenje."
+                : $"Opet mobitel u ruci – patrola te upozorila ({S.phoneWarns}. put danas). Pusti mobitel dok voziš.");
             Debug.Log($"[blicaj] seen with the phone at {Truck.SpeedKmh:0} km/h: warning {S.phoneWarns} today");
         }
     }
