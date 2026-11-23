@@ -31,7 +31,7 @@ namespace Magistrala.EditorTools
                 var model = truck.GetComponentsInChildren<Renderer>()[0].transform;
                 while (model.parent && model.parent != truck.transform) model = model.parent;
                 model.localRotation = Quaternion.AngleAxis(180, Vector3.up) * model.localRotation;
-                var eyeA = V(a, "-ategoeye", new Vector3(0.55f, 1.40f, -2.05f));
+                var eyeA = V(a, "-ategoeye", new Vector3(0.55f, 1.50f, -2.10f));
                 // the side mirrors as in the cab view (MirrorCams, rendered once from the eye)
                 var tcA = truck.GetComponent<TruckController>();
                 if (tcA) { var mc = truck.AddComponent<MirrorCams>(); mc.Bind(tcA, model); mc.RenderNow(model.TransformPoint(eyeA)); }

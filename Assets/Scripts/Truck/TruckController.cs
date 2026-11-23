@@ -35,7 +35,7 @@ public sealed class TruckController : MonoBehaviour
     public bool IsReady => ready;
     /// 0..1 service-brake pressure (brake lights)
     public float BrakeLevel => brakePressure;
-    public Vector3 CabinEyeLocal { get; private set; } = new Vector3(-0.55f, 1.40f, 2.05f);
+    public Vector3 CabinEyeLocal { get; private set; } = new Vector3(-0.55f, 1.50f, 2.10f);
 
     /// a vehicle's physics parameter set (Atego defaults = the firm truck as before; Galeb = the family van, MagistralaGame.Vehicles.cs).
     /// Set before the GameObject is activated (Awake builds the wheels from it).
@@ -55,7 +55,7 @@ public sealed class TruckController : MonoBehaviour
         /// generic body colliders (models without named body_* parts): lowest point of the cab / box above the ground
         public float cabFloor = 0.8f, boxFloor = 1f;
         /// the driver's eye in the raw model's frame (before modelYawDegrees)
-        public Vector3 eyeModel = new Vector3(0.55f, 1.40f, -2.05f);
+        public Vector3 eyeModel = new Vector3(0.55f, 1.50f, -2.10f);
         /// anti-roll bars (N per unit of travel difference); < 0 keeps the component's own (the scene's Atego: 18000 / 14000)
         public float antiRollFront = -1f, antiRollRear = -1f;
     }

@@ -13,6 +13,8 @@ public sealed class MirrorCams : MonoBehaviour
 {
     public int width = 256, height = 192;
     public float far = 120f, fov = 28f;
+    /// how much of the mirror's width (degrees of view) shows the own vehicle's side
+    public float InnerDeg = 6f;
     /// measuring: -mirrors 0 turns them off
     public static bool Off;
 
@@ -118,6 +120,14 @@ public sealed class MirrorCams : MonoBehaviour
             m.quad.transform.SetPositionAndRotation(c + nW * 0.004f, Quaternion.LookRotation(-nW, transform.up));
             // the reflected view; at most one mirror per frame: L on frames 0, 4, 8…, R on 2, 6, 10… (measured: every 2nd frame cost ~5–11 % in the cab view)
             var refl = Vector3.Reflect((c - eye).normalized, nW);
+            // aimed like a driver sets it: straight back along the vehicle, turned outward so the own side is only a strip
+            // InnerDeg wide at the inner edge; the pure reflection filled the mirror with the box (with the higher eye of
+            // atego-vidljivost almost all of it). The up/down angle stays the reflected one.
+            float side = Mathf.Sign(Vector3.Dot(c - transform.position, transform.right));
+            float half = Camera.VerticalToHorizontalFieldOfView(fov, (float)width / height) * .5f;
+            Vector3 flat = Quaternion.AngleAxis(-side * (half - InnerDeg), transform.up) * -transform.forward;
+            float up = Mathf.Clamp(Vector3.Dot(refl, transform.up), -.5f, .5f);
+            refl = flat * Mathf.Sqrt(1 - up * up) + transform.up * up;
             m.cam.transform.SetPositionAndRotation(c, Quaternion.LookRotation(refl, transform.up));
             if (now) m.cam.Render(); else m.cam.enabled = frame % 4 == (i % 2) * 2;
         }
