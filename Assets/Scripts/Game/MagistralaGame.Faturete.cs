@@ -176,6 +176,8 @@ namespace Magistrala.Game
             o.max = Mathf.Min(Floor5(fair * 1.3f), fair * (pr.max + 0.05f * c.urgency + 0.05f * S.fatRep) * (0.95f + 0.1f * (float)rnd.NextDouble()));
             if (j.max > 0) o.max = Mathf.Min(o.max, j.max);
             o.offer = j.open > 0 ? j.open : Round5(fair * pr.open);
+            // Marko 22.11.: nijedna fatureta ispod 45 € – ni ponuda ni dogovor
+            o.offer = Mathf.Max(o.offer, FatMinPay); o.max = Mathf.Max(o.max, o.offer);
             o.patience = pr.patience; o.step = pr.step;
             o.windowEnd = test ? Mathf.Max(WindowEnd(Day), S.clockMin + 240) : WindowEnd(Day);
             o.expires = Mathf.Min(S.clockMin + 60, o.windowEnd - 60);
@@ -286,6 +288,7 @@ namespace Magistrala.Game
         /// the price stands: the customer's line and how he pays
         PhoneStep Agreed(FatOffer o, FatJob j, FatCustomer c, float price, string line)
         {
+            price = Mathf.Max(price, FatMinPay);
             o.state = "deal"; o.price = price;
             Debug.Log($"[fatureta] {o.id}: agreed {price:0} € (fair {o.fair:0.0})");
             return PayStep(o, j, c, line);
