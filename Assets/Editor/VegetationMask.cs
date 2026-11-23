@@ -152,9 +152,9 @@ namespace Magistrala.EditorTools
         static float PineScale(int proto, double gx, double gz, float k)
         {
             float h = NaturePass.HeightOf(proto); if (h <= 0) h = 10;
-            // Aleppo pines 7–11 m, one in three 12–15 m (were 5.5–9.5 m; 23. 11. Marko: "veliki borovi")
+            // Aleppo pines 6.5–10.5 m, one in five 12–15 m (were 5.5–9.5 m; 23. 11. Marko: "veliki borovi")
             float r = NaturePass.R01(gx, gz, 72);
-            return (r < .33f ? 12f + 3f * r / .33f : 7f + 4f * r) * k / h;
+            return (r < .2f ? 12f + 3f * r / .2f : 6.5f + 4f * r) * k / h;
         }
 
         // ------------------------------------------------------------------ clumps and groves

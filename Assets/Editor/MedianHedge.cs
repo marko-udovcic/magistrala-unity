@@ -101,7 +101,7 @@ namespace Magistrala.EditorTools
             float F() => (float)rnd.NextDouble();
             var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
             const float L = 1.0f, W = 1.1f, H = 1.9f;
-            for (int i = 0; i < 120; i++)
+            for (int i = 0; i < 80; i++)
             {
                 // a point in the block, most of them pushed out to its skin (a full surface from outside), the top rounded
                 var p = new Vector3((F() - .5f) * L, F() * H, (F() - .5f) * W);
@@ -113,7 +113,7 @@ namespace Magistrala.EditorTools
                     else p.x = (F() < .5f ? -1 : 1) * L * (.4f + .1f * F());
                 }
                 float top = H - .35f * Mathf.Pow(Mathf.Abs(p.z) / (W * .5f), 2); p.y = Mathf.Clamp(p.y, .15f, top);
-                float sz = .42f + .2f * F();
+                float sz = .5f + .22f * F();          // (80 bigger cards: 120 cost ~ms of alpha-tested overdraw along the whole D8)
                 var q = Quaternion.Euler(F() * 360, F() * 360, F() * 360);
                 Vector3 a = q * Vector3.right * sz * .5f, b = q * Vector3.up * sz * .5f, nn = q * Vector3.forward;
                 var r = R[rnd.Next(R.Length)]; int b0 = v.Count;
@@ -126,10 +126,10 @@ namespace Magistrala.EditorTools
             Save(m, $"{OUT}/zivica_blok.asset");
             string mp = $"{OUT}/zivica_blok.mat"; var mat = Load<Material>(mp);
             if (!mat) { mat = new Material(sh); AssetDatabase.CreateAsset(mat, mp); } else mat.shader = sh;
-            mat.SetTexture("baseColorTexture", tex); mat.SetColor("baseColorFactor", new Color(.62f, .74f, .56f, 1)); mat.SetFloat("alphaCutoff", .45f);
+            mat.SetTexture("baseColorTexture", tex); mat.SetColor("baseColorFactor", new Color(.74f, .86f, .64f, 1)); mat.SetFloat("alphaCutoff", .45f);
             mat.SetFloat("_CrownY", H * .55f); mat.SetFloat("_CrownR", 1.1f); mat.SetFloat("_Bend", .75f); mat.SetFloat("_Inner", .45f); mat.SetFloat("_Vary", .06f);
             mat.renderQueue = 2450; mat.enableInstancing = true; EditorUtility.SetDirty(mat);
-            return new NaturePass.Proto { id = "zivica-blok", mesh = Load<Mesh>($"{OUT}/zivica_blok.asset"), mats = new[] { mat }, draw = 380, near = 1e5f };
+            return new NaturePass.Proto { id = "zivica-blok", mesh = Load<Mesh>($"{OUT}/zivica_blok.asset"), mats = new[] { mat }, draw = 260, near = 1e5f };
         }
 
         static readonly Dictionary<string, Mesh> narrow = new Dictionary<string, Mesh>();
@@ -330,7 +330,7 @@ namespace Magistrala.EditorTools
                             if (cid != null) { put(x, Y(x, zc) - .08, zc + (rnd.NextDouble() - .5) * .1, (float)((rnd.NextDouble() - .5) * 16), HS(cid, (float)(2.0 + .4 * rnd.NextDouble()), 1f), cid); n++; }
                             lastBlock = x;
                         }
-                        if (x - lastMain >= 2.4 + 1.2 * rnd.NextDouble())
+                        if (x - lastMain >= 4.5 + 3 * rnd.NextDouble())   // flowering accents every ~4.5–7.5 m (more read as pale flecks)
                         {
                             // oleander (narrowed crown): 1.9–2.2 m tall × ~1.2 m wide, one every 0.85 m so the crowns overlap — a solid hedge;
                             // a median with room for it gets two staggered rows (~1.2–2 m planted band), a narrow one a single row

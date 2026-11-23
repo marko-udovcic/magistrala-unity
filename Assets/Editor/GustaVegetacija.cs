@@ -135,7 +135,7 @@ namespace Magistrala.EditorTools
                         if ((v & VegetationMask.D8CLEAR) != 0) continue;
                         if ((v & VegetationMask.CLUMP) >= 4 || (v & VegetationMask.ORCHARD) != 0) continue; // the photo's clumps / groves are planted already
                         var mk = Mask(tx, tz);
-                        bool yard = At(mk.yard, tx, tz, x, z, 8) || WorldData.FootDist(models, x, z) < 30;
+                        bool yard = At(mk.yard, tx, tz, x, z, 8);   // (not the models' FootDist: that is the junction / section models' area, and made the whole D8 corridor a yard)
                         bool verge = (v & VegetationMask.D8NEAR) != 0;
                         // patches: slow noise so the plants clump and leave open ground (not an even sprinkle)
                         float patch = Mathf.PerlinNoise((float)(x * .035 + 311.7), (float)(z * .035 + 97.3));
@@ -144,8 +144,8 @@ namespace Magistrala.EditorTools
                         float pk = .4f + 1.2f * Mathf.Clamp01((patch - .25f) * 2);
                         float pTree, pBush;
                         if (yard) { pTree = 9f / 80 * pk; pBush = 9f / 45 * pk; }
-                        else if (verge) { pTree = 9f / 400 * pk; pBush = 9f / 40 * pk; }
-                        else { pTree = 9f / 180 * pk; pBush = 9f / 35 * pk; }
+                        else if (verge) { pTree = 9f / 300 * pk; pBush = 9f / 40 * pk; }
+                        else { pTree = 9f / 260 * pk; pBush = 9f / 35 * pk; }   // open land stays open: trees in patches
                         bool tree = r < pTree, bush = !tree && r < pTree + pBush;
                         if (!tree && !bush) continue;
                         // keep clear

@@ -239,9 +239,9 @@ namespace Magistrala.EditorTools
         {
             if (extra == null || PineCount == 0 || proto > 1 || !In(gx, gz)) return proto;
             int k = Mathf.Min(PineCount - 1, (int)(R01(gx, gz, 11) * PineCount));
-            // Aleppo pines in Kaštela: were .62–.87 (low, 5–8 m); 23. 11. Marko: "veliki borovi" — .85–1.35, a third of them big
+            // Aleppo pines in Kaštela: were .62–.87 (low, 5–8 m); 23. 11. Marko: "veliki borovi" — .75–1.35, a fifth of them big
             float r = R01(gx, gz, 12);
-            scale *= VegetationMask.On ? (r < .33f ? 1.15f + .2f * r / .33f : .85f + .3f * r) : .8f + .35f * r;
+            scale *= VegetationMask.On ? (r < .2f ? 1.15f + .2f * r / .2f : .75f + .3f * r) : .8f + .35f * r;
             return baseCount + k;
         }
 
