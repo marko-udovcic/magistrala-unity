@@ -12,6 +12,7 @@
 //   save: Application.persistentDataPath/magistrala-save.json (JsonUtility) – day / time, wallet, reputation, call flags,
 //   delivered jobs, the running tour, the stop the truck stands at; loaded on start (old PlayerPrefs wallet migrated once).
 // Test switches: -clock HH:MM  start time · -clockx N  clock N× faster · -call [7]  ring the 6:00 (or the 7:00) call at once
+//   -blicajdemo  test posts in the Blicaj group (MagistralaGame.Blicaj.cs) · -phone blicaj  open the phone in that app
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -57,6 +58,8 @@ namespace Magistrala.Game
         public float fatRep = 0.5f;
         public int fatPlanDay = -1, fatDone;
         public List<string> invoices = new List<string>();
+        /// Blicaj (MagistralaGame.Blicaj.cs): seen reading the phone while driving – the day of it and how many times that day
+        public int phoneWarnDay = -1, phoneWarns;
     }
 
     public partial class MagistralaGame
@@ -167,8 +170,9 @@ namespace Magistrala.Game
                 S.zdravkoDay = Day; if (angry) { S.missedDay = Day; S.recallDay = Day; S.rep -= 2; }
                 Phone.Ring(angry ? Recall7() : Call6());
             }
-            // test: -phonedemo  a story and a random message · -phone home|poruke|pozivi|kontakti|poslovi|thread  open the phone there
+            // test: -phonedemo  a story and a random message · -phone home|poruke|pozivi|kontakti|poslovi|thread|blicaj  open the phone there
             if (Has("-phonedemo")) { Phone.Message("vesna", "Kupi kruv i mliko, i ono šta san ti rekla.", true); Phone.TryRandom(Day, "zare", "Bura na D8. Prazan kamion je jedrilica, drži volan."); }
+            if (Has("-blicajdemo")) Phone.BlicajDemo();
             if (Arg("-phone") is string ph) StartCoroutine(OpenPhoneLater(ph));
             // test: -callpick k  answer the next ringing call after 3 s, pick answer k (1-based) 3 s later, end it 3 s later
             if (Arg("-callpick") is string cp && int.TryParse(cp, out int pick)) StartCoroutine(CallPick(pick - 1));
@@ -178,7 +182,7 @@ namespace Magistrala.Game
         System.Collections.IEnumerator OpenPhoneLater(string screen)
         {
             yield return new WaitForSeconds(2.5f);
-            var sc = screen switch { "poruke" => MatePhone.Screen.Messages, "pozivi" => MatePhone.Screen.Calls, "kontakti" => MatePhone.Screen.Contacts, "poslovi" => MatePhone.Screen.Jobs, "thread" => MatePhone.Screen.Thread, _ => MatePhone.Screen.Home };
+            var sc = screen switch { "poruke" => MatePhone.Screen.Messages, "pozivi" => MatePhone.Screen.Calls, "kontakti" => MatePhone.Screen.Contacts, "poslovi" => MatePhone.Screen.Jobs, "blicaj" => MatePhone.Screen.Blicaj, "thread" => MatePhone.Screen.Thread, _ => MatePhone.Screen.Home };
             Phone.Show(sc);
             if (sc == MatePhone.Screen.Thread) Phone.OpenThread("vesna");
         }
@@ -227,6 +231,7 @@ namespace Magistrala.Game
                 "punica" => "Mate, sine, samo jedna sitnica: ormar bi trebalo prenijeti, nije težak, puna je samo jedna ladica.",
                 _ => null,
             };
+            SetupBlicaj();
         }
 
         /// 6:00 (MatePhone.tsx ZdravkoCall + the approved Q3 choices)
