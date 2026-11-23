@@ -61,7 +61,10 @@ public sealed class MirrorCams : MonoBehaviour
         var e = b.size; Vector3 n = m.normalLocal;
         Vector2 size = n == Vector3.right ? new Vector2(e.z, e.y) : n == Vector3.up ? new Vector2(e.x, e.z) : new Vector2(e.x, e.y);
         m.quad.transform.localScale = new Vector3(size.x * .96f, size.y * .96f, 1);
-        var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { mainTexture = m.rt };
+        // URP/Unlit is stripped from the player when no material uses it: fall back to the always-included UI/Default (unlit, textured)
+        var sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
+        if (!sh) { enabled = false; return; }
+        var mat = new Material(sh) { mainTexture = m.rt };
         mat.mainTextureScale = new Vector2(-1, 1); mat.mainTextureOffset = new Vector2(1, 0);
         m.quad.GetComponent<MeshRenderer>().sharedMaterial = mat;
         m.quad.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
