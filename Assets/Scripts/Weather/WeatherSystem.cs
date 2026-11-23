@@ -28,6 +28,7 @@ namespace Magistrala
         struct B
         {
             public float sunI, shadow, fogD, exposure, contrast, sat, wb, bloomT, bloomI, vig;
+            public Vector4 shift; public FogMode fogMode; // LightPreset.GradeShift: the rain grade is relative to the scene's day, not the sunny look
             public Color fog, sky, eq, ground; public Material skybox; public Texture[] probes; public Texture defRefl; public DefaultReflectionMode reflMode;
         }
         B b; bool haveBase;
@@ -96,7 +97,7 @@ namespace Magistrala
             b = new B
             {
                 sunI = sun ? sun.intensity : 1, shadow = sun ? sun.shadowStrength : 1,
-                fogD = RenderSettings.fogDensity, fog = RenderSettings.fogColor,
+                fogD = RenderSettings.fogDensity, fog = RenderSettings.fogColor, fogMode = RenderSettings.fogMode, shift = lp ? lp.GradeShift : Vector4.zero,
                 sky = RenderSettings.ambientSkyColor, eq = RenderSettings.ambientEquatorColor, ground = RenderSettings.ambientGroundColor,
                 exposure = ca ? ca.postExposure.value - CameraFeel.ExposureOffset : 0, /* without the eye adaptation */ contrast = ca ? ca.contrast.value : 0, sat = ca ? ca.saturation.value : 0,
                 wb = wbc ? wbc.temperature.value : 0, bloomT = bloom ? bloom.threshold.value : 1, bloomI = bloom ? bloom.intensity.value : 0, vig = vig ? vig.intensity.value : 0,
@@ -131,14 +132,18 @@ namespace Magistrala
             if (!haveBase) return;
             float s = k;
             if (sun) { sun.intensity = Mathf.Lerp(b.sunI, b.sunI * sunMul, s); sun.shadowStrength = Mathf.Lerp(b.shadow, shadowStrength, s); }
-            RenderSettings.fogDensity = Mathf.Lerp(b.fogD, fogDensity, s * s);
+            // rain fog is plain exp; if the base is exp² (LightPreset.dayFogMode), from the first moment of rain on it is
+            // exp from a density that hazes the hills about as much (exp² d at 4 km ≈ exp 0.5 d)
+            bool exp2 = b.fogMode == FogMode.ExponentialSquared;
+            RenderSettings.fogMode = s > .001f ? FogMode.Exponential : b.fogMode;
+            RenderSettings.fogDensity = Mathf.Lerp(exp2 && s > .001f ? b.fogD * .5f : b.fogD, fogDensity, s * s);
             RenderSettings.fogColor = Color.Lerp(b.fog, RainFogNow, s);
             float tintK = .12f; // a trace of the base (sunset) light survives the clouds
             RenderSettings.ambientSkyColor = Color.Lerp(b.sky, Color.Lerp(ambSky, b.sky, tintK), s);
             RenderSettings.ambientEquatorColor = Color.Lerp(b.eq, Color.Lerp(ambEq, b.eq, tintK), s);
             RenderSettings.ambientGroundColor = Color.Lerp(b.ground, Color.Lerp(ambGround, b.ground, tintK), s);
-            if (ca) { ca.postExposure.value = b.exposure + exposureAdd * s; ca.contrast.value = b.contrast + contrastAdd * s; ca.saturation.value = b.sat + saturationAdd * s; }
-            if (wbc) wbc.temperature.value = b.wb + wbAdd * s;
+            if (ca) { ca.postExposure.value = b.exposure + (exposureAdd - b.shift.x) * s; ca.contrast.value = b.contrast + (contrastAdd - b.shift.y) * s; ca.saturation.value = b.sat + (saturationAdd - b.shift.z) * s; }
+            if (wbc) wbc.temperature.value = b.wb + (wbAdd - b.shift.w) * s;
             if (bloom) { bloom.threshold.value = Mathf.Lerp(b.bloomT, Mathf.Max(b.bloomT, 1.1f), s); bloom.intensity.value = Mathf.Lerp(b.bloomI, b.bloomI * .6f, s); }
             if (vig) vig.intensity.value = Mathf.Lerp(b.vig, Mathf.Max(b.vig, vignette), s);
             if (skyMat && s > 0.001f) { skyMat.SetFloat(ID_Overcast, Mathf.SmoothStep(0, 1, s)); RenderSettings.skybox = skyMat; }
