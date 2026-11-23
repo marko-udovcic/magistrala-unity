@@ -21,7 +21,7 @@
 //   standing S.fatRep 0..1 (hidden): on time and whole +0.05, damaged / late −0.05, overcharging (> 110 % of fair) −0.03 and the
 //            customer waits twice as long before calling again, cancelling −0.1.
 // Test switches: -fatureta <id>  that offer now (and the phone opens on it)   -fatpick 2,3,1  answer the conversation's choices
-//   one by one (1-based, every 2.5 s)   -fatdeal ruke|racun  agree at his price and pay that way (no haggling); with -jobauto
+//   one by one (1-based, every 2.5 s)   -fatdeal ruke|racun|pitaj  agree at his price and pay that way (no haggling); with -jobauto
 //   -jobnear 0 the whole job runs by itself (bays jumped into)
 using System;
 using System.Collections;
@@ -390,7 +390,7 @@ namespace Magistrala.Game
             if (Arg("-fatdeal") is string mode)
             {
                 Agreed(o, j, FCust(j.customer), o.offer, null);
-                Accepted(o, j, FCust(j.customer), mode == "ruke" ? Mathf.Max(5, Round5(o.offer * 0.9f)) : o.offer, mode == "ruke" ? "ruke" : "racun");
+                Accepted(o, j, FCust(j.customer), mode == "ruke" ? Mathf.Max(5, Round5(o.offer * 0.9f)) : o.offer, mode == "ruke" ? "ruke" : mode == "racun" ? "racun" : "pitaj");
                 if (auto) StartCoroutine(AutoFatureta());
                 yield break;
             }
