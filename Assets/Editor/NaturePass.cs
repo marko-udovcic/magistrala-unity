@@ -209,6 +209,7 @@ namespace Magistrala.EditorTools
             if (!On) return;
             Dir(OUT);
             foreach (var p in PineSrc) { var pr = Pine(p); if (pr != null) extra.Add(pr); }
+            { var sp = Pine(PineSrc[0], true); if (sp != null) extra.Add(sp); }   // pinija (stone pine): umbrella crown, Index("pinija")
             MedianHedge.Protos(extra);
             // crnika (holm oak / closed dark maquis crown): our olive's mesh, leaves a dark evergreen; materials made in Finish from
             // the scene's (leaf-clipped) olive materials (VegetationMask)
@@ -238,7 +239,9 @@ namespace Magistrala.EditorTools
         {
             if (extra == null || PineCount == 0 || proto > 1 || !In(gx, gz)) return proto;
             int k = Mathf.Min(PineCount - 1, (int)(R01(gx, gz, 11) * PineCount));
-            scale *= VegetationMask.On ? .62f + .25f * R01(gx, gz, 12) : .8f + .35f * R01(gx, gz, 12);   // Aleppo pines in Kaštela: low
+            // Aleppo pines in Kaštela: were .62–.87 (low, 5–8 m); 23. 11. Marko: "veliki borovi" — .85–1.35, a third of them big
+            float r = R01(gx, gz, 12);
+            scale *= VegetationMask.On ? (r < .33f ? 1.15f + .2f * r / .33f : .85f + .3f * r) : .8f + .35f * r;
             return baseCount + k;
         }
 
@@ -269,6 +272,7 @@ namespace Magistrala.EditorTools
             total += nh;
             int nyh = VegetationMask.PlaceHedges((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto));   // yard hedges (docs/audit-stari.md)
             total += nyh; Debug.Log($"[priroda] yard hedge plants {nyh}");
+            total += GustaVegetacija.Place((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto), models, rec);   // Kaštel Stari trial (VEGETACIJA_I_TLO.md)
             Debug.Log($"[priroda] extra pines {np}, median hedge plants {nh}");
         }
 
@@ -299,7 +303,9 @@ namespace Magistrala.EditorTools
         /// one package pine as a TreeRenderer prototype: LOD1 (bark + needles) as the full mesh, the cross billboard LOD as the
         /// impostor; both reshaped toward Aleppo pine (height × .82, crown spread × 1.22: a shorter trunk, a wider flatter crown) and the bark
         /// material made greyer brown instead of the beach pine's orange
-        static Proto Pine(string prefab)
+        /// stone = the stone pine (Pinus pinea, pinija) made from the same beach pine: the crown (above 45 % of the height) pushed
+        /// out to an umbrella 2.2 × wider and squashed into the top third, the bare trunk below kept (23. 11., Marko: "veliki borovi")
+        static Proto Pine(string prefab, bool stone = false)
         {
             var pf = Load<GameObject>(CE + "Pine Trees/Prefabs/" + prefab + ".prefab"); if (!pf) { Debug.LogWarning("[priroda] no " + prefab); return null; }
             var lg = pf.GetComponentInChildren<LODGroup>(); if (!lg) return null;
@@ -312,16 +318,25 @@ namespace Magistrala.EditorTools
             {
                 var src = r.GetComponent<MeshFilter>().sharedMesh; var m = UnityEngine.Object.Instantiate(src); m.name = name;
                 var M = root.worldToLocalMatrix * r.transform.localToWorldMatrix; var v = src.vertices;
-                for (int i = 0; i < v.Length; i++) { var q = M.MultiplyPoint3x4(v[i]); v[i] = new Vector3(q.x * 1.22f, q.y * .82f, q.z * 1.22f); }
+                float top = 0; for (int i = 0; i < v.Length; i++) top = Mathf.Max(top, M.MultiplyPoint3x4(v[i]).y);
+                for (int i = 0; i < v.Length; i++)
+                {
+                    var q = M.MultiplyPoint3x4(v[i]);
+                    if (!stone) { v[i] = new Vector3(q.x * 1.22f, q.y * .82f, q.z * 1.22f); continue; }
+                    float t = Mathf.Clamp01((q.y / Mathf.Max(top, .01f) - .45f) / .55f);          // 0 below the crown, 1 at the top
+                    float w = Mathf.Lerp(1, 2.2f, Mathf.SmoothStep(0, 1, t * 3));                  // the crown spreads out quickly
+                    float y = q.y < .45f * top ? q.y : Mathf.Lerp(.66f * top, top * .92f, t);    // crown squashed into the top third
+                    v[i] = new Vector3(q.x * w, y, q.z * w);
+                }
                 m.vertices = v; m.RecalculateBounds(); Save(m, $"{OUT}/{name}.asset"); return m;
             }
-            string id = prefab.Replace("Prefab_Pine_beach_", "").ToLowerInvariant();
+            string id = stone ? "pinija" : prefab.Replace("Prefab_Pine_beach_", "").ToLowerInvariant();
             var mats = full.sharedMaterials.Select(m => Aleppo(m)).ToArray();
             foreach (var m in mats) if (m) m.enableInstancing = true;
             var cm = cross && cross != full ? cross.sharedMaterial : null; if (cm) cm.enableInstancing = true;
             return new Proto
             {
-                id = "pine:" + id, mesh = Shape(full, "pine_" + id), mats = mats,
+                id = stone ? "pinija" : "pine:" + id, mesh = Shape(full, "pine_" + id), mats = mats,
                 imp = cross && cross != full ? Shape(cross, "pine_" + id + "_cross") : null, impMat = cm,
                 draw = 1400, near = 60,
             };

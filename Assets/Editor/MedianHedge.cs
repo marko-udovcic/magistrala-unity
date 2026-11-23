@@ -33,9 +33,9 @@ namespace Magistrala.EditorTools
         /// the hedge's plants: weight = share of the hedge's main slots (oleanders) / of the fill slots (shrubs) / base (grass)
         public static readonly (string id, string slot, float weight)[] Plants =
         {
-            ("oleander-roza", "main", .7f), ("oleander-bijeli", "main", .3f),
+            ("oleander-roza", "main", .85f), ("oleander-bijeli", "main", .15f),
             ("grm-tamni", "fill", 1f),
-            ("grm-zivica", "core", 1f),
+            ("zivica-blok", "core", 1f),
             ("trava-suha", "base", 1f),
         };
         const string OUT = WorldBuilder.GEN + "/Nature";
@@ -78,12 +78,58 @@ namespace Magistrala.EditorTools
                 list.Add(new NaturePass.Proto { id = "grm-zivica", mesh = Narrow(near, "grm_zivica", .72f), mats = near.sharedMaterials.Select(m => Tint(m, "zivica", dark)).ToArray(), imp = far && far != near ? Narrow(far, "grm_zivica_far", .72f) : null, impMat = far && far != near ? Tint(far.sharedMaterial, "zivica", dark) : null, draw = 380, near = 30 });
                 list.Add(new NaturePass.Proto { id = "grm-tamni", mesh = Flat(near, bush.transform, "grm_tamni"), mats = mats, imp = far && far != near ? Flat(far, bush.transform, "grm_tamni_far") : null, impMat = far && far != near ? Tint(far.sharedMaterial, "tamni", new Color(.5f, .62f, .45f, 1)) : null, draw = 200, near = 25 });
             }
+            var blok = HedgeBlock(); if (blok != null) list.Add(blok);
             var grass = Load<GameObject>(CE + "Foliage and Grass/Prefabs/Prefab_beach_grass_02_2.prefab");
             if (grass)
             {
                 var r = grass.GetComponentInChildren<MeshRenderer>();
                 list.Add(new NaturePass.Proto { id = "trava-suha", mesh = Flat(r, grass.transform, "trava_suha"), mats = r.sharedMaterials.Select(m => Tint(m, "suha", new Color(1.05f, .95f, .75f, 1))).ToArray(), draw = 35, near = 1e5f });
             }
+        }
+
+        /// 23. 11. (Marko: "di živica??" — the oleanders alone read as low scattered shrubs with gaps and paper-like flecks): the
+        /// hedge's body is a block of dense leaf cards, 1.0 m long × 1.1 m wide × 1.9 m tall with a rounded top (leaf sprigs of the
+        /// package's rose atlas, dark evergreen, Magistrala/Foliage: lit as one volume), one every 0.9 m so the blocks overlap into a
+        /// continuous hedge; the oleanders stand in it as the flowering accents. Seeded, the same mesh every build.
+        static NaturePass.Proto HedgeBlock()
+        {
+            const string tp = CE + "Bushes/Textures/T_beach_rose_BC_O.png";
+            var tex = Load<Texture2D>(tp); var sh = Shader.Find("Magistrala/Foliage"); if (!tex || !sh) return null;
+            // leaf-sprig rects of the atlas (u0, v0, u1, v1; v from the bottom), square in pixels (the atlas is 1:2)
+            var R = new[] { new Vector4(.12f, .63f, .52f, .83f), new Vector4(.52f, .58f, .94f, .79f), new Vector4(.10f, .48f, .50f, .68f), new Vector4(.55f, .40f, .95f, .60f), new Vector4(.30f, .70f, .70f, .90f) };
+            var rnd = new System.Random(2311);
+            float F() => (float)rnd.NextDouble();
+            var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
+            const float L = 1.0f, W = 1.1f, H = 1.9f;
+            for (int i = 0; i < 120; i++)
+            {
+                // a point in the block, most of them pushed out to its skin (a full surface from outside), the top rounded
+                var p = new Vector3((F() - .5f) * L, F() * H, (F() - .5f) * W);
+                if (F() < .7f)
+                {
+                    int ax = rnd.Next(3);
+                    if (ax == 0) p.z = (F() < .5f ? -1 : 1) * W * (.38f + .12f * F());
+                    else if (ax == 1) p.y = H * (.85f + .15f * F());
+                    else p.x = (F() < .5f ? -1 : 1) * L * (.4f + .1f * F());
+                }
+                float top = H - .35f * Mathf.Pow(Mathf.Abs(p.z) / (W * .5f), 2); p.y = Mathf.Clamp(p.y, .15f, top);
+                float sz = .42f + .2f * F();
+                var q = Quaternion.Euler(F() * 360, F() * 360, F() * 360);
+                Vector3 a = q * Vector3.right * sz * .5f, b = q * Vector3.up * sz * .5f, nn = q * Vector3.forward;
+                var r = R[rnd.Next(R.Length)]; int b0 = v.Count;
+                v.Add(p - a - b); v.Add(p + a - b); v.Add(p + a + b); v.Add(p - a + b);
+                for (int k = 0; k < 4; k++) n.Add(nn);
+                uv.Add(new Vector2(r.x, r.y)); uv.Add(new Vector2(r.z, r.y)); uv.Add(new Vector2(r.z, r.w)); uv.Add(new Vector2(r.x, r.w));
+                t.AddRange(new[] { b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3 });
+            }
+            var m = new Mesh { name = "zivica_blok" }; m.SetVertices(v); m.SetNormals(n); m.SetUVs(0, uv); m.SetTriangles(t, 0); m.RecalculateBounds();
+            Save(m, $"{OUT}/zivica_blok.asset");
+            string mp = $"{OUT}/zivica_blok.mat"; var mat = Load<Material>(mp);
+            if (!mat) { mat = new Material(sh); AssetDatabase.CreateAsset(mat, mp); } else mat.shader = sh;
+            mat.SetTexture("baseColorTexture", tex); mat.SetColor("baseColorFactor", new Color(.62f, .74f, .56f, 1)); mat.SetFloat("alphaCutoff", .45f);
+            mat.SetFloat("_CrownY", H * .55f); mat.SetFloat("_CrownR", 1.1f); mat.SetFloat("_Bend", .75f); mat.SetFloat("_Inner", .45f); mat.SetFloat("_Vary", .06f);
+            mat.renderQueue = 2450; mat.enableInstancing = true; EditorUtility.SetDirty(mat);
+            return new NaturePass.Proto { id = "zivica-blok", mesh = Load<Mesh>($"{OUT}/zivica_blok.asset"), mats = new[] { mat }, draw = 380, near = 1e5f };
         }
 
         static readonly Dictionary<string, Mesh> narrow = new Dictionary<string, Mesh>();
@@ -153,7 +199,7 @@ namespace Magistrala.EditorTools
                 // pink: red clearly over green, blue over green (magenta side), not a brown / orange stem
                 float pinkness = Mathf.Clamp01(((r - g) - 22) / 50f) * Mathf.Clamp01(((b - g) + 8) / 30f);
                 if (pinkness <= 0) continue;
-                float l = Mathf.Max(r, Mathf.Max(g, b)); var w = new Color32((byte)Mathf.Min(255, l * 1.0f), (byte)Mathf.Min(255, l * .98f), (byte)Mathf.Min(255, l * .93f), c.a);
+                float l = Mathf.Max(r, Mathf.Max(g, b)); var w = new Color32((byte)Mathf.Min(255, l * .86f), (byte)Mathf.Min(255, l * .83f), (byte)Mathf.Min(255, l * .76f), c.a); // soft warm white (a full white read as paper flecks)
                 px[i] = Color32.Lerp(c, w, pinkness); n++;
             }
             src.SetPixels32(px); File.WriteAllBytes(tp, src.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(src);
@@ -179,7 +225,7 @@ namespace Magistrala.EditorTools
                 int k = 1; while (line[k].x < x) k++;
                 double t = (x - line[k - 1].x) / Math.Max(1e-6, line[k].x - line[k - 1].x); return line[k - 1].z + (line[k].z - line[k - 1].z) * t;
             }
-            var rnd = new System.Random(4711); int n = 0, cells = 0; double lastMain = -1e9;
+            var rnd = new System.Random(4711); int n = 0, cells = 0; double lastMain = -1e9; lastBlock = -1e9;
             for (double cx = X0; cx < X1; cx += CHUNK)
             {
                 double cx1 = Math.Min(X1, cx + CHUNK);
@@ -230,6 +276,7 @@ namespace Magistrala.EditorTools
             return res;
         }
 
+        static double lastBlock;
         static int Chunk(PutFn put, List<ModelJ> all, double X0, double X1, double Z0, double Z1, System.Random rnd, ref double lastMain, ref int cells)
         {
             var models = all.FindAll(m => m.x + m.half + 25 > X0 && m.x - m.half - 25 < X1 && m.z + m.half + 25 > Z0 && m.z - m.half - 25 < Z1);
@@ -260,6 +307,10 @@ namespace Magistrala.EditorTools
                 id = opts.Length > 0 ? opts[opts.Length - 1].id : null; return 0;
             }
             double Y(double x, double z) { double h = Tiles.Height(x, z); var q = WorldData.ModelTerrain(models, x, z, 2, h); return q ?? h; }
+            // 23. 11. (Marko: "di živica??" — the strip read as ~0.5 m shrubs with gaps): scales are now metres of height ÷ the
+            // prototype mesh's height (they were raw multipliers of the meshes, whose heights are not 2 m): oleanders 1.8–2.4 m,
+            // the dark body 1.6–2.0 m, fill shrubs 1.0–1.4 m
+            float HS(string id, float metres, float fallback) { float h = NaturePass.Height(id); return h > .05f ? metres / h : fallback; }
             // along each median column: the centre cell (max edge distance) gets the hedge; walk x, a main plant every ~1.3 m
             for (int i = 0; i < nx; i++)
             {
@@ -273,24 +324,28 @@ namespace Magistrala.EditorTools
                     double room = half - KERB;                              // half-width a plant may take
                     if (room > .35)
                     {
-                        if (x - lastMain >= .85)
+                        if (x - lastBlock >= .9)
+                        {
+                            Pick("core", out var cid);
+                            if (cid != null) { put(x, Y(x, zc) - .08, zc + (rnd.NextDouble() - .5) * .1, (float)((rnd.NextDouble() - .5) * 16), HS(cid, (float)(2.0 + .4 * rnd.NextDouble()), 1f), cid); n++; }
+                            lastBlock = x;
+                        }
+                        if (x - lastMain >= 2.4 + 1.2 * rnd.NextDouble())
                         {
                             // oleander (narrowed crown): 1.9–2.2 m tall × ~1.2 m wide, one every 0.85 m so the crowns overlap — a solid hedge;
                             // a median with room for it gets two staggered rows (~1.2–2 m planted band), a narrow one a single row
-                            int rows = room > 1.0 ? 2 : 1; bool odd = ((int)Math.Round(x / .85)) % 2 == 1;
+                            int rows = 1; bool odd = ((int)Math.Round(x / .85)) % 2 == 1;
                             for (int q = 0; q < rows; q++)
                             {
                                 Pick("main", out var id);
                                 double off = rows == 1 ? 0 : (q == 0 ? -1 : 1) * Math.Min(.5, room - .55) + (odd ? .1 : -.1);
-                                float s = (float)(1.0 + .16 * rnd.NextDouble());
+                                float s = HS(id ?? "", (float)(2.0 + .5 * rnd.NextDouble()), (float)(1.0 + .16 * rnd.NextDouble()));
                                 if (id != null) { put(x + (rnd.NextDouble() - .5) * .25 + (q == 1 ? .42 : 0), Y(x, zc) - .08, zc + off + (rnd.NextDouble() - .5) * .15, (float)(rnd.NextDouble() * 360), s, id); n++; }
                             }
-                            Pick("core", out var cid);
-                            if (cid != null) { put(x + .2, Y(x, zc) - .1, zc + (rnd.NextDouble() - .5) * .15, (float)(rnd.NextDouble() * 360), (float)(1.15 + .15 * rnd.NextDouble()), cid); n++; }
                             lastMain = x;
                         }
                         // fill between and under: shrubs where the oleanders leave gaps, grass at the base on both edges
-                        if (rnd.NextDouble() < .12) { Pick("fill", out var id); if (id != null) { put(x + (rnd.NextDouble() - .5) * .5, Y(x, zc) - .05, zc + (rnd.NextDouble() - .5) * Math.Min(room, 2.4), (float)(rnd.NextDouble() * 360), (float)(1.1 + .3 * rnd.NextDouble()), id); n++; } }
+                        if (rnd.NextDouble() < .04) { Pick("fill", out var id); if (id != null) { put(x + (rnd.NextDouble() - .5) * .5, Y(x, zc) - .05, zc + (rnd.NextDouble() - .5) * Math.Min(room, 2.4), (float)(rnd.NextDouble() * 360), HS(id, (float)(1.0 + .4 * rnd.NextDouble()), (float)(1.1 + .3 * rnd.NextDouble())), id); n++; } }
                         if (rnd.NextDouble() < .4) { Pick("base", out var id); if (id != null) { double side = rnd.NextDouble() < .5 ? -1 : 1; put(x, Y(x, zc), zc + side * Math.Min(Math.Max(0, room - .15), 1.9), (float)(rnd.NextDouble() * 360), (float)(.7 + .4 * rnd.NextDouble()), id); n++; } }
                     }
                     j = j1;

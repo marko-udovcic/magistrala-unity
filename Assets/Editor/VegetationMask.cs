@@ -120,6 +120,7 @@ namespace Magistrala.EditorTools
         /// every 0.8 m at the strip's height, an oleander now and then
         public static int PlaceHedges(PutFn put)
         {
+            int blk = NaturePass.Index("zivica-blok"); float hb = blk >= 0 ? NaturePass.Height("zivica-blok") : 0;   // 23. 11.: the dense block body (MedianHedge.HedgeBlock)
             int z = NaturePass.Index("grm-zivica"), ol = NaturePass.Index("oleander-roza"), ow = NaturePass.Index("oleander-bijeli"); if (z < 0 || !On) return 0;
             float hz = NaturePass.Height("grm-zivica"), ho = ol >= 0 ? NaturePass.Height("oleander-roza") : 0; if (hz <= 0) hz = 1.8f;
             int n = 0;
@@ -135,6 +136,7 @@ namespace Magistrala.EditorTools
                     double y = Tiles.Height(x, zz); if (y < .6) continue;
                     float r = NaturePass.R01(x, zz, 81);
                     if (ol >= 0 && ho > 0 && r < .12f) put(x, y - .05, zz, yaw + r * 300, H * 1.05f / ho, r < .07f ? ol : ow);
+                    else if (blk >= 0 && hb > 0) put(x, y - .05, zz, yaw - 90 + (r - .5f) * 12, H / hb * (.95f + .1f * r), blk);
                     else put(x, y - .05, zz, yaw + (r - .5f) * 30, H / hz * (.95f + .1f * r), z);
                     n++;
                 }
@@ -150,7 +152,9 @@ namespace Magistrala.EditorTools
         static float PineScale(int proto, double gx, double gz, float k)
         {
             float h = NaturePass.HeightOf(proto); if (h <= 0) h = 10;
-            return (5.5f + 4f * NaturePass.R01(gx, gz, 72)) * k / h;                  // low Aleppo pines 5.5–9.5 m
+            // Aleppo pines 7–11 m, one in three 12–15 m (were 5.5–9.5 m; 23. 11. Marko: "veliki borovi")
+            float r = NaturePass.R01(gx, gz, 72);
+            return (r < .33f ? 12f + 3f * r / .33f : 7f + 4f * r) * k / h;
         }
 
         // ------------------------------------------------------------------ clumps and groves
