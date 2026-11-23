@@ -52,15 +52,46 @@ namespace Magistrala
                             foreach (var m in r.sharedMaterials) if (m && (m.name == "AsphaltPBR" || m.name == "Paint") && done.Add(m)) m.SetShaderPassEnabled("ShadowCaster", false);
                         }
                     }
+                    else if (w == "windscreen") WindscreenFx.Off = true; // the cab's transparent windscreen quad
+                    // the driven vehicle (applied in Update, the model loads late): cabin = every renderer, glass = its glass / lens
+                    // materials, interior = the cab interior materials (v2_ / v3_ / i_ / M_), mv = no per-object motion vectors
+                    else if (w == "cabin" || w == "glass" || w == "interior" || w == "mv") skipTruck.Add(w);
+                    else if (w == "mblur") CameraFeel.NoBlur = true;
                     else if (w == "shadows") { foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.shadows = LightShadows.None; }
                     else { var g = GameObject.Find(w); if (g) g.SetActive(false); }
                     Debug.Log("[skip] " + w);
                 }
         }
+        // -kabinaab: GPU time, fps and counters per view (0 chase, 1 cab) since start, skipping 0.7 s after each switch
+        // (GPU timings lag a few frames)
+        readonly double[] abGpu = new double[2], abDt = new double[2], abTri = new double[2], abDc = new double[2];
+        readonly int[] abGN = new int[2], abF = new int[2], abCN = new int[2];
+        TruckChaseCamera abChase; bool abLast; float abSince;
+        void AbSample(float dt, bool gotFt)
+        {
+            if (!abChase) abChase = FindFirstObjectByType<TruckChaseCamera>();
+            bool cab = abChase && abChase.CabinView;
+            if (cab != abLast) { abLast = cab; abSince = Time.realtimeSinceStartup; }
+            if (Time.realtimeSinceStartup - abSince < .7f || Time.realtimeSinceStartup - t0 < 15f) return;
+            int k = cab ? 1 : 0;
+            abF[k]++; abDt[k] += dt;
+            if (gotFt) { abGpu[k] += ft[0].gpuFrameTime; abGN[k]++; }
+            if (cnt[2].Valid && cnt[2].LastValue > 0) { abDc[k] += cnt[2].LastValue; abTri[k] += cnt[4].LastValue; abCN[k]++; }
+        }
+        readonly System.Collections.Generic.HashSet<string> skipTruck = new System.Collections.Generic.HashSet<string>();
         float dbgT; readonly bool trafDbg = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-trafdbg") >= 0;
         void Update()
         {
             float dt = Time.unscaledDeltaTime; acc += dt; frames++; worst = Mathf.Max(worst, dt);
+            if (skipTruck.Count > 0 && Time.frameCount % 60 == 0 && Magistrala.Game.MagistralaGame.DrivenTruck() is TruckController dv)
+                foreach (var r in dv.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (skipTruck.Contains("mv")) r.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+                    string mn = r.sharedMaterial ? r.sharedMaterial.name : "";
+                    bool interior = mn.StartsWith("v3_") || mn.StartsWith("v2_") || mn.StartsWith("i_") || mn.StartsWith("M_");
+                    if (skipTruck.Contains("cabin") || (skipTruck.Contains("glass") && (mn.StartsWith("glass") || mn.StartsWith("lens")))
+                        || (skipTruck.Contains("interior") && interior)) r.forceRenderingOff = true;
+                }
             if (dt > .025f) over25++;
             if (dt > .05f) { over50++; if (Time.realtimeSinceStartup - t0 > 15 && spikeLines++ < 20) { var tr0 = Magistrala.Game.MagistralaGame.DrivenTruck(); Debug.Log($"[spike] t={Time.realtimeSinceStartup - t0:F1}s {dt * 1000:F0}ms trees={TreeRenderer.LastMs:F1}ms truck x={(tr0 ? tr0.transform.position.x - 4200 : 0):F0} z={(tr0 ? tr0.transform.position.z : 0):F0}"); } }
             treeMax = Mathf.Max(treeMax, TreeRenderer.LastMs);
@@ -69,7 +100,9 @@ namespace Magistrala
             // triangles of 22. 11.), so the window average of the frames whose draw-call count is not 0
             if (cnt[2].Valid && cnt[2].LastValue > 0) { for (int i = 0; i < cnt.Length; i++) if (cnt[i].Valid) cntSum[i] += cnt[i].LastValue; cntN++; }
             FrameTimingManager.CaptureFrameTimings();
-            if (FrameTimingManager.GetLatestTimings(1, ft) > 0) { ftMain += ft[0].cpuMainThreadFrameTime; ftRender += ft[0].cpuRenderThreadFrameTime; ftGpu += ft[0].gpuFrameTime; ftN++; }
+            bool gotFt = FrameTimingManager.GetLatestTimings(1, ft) > 0;
+            if (gotFt) { ftMain += ft[0].cpuMainThreadFrameTime; ftRender += ft[0].cpuRenderThreadFrameTime; ftGpu += ft[0].gpuFrameTime; ftN++; }
+            if (TruckChaseCamera.AbSeconds > 0) AbSample(dt, gotFt);
             // -trafdbg: once a second the cars around the truck (TrafficSystem.DebugNear)
             dbgT += dt;
             if (dbgT >= 1f) { dbgT = 0; if (trafDbg) { var tsD = FindFirstObjectByType<Magistrala.Traffic.TrafficSystem>(); var trD = Magistrala.Game.MagistralaGame.DrivenTruck(); if (tsD && trD) Debug.Log($"[traf] t={Time.realtimeSinceStartup - t0:F0} x={trD.transform.position.x - 4200:F0} v={trD.SpeedKmh:F0}" + tsD.DebugNear()); } }
@@ -83,6 +116,10 @@ namespace Magistrala
                 for (int i = 0; i < cnt.Length; i++) if (cnt[i].Valid) sb.Append($" [{Counters[i].Replace(" Count", "")}={(cntN > 0 ? cntSum[i] / cntN : 0):F0}]");
                 System.Array.Clear(cntSum, 0, cntSum.Length); cntN = 0;
                 Debug.Log(sb.ToString());
+                if (TruckChaseCamera.AbSeconds > 0)
+                    Debug.Log($"[ab] t={Time.realtimeSinceStartup - t0:F0}s (since start) chase gpu={abGpu[0] / Mathf.Max(1, abGN[0]):F2} fps={abF[0] / Mathf.Max(1e-3f, (float)abDt[0]):F1} tri={abTri[0] / Mathf.Max(1, abCN[0]):F0} dc={abDc[0] / Mathf.Max(1, abCN[0]):F0}"
+                        + $" | kab gpu={abGpu[1] / Mathf.Max(1, abGN[1]):F2} fps={abF[1] / Mathf.Max(1e-3f, (float)abDt[1]):F1} tri={abTri[1] / Mathf.Max(1, abCN[1]):F0} dc={abDc[1] / Mathf.Max(1, abCN[1]):F0}"
+                        + $" | kab-chase gpu={abGpu[1] / Mathf.Max(1, abGN[1]) - abGpu[0] / Mathf.Max(1, abGN[0]):F2} ms");
                 int gc = System.GC.CollectionCount(0);
                 Debug.Log($"[hitch] t={Time.realtimeSinceStartup - t0:F0}s >25ms={over25} >50ms={over50} worst={worst * 1000:F0}ms trees max={treeMax:F2}ms avg={TreeRenderer.SumMs / Mathf.Max(1, frames):F2}ms gc={gc - gc0}");
                 gc0 = gc; over25 = over50 = spikeLines = 0; treeMax = 0; TreeRenderer.SumMs = 0;

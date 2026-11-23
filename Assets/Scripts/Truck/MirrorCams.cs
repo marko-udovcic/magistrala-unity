@@ -1,16 +1,18 @@
 // Working side mirrors in the cab view: one small camera per outside mirror (nodes mglass_L / mglass_R of the vehicle
 // model), rendered into a low-resolution texture shown on a quad over the mirror glass. Cheap on purpose:
-//   256×192 per mirror, each mirror renders every 4th frame (left / right on alternate even frames, none on odd), no shadows, no post, far 160 m,
+//   256×192 per mirror, each mirror renders every 4th frame (left / right on alternate even frames, none on odd), no shadows, no post, far 120 m,
+//   half the LOD bias and no terrain grass / detail meshes (a 256 px picture can't show them),
 //   only while this vehicle is the chase camera's target AND the cab view is on, off on the "brzo" quality level.
 // The mirror camera sits at the glass, looking along the eye→glass ray reflected about the glass normal (a real mirror).
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 [DisallowMultipleComponent]
 public sealed class MirrorCams : MonoBehaviour
 {
     public int width = 256, height = 192;
-    public float far = 160f, fov = 28f;
+    public float far = 120f, fov = 28f;
     /// measuring: -mirrors 0 turns them off
     public static bool Off;
 
@@ -51,7 +53,7 @@ public sealed class MirrorCams : MonoBehaviour
         m.cam.targetTexture = m.rt; m.cam.fieldOfView = fov; m.cam.nearClipPlane = 0.3f; m.cam.farClipPlane = far;
         m.cam.allowMSAA = false; m.cam.allowHDR = false; m.cam.enabled = false;
         var cd = go.AddComponent<UniversalAdditionalCameraData>();
-        cd.renderShadows = false; cd.renderPostProcessing = false; cd.antialiasing = AntialiasingMode.None;
+        cd.renderShadows = false; cd.renderPostProcessing = false; cd.antialiasing = UnityEngine.Rendering.Universal.AntialiasingMode.None;
         cd.requiresDepthTexture = false; cd.requiresColorTexture = false;
         // the picture: an unlit quad just in front of the glass, sized to the glass, mirrored left-right
         var mf = m.glass.GetComponent<MeshFilter>(); var b = mf.sharedMesh.bounds;
@@ -68,6 +70,26 @@ public sealed class MirrorCams : MonoBehaviour
         mat.mainTextureScale = new Vector2(-1, 1); mat.mainTextureOffset = new Vector2(1, 0);
         m.quad.GetComponent<MeshRenderer>().sharedMaterial = mat;
         m.quad.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    }
+
+    // per mirror render: coarser LODs and no terrain foliage, restored right after (mirrors were ~0.5 ms GPU of the cab view on the M2)
+    void OnEnable() { RenderPipelineManager.beginCameraRendering += BeginCam; RenderPipelineManager.endCameraRendering += EndCam; }
+    void OnDisable() { RenderPipelineManager.beginCameraRendering -= BeginCam; RenderPipelineManager.endCameraRendering -= EndCam; }
+    float savedBias; bool cheap; readonly System.Collections.Generic.List<Terrain> foliageOff = new System.Collections.Generic.List<Terrain>();
+    bool Mine(Camera c) { foreach (var m in mirrors) if (m.cam == c) return true; return false; }
+    void BeginCam(ScriptableRenderContext ctx, Camera c)
+    {
+        if (cheap || !Mine(c)) return;
+        cheap = true; savedBias = QualitySettings.lodBias; QualitySettings.lodBias = savedBias * .5f;
+        foliageOff.Clear();
+        foreach (var t in Terrain.activeTerrains) if (t && t.drawTreesAndFoliage) { t.drawTreesAndFoliage = false; foliageOff.Add(t); }
+    }
+    void EndCam(ScriptableRenderContext ctx, Camera c)
+    {
+        if (!cheap || !Mine(c)) return;
+        cheap = false; QualitySettings.lodBias = savedBias;
+        foreach (var t in foliageOff) if (t) t.drawTreesAndFoliage = true;
+        foliageOff.Clear();
     }
 
     void LateUpdate()

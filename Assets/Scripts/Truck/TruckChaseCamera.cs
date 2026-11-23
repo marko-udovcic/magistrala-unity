@@ -14,6 +14,8 @@ public sealed class TruckChaseCamera : MonoBehaviour
     public bool CabinView { get; private set; }
     /// cab view look-down (deg): the road ahead and the top of the instrument cluster above the wheel rim
     public const float CabPitch = 6f;
+    /// -kabinaab N (measuring): seconds per view when alternating; 0 = off
+    public static float AbSeconds;
 
     Camera view;
     TruckController previousTarget;
@@ -29,6 +31,11 @@ public sealed class TruckChaseCamera : MonoBehaviour
         view.nearClipPlane = 0.08f;
         // test switch: -kabina  start in the cab view (screenshots of the interior with -shot)
         if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-kabina") >= 0) CabinView = true;
+        // measuring: -kabinaab N  alternate chase / cab every N s in one run (ProbeBench logs [ab] per view), so the M2 Air's
+        // heat and the route cancel out of the comparison
+        var args = System.Environment.GetCommandLineArgs();
+        int ab = System.Array.IndexOf(args, "-kabinaab");
+        if (ab >= 0 && ab + 1 < args.Length) float.TryParse(args[ab + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out AbSeconds);
         if (!target) target = FindFirstObjectByType<TruckController>();
     }
 
@@ -43,7 +50,8 @@ public sealed class TruckChaseCamera : MonoBehaviour
         if (previousTarget != target) { initialized = false; previousTarget = target; }
         float dt = Mathf.Min(Time.deltaTime, 0.1f);
         Keyboard keyboard = Keyboard.current;
-        if (keyboard != null && keyboard.cKey.wasPressedThisFrame)
+        bool abCab = AbSeconds > 0 && (int)(Time.realtimeSinceStartup / AbSeconds) % 2 == 1;
+        if ((keyboard != null && keyboard.cKey.wasPressedThisFrame) || (AbSeconds > 0 && abCab != CabinView))
         {
             CabinView = !CabinView;
             initialized = false;

@@ -19,6 +19,8 @@ namespace Magistrala
         const string PREF = "kamera_ziva";
         public static bool Live { get; private set; } = true;
         public static bool Mobitel { get; private set; }
+        /// measuring: -skip mblur (ProbeBench) keeps motion blur off
+        public static bool NoBlur;
         public static float ExposureOffset { get; private set; } // eye adaptation currently added to ColorAdjustments.postExposure
 
         Camera cam; TruckChaseCamera chase; Rigidbody body;
@@ -65,7 +67,7 @@ namespace Magistrala
 
         void ApplyStatic()
         {
-            if (mb) mb.active = (Live || Mobitel) && RenderQuality.Current >= 1;
+            if (mb) mb.active = (Live || Mobitel) && RenderQuality.Current >= 1 && !NoBlur;
             if (grain) grain.active = Mobitel;
             if (chroma) chroma.active = Mobitel;
             if (Mobitel)
