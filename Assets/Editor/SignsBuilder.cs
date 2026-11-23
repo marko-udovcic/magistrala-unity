@@ -631,7 +631,7 @@ namespace Magistrala.EditorTools
         /// a pedestrian-crossing sign on each kerb, facing each travel direction
         static void BuildCrossingSigns(List<ModelJ> models, Dictionary<string, Sig> sigs)
         {
-            var files = new[] { "/Users/macair/Documents/mag-11-19/krizanja3d/krizanja.json", "/Users/macair/Documents/mag-11-20/dionice/dionice.json" };
+            var files = new[] { "/Users/macair/Documents/mag-23-11-v2/krizanja3d/krizanja.json", "/Users/macair/Documents/mag-23-11-v2/dionice/dionice.json" };
             var byGlb = new Dictionary<string, ModelJ>();
             foreach (var m in models) byGlb[Path.GetFileNameWithoutExtension(m.glb)] = m;
             foreach (var f in files)
@@ -728,7 +728,60 @@ namespace Magistrala.EditorTools
                         var right = Vector3.Cross(Vector3.up, tt);
                         var q2 = Clear(c + right * (HalfW(e) + 1.2f), right);
                         if (q2 == null) { Count("preskočeno (na cesti) naziv mjesta"); continue; }
+                        // Marko's own place-name board stands near (model `dir`, mag-23-11-v2 s10 Kaštel Stari / Lukšić): his wins
+                        if (Near(q2.Value, tt, "naziv mjesta (model)", 250)) { Count("preskočeno (Markov naziv mjesta) naziv mjesta"); continue; }
                         Post(q2.Value, tt, c.y, "naziv mjesta", 80, (A.Town(into, false), A.Town(into, true), 1.65f, .59f));
+                    }
+                }
+            }
+        }
+
+        /// direction signs of the models (mag-23-11 / -v2 krizanja.json / dionice.json `objs` k "dir", README_ZNAKOVI_11-23.md): Marko's
+        /// position, heading and board texts, drawn by our sign system (the GLB's `boards` / `structure` are not drawn). `stack` = boards
+        /// one above the other on a post; `row` (a lane-diagram advance board, one line per destination) = one board per line, each with
+        /// its own arrow; `gantry` (two, boards over the carriageway without a signal) is not built — a post there would stand on the road.
+        /// Colours: Y yellow, W white, B blue, N brown → white on green is wrong, so brown / orange boards are drawn white (text kept).
+        static void BuildModelDirSigns(List<ModelJ> models)
+        {
+            var byGlb = new Dictionary<string, ModelJ>(); foreach (var m in models) byGlb[m.glb] = m;
+            foreach (var f in new[] { "/Users/macair/Documents/mag-23-11-v2/krizanja3d/krizanja.json", "/Users/macair/Documents/mag-23-11-v2/dionice/dionice.json" })
+            {
+                var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(f)));
+                foreach (var jo in MiniJson.L(MiniJson.G(root, "junctions") ?? MiniJson.G(root, "tiles")))
+                {
+                    var j = MiniJson.O(jo);
+                    if (!byGlb.TryGetValue((string)j["file"] + ".glb", out var m)) continue;
+                    foreach (var oo in MiniJson.L(MiniJson.G(j, "objs")) ?? new List<object>())
+                    {
+                        var o = MiniJson.O(oo); if ((string)o["k"] != "dir") continue;
+                        string lay = MiniJson.G(o, "lay") as string ?? "stack";
+                        if (lay == "gantry") { Count("preskočeno (portal bez semafora) putokaz modela"); continue; }
+                        double x = MiniJson.D(o["x"]), z = MiniJson.D(o["z"]), a = MiniJson.D(o["a"]), dx = Math.Cos(a), dz = Math.Sin(a);
+                        if (m.lin != null) { double nx = m.lin[0] * x + m.lin[1] * z, nz = m.lin[2] * x + m.lin[3] * z; x = nx; z = nz; nx = m.lin[0] * dx + m.lin[1] * dz; nz = m.lin[2] * dx + m.lin[3] * dz; dx = nx; dz = nz; }
+                        double gx = m.x + x, gz = m.z + z;
+                        var p = W.U(gx, 0, gz); var t = new Vector3((float)dx, 0, (float)-dz);
+                        double th = Tiles.Height(gx, gz); var mt = WorldData.ModelTerrain(models, gx, gz, 2, th);
+                        float yHint = (float)(mt ?? th) + 1;
+                        float w = MiniJson.G(o, "w") is object wo ? MiniJson.F(wo) : 2.2f, bh = MiniJson.G(o, "bh") is object bo ? MiniJson.F(bo) : .5f;
+                        var plates = new List<(string, string, float, float)>(); bool placeName = false;
+                        foreach (var bb in MiniJson.L(o["b"]))
+                        {
+                            string b = (string)bb; int c = b.IndexOf(':'); string col = c > 0 ? b.Substring(0, c) : "Y", text = c > 0 ? b.Substring(c + 1) : b;
+                            string style = col == "W" || col == "N" || col == "O" ? "white" : col == "B" ? "blue" : "yellow";
+                            var lines = text.Split('|');
+                            if (lay == "row" && lines.Length > 1)
+                            {
+                                float lh = Mathf.Max(.4f, bh / lines.Length);
+                                foreach (var l in lines) plates.Add((A.Board(l.Trim(), style, w, lh), A.Back("rect"), w, lh));
+                            }
+                            else
+                            {
+                                // (a board without any arrow and one entry is the yellow place-name sign at a settlement boundary)
+                                if (MiniJson.L(o["b"]).Count == 1 && text.IndexOfAny("←↑→↗↖↓".ToCharArray()) < 0 && col == "Y") placeName = true;
+                                plates.Add((A.Board(text, style, w, bh), A.Back("rect"), w, bh));
+                            }
+                        }
+                        Post(p, t, yHint, placeName ? "naziv mjesta (model)" : "putokaz (model)", 3, plates.ToArray());
                     }
                 }
             }
@@ -863,6 +916,7 @@ namespace Magistrala.EditorTools
                 BuildApproachSigns(models, sigs);
                 BuildCrossingSigns(models, sigs);
                 BuildLimits(gw, models, sigs);
+                BuildModelDirSigns(models);
                 BuildPlaceBoards(gw);
                 BuildStreetPlates(gw);
                 BuildRoadSigns(gw);
