@@ -38,6 +38,9 @@ namespace Magistrala.EditorTools
         public List<double[]> hfix = new List<double[]>(); public bool tile;
         public List<List<double[]>> rails = new List<List<double[]>>();
         public ModelGrid grid;
+        /// mag-23-11-v2: width of the GLB `ground` strip beside the paving (0 = the old full-square plate, Split / Solin). gnd = the strip's
+        /// world y on the model grid (NaN off it), gndIn = how far inside the strips a cell lies (m, to the outer edge of all strips together) — LoadGround, StripEdges
+        public double strip; public float[] gnd, gndIn;
         public List<(List<double[]> p, double w, int n, int lvl)> roads = new List<(List<double[]>, double, int, int)>();
 
         /// a tile edge short of / overlapping its neighbour (data `pad`, mag-11-19: also n / s, negative = 10 cm overlap of the old-road
@@ -121,15 +124,89 @@ namespace Magistrala.EditorTools
                         x0 = MiniJson.D(g["x0"]), z0 = MiniJson.D(g["z0"]), cell = MiniJson.D(g["cell"]), n = (int)MiniJson.D(g["n"]),
                         surf = DecodeRle(g["surf"], 100), near = DecodeRle(g["near"], 100), dist = DecodeRle(g["dist"], 10), foot = DecodeRle(g["foot"], 10),
                     };
+                    if (MiniJson.G(j, "strip") is object st) { m.strip = MiniJson.D(st); LoadGround(m); }
                     cache.Add(m);
                 }
+                StripEdges(cache);
             }
             return cache.FindAll(m => m.x >= minX && m.x <= maxX);
+        }
+
+        /// the model's `ground` strip rasterised onto its grid (world-aligned 2 m points, as `surf`): world y of the strip and the distance
+        /// from each strip point to the strip's outer edge (chamfer, m). README_11-23-v2.md §1: the strip's outer edge lies on the terrain
+        static void LoadGround(ModelJ m)
+        {
+            var g = m.grid; int n = g.n; m.gnd = new float[n * n]; for (int i = 0; i < m.gnd.Length; i++) m.gnd[i] = float.NaN;
+            m.gndIn = new float[n * n];
+            GlbMesh gm = null; try { gm = Glb.Read(W.KRIZ + m.glb).Find(q => q.name == "ground"); } catch (Exception e) { Debug.LogWarning($"[strip] {m.key}: {e.Message}"); }
+            if (gm == null) { m.strip = 0; return; }
+            // vertices in world x / z (pad, lin as Build roads places the mesh), y world
+            var P = new Vector3[gm.pos.Length];
+            for (int i = 0; i < P.Length; i++)
+            {
+                double x = gm.pos[i].x, y = gm.pos[i].y, z = gm.pos[i].z;
+                if (m.hfix.Count > 0) y += m.HfixAt(x, z);
+                m.Pad(ref x, ref z);
+                if (m.lin != null) { double nx = m.lin[0] * x + m.lin[1] * z, nz = m.lin[2] * x + m.lin[3] * z; x = nx; z = nz; }
+                P[i] = new Vector3((float)(m.x + x - g.x0), (float)(m.y + y), (float)(m.z + z - g.z0)); // (x, z relative to the grid origin)
+            }
+            for (int t = 0; t + 2 < gm.idx.Length; t += 3)
+            {
+                Vector3 a = P[gm.idx[t]], b = P[gm.idx[t + 1]], c = P[gm.idx[t + 2]];
+                double d = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z); if (Math.Abs(d) < 1e-9) continue;
+                int i0 = Math.Max(0, (int)Math.Floor(Math.Min(a.x, Math.Min(b.x, c.x)) / g.cell)), i1 = Math.Min(n - 1, (int)Math.Ceiling(Math.Max(a.x, Math.Max(b.x, c.x)) / g.cell));
+                int j0 = Math.Max(0, (int)Math.Floor(Math.Min(a.z, Math.Min(b.z, c.z)) / g.cell)), j1 = Math.Min(n - 1, (int)Math.Ceiling(Math.Max(a.z, Math.Max(b.z, c.z)) / g.cell));
+                for (int jj = j0; jj <= j1; jj++)
+                    for (int ii = i0; ii <= i1; ii++)
+                    {
+                        double x = ii * g.cell, z = jj * g.cell;
+                        double l0 = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / d, l1 = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / d, l2 = 1 - l0 - l1;
+                        if (l0 < -1e-4 || l1 < -1e-4 || l2 < -1e-4) continue;
+                        float h = (float)(l0 * a.y + l1 * b.y + l2 * c.y); int k = jj * n + ii;
+                        if (float.IsNaN(m.gnd[k]) || h > m.gnd[k]) m.gnd[k] = h;
+                    }
+            }
+        }
+
+        /// gndIn: distance (m) from each strip point to the outer edge of ALL strips together — a point off this model's strip that a
+        /// neighbour's strip covers (they overlap 2 m along shared square edges) is no edge, so the seams get no crease
+        static void StripEdges(List<ModelJ> all)
+        {
+            var strips = all.FindAll(q => q.gnd != null);
+            foreach (var m in strips)
+            {
+                var g = m.grid; int n = g.n; var D = m.gndIn; const float BIG = 1e9f;
+                for (int k = 0; k < D.Length; k++)
+                {
+                    D[k] = BIG;
+                    if (!float.IsNaN(m.gnd[k])) continue;
+                    double x = g.x0 + (k % n) * g.cell, z = g.z0 + (k / n) * g.cell; bool other = false;
+                    foreach (var o in strips) { if (o == m) continue; int c = o.grid.Cell(x, z); if (c >= 0 && !float.IsNaN(o.gnd[c])) { other = true; break; } }
+                    if (!other) D[k] = 0;
+                }
+                int[,] fw = { { -1, 0 }, { 0, -1 }, { -1, -1 }, { 1, -1 } }, bw = { { 1, 0 }, { 0, 1 }, { 1, 1 }, { -1, 1 } };
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    var nb = pass == 0 ? fw : bw;
+                    for (int q = 0; q < n * n; q++)
+                    {
+                        int k = pass == 0 ? q : n * n - 1 - q; if (D[k] == 0) continue;
+                        int x = k % n, z = k / n;
+                        for (int r = 0; r < 4; r++)
+                        {
+                            int X = x + nb[r, 0], Z = z + nb[r, 1]; if (X < 0 || Z < 0 || X >= n || Z >= n) continue;
+                            float w = (nb[r, 0] != 0 && nb[r, 1] != 0 ? 1.4142f : 1) * (float)g.cell;
+                            if (D[Z * n + X] + w < D[k]) D[k] = D[Z * n + X] + w;
+                        }
+                    }
+                }
+            }
         }
 
         static float Smooth(double t) => t <= 0 ? 0 : t >= 1 ? 1 : (float)(t * t * (3 - 2 * t));
 
         /// port of modelJunctions.ts modelTerrain: ground under / around a model (reach = terrain cell span); null = untouched
+        public const double STRIP_UNDER = 0.3, STRIP_BLEND = 8;
         public static double? ModelTerrain(List<ModelJ> list, double x, double z, double reach, double ours, double under = 0.25)
         {
             // (unlike the TS loop that returns the first model in reach: squares overlap at the tile seams, so first look for the
@@ -145,6 +222,19 @@ namespace Magistrala.EditorTools
                 if (c >= 0 && !float.IsNaN(m.grid.near[c]) && m.grid.dist[c] < bestD) { bestD = m.grid.dist[c]; best = m; bestC = c; }
             }
             if (!double.IsInfinity(lo)) return lo - under;
+            // mag-23-11-v2 strip models: under the `ground` strip the terrain is the strip − 0.3 m (README_11-23-v2.md §1), blended into
+            // ours over the strip's last STRIP_BLEND m (its outer edge is Marko's 60 m DEM, ours is 0.9 m higher on average, up to 7 m — so 8 m, not the README's 5);
+            // where neighbouring strips overlap, the one the point lies deeper inside
+            double gy = double.NaN, gin = -1;
+            foreach (var m in list)
+            {
+                if (m.gnd == null || Math.Abs(x - m.x) > m.half + 12 || Math.Abs(z - m.z) > m.half + 12) continue;
+                int c = m.grid.Cell(x, z); if (c < 0 || float.IsNaN(m.gnd[c])) continue;
+                if (m.gndIn[c] > gin) { gin = m.gndIn[c]; gy = m.gnd[c] - STRIP_UNDER; }
+            }
+            if (!double.IsNaN(gy)) return ours + (gy - ours) * Smooth((gin - 1) / STRIP_BLEND);
+            // (off the strip of a strip model: the world terrain as everywhere — no pull towards its roads / square)
+            if (best != null && best.gnd != null) return null;
             if (best == null || bestD > reach + 12) return null;
             double w = 1 - Smooth((bestD - reach) / 12);
             return ours + (best.y + best.grid.near[bestC] - 0.18 - ours) * w;
@@ -165,7 +255,7 @@ namespace Magistrala.EditorTools
     }
 
     // ---------------------------------------------------------------- GLB (the package's layouts: flat nodes, float VEC3, uint32 indices)
-    public class GlbMesh { public string name; public Vector3[] pos, nrm, col; public int[] idx; }
+    public class GlbMesh { public string name; public Vector3[] pos, nrm, col; public Vector2[] uv; public int[] idx; public Dictionary<string, object> mat; }
 
     public static class Glb
     {
@@ -183,7 +273,8 @@ namespace Magistrala.EditorTools
                 var prim = MiniJson.O(MiniJson.L(MiniJson.O(meshes[(int)MiniJson.D(n["mesh"])])["primitives"])[0]);
                 var at = MiniJson.O(prim["attributes"]);
                 var gm = new GlbMesh { name = (string)n["name"] };
-                gm.pos = V3(b, bin, acc, bvs, at, "POSITION"); gm.nrm = V3(b, bin, acc, bvs, at, "NORMAL"); gm.col = V3(b, bin, acc, bvs, at, "COLOR_0");
+                gm.pos = V3(b, bin, acc, bvs, at, "POSITION"); gm.nrm = V3(b, bin, acc, bvs, at, "NORMAL"); gm.col = V3(b, bin, acc, bvs, at, "COLOR_0"); gm.uv = V2(b, bin, acc, bvs, at, "TEXCOORD_0");
+                if (prim.ContainsKey("material") && j.ContainsKey("materials")) gm.mat = MiniJson.O(MiniJson.L(j["materials"])[(int)MiniJson.D(prim["material"])]);
                 if (prim.ContainsKey("indices"))
                 {
                     var a = MiniJson.O(acc[(int)MiniJson.D(prim["indices"])]); var bv = MiniJson.O(bvs[(int)MiniJson.D(a["bufferView"])]);
@@ -196,6 +287,19 @@ namespace Magistrala.EditorTools
                 outL.Add(gm);
             }
             return outL;
+        }
+
+        static Vector2[] V2(byte[] b, int bin, List<object> acc, List<object> bvs, Dictionary<string, object> at, string key)
+        {
+            if (!at.ContainsKey(key)) return null;
+            var a = MiniJson.O(acc[(int)MiniJson.D(at[key])]);
+            if ((string)a["type"] != "VEC2" || (int)MiniJson.D(a["componentType"]) != 5126) return null;
+            var bv = MiniJson.O(bvs[(int)MiniJson.D(a["bufferView"])]);
+            int off = bin + (int)MiniJson.D(MiniJson.G(bv, "byteOffset") ?? 0.0) + (int)MiniJson.D(MiniJson.G(a, "byteOffset") ?? 0.0), cnt = (int)MiniJson.D(a["count"]);
+            int stride = MiniJson.G(bv, "byteStride") is object s ? (int)MiniJson.D(s) : 8;
+            var v = new Vector2[cnt];
+            for (int i = 0; i < cnt; i++) { int o = off + i * stride; v[i] = new Vector2(BitConverter.ToSingle(b, o), BitConverter.ToSingle(b, o + 4)); }
+            return v;
         }
 
         static Vector3[] V3(byte[] b, int bin, List<object> acc, List<object> bvs, Dictionary<string, object> at, string key)

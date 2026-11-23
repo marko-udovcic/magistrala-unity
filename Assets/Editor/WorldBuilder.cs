@@ -173,9 +173,13 @@ namespace Magistrala.EditorTools
                 for (int k = 0; k < 7; k++) { v[k] = new List<Vector3>(); nr[k] = new List<Vector3>(); uv[k] = new List<Vector2>(); uv1[k] = new List<Vector2>(); uv2[k] = new List<Vector2>(); }
                 var groundRoads = m.roads.FindAll(r => r.lvl == 0);
                 var cv = new List<Vector3>(); var ci = new List<int>();
+                // mag-23-11-v2 advertising faces `ad_*` (own child renderers below) and, of the `structure` node, only their posts / poles /
+                // frames / wall backs (our signals and signs are built from data: the rest of `structure` stays out)
+                var ads = glb.FindAll(g => g.name.StartsWith("ad_"));
+                var adKeep = ads.Count > 0 ? AdStructure(glb.Find(g => g.name == "structure"), ads) : null;
                 foreach (var gm in glb)
                 {
-                    if (Array.IndexOf(DRAW, gm.name) < 0) continue;
+                    if (Array.IndexOf(DRAW, gm.name) < 0 && !(gm.name == "structure" && adKeep != null)) continue;
                     bool coll = Array.IndexOf(COLL, gm.name) >= 0 && !(gm.name == "guardrail" && m.rails.Count > 0);
                     var P = new Vector3[gm.pos.Length]; var N = new Vector3[gm.pos.Length];
                     float lift = gm.name == "markings" ? .012f : 0;
@@ -211,6 +215,7 @@ namespace Magistrala.EditorTools
                     }
                     for (int t = 0; t + 2 < gm.idx.Length; t += 3)
                     {
+                        if (gm.name == "structure" && !adKeep[t / 3]) continue;
                         int a = gm.idx[t], b = gm.idx[t + 2], c = gm.idx[t + 1]; // reversed winding (z flip)
                         int k = 0;
                         if (gm.name == "markings") k = 1;
@@ -271,6 +276,7 @@ namespace Magistrala.EditorTools
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterials = subMats.ToArray(); mr.shadowCastingMode = ShadowCastingMode.On;
                 var mc = go.AddComponent<MeshCollider>(); mc.sharedMesh = cm; mc.sharedMaterial = phys;
+                foreach (var ad in ads) AdFace(m, ad, go);
                 if (m.rails.Count > 0)
                 {
                     var rg = new GameObject("rails"); rg.isStatic = true; rg.transform.SetParent(go.transform, false);
@@ -292,6 +298,78 @@ namespace Magistrala.EditorTools
             Debug.Log(RailSeams.Build(models, gos, mats[2], railPhys));
             AssetDatabase.SaveAssets();
             Debug.Log($"[Magistrala] roads: {models.Count} models, {tris} triangles");
+        }
+
+        // ------------------------------------------------------------------ advertising faces (mag-23-11-v2, README_11-23-v2.md)
+        /// one `ad_<n>` node of the GLB as its own renderer World/Roads/<model key>/ad_<n>: own mesh (Generated/Roads/<key>_ad_<n>.asset)
+        /// and own material Generated/Roads/Ads/ad_<n>.mat (light grey, no texture — pictures are assigned at runtime by node name).
+        /// UV0 = the GLB's TEXCOORD_0 with v flipped to Unity's convention (u 0..1 from the reader's left to right, v 1 = top edge),
+        /// so an ordinary Texture2D shows upright; ad_08a / ad_08b share one picture (u 0..0.792 / 0.792..1)
+        static void AdFace(ModelJ m, GlbMesh gm, GameObject parent)
+        {
+            var P = new Vector3[gm.pos.Length]; var N = new Vector3[gm.pos.Length]; var UV = new Vector2[gm.pos.Length];
+            for (int i = 0; i < P.Length; i++)
+            {
+                double x = gm.pos[i].x, y = gm.pos[i].y, z = gm.pos[i].z;
+                if (m.hfix.Count > 0) y += m.HfixAt(x, z);
+                m.Pad(ref x, ref z);
+                if (m.lin != null) { double nx = m.lin[0] * x + m.lin[1] * z, nz = m.lin[2] * x + m.lin[3] * z; x = nx; z = nz; }
+                P[i] = new Vector3((float)x, (float)y, (float)-z);
+                var n = gm.nrm != null ? gm.nrm[i] : Vector3.up; N[i] = new Vector3(n.x, n.y, -n.z);
+                var u = gm.uv != null ? gm.uv[i] : Vector2.zero; UV[i] = new Vector2(u.x, 1 - u.y);
+            }
+            var tri = new int[gm.idx.Length];
+            for (int t = 0; t + 2 < gm.idx.Length; t += 3) { tri[t] = gm.idx[t]; tri[t + 1] = gm.idx[t + 2]; tri[t + 2] = gm.idx[t + 1]; } // (z flip)
+            var mesh = new Mesh { name = gm.name, indexFormat = P.Length > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16 };
+            mesh.SetVertices(P); mesh.SetNormals(N); mesh.SetUVs(0, UV); mesh.SetTriangles(tri, 0); mesh.RecalculateTangents(); mesh.RecalculateBounds();
+            Save(mesh, $"{GEN}/Roads/{m.key}_{gm.name}.asset");
+            Dir(GEN + "/Roads/Ads");
+            string mp = $"{GEN}/Roads/Ads/{gm.name}.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(mp);
+            if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, mp); }
+            mat.name = gm.name;
+            var pbr = gm.mat != null ? MiniJson.G(gm.mat, "pbrMetallicRoughness") as Dictionary<string, object> : null;
+            var bc = pbr != null ? MiniJson.G(pbr, "baseColorFactor") as List<object> : null;
+            var col = bc != null && bc.Count >= 3 ? new Color(MiniJson.F(bc[0]), MiniJson.F(bc[1]), MiniJson.F(bc[2]), 1) : new Color(.88f, .88f, .85f);
+            float rough = pbr != null && MiniJson.G(pbr, "roughnessFactor") is object ro ? MiniJson.F(ro) : .7f;
+            mat.SetColor("_BaseColor", col); mat.SetTexture("_BaseMap", null); mat.SetFloat("_Smoothness", 1 - rough); mat.SetFloat("_Metallic", 0);
+            EditorUtility.SetDirty(mat);
+            var go = new GameObject(gm.name);
+            go.transform.SetParent(parent.transform, false);
+            // static for lighting / occlusion, not batched: the runtime swaps this renderer's material texture by the object's name
+            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.ContributeGI | StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic | StaticEditorFlags.ReflectionProbeStatic);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterial = mat; mr.shadowCastingMode = ShadowCastingMode.On;
+        }
+
+        /// triangles of the `structure` node that belong to an advertising board: connected pieces (shared vertices / positions) whose
+        /// every vertex lies within 1.5 m (plan view) of an `ad_*` face — posts, the pole of a V board, frames, the backs of the walls
+        static bool[] AdStructure(GlbMesh st, List<GlbMesh> ads)
+        {
+            if (st == null) return null;
+            int nv = st.pos.Length, nt = st.idx.Length / 3; var keep = new bool[nt];
+            var par = new int[nv]; for (int i = 0; i < nv; i++) par[i] = i;
+            int Find(int i) { while (par[i] != i) { par[i] = par[par[i]]; i = par[i]; } return i; }
+            void Union(int a, int b) { a = Find(a); b = Find(b); if (a != b) par[a] = b; }
+            var byPos = new Dictionary<Vector3Int, int>();
+            for (int i = 0; i < nv; i++) { var k = Vector3Int.RoundToInt(st.pos[i] * 100); if (byPos.TryGetValue(k, out int o)) Union(i, o); else byPos[k] = i; }
+            for (int t = 0; t < nt; t++) { Union(st.idx[t * 3], st.idx[t * 3 + 1]); Union(st.idx[t * 3], st.idx[t * 3 + 2]); }
+            // the faces' edges in plan view
+            var segs = new List<(Vector2 a, Vector2 b)>();
+            foreach (var ad in ads)
+                for (int t = 0; t + 2 < ad.idx.Length; t += 3)
+                    for (int e = 0; e < 3; e++) { var p = ad.pos[ad.idx[t + e]]; var q = ad.pos[ad.idx[t + (e + 1) % 3]]; segs.Add((new Vector2(p.x, p.z), new Vector2(q.x, q.z))); }
+            float Dist(Vector3 v)
+            {
+                var p = new Vector2(v.x, v.z); float best = float.MaxValue;
+                foreach (var (a, b) in segs) { var ab = b - a; float l2 = ab.sqrMagnitude, t = l2 < 1e-8f ? 0 : Mathf.Clamp01(Vector2.Dot(p - a, ab) / l2); best = Mathf.Min(best, (a + ab * t - p).magnitude); }
+                return best;
+            }
+            var ok = new Dictionary<int, bool>();
+            for (int i = 0; i < nv; i++) { int r = Find(i); bool near = Dist(st.pos[i]) < 1.5f; ok[r] = ok.TryGetValue(r, out bool o) ? o && near : near; }
+            int kept = 0;
+            for (int t = 0; t < nt; t++) if (keep[t] = ok[Find(st.idx[t * 3])]) kept++;
+            return kept > 0 ? keep : null;
         }
 
         // ------------------------------------------------------------------ terrain
