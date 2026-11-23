@@ -35,8 +35,10 @@ namespace Magistrala
         // (sat −4, WB +2, exposure .06), a touch less sun / more sky light. No measurable GPU cost.
         [System.NonSerialized] public bool sunnyLook = true;
         [System.NonSerialized] public float daySun = 2.6f, dayAmbMul = 1.1f, dayShadow = .75f, dayExposure = .06f, dayContrast = 8f, daySat = -4f, dayWb = 2f;
-        [System.NonSerialized] public float dayFogDensity = .00024f, dayBloomThreshold = 1.3f;
-        [System.NonSerialized] public Color dayFog = new Color(.73f, .80f, .88f);
+        // 23. 11. (VEGETACIJA_I_TLO.md: "fog slightly blue, clearly visible from ~600 m", the world's edge hidden): 2.4e-4 → 4e-4
+        // (13 % → 21 % at 600 m, 51 % → 70 % at 3 km: Kozjak's top and the far shore go into a pale blue), a touch bluer
+        [System.NonSerialized] public float dayFogDensity = .0004f, dayBloomThreshold = 1.3f;
+        [System.NonSerialized] public Color dayFog = new Color(.70f, .78f, .89f);
         /// horizon haze in the sky (Resources/Vrijeme/HazySky.shader): the sky ends in the fog colour like the hazed hills
         [System.NonSerialized] public float dayHaze = .8f, dayHazePow = 6f, dayHazeMul = 1.15f;
         [System.NonSerialized] public FogMode dayFogMode = FogMode.Exponential; // (exp² looked unfogged in the player: its variants are probably stripped)

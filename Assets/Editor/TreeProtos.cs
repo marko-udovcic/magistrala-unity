@@ -81,12 +81,15 @@ namespace Magistrala.EditorTools
                 string mp = $"{dir}/{IDS[p]}_imp.mesh.asset"; if (File.Exists(mp)) AssetDatabase.DeleteAsset(mp); AssetDatabase.CreateAsset(m, mp);
                 string matp = $"{dir}/{IDS[p]}_imp.mat";
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(matp);
-                if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, matp); }
+                if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, matp); } else mat.shader = Shader.Find("Universal Render Pipeline/Lit");
                 ColorUtility.TryParseHtmlString(IMP_COL[p], out var col);
                 mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(tp)); mat.SetColor("_BaseColor", col);
                 mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .45f); mat.EnableKeyword("_ALPHATEST_ON");
                 mat.SetFloat("_Cull", 0); mat.doubleSidedGI = true; mat.SetFloat("_Smoothness", .05f); mat.SetFloat("_SpecularHighlights", 0); mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
-                mat.renderQueue = 2450; mat.enableInstancing = true; EditorUtility.SetDirty(mat);
+                mat.renderQueue = 2450; mat.enableInstancing = true;
+                // impostor: the crossed quads' normals bent to a sphere around the crown's middle (as the near mesh's leaves)
+                Foliage(mat, null, -1); mat.SetFloat("_CrownY", B + S * .5f); mat.SetFloat("_CrownR", S * .5f); mat.SetFloat("_Bend", .8f); mat.SetFloat("_Inner", .2f);
+                EditorUtility.SetDirty(mat);
                 meshes[p] = AssetDatabase.LoadAssetAtPath<Mesh>(mp); mats[p] = mat;
             }
             AssetDatabase.SaveAssets();
@@ -115,11 +118,31 @@ namespace Magistrala.EditorTools
                 c.SetFloat("alphaCutoff", .5f); c.SetFloat("_AlphaToMask", 1);
                 c.SetOverrideTag("RenderType", "TransparentCutout"); c.renderQueue = 2450;
                 c.SetShaderPassEnabled("DepthOnly", true); c.SetShaderPassEnabled("SHADOWCASTER", true); c.SetShaderPassEnabled("DepthNormals", true);
-                c.enableInstancing = true; EditorUtility.SetDirty(c);
+                c.enableInstancing = true;
+                Foliage(c, AssetDatabase.LoadAssetAtPath<Mesh>($"{dir}/{IDS[p]}.mesh.asset"), i - start[p]);
+                EditorUtility.SetDirty(c);
                 outM[i] = c;
             }
             AssetDatabase.SaveAssets();
             return outM;
+        }
+
+        /// the leaves (and impostors) on Magistrala/Foliage (Assets/Shaders/Foliage.shader: crown-bent normals, wrap light,
+        /// translucency, per-plant tint; 23. 11.: in the sun the shaded half of every crown was almost black). The crown centre
+        /// and radius come from the leaf submesh's bounds.
+        public static bool UseFoliage = true;
+        public static void Foliage(Material c, Mesh mesh, int sub)
+        {
+            var sh = Shader.Find("Magistrala/Foliage"); if (!UseFoliage || !sh || !c) return;
+            Bounds b = mesh && sub >= 0 && sub < mesh.subMeshCount ? mesh.GetSubMesh(sub).bounds : new Bounds(new Vector3(0, 3, 0), new Vector3(5, 4, 5));
+            var tex = c.HasProperty("baseColorTexture") ? c.GetTexture("baseColorTexture") : c.HasProperty("_BaseMap") ? c.GetTexture("_BaseMap") : null;
+            var col = c.HasProperty("baseColorFactor") ? c.GetColor("baseColorFactor") : c.HasProperty("_BaseColor") ? c.GetColor("_BaseColor") : Color.white;
+            float cut = c.HasProperty("alphaCutoff") ? c.GetFloat("alphaCutoff") : c.HasProperty("_Cutoff") ? c.GetFloat("_Cutoff") : .5f;
+            int q = c.renderQueue;
+            c.shader = sh;
+            c.SetTexture("baseColorTexture", tex); c.SetColor("baseColorFactor", col); c.SetFloat("alphaCutoff", cut);
+            c.SetFloat("_CrownY", b.center.y); c.SetFloat("_CrownR", Mathf.Max(.5f, Mathf.Max(b.extents.x, Mathf.Max(b.extents.y, b.extents.z))));
+            c.SetFloat("_Cull", 0); c.renderQueue = q < 2000 ? 2450 : q; c.enableInstancing = true;
         }
 
         /// the scene's TreeRenderer: leaves alpha-clipped (LeafClip), originals kept in blendMaterials
