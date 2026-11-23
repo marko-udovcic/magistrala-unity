@@ -85,6 +85,9 @@ public sealed class TruckChaseCamera : MonoBehaviour
         if (CabinView)
         {
             Vector3 eye = truck.TransformPoint(target.CabinEyeLocal);
+            // groundRef was only set by the chase branch: starting in the cab (-kabina) left it at 0, so the road at ~20 m
+            // counted as an "overhead structure" and the eye was pushed 0.6 m under the road (sea plane to the horizon)
+            groundRef = truck.position.y;
             KeepAboveTerrain(ref eye);
             // Follow the interpolated cab rigidly so the eye cannot drift into the windscreen on corners.
             transform.SetPositionAndRotation(eye, truck.rotation * Quaternion.Euler(headPitch + CabPitch, headYaw, 0));
