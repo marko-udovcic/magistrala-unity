@@ -18,7 +18,7 @@
 //              (≤ 3 m) / middles (≤ 3 m, straight ahead ≤ 10 m), else a dead end
 //   area       only what lies in StreetsBuilder's area (core terrain, game x −8192 … 0): west Kaštela waits for the terrain
 //   extra      + Assets/Editor/ulice-dodatne.json (same schema, game frame): streets the package lacks that a signal looks at —
-//              Gomilica's two signalised junctions (semafori-bez-modela.json) and model 03's south arm (Tamunić); OSM + DGU orthophoto
+//              Gomilica's two signalised junctions (semafori-bez-modela.json); OSM + DGU orthophoto (03 Tamunić: in the package since mag-23-11-v2)
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,7 +30,7 @@ namespace Magistrala.EditorTools
     public static class OutsideStreets
     {
         public const string SRC = "/Users/macair/Documents/mag-23-11-v2/ceste_izvan_modela.json"; // (mag-23-11-v2: new join heights, roads no longer cut at strip models' squares, Vukovarska to model 21)
-        /// streets the package lacks but a signal looks at (Gomilica of semafori-bez-modela.json, model 03 Tamunić): same schema, game frame
+        /// streets the package lacks but a signal looks at (Gomilica of semafori-bez-modela.json): same schema, game frame
         public const string EXTRA = "Assets/Editor/ulice-dodatne.json";
         public const long NODE0 = 9_000_000, EDGE0 = 9_200_000, SPLIT0 = 9_400_000;
 

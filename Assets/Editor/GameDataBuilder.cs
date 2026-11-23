@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Magistrala.Game;
 using UnityEditor;
 using UnityEditor.Build;
@@ -108,7 +109,9 @@ namespace Magistrala.EditorTools
             int applied = 0, skipped = 0;
             foreach (var id in order) { if (Apply(byId[id], nodes, edges)) applied++; else skipped++; }
             // (as StreetsBuilder: an override edge's end at its node's height — the street drawn there is)
-            double fitMax = 0; foreach (var e in edges.Values) if (nodes.TryGetValue(e.a, out var fa) && nodes.TryGetValue(e.b, out var fb)) StreetsBuilder.FitEndHeights(e.pts, fa.y, fb.y, ref fitMax);
+            double fitMax = 0, relaxMax = 0;
+            { var ny = nodes.ToDictionary(kv => kv.Key, kv => kv.Value.y); StreetsBuilder.RelaxNearModels(ny, edges.Values.Where(e => e.pts != null && e.pts.Count >= 2 && nodes.ContainsKey(e.a) && nodes.ContainsKey(e.b)).Select(e => (e.a, e.b, StreetsBuilder.PlanLen(e.pts))).ToList(), ref relaxMax); foreach (var kv in ny) nodes[kv.Key].y = kv.Value; }
+            foreach (var e in edges.Values) if (nodes.TryGetValue(e.a, out var fa) && nodes.TryGetValue(e.b, out var fb)) StreetsBuilder.FitEndHeights(e.pts, fa.y, fb.y, ref fitMax);
 
             // ---- closures
             var closed = new HashSet<long>();

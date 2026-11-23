@@ -183,13 +183,20 @@ namespace Magistrala.EditorTools
 
             nodes = ns.Values.ToList(); var ids = new HashSet<long>(ns.Keys);
             edges = es.Values.Where(e => e.pts != null && e.pts.Count >= 2 && ids.Contains(e.a) && ids.Contains(e.b)).ToList();
-            int fitted = 0; double fitMax = 0;
+            int fitted = 0; double fitMax = 0, relaxMax = 0;
+            var ny = ns.ToDictionary(kv => kv.Key, kv => kv.Value.y);
+            int relaxed = RelaxNearModels(ny, edges.Select(e => (e.a, e.b, PlanLen(e.pts))).ToList(), ref relaxMax);
+            foreach (var kv in ny) ns[kv.Key].y = kv.Value;
             foreach (var e in edges) fitted += FitEndHeights(e.pts, ns[e.a].y, ns[e.b].y, ref fitMax);
             // (graphIndex.ts setRoadClosures: an edge's own `closed` wins over the closures file)
             foreach (var e in edges) e.closed = e.closedOwn ?? closed.Contains(e.id);
             fileClosed = closed;
             Index();
-            return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids, {fitted} edge ends brought to their node's height (max {fitMax:F2} m)";
+            return $"graph {nodes.Count} nodes, {edges.Count} edges ({ok}/{order.Count} override entries), {closed.Count} closed ids, {fitted} edge ends brought to their node's height (max {fitMax:F2} m; {relaxed} nodes beside models eased, max {relaxMax:F2} m)";
+        }
+        public static double PlanLen(List<double[]> p)
+        {
+            double L = 0; for (int i = 1; i < p.Count; i++) L += Math.Sqrt(Sq(p[i][0] - p[i - 1][0]) + Sq(p[i][2] - p[i - 1][2])); return L;
         }
         /// an edge whose end is not at its node's height (mag-11-20's −7000000084514 starts 0.53 m over node 785, where the warehouse
         /// spur and Bardejovska stay: a wall between the junction disc and the ribbon at the Lukšić warehouse exit): the difference
@@ -215,6 +222,45 @@ namespace Magistrala.EditorTools
                 n++; maxD = Math.Max(maxD, Math.Abs(d));
             }
             return n;
+        }
+        /// ceste-pregled 2026-11-23: a street node next to a model's arm end at another height (the graph's OSM / DEM node vs the model's
+        /// own arm: Sućurac 02 Fulgencija Careva 44.5 vs 41.0 m over 16 m, 47 Zagorski put, 43) made a short ramp of 15–25 % between the
+        /// model and the street. The model nodes (ids −7e12…−8e12, the importer's) are pinned; the free nodes within two hops of them are
+        /// moved (≤ 3 m) so no edge between them is steeper than G — the difference spread over the street instead of one short edge.
+        /// `y` in / out (node heights), `es` the edges (a, b, plan length). Also GameDataBuilder (the GPS / traffic graph), before FitEndHeights.
+        public static int RelaxNearModels(Dictionary<long, double> y, List<(long a, long b, double len)> es, ref double maxD, double G = .09)
+        {
+            static bool Model(long id) => id <= -7_000_000_000_000 && id > -8_000_000_000_000;
+            var adj = new Dictionary<long, List<int>>();
+            for (int i = 0; i < es.Count; i++) foreach (var n in new[] { es[i].a, es[i].b }) { if (!adj.TryGetValue(n, out var l)) adj[n] = l = new List<int>(); l.Add(i); }
+            // free: not a model node, ≤ 2 hops from one
+            var hop = new Dictionary<long, int>(); var q = new Queue<long>();
+            foreach (var id in y.Keys) if (Model(id) && adj.ContainsKey(id)) { hop[id] = 0; q.Enqueue(id); }
+            while (q.Count > 0)
+            {
+                var n = q.Dequeue(); if (hop[n] >= 2) continue;
+                foreach (int i in adj[n]) { long o = es[i].a == n ? es[i].b : es[i].a; if (!hop.ContainsKey(o) && y.ContainsKey(o)) { hop[o] = hop[n] + 1; q.Enqueue(o); } }
+            }
+            var free = new HashSet<long>(hop.Where(kv => kv.Value > 0 && !Model(kv.Key)).Select(kv => kv.Key));
+            var y0 = free.ToDictionary(n => n, n => y[n]);
+            var act = new List<int>(); for (int i = 0; i < es.Count; i++) if ((free.Contains(es[i].a) || free.Contains(es[i].b)) && hop.ContainsKey(es[i].a) && hop.ContainsKey(es[i].b) && es[i].len > .5) act.Add(i);
+            for (int it = 0; it < 60; it++)
+            {
+                bool any = false;
+                foreach (int i in act)
+                {
+                    var (a, b, len) = es[i]; double d = y[b] - y[a], lim = G * len; if (Math.Abs(d) <= lim + 1e-3) continue;
+                    // an edge over 3 m off its limit is a level difference the graph means (a bridge end, steps): left alone
+                    if (Math.Abs(d) - lim > 3.5) continue;
+                    double ex = (Math.Abs(d) - lim) * Math.Sign(d); bool fa = free.Contains(a), fb = free.Contains(b);
+                    if (fa && fb) { y[a] += ex / 2; y[b] -= ex / 2; } else if (fa) y[a] += ex; else if (fb) y[b] -= ex; else continue;
+                    any = true;
+                }
+                foreach (var n in free) y[n] = Math.Max(y0[n] - 3, Math.Min(y0[n] + 3, y[n]));
+                if (!any) break;
+            }
+            int moved = 0; foreach (var n in free) { double d = Math.Abs(y[n] - y0[n]); if (d > .03) { moved++; maxD = Math.Max(maxD, d); } }
+            return moved;
         }
         /// node / edge indices, segment grid, lengths, road specs, the D8 one-way repair and the hidden ramps (after any change of nodes / edges)
         static void Index()
@@ -520,7 +566,7 @@ namespace Magistrala.EditorTools
             return true;
         }
 
-        class Cut { public double k0, k1; public Arm arm; public double sCut = double.NaN; public MX model; }
+        class Cut { public double k0, k1; public Arm arm; public double sCut = double.NaN; public MX model; public bool endSnap; }
         static Dictionary<int, Cut> cuts;
         static void ModelCuts()
         {
@@ -552,6 +598,52 @@ namespace Magistrala.EditorTools
                         cuts[ei] = new Cut { k0 = k0, k1 = k1, arm = arm, sCut = h.s, model = m };
                     }
                     else if (prev?.arm == null && (!m.footprint || m.edges.Contains(e.id))) cuts[ei] = new Cut { k0 = 0, k1 = L, model = m };
+                }
+            }
+            EndSnaps();
+        }
+        /// ceste-pregled 2026-11-23: a graph street that STARTS at a model node (the model's own edge is cut away whole, so no arm and no
+        /// ArmSnap) met the model road's end square-on with its own width and direction: arrow / wedge ends and lips where the model
+        /// road is wider or turned (c04 Vodovodna, 02 Fulgencija Careva, s04 Ponikvice, 20). Such an edge gets an arm made from the model
+        /// road whose end is at the node (its end corners, model surface heights): the last 14 m are pulled onto it as at a cut arm.
+        static int endSnaps;
+        static void EndSnaps()
+        {
+            endSnaps = 0;
+            for (int ei = 0; ei < edges.Count; ei++)
+            {
+                var e = edges[ei]; if (e.outside || e.sp == null || cuts.ContainsKey(ei) || e.L < 20) continue;
+                foreach (bool atA in new[] { true, false })
+                {
+                    long nid = atA ? e.a : e.b; var m = models.FirstOrDefault(q => q.nodes.Contains(nid)); if (m == null) continue;
+                    var np = atA ? e.pts[0] : e.pts[e.pts.Count - 1];
+                    // the model road with an end at the node (≤ 4 m), drawn at ground level
+                    double best = 4; double[] end = null, prevP = null; double mw = 0;
+                    foreach (var r in m.j.roads)
+                    {
+                        if (r.lvl != 0 || r.p.Count < 2) continue;
+                        foreach (bool first in new[] { true, false })
+                        {
+                            var q = first ? r.p[0] : r.p[r.p.Count - 1]; double d = Math.Sqrt(Sq(q[0] - np[0]) + Sq(q[1] - np[2]));
+                            if (d < best) { best = d; end = q; prevP = first ? r.p[1] : r.p[r.p.Count - 2]; mw = r.w / 2; }
+                        }
+                    }
+                    if (end == null || Math.Abs(mw - e.sp.halfWidth) > 3) continue;
+                    // the model road must run on into ours (≤ 35° apart), else the node is a T on the model's road: nothing to snap to
+                    double mx = end[0] - prevP[0], mz = end[1] - prevP[1], ml = Math.Sqrt(mx * mx + mz * mz); if (ml < 1e-6) continue; mx /= ml; mz /= ml;
+                    var far = atA ? PointAt(ei, Math.Min(10, e.L)) : PointAt(ei, Math.Max(0, e.L - 10));
+                    double ox = far.x - np[0], oz = far.z - np[2], ol = Math.Sqrt(ox * ox + oz * oz); if (ol < 1e-6) continue; ox /= ol; oz /= ol;
+                    if (mx * ox + mz * oz < Math.Cos(35 * Math.PI / 180)) continue;
+                    // corners across the model road's end, ordered by OUR frame at the node (ArmSnap maps u = −w → left, +w → right)
+                    var at = PointAt(ei, atA ? 0 : e.L); double rx = -at.tz, rz = at.tx;
+                    double px = -mz, pz = mx; if (px * rx + pz * rz < 0) { px = -px; pz = -pz; }
+                    double Y(double x, double z) { double h = m.j.Surface(x, z); return double.IsNaN(h) ? np[1] : h; }
+                    double lx = end[0] - px * mw, lz = end[1] - pz * mw, gx = end[0] + px * mw, gz = end[1] + pz * mw;
+                    var arm = new Arm { edge = e.id, outA = !atA, cut = new[] { end[0], np[1], end[1] }, left = new[] { lx, Y(lx, lz), lz }, right = new[] { gx, Y(gx, gz), gz } };
+                    // (one end only: an edge between two models keeps the first; a 20 m+ edge has room for one 14 m snap at each end, but Cut holds one)
+                    cuts[ei] = new Cut { k0 = 0, k1 = e.L, arm = arm, sCut = atA ? 0 : e.L, model = m, endSnap = true }; endSnaps++;
+                    Debug.Log(FormattableString.Invariant($"[endsnap] edge {e.id} '{e.name}' {(atA ? "A" : "B")} node {nid} {m.j.key}: our hw {e.sp.halfWidth:F1} model {mw:F1}, off {best:F1} m, angle {Math.Acos(Math.Min(1, mx * ox + mz * oz)) * 180 / Math.PI:F0}°, y node {np[1]:F2} L {arm.left[1]:F2} R {arm.right[1]:F2}"));
+                    break;
                 }
             }
         }
@@ -759,7 +851,7 @@ namespace Magistrala.EditorTools
             // a street of ours hanging on a footprint model's node without an arm cut (mag-11-19 tiles: our street kept up to the end of
             // the model's closed side stub): its last 14 m drop only on the model's paving, not 4 m around it — else a grass gap
             // between the stub's end and our street
-            bool Hangs(long nid) => mc?.arm == null && models.Any(m => m.footprint && m.nodes.Contains(nid) && !m.edges.Contains(e.id));
+            bool Hangs(long nid) => (mc?.arm == null || mc.endSnap) && models.Any(m => m.footprint && m.nodes.Contains(nid) && !m.edges.Contains(e.id));
             bool hangA = !e.outside && Hangs(e.a), hangB = !e.outside && Hangs(e.b);
 
             // sidewalks, decided per side every ~2 m (StreetsSidewalks.cs): built-up land (±30 m), the junction corner on that side
@@ -1278,6 +1370,22 @@ namespace Magistrala.EditorTools
 
         /// carriageway segments (game x / z of both ends, half width of the asphalt) of the streets Build draws: graph + outside
         /// streets (PropsBuilder keeps props off them)
+        /// ceste-pregled: the graph / outside edges within r of a point (id, kind, name, half width, distance, height there, ends)
+        public static List<string> EdgesNear(double x, double z, double r)
+        {
+            LoadGraph(); LoadModels(); ApplyOutside(); ModelCuts();
+            var o = new List<string>();
+            foreach (var e in edges)
+            {
+                if (e.pts == null || e.sp == null) continue;
+                double best = 1e9, by = 0; int bi = 0;
+                for (int i = 0; i < e.pts.Count; i++) { double d = Math.Sqrt(Sq(e.pts[i][0] - x) + Sq(e.pts[i][2] - z)); if (d < best) { best = d; by = e.pts[i][1]; bi = i; } }
+                if (best > r) continue;
+                var a = e.pts[0]; var b = e.pts[e.pts.Count - 1];
+                o.Add(FormattableString.Invariant($"edge {e.id} {(e.outside ? "OUT" : e.splitOf >= 0 ? "SPLIT" : "graph")} '{e.name}' {e.type} hw {e.sp.halfWidth:F1} d {best:F1} y {by:F2} pt {bi}/{e.pts.Count} A {e.a}@({a[0]:F0},{a[2]:F0},{a[1]:F1}) B {e.b}@({b[0]:F0},{b[2]:F0},{b[1]:F1}) mA {e.mA?.key} mB {e.mB?.key} closed {e.closed} cut {(cuts != null && cuts.ContainsKey(edges.IndexOf(e)) ? (cuts[edges.IndexOf(e)].arm != null ? "arm" : "model") : "-")}"));
+            }
+            return o;
+        }
         public static List<(double ax, double az, double bx, double bz, double hw)> Carriageways()
         {
             LoadGraph(); LoadModels(); ApplyOutside();
@@ -1297,7 +1405,7 @@ namespace Magistrala.EditorTools
             MainScene.Ensure();
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var log = new List<string>();
-            log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts();
+            log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts(); log.Add($"{endSnaps} street ends snapped onto the model road they start at");
             log.Add(LoadFeet()); walkOurs = new Dictionary<string, double>();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
@@ -1379,7 +1487,7 @@ namespace Magistrala.EditorTools
         static string CarveTerrain()
         {
             wbModels = WorldData.Models(-1e9, 1e9);
-            int changed = 0, tiles = 0, filled = 0;
+            int changed = 0, tiles = 0, filled = 0, cut = 0;
             foreach (var t in UnityEngine.Object.FindObjectsByType<UnityEngine.Terrain>(FindObjectsSortMode.None))
             {
                 var parts = t.name.Split(' ')[1].Split(','); int tx = int.Parse(parts[0]), tz = int.Parse(parts[1]);
@@ -1457,28 +1565,62 @@ namespace Magistrala.EditorTools
                             Set(r, c, target); filled++;
                         }
                 }
+                // the street corridors: lowered to the street within reach; beyond it a cut slope (ceste-pregled 2026-11-23: the ground was
+                // only lowered inside reach, so a street in a hillside ran between vertical terrain walls up to 6 m high — 51 north, Sućurac
+                // 02, 47, s04). The batter: at most CUT m up per m out, over <= BATTER m, only lowering; not within 4 m of a model's paving,
+                // never under another street's corridor that is higher than the slope there, not in / beside a court (its own flat ground).
+                const double BATTER = 20, CUT = .7;
+                // (another street's corridor beside a cut: the slope stops where it would undercut it — a segment grid, 32 m cells)
+                var segGrid = new Dictionary<long, List<double[]>>();
+                foreach (var q in carve)
+                {
+                    if (q.Length >= 8) continue;
+                    double rr = q[6] + 1;
+                    for (int gz2 = (int)Math.Floor((Math.Min(q[1], q[4]) - rr) / 32); gz2 <= (int)Math.Floor((Math.Max(q[1], q[4]) + rr) / 32); gz2++)
+                        for (int gx2 = (int)Math.Floor((Math.Min(q[0], q[3]) - rr) / 32); gx2 <= (int)Math.Floor((Math.Max(q[0], q[3]) + rr) / 32); gx2++)
+                        { long key = Key(gx2, gz2); if (!segGrid.TryGetValue(key, out var l)) segGrid[key] = l = new List<double[]>(); l.Add(q); }
+                }
+                bool Undercuts(double[] own, double gx, double gz, double lim)
+                {
+                    if (!segGrid.TryGetValue(Key((int)Math.Floor(gx / 32), (int)Math.Floor(gz / 32)), out var l)) return false;
+                    foreach (var o in l)
+                    {
+                        if (ReferenceEquals(o, own)) continue;
+                        double ox2 = o[3] - o[0], oz2 = o[4] - o[1], ol = ox2 * ox2 + oz2 * oz2;
+                        double t2 = ol < 1e-9 ? 0 : Math.Max(0, Math.Min(1, ((gx - o[0]) * ox2 + (gz - o[1]) * oz2) / ol));
+                        if (Math.Sqrt(Sq(gx - o[0] - ox2 * t2) + Sq(gz - o[1] - oz2 * t2)) > o[6] + 1) continue;
+                        if (o[2] + (o[5] - o[2]) * t2 - .18 > lim + .05) return true;
+                    }
+                    return false;
+                }
                 foreach (var q in carve)
                 {
                     if (q.Length >= 8) continue;
                     double reach = q[6]; // (half width + 1.6 m = the web's hw + step · 0.8 on the 2 m grid)
-                    double x0 = Math.Min(q[0], q[3]) - reach, x1 = Math.Max(q[0], q[3]) + reach, z0 = Math.Min(q[1], q[4]) - reach, z1 = Math.Max(q[1], q[4]) + reach;
+                    double x0 = Math.Min(q[0], q[3]) - reach - BATTER, x1 = Math.Max(q[0], q[3]) + reach + BATTER, z0 = Math.Min(q[1], q[4]) - reach - BATTER, z1 = Math.Max(q[1], q[4]) + reach + BATTER;
                     if (x1 < ox || x0 > ox + 1024 || z1 < oz1 - 1024 || z0 > oz1) continue;
                     double bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
+                    var nearCourts = courts.Where(b => { double R = Math.Sqrt(b.hl * b.hl + b.hw * b.hw) + 9; return b.x + R > x0 && b.x - R < x1 && b.z + R > z0 && b.z - R < z1; }).ToList();
                     for (int r = Math.Max(0, (int)Math.Floor((oz1 - z1) / step)); r <= Math.Min(res - 1, (int)Math.Ceiling((oz1 - z0) / step)); r++)
                         for (int c = Math.Max(0, (int)Math.Floor((x0 - ox) / step)); c <= Math.Min(res - 1, (int)Math.Ceiling((x1 - ox) / step)); c++)
                         {
                             double gx = ox + c * step, gz = oz1 - r * step;
                             double tt = l2 < 1e-9 ? 0 : Math.Max(0, Math.Min(1, ((gx - q[0]) * bx + (gz - q[1]) * bz) / l2));
-                            if (Math.Sqrt(Sq(gx - q[0] - bx * tt) + Sq(gz - q[1] - bz * tt)) > reach) continue;
-                            double ry = q[2] + (q[5] - q[2]) * tt - .18;
-                            if (Get(r, c) > ry) Set(r, c, ry);
+                            double dd = Math.Sqrt(Sq(gx - q[0] - bx * tt) + Sq(gz - q[1] - bz * tt)); if (dd > reach + BATTER) continue;
+                            double ry = q[2] + (q[5] - q[2]) * tt - .18; float cur = Get(r, c);
+                            if (dd <= reach) { if (cur > ry) Set(r, c, ry); continue; }
+                            double lim = ry + (dd - reach) * CUT; if (cur <= lim + .01) continue;
+                            // (the models' ground strip is not drawn: the terrain is its only picture, a cut through it is fine away from the paving)
+                            if (WorldData.SurfDist(wbModels, gx, gz) < 4 || Undercuts(q, gx, gz, lim)) continue;
+                            if (nearCourts.Any(b => { double dx = gx - b.x, dz = gz - b.z; return Math.Abs(dx * b.fx + dz * b.fz) <= b.hl + 8 && Math.Abs(dx * b.fz - dz * b.fx) <= b.hw + 8; })) continue;
+                            Set(r, c, lim); cut++;
                         }
                 }
                 WalkTerrain(ox, oz1, step, res, Get, Set);
                 if (changed > n0) { td.SetHeights(0, 0, H); EditorUtility.SetDirty(td); tiles++; }
             }
             AssetDatabase.SaveAssets();
-            return $"terrain: {changed} height samples lowered / flattened on {tiles} tiles ({filled} raised to a street above the ground)";
+            return $"terrain: {changed} height samples lowered / flattened on {tiles} tiles ({filled} raised to a street above the ground, {cut} cut slopes beside streets in a hillside)";
         }
 
         // ------------------------------------------------------------------ cover mask (2 m cells over the area): details / trees stay off
