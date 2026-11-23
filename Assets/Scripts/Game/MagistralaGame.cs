@@ -334,7 +334,13 @@ namespace Magistrala.Game
             if (WorldMap.IsOpen) kb = null;
             else if (Phone.Open) { kb = null; help.Add("Tab zatvori mobitel"); }
             else if (Phone.Ringing != null) help.Add($"Y javi se ({MatePhone.Who(Phone.Ringing.caller).name}) · N odbij");
-            else help.Add(Phone.Unread > 0 ? $"Tab mobitel (poruke: {Phone.Unread}) · M karta" : "Tab mobitel · M karta");
+            else
+            {
+                var news = new List<string>();
+                if (Phone.Unread > 0) news.Add($"poruke: {Phone.Unread}");
+                if (Phone.BlicajUnread > 0) news.Add($"{BlicajFeed.App}: {Phone.BlicajUnread}");
+                help.Add(news.Count > 0 ? $"Tab mobitel ({string.Join(" · ", news)}) · M karta" : "Tab mobitel · M karta");
+            }
             bool ringing = Phone.Ringing != null;
             if (card != null)
             {

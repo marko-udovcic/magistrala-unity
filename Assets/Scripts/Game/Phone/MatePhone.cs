@@ -2,6 +2,7 @@
 // otvoren, igra je pauzirana i sat stoji"). GTA-like: Tab raises it in the bottom-right corner; while it is open the game is
 // paused (timeScale 0, the clock stops). Apps: Poruke (messages), Pozivi (recent calls + contacts, calling a contact), Poslovi
 // (the job offers: a provider from the game, 1/2/3 stay shortcuts at the warehouse), Kontakti; Karta and Banka are placeholders.
+// Blicaj: the local "Di stoje plavi" group (MatePhone.Blicaj.cs, Blicaj.cs).
 // Incoming calls ring with the caller's name without pausing (Y answer · N decline); answering opens the phone on the call:
 // the caller's lines as bubbles and 2–4 choices; a choice shows Mate's line and the caller's reply.
 // Keys while open: ↑ / ↓ select · Enter open / choose · 1–9 pick directly · Backspace back · Tab close. Mouse works too.
@@ -46,9 +47,9 @@ namespace Magistrala.Game.Phone
 
     [Serializable] public class PhoneMsg { public string from, text; public float at; public bool read, story; }
     [Serializable] public class PhoneLog { public string who; public float at; public int kind; } // 0 in, 1 missed, 2 out, 3 declined
-    [Serializable] public class PhoneSave { public List<PhoneMsg> msgs = new List<PhoneMsg>(); public List<PhoneLog> log = new List<PhoneLog>(); public int randDay = -1, randCount; }
+    [Serializable] public class PhoneSave { public List<PhoneMsg> msgs = new List<PhoneMsg>(); public List<PhoneLog> log = new List<PhoneLog>(); public int randDay = -1, randCount; public BlicajSave blicaj = new BlicajSave(); }
 
-    public class MatePhone : MonoBehaviour
+    public partial class MatePhone : MonoBehaviour
     {
         public struct Contact { public string id, name, role; public Color color; }
         public static readonly Contact[] Contacts =
@@ -64,7 +65,7 @@ namespace Magistrala.Game.Phone
         public static void AddContact(Contact c) { extra.RemoveAll(x => x.id == c.id); extra.Add(c); }
         public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; foreach (var c in extra) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
 
-        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About, Settings }
+        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About, Settings, Blicaj, BlicajJavi }
         public bool Open { get; private set; }
         public Screen Current { get; private set; } = Screen.Home;
         public PhoneCall Ringing { get; private set; }
@@ -116,7 +117,7 @@ namespace Magistrala.Game.Phone
         public int RandomToday(int day) => data.randDay == day ? data.randCount : 0;
 
         public PhoneSave Export() => data;
-        public void Import(PhoneSave s) { data = s ?? new PhoneSave(); }
+        public void Import(PhoneSave s) { data = s ?? new PhoneSave(); if (data.blicaj == null) data.blicaj = new BlicajSave(); blicajFeed = null; }
 
         public void Show(Screen s) { Open = true; Current = s; sel = 0; }
         /// a message conversation with choices (faturete): no ringing, no call log
@@ -139,6 +140,7 @@ namespace Magistrala.Game.Phone
             var kb = Keyboard.current;
             float dt = Time.unscaledDeltaTime;
             if (Current != Screen.About) aboutPage = 0;
+            TickBlicaj();
             bool show = Open || Ringing != null;
             slide = Mathf.MoveTowards(slide, show ? 1 : 0, dt * 5);
             if (Ringing != null && !Open && clock() - Ringing.ringAt >= Ringing.timeoutMin)
@@ -179,6 +181,7 @@ namespace Magistrala.Game.Phone
             if (Current == Screen.InCall && !callDone && !(call != null && call.chat)) return; // choose first (a conversation can wait)
             if (Current == Screen.InCall || Current == Screen.Outgoing) { EndCall(); return; }
             if (Current == Screen.Thread) { Current = Screen.Messages; sel = 0; return; }
+            if (Current == Screen.BlicajJavi) { Current = Screen.Blicaj; sel = 0; return; }
             if (Current == Screen.Home) Close(); else { Current = Screen.Home; sel = 0; }
         }
 
@@ -314,6 +317,8 @@ namespace Magistrala.Game.Phone
                 case Screen.Soon: DrawSoon(area); break;
                 case Screen.About: DrawAbout(area); break;
                 case Screen.Settings: DrawSettings(area); break;
+                case Screen.Blicaj: DrawBlicaj(area); break;
+                case Screen.BlicajJavi: DrawBlicajJavi(area); break;
             }
             Fill(new Rect(x + W / 2 - 62, scr.yMax - 13, 124, 5), new Color(1, 1, 1, 0.85f), 2.5f); // home bar
             if (Open)
@@ -395,6 +400,7 @@ namespace Magistrala.Game.Phone
             var grid = new[]
             {
                 new App { name = "Poslovi", glyph = PhoneArt.Box, c = new Color(1f, 0.58f, 0.1f), s = Screen.Jobs },
+                new App { name = BlicajFeed.App, glyph = PhoneArt.Beacon, c = BlicajBlue, s = Screen.Blicaj, badge = BlicajUnread },
                 new App { name = "Karta", glyph = PhoneArt.Map, c = new Color(0.3f, 0.75f, 0.55f), s = Screen.Soon },
                 new App { name = "Banka", glyph = PhoneArt.Bank, c = new Color(0.2f, 0.32f, 0.62f), s = Screen.Soon },
                 new App { name = "O igri", glyph = PhoneArt.Person, c = new Color(0.45f, 0.47f, 0.52f), s = Screen.About },
@@ -411,33 +417,41 @@ namespace Magistrala.Game.Phone
             void Icon(App ap, Rect r, bool lab)
             {
                 int idx = k++; var s2 = ap.s; var nm = ap.name;
-                items.Add((ap.name, null, () => { if (s2 == Screen.Soon) soonName = nm; Current = s2; sel = 0; if (s2 == Screen.Calls) MarkMissedSeen(); }, null));
+                items.Add((ap.name, null, () => { if (s2 == Screen.Soon) soonName = nm; Current = s2; sel = 0; if (s2 == Screen.Calls) MarkMissedSeen(); if (s2 == Screen.Blicaj) BlicajOpened(); }, null));
                 if (sel == idx) Fill(new Rect(r.x - 4, r.y - 4, r.width + 8, r.height + 8), new Color(1, 1, 1, 0.55f), 17);
                 Fill(r, ap.c, 14);
                 Glyph(Shrink(r, 13), ap.glyph, Color.white);
                 if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { sel = idx; items[idx].act(); }
                 if (lab) GUI.Label(new Rect(r.x - 12, r.yMax + 5, r.width + 24, 16), ap.name, label);
-                if (ap.badge > 0) { var b = new Rect(r.xMax - 15, r.y - 7, 22, 22); Fill(b, new Color(1f, 0.23f, 0.19f), 11); GUI.Label(b, ap.badge.ToString(), St(12, true, Color.white, TextAnchor.MiddleCenter, false)); }
+                if (ap.badge > 0) { var b = new Rect(r.xMax - 15, r.y - 7, 22, 22); Fill(b, new Color(1f, 0.23f, 0.19f), 11); GUI.Label(b, ap.badge > 99 ? "99" : ap.badge.ToString(), St(12, true, Color.white, TextAnchor.MiddleCenter, false)); }
             }
             float top = scr.y + 176;
             for (int i = 0; i < grid.Length; i++) Icon(grid[i], new Rect(gx + (i % 4) * cell + (cell - icon) / 2, top + (i / 4) * 92, icon, icon), true);
             top += ((grid.Length - 1) / 4) * 92; // (a second row of apps pushes the notification card down)
             // the latest message as a notification card
-            if (data.msgs.Count > 0)
+            // (or the newest unread Blicaj post, when it is newer: the same card with the app's colour)
+            var bl = LatestUnreadBlicaj();
+            if (bl != null && (data.msgs.Count == 0 || bl.at > data.msgs[data.msgs.Count - 1].at))
+                NoteCard(new Rect(scr.x + 12, top + 96, scr.width - 24, 78), BlicajBlue, PhoneArt.Beacon, $"{BlicajFeed.App} · {bl.who}", bl.at, bl.text);
+            else if (data.msgs.Count > 0)
             {
                 var m = data.msgs[data.msgs.Count - 1];
-                var r = new Rect(scr.x + 12, top + 96, scr.width - 24, 78);
-                Fill(r, new Color(0.12f, 0.13f, 0.16f, 0.72f), 18);
-                Fill(new Rect(r.x + 12, r.y + 12, 22, 22), new Color(0.2f, 0.78f, 0.35f), 6); Glyph(new Rect(r.x + 15, r.y + 15, 16, 16), PhoneArt.Bubble, Color.white);
-                GUI.Label(new Rect(r.x + 42, r.y + 12, r.width - 100, 22), $"<b>{Who(m.from).name}</b>", St(13, true, Color.white, TextAnchor.MiddleLeft, false));
-                GUI.Label(new Rect(r.xMax - 64, r.y + 12, 52, 22), Hm(m.at), St(11, false, new Color(1, 1, 1, 0.6f), TextAnchor.MiddleRight, false));
-                GUI.Label(new Rect(r.x + 12, r.y + 38, r.width - 24, 36), Cut(m.text, 80), St(13, false, Color.white));
+                NoteCard(new Rect(scr.x + 12, top + 96, scr.width - 24, 78), new Color(0.2f, 0.78f, 0.35f), PhoneArt.Bubble, Who(m.from).name, m.at, m.text);
             }
             // dock
             var dk = new Rect(scr.x + 12, scr.yMax - 108, scr.width - 24, 84);
             Fill(dk, new Color(1, 1, 1, 0.22f), 26);
             float dc = dk.width / dock.Length;
             for (int i = 0; i < dock.Length; i++) Icon(dock[i], new Rect(dk.x + i * dc + (dc - icon) / 2, dk.y + 13, icon, icon), false);
+        }
+
+        void NoteCard(Rect r, Color c, Texture2D glyph, string title, float at, string text)
+        {
+            Fill(r, new Color(0.12f, 0.13f, 0.16f, 0.72f), 18);
+            Fill(new Rect(r.x + 12, r.y + 12, 22, 22), c, 6); Glyph(new Rect(r.x + 15, r.y + 15, 16, 16), glyph, Color.white);
+            GUI.Label(new Rect(r.x + 42, r.y + 12, r.width - 100, 22), $"<b>{title}</b>", St(13, true, Color.white, TextAnchor.MiddleLeft, false));
+            GUI.Label(new Rect(r.xMax - 64, r.y + 12, 52, 22), Hm(at), St(11, false, new Color(1, 1, 1, 0.6f), TextAnchor.MiddleRight, false));
+            GUI.Label(new Rect(r.x + 12, r.y + 38, r.width - 24, 36), Cut(text, 80), St(13, false, Color.white));
         }
 
         public Func<string> DayText;
@@ -718,8 +732,10 @@ namespace Magistrala.Game.Phone
         static string Cut(string s, int n) => s.Length <= n ? s : s.Substring(0, n - 1) + "…";
 
         /// chat bubbles from the bottom up: grey for others, blue for Mate
-        void Bubbles(Rect a, float top, float bottom, List<(bool mate, string text, string stamp)> list)
+        /// returns how many of the newest bubbles fitted
+        int Bubbles(Rect a, float top, float bottom, List<(bool mate, string text, string stamp)> list)
         {
+            int drawn = 0;
             for (int i = list.Count - 1; i >= 0; i--)
             {
                 var (mate, text, stamp) = list[i];
@@ -728,13 +744,14 @@ namespace Magistrala.Game.Phone
                 var size = bubble.CalcSize(new GUIContent(text)); if (size.x < bw) bw = Mathf.Max(60, size.x + 2);
                 float sh = stamp != null ? 14 : 0;
                 if (bottom - h - sh < top) break;
-                bottom -= h + sh;
+                bottom -= h + sh; drawn++;
                 var r = new Rect(mate ? a.xMax - bw : a.x, bottom, bw, h);
                 Fill(r, mate ? new Color(0.04f, 0.52f, 1f) : new Color(0.23f, 0.23f, 0.25f), 17);
                 GUI.Label(r, text, bubble);
                 if (stamp != null) GUI.Label(new Rect(r.x + 6, r.yMax + 1, 120, 13), stamp, St(10, false, new Color(1, 1, 1, 0.5f), mate ? TextAnchor.UpperRight : TextAnchor.UpperLeft, false));
                 bottom -= 8;
             }
+            return drawn;
         }
 
         void DrawThread(Rect a)
@@ -829,7 +846,17 @@ namespace Magistrala.Game.Phone
     public static class PhoneArt
     {
         static Texture2D wall, wallBlur, handset, bubble, person, box, map, bank, wifi;
-        static Texture2D gear;
+        static Texture2D gear, beacon;
+        /// Blicaj: a rotating-light dome on its base with three short flashes (no real police emblem)
+        public static Texture2D Beacon => beacon ??= Make(96, (u, v) =>
+        {
+            float a = RRect(u, v, 0.5f, 0.2f, 0.34f, 0.07f, 0.03f);
+            a = Mathf.Max(a, Ell(u, v, 0.5f, 0.27f, 0.22f, 0.36f) * (v > 0.27f ? 1 : 0));
+            a *= 1 - Ell(u, v, 0.42f, 0.44f, 0.045f, 0.09f); // a glint
+            a = Mathf.Max(a, Ell(u, v, 0.5f, 0.84f, 0.04f, 0.08f));
+            a = Mathf.Max(a, Mathf.Max(Ell(u, v, 0.16f, 0.66f, 0.05f, 0.05f), Ell(u, v, 0.84f, 0.66f, 0.05f, 0.05f)));
+            return a;
+        });
         /// settings: an 8-tooth cog with a hole
         public static Texture2D Gear => gear ??= Make(96, (u, v) =>
         {
