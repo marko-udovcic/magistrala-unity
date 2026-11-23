@@ -203,6 +203,10 @@ namespace Magistrala
             if (!sun || !sun.isActiveAndEnabled) { sun = RenderSettings.sun; if (!sun) foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) if (l.type == LightType.Directional) { sun = l; break; } }
             sunFwd = sun ? sun.transform.forward : Vector3.down;
             float k = Mathf.Max(.2f, Distance), shD = shadowDistance * k, impShD = impShadowDistance * k;
+            // no impostor shadows past the full-mesh shadow distance (24. 11.: shadow-only screenshots with and without them are
+            // the same – the crossed cards leave next to nothing in the shadow map – yet they cost ~60 shadow draws a frame and
+            // kept the 256 m impostor blocks out to 260 m); -trees-impshadow (measuring only) brings them back
+            if (!ImpOwnShadow) impShD = shD;
             float shMax = Mathf.Max(shD, impShD); bool fix = !NoFix && !Legacy;
             System.Array.Clear(blockDone, 0, blockDone.Length);
             if (fix && impMeshes != null)
