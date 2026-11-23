@@ -224,6 +224,7 @@ namespace Magistrala.EditorTools
                             var col = gm.col[a]; float best = 9;
                             for (int q = 0; q < CLS.Length; q++) { float d = (CLS[q] - col).sqrMagnitude; if (d < best) { best = d; k = q; } }
                             if (k == 1) k = 4;
+                            if (gm.name == "structure" && k == 0) k = 2; // (an ad board's dark frame / pole: steel, not the asphalt shader)
                             // the bridge structure (deck, not its asphalt): double-sided — its faces were wound inwards (black footbridge on d08)
                             if (gm.name == "deck" && k != 0) k = 6;
                         }

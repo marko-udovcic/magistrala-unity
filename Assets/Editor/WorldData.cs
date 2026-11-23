@@ -40,7 +40,7 @@ namespace Magistrala.EditorTools
         public ModelGrid grid;
         /// mag-23-11-v2: width of the GLB `ground` strip beside the paving (0 = the old full-square plate, Split / Solin). gnd = the strip's
         /// world y on the model grid (NaN off it), gndIn = how far inside the strips a cell lies (m, to the outer edge of all strips together) — LoadGround, StripEdges
-        public double strip; public float[] gnd, gndIn;
+        public double strip; public float[] gnd, gndIn, gndCorr;
         public List<(List<double[]> p, double w, int n, int lvl)> roads = new List<(List<double[]>, double, int, int)>();
 
         /// a tile edge short of / overlapping its neighbour (data `pad`, mag-11-19: also n / s, negative = 10 cm overlap of the old-road
@@ -200,13 +200,40 @@ namespace Magistrala.EditorTools
                         }
                     }
                 }
+                // gndCorr: our terrain minus the strip (− 0.3 m) at the nearest point of the strip's outer edge — Marko's edge is his 60 m
+                // DEM, ours is 0.9 m higher on average (up to 7 m): the strip is shifted by it, fading out towards the road (ModelTerrain)
+                var C = m.gndCorr = new float[n * n]; var E = new float[n * n];
+                for (int k = 0; k < n * n; k++)
+                {
+                    E[k] = BIG; if (float.IsNaN(m.gnd[k]) || D[k] > 1.5f * g.cell) continue;
+                    double x = g.x0 + (k % n) * g.cell, z = g.z0 + (k / n) * g.cell;
+                    E[k] = 0; C[k] = (float)(Tiles.Height(x, z) - (m.gnd[k] - ModelTerrainStrip.UNDER));
+                }
+                for (int pass = 0; pass < 2; pass++)
+                {
+                    var nb = pass == 0 ? fw : bw;
+                    for (int q = 0; q < n * n; q++)
+                    {
+                        int k = pass == 0 ? q : n * n - 1 - q; if (E[k] == 0 || float.IsNaN(m.gnd[k])) continue;
+                        int x = k % n, z = k / n;
+                        for (int r = 0; r < 4; r++)
+                        {
+                            int X = x + nb[r, 0], Z = z + nb[r, 1]; if (X < 0 || Z < 0 || X >= n || Z >= n) continue;
+                            int kk = Z * n + X; if (float.IsNaN(m.gnd[kk])) continue;
+                            float w = (nb[r, 0] != 0 && nb[r, 1] != 0 ? 1.4142f : 1) * (float)g.cell;
+                            if (E[kk] + w < E[k]) { E[k] = E[kk] + w; C[k] = C[kk]; }
+                        }
+                    }
+                }
             }
         }
+
+        static class ModelTerrainStrip { public const double UNDER = 0.3; }
 
         static float Smooth(double t) => t <= 0 ? 0 : t >= 1 ? 1 : (float)(t * t * (3 - 2 * t));
 
         /// port of modelJunctions.ts modelTerrain: ground under / around a model (reach = terrain cell span); null = untouched
-        public const double STRIP_UNDER = 0.3, STRIP_BLEND = 8;
+        public const double STRIP_UNDER = ModelTerrainStrip.UNDER, STRIP_BLEND = 3, STRIP_CORR = 25;
         public static double? ModelTerrain(List<ModelJ> list, double x, double z, double reach, double ours, double under = 0.25)
         {
             // (unlike the TS loop that returns the first model in reach: squares overlap at the tile seams, so first look for the
@@ -223,14 +250,16 @@ namespace Magistrala.EditorTools
             }
             if (!double.IsInfinity(lo)) return lo - under;
             // mag-23-11-v2 strip models: under the `ground` strip the terrain is the strip − 0.3 m (README_11-23-v2.md §1), blended into
-            // ours over the strip's last STRIP_BLEND m (its outer edge is Marko's 60 m DEM, ours is 0.9 m higher on average, up to 7 m — so 8 m, not the README's 5);
+            // ours over the strip's last STRIP_BLEND m. Its outer edge is Marko's 60 m DEM and ours is 0.9 m higher on average (up to 7 m):
+            // a plain blend made banks with the stepped 4 m edge showing, so the strip is first shifted by that mismatch (gndCorr), the
+            // shift fading out over STRIP_CORR m towards the road;
             // where neighbouring strips overlap, the one the point lies deeper inside
             double gy = double.NaN, gin = -1;
             foreach (var m in list)
             {
                 if (m.gnd == null || Math.Abs(x - m.x) > m.half + 12 || Math.Abs(z - m.z) > m.half + 12) continue;
                 int c = m.grid.Cell(x, z); if (c < 0 || float.IsNaN(m.gnd[c])) continue;
-                if (m.gndIn[c] > gin) { gin = m.gndIn[c]; gy = m.gnd[c] - STRIP_UNDER; }
+                if (m.gndIn[c] > gin) { gin = m.gndIn[c]; gy = m.gnd[c] - STRIP_UNDER + m.gndCorr[c] * (1 - Smooth(gin / STRIP_CORR)); }
             }
             if (!double.IsNaN(gy)) return ours + (gy - ours) * Smooth((gin - 1) / STRIP_BLEND);
             // (off the strip of a strip model: the world terrain as everywhere — no pull towards its roads / square)
