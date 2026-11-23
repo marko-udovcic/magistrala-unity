@@ -666,6 +666,7 @@ namespace Magistrala.EditorTools
             TreeProtos.Impostors(tr.meshes, tr.materials, tr.materialStart, out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
             NaturePass.Finish(tr);
             Debug.Log(MapillaryTrees.Apply(tr, models)); // Mapillary street trees the build lacks (MapillaryTrees.cs)
+            Debug.Log(VegetationClean.Apply(tr, models)); // off roads / bays / embankments, onto the built ground (VegetationClean.cs)
             Debug.Log($"[Magistrala] trees: {total} (yard crowns kept {VegetationMask.YardKept}, dropped {VegetationMask.YardDropped})");
         }
 
