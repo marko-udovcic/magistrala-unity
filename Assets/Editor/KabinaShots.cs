@@ -31,7 +31,7 @@ namespace Magistrala.EditorTools
                 var model = truck.GetComponentsInChildren<Renderer>()[0].transform;
                 while (model.parent && model.parent != truck.transform) model = model.parent;
                 model.localRotation = Quaternion.AngleAxis(180, Vector3.up) * model.localRotation;
-                var eyeA = V(a, "-ategoeye", new Vector3(0.55f, 1.3f, -2.75f));
+                var eyeA = V(a, "-ategoeye", new Vector3(0.55f, 1.40f, -2.05f));
                 // the side mirrors as in the cab view (MirrorCams, rendered once from the eye)
                 var tcA = truck.GetComponent<TruckController>();
                 if (tcA) { var mc = truck.AddComponent<MirrorCams>(); mc.Bind(tcA, model); mc.RenderNow(model.TransformPoint(eyeA)); }
@@ -44,7 +44,7 @@ namespace Magistrala.EditorTools
                 var root = new GameObject("Galeb_shot");
                 root.transform.SetPositionAndRotation(truck.transform.position + truck.transform.right * 6f, truck.transform.rotation);
                 var m = UnityEngine.Object.Instantiate(src, root.transform, false);
-                var eyeGb = V(a, "-galebeye", new Vector3(-0.42f, 0.58f, 0.65f));
+                var eyeGb = V(a, "-galebeye", new Vector3(-0.42f, 0.68f, 0.58f));
                 var mcG = root.AddComponent<MirrorCams>(); mcG.Bind(null, m.transform); mcG.RenderNow(m.transform.TransformPoint(eyeGb));
                 Shoot(cam, root.transform, m.transform, eyeGb, outDir, "galeb");
             }

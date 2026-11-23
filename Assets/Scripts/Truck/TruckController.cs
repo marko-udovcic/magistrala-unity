@@ -35,7 +35,7 @@ public sealed class TruckController : MonoBehaviour
     public bool IsReady => ready;
     /// 0..1 service-brake pressure (brake lights)
     public float BrakeLevel => brakePressure;
-    public Vector3 CabinEyeLocal { get; private set; } = new Vector3(-0.55f, 1.3f, 2.75f);
+    public Vector3 CabinEyeLocal { get; private set; } = new Vector3(-0.55f, 1.40f, 2.05f);
 
     /// a vehicle's physics parameter set (Atego defaults = the firm truck as before; Galeb = the family van, MagistralaGame.Vehicles.cs).
     /// Set before the GameObject is activated (Awake builds the wheels from it).
@@ -55,7 +55,7 @@ public sealed class TruckController : MonoBehaviour
         /// generic body colliders (models without named body_* parts): lowest point of the cab / box above the ground
         public float cabFloor = 0.8f, boxFloor = 1f;
         /// the driver's eye in the raw model's frame (before modelYawDegrees)
-        public Vector3 eyeModel = new Vector3(0.55f, 1.3f, -2.75f);
+        public Vector3 eyeModel = new Vector3(0.55f, 1.40f, -2.05f);
         /// anti-roll bars (N per unit of travel difference); < 0 keeps the component's own (the scene's Atego: 18000 / 14000)
         public float antiRollFront = -1f, antiRollRear = -1f;
     }
@@ -112,7 +112,7 @@ public sealed class TruckController : MonoBehaviour
             return;
         }
         model.localRotation = Quaternion.AngleAxis(modelYawDegrees, Vector3.up) * model.localRotation;
-        // glTFast mirrors X. Before yaw: eye (+.55, 1.3, -2.75); after 180 yaw it is the left seat.
+        // glTFast mirrors X. Before yaw: eye (+.55, 1.40, -2.05); after 180 yaw it is the left seat.
         CabinEyeLocal = transform.InverseTransformPoint(model.TransformPoint(spec.eyeModel));
         // cab interior: steering wheel and instrument needles (nodes steering / needle_speed / needle_rpm, if the model has them)
         var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
@@ -120,6 +120,7 @@ public sealed class TruckController : MonoBehaviour
         rig.Bind(this, model);
         // side mirrors that show the road behind in the cab view (nodes mglass_L / mglass_R)
         (GetComponent<MirrorCams>() ?? gameObject.AddComponent<MirrorCams>()).Bind(this, model);
+        (GetComponent<WindscreenFx>() ?? gameObject.AddComponent<WindscreenFx>()).Bind(this, model);
         if (spec.antiRollFront >= 0) AntiRollFront = spec.antiRollFront;
         if (spec.antiRollRear >= 0) AntiRollRear = spec.antiRollRear;
         Transform[] nodes = model.GetComponentsInChildren<Transform>(true);

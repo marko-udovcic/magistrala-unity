@@ -2,8 +2,8 @@
 // speed / rpm needles follow the truck:
 //   steering     node "steering", spins about its local Z (along the column), ±540° at full lock
 //   needle_*     nodes "needle_speed" / "needle_rpm", local Z (normal of the dial), modelled at 0; the 260° sweep clockwise
-//                from the driver is +260° about local Z in Unity's mirrored-X frame (cab interiors v2, Codex 22.11.:
-//                BalkanDriver/assets-src/vehicles/kabina-v2/README.md)
+//                from the driver is +260° about local Z in Unity's mirrored-X frame (cab interiors v3 (Atego wheel flattened; needle pivots unchanged):
+//                BalkanDriver/assets-src/vehicles/kabina-v3/README.md)
 // Added by TruckController once the model is found; nodes it does not find are simply skipped.
 using UnityEngine;
 
