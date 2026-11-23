@@ -170,7 +170,7 @@ namespace Magistrala.EditorTools
                             {
                                 bool umbrella = pin >= 0 && (sea ? r3 < .6f : r3 < .2f);
                                 if (umbrella) { proto = pin; tall = 10 + 4 * r2; s = tall / H(pin); rad = 8; }
-                                else if (np > 0) { proto = NaturePass.PineIndex(.125f + .875f * r3); tall = 11 + 4 * r2; s = tall / H(proto); rad = 6; }
+                                else if (np > 0) { proto = NaturePass.PineIndex(r3 < .5f ? .2f : .99f); tall = 11 + 4 * r2; s = tall / H(proto); rad = 6; }
                                 else { proto = 0; tall = 12; s = 1; rad = 6; }
                             }
                             else
@@ -180,7 +180,7 @@ namespace Magistrala.EditorTools
                                 else if (r2 < .66f && crn >= 0) { proto = crn; tall = 3.5f + 3.5f * r3; s = tall / hCrn; rad = 3.5f; }
                                 else if (r2 < .82f) { proto = 3; tall = 7 + 6 * r3; s = tall / hCyp; rad = 2.5f; }
                                 else if (pin >= 0 && (h < 8 || r3 < .3f)) { proto = pin; tall = 10 + 4 * r3; s = tall / H(pin); rad = 8; }
-                                else if (np > 0) { proto = NaturePass.PineIndex(.125f + .875f * r3); tall = 10 + 5 * r3; s = tall / H(proto); rad = 6; }
+                                else if (np > 0) { proto = NaturePass.PineIndex(r3 < .5f ? .2f : .99f); tall = 10 + 5 * r3; s = tall / H(proto); rad = 6; }
                                 else { proto = 2; tall = 5; s = tall / hOlive; rad = 4; }
                             }
                             if (Crowded(x, z, rad)) continue;
@@ -193,10 +193,10 @@ namespace Magistrala.EditorTools
                             // yard street side: oleanders / dark hedge plants on about half of the yards (decided per 40 m patch)
                             bool hedgeYard = yard && Mathf.PerlinNoise((float)(x * .025 + 51.1), (float)(z * .025 + 7.7)) > .5f && (nearRoad || StreetsBuilder.Covered(x, z, 8));
                             if (hedgeYard && ol >= 0 && r2 < .55f) { proto = r2 < .35f ? ol : ow; tall = 1.8f + 1.2f * r3; s = tall / hOl; }
-                            else if (gt >= 0 && r2 < .35f) { proto = gt; tall = 1.1f + 1.3f * r3; s = tall / hGt; }
-                            else if (r2 < .6f) { proto = 4; tall = 1.2f + 1.2f * r3; s = tall / hSa; }
-                            else if (r2 < .85f) { proto = 5; tall = 1 + 1.2f * r3; s = tall / hSb; }
-                            else { proto = 6; tall = .8f + .8f * r3; s = tall / hBc; }
+                            else if (gt >= 0 && r2 < .55f) { proto = gt; tall = 1.1f + 1.3f * r3; s = tall / hGt; }
+                            // (two bush kinds, not four: every kind is a draw call per 128 m cell — the trial's first cut cost ~400
+                            // draw calls and ~3 ms of main thread)
+                            else { proto = 4; tall = 1.0f + 1.4f * r3; s = tall / hSa; }
                             if (Crowded(x, z, 1.4f)) continue;
                             Add(x, h - .06, z, yaw, s, proto, tall, 1.4f);
                         }
