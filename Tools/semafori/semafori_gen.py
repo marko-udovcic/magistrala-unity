@@ -177,8 +177,17 @@ apps=[
 ]
 J.append({'key':'semafor-kambelovac','title':'Kaštel Kambelovac, Tuđmana × Ulica fra Fulgencija Careva','c':R((N[c][0],N[c][2])),'plan':plan(),'offset':52,'approaches':apps})
 # ---------------------------------------------------------------- main road polyline through a point (edge 1723 for 6 and 7)
-def main_split(x0):
-    e=E[1723]; p=[(q[0],q[2]) for q in e['pts']]
+def main_split(x0, zg=-4600):
+    # the Tuđmana edge crossing x0 nearest to zg (edge indices change with every Igra: podaci)
+    best=None
+    for e in E:
+        if 'Tuđmana' not in str(e['name']): continue
+        q=[(v[0],v[2]) for v in e['pts']]
+        for i in range(len(q)-1):
+            if (q[i][0]-x0)*(q[i+1][0]-x0)<=0 and q[i][0]!=q[i+1][0]:
+                z=q[i][1]+(q[i+1][1]-q[i][1])*(x0-q[i][0])/(q[i+1][0]-q[i][0])
+                if best is None or abs(z-zg)<best[0]: best=(abs(z-zg),e)
+    e=best[1]; p=[(q[0],q[2]) for q in e['pts']]
     if p[0][0]>p[-1][0]: p=p[::-1]   # west -> east
     # find the param where x crosses x0
     for i in range(len(p)-1):
@@ -186,12 +195,16 @@ def main_split(x0):
             f=(x0-p[i][0])/(p[i+1][0]-p[i][0]); o=(p[i][0]+(p[i+1][0]-p[i][0])*f, p[i][1]+(p[i+1][1]-p[i][1])*f)
             east=[o]+p[i+1:]; west=[o]+p[i::-1]
             return o, west, east
-# ---------------------------------------------------------------- 6 Gomilica staggered (side streets not in the game: posts only)
-oN,W6,_=main_split(-3843.0); oS,_,E6=main_split(-3832.0)
+# ---------------------------------------------------------------- 6 Gomilica staggered (side streets: ulice-dodatne.json)
+# side streets: Assets/Editor/ulice-dodatne.json (the streets the game lacked, built by OutsideStreets), from the junction outwards
+UD={r['id']:[(q[0],q[2]) for q in r['points']] for r in json.load(open('Assets/Editor/ulice-dodatne.json',encoding='utf-8'))['roads']}
+def side(key, o):
+    """the street's axis from where it leaves the main road's centre o"""
+    q=UD[key]; return [o]+q[1:]
+oN,W6,_=main_split(UD['gomilica-sjever'][0][0]); oS,_,E6=main_split(UD['gomilica-jug'][0][0])
 tE=unit(E6[1][0]-E6[0][0],E6[1][1]-E6[0][1])
 northN=right((-tE[0],-tE[1]))  # right of westbound = north
-nstreet=[(oN[0]+northN[0]*0, oN[1]+northN[1]*0),(oN[0]+northN[0]*60, oN[1]+northN[1]*60)]
-sdir=unit(-21,47.5); sstreet=[oS,(oS[0]+sdir[0]*60,oS[1]+sdir[1]*60)]
+nstreet=side('gomilica-sjever',oN); sstreet=side('gomilica-jug',oS)
 zr=-3851.0
 oZ,_,_=main_split(zr)
 apps=[
@@ -201,9 +214,9 @@ apps=[
   approach(sstreet,MAIN+1.5,3.0,'SG2','stup',(),paint=False,name='sporedna ulica jug'),
 ]
 J.append({'key':'semafor-gomilica-pomaknuto','title':'Kaštel Gomilica, Tuđmana – pomaknuto križanje (lijevo pa desno)','c':R(((oN[0]+oS[0])/2,(oN[1]+oS[1])/2)),'plan':plan(),'offset':30,'approaches':apps})
-# ---------------------------------------------------------------- 7 Gomilica T (Ulica kralja Krešimira, not in the game)
-o7,W7,E7=main_split(-4413.0)
-kdir=unit(13,-56); kstreet=[o7,(o7[0]+kdir[0]*60,o7[1]+kdir[1]*60)]
+# ---------------------------------------------------------------- 7 Gomilica T (Ulica kralja Krešimira: ulice-dodatne.json)
+o7,W7,E7=main_split(UD['gomilica-t-sjever'][0][0])
+kstreet=side('gomilica-t-sjever',o7)
 apps=[
   approach(W7,zm+2+STOPGAP,MAIN,'SG1','konzola',('prednost','pjesacki'),zebra=(zm,4,7,False,True),name='Tuđmana od zapada'),
   approach(E7,zm+2+STOPGAP,MAIN,'SG1','konzola',('prednost','pjesacki'),zebra=(zm,4,7,False,True),name='Tuđmana od istoka'),

@@ -17,6 +17,8 @@
 //              model / closure / span refers to it, else the street stops on its asphalt), else other new streets' ends
 //              (≤ 3 m) / middles (≤ 3 m, straight ahead ≤ 10 m), else a dead end
 //   area       only what lies in StreetsBuilder's area (core terrain, game x −8192 … 0): west Kaštela waits for the terrain
+//   extra      + Assets/Editor/ulice-dodatne.json (same schema, game frame): streets the package lacks that a signal looks at —
+//              Gomilica's two signalised junctions (semafori-bez-modela.json) and model 03's south arm (Tamunić); OSM + DGU orthophoto
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,6 +30,8 @@ namespace Magistrala.EditorTools
     public static class OutsideStreets
     {
         public const string SRC = "/Users/macair/Documents/mag-11-20/ceste_izvan_modela.json";
+        /// streets the package lacks but a signal looks at (Gomilica of semafori-bez-modela.json, model 03 Tamunić): same schema, game frame
+        public const string EXTRA = "Assets/Editor/ulice-dodatne.json";
         public const long NODE0 = 9_000_000, EDGE0 = 9_200_000, SPLIT0 = 9_400_000;
 
         // ---- the graph as seen by both builders
@@ -178,11 +182,17 @@ namespace Magistrala.EditorTools
             bool InA(double x, double z) => x >= ax0 && x < ax1 && z >= az0 && z < az1;
 
             var runs = new List<Run>(); int pieces = 0, dupPieces = 0; double kmAll = 0, kmNew = 0;
-            foreach (var ro in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(SRC)))["roads"]))
+            var srcRoads = MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(SRC)))["roads"]).Select(rd => (rd, pkg: true)).ToList();
+            if (File.Exists(EXTRA)) srcRoads.AddRange(MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(EXTRA)))["roads"]).Select(rd => (rd, pkg: false)));
+            foreach (var (ro, pkg) in srcRoads)
             {
                 var r = MiniJson.O(ro);
                 var P = new List<double[]>();
-                foreach (var po in MiniJson.L(r["points"])) { var q = MiniJson.L(po); double x = MiniJson.D(q[0]), z = MiniJson.D(q[2]); P.Add(new[] { Ta * x + Tb * z + Ttx, MiniJson.D(q[1]), Tc * x + Td * z + Ttz }); }
+                foreach (var po in MiniJson.L(r["points"]))
+                {
+                    var q = MiniJson.L(po); double x = MiniJson.D(q[0]), z = MiniJson.D(q[2]);
+                    P.Add(pkg ? new[] { Ta * x + Tb * z + Ttx, MiniJson.D(q[1]), Tc * x + Td * z + Ttz } : new[] { x, MiniJson.D(q[1]), z });
+                }
                 if (P.Count < 2 || !P.Any(p => InA(p[0], p[2]))) continue;
                 pieces++;
                 // a join point → the model when it is in the game
