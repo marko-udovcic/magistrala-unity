@@ -2,6 +2,7 @@
 // mesh (submesh per material) on a prefab root, as Unity's terrain trees require.
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -49,50 +50,158 @@ namespace Magistrala.EditorTools
             return outL;
         }
 
-        // plantAssets.ts: impostor square side and base offset (m), tint
-        static readonly float[] IMP_SIZE = { 12.138f, 11.422f, 5.908f, 11.643f, 2.074f, 1.481f, .877f };
-        static readonly float[] IMP_BASE = { -.243f, -.228f, -.118f, -.233f, -.041f, -.030f, -.018f };
-        static readonly string[] IMP_COL = { "#dfe3cf", "#d2d8c4", "#e4e7da", "#cfd6c6", "#aab69c", "#a4b096", "#e3dccb" };
-
-        /// far LOD: 4 crossed quads (views 0..3 of the game's 8-view impostor atlas), alpha-clipped two-sided URP Lit
-        public static void Impostors(out Mesh[] meshes, out Material[] mats)
+        /// far LOD: 4 crossed quads at 45° steps, each showing our own full mesh seen square-on from that quad's normal, alpha-
+        /// clipped, on Magistrala/Foliage. (Until 23. 11. the atlases were the web game's 8-view renders with its square sizes: other
+        /// crown shapes, views mirrored against the quads and the trunk off the pivot, so at the full / impostor switch a tree
+        /// changed shape and jumped sideways by up to ~2 m – Marko: "kad se približajen kao da minja poziciju vegetacija".)
+        /// full / mats / start: the TreeRenderer's prototypes (the first IDS.Length - 1: rocks have no impostor)
+        public static void Impostors(Mesh[] full, Material[] mats, int[] start, out Mesh[] meshes, out Material[] impMats)
         {
-            meshes = new Mesh[IDS.Length]; mats = new Material[IDS.Length];
+            meshes = new Mesh[IDS.Length]; impMats = new Material[IDS.Length];
             string dir = WorldBuilder.GEN + "/Plants";
-            for (int p = 0; p < IMP_SIZE.Length; p++)
+            for (int p = 0; p < IDS.Length - 1; p++)
             {
-                string tp = $"Assets/Textures/Imp/{IDS[p]}_imp.png";
-                var imp = (TextureImporter)AssetImporter.GetAtPath(tp);
-                if (imp.alphaIsTransparency == false || imp.mipMapsPreserveCoverage == false) { imp.alphaIsTransparency = true; imp.mipMapsPreserveCoverage = true; imp.alphaTestReferenceValue = .45f; imp.wrapMode = TextureWrapMode.Clamp; imp.SaveAndReimport(); }
-                float S = IMP_SIZE[p], B = IMP_BASE[p];
-                var v = new List<Vector3>(); var n = new List<Vector3>(); var uv = new List<Vector2>(); var t = new List<int>();
-                for (int q = 0; q < 4; q++)
-                {
-                    float a = q * Mathf.PI / 4; var r = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (S / 2);
-                    var f = new Vector3(-Mathf.Sin(a), 0, Mathf.Cos(a));
-                    var nrm = (f * .35f + Vector3.up).normalized; int b0 = v.Count;
-                    v.Add(-r + Vector3.up * B); v.Add(r + Vector3.up * B); v.Add(r + Vector3.up * (B + S)); v.Add(-r + Vector3.up * (B + S));
-                    for (int k = 0; k < 4; k++) n.Add(nrm);
-                    float u0 = q / 8f, u1 = (q + 1) / 8f;
-                    uv.Add(new Vector2(u0, 0)); uv.Add(new Vector2(u1, 0)); uv.Add(new Vector2(u1, 1)); uv.Add(new Vector2(u0, 1));
-                    t.AddRange(new[] { b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2 });
-                }
-                var m = new Mesh { name = IDS[p] + "_imp" }; m.SetVertices(v); m.SetNormals(n); m.SetUVs(0, uv); m.SetTriangles(t, 0); m.RecalculateBounds();
-                string mp = $"{dir}/{IDS[p]}_imp.mesh.asset"; if (File.Exists(mp)) AssetDatabase.DeleteAsset(mp); AssetDatabase.CreateAsset(m, mp);
-                string matp = $"{dir}/{IDS[p]}_imp.mat";
-                var mat = AssetDatabase.LoadAssetAtPath<Material>(matp);
-                if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, matp); } else mat.shader = Shader.Find("Universal Render Pipeline/Lit");
-                ColorUtility.TryParseHtmlString(IMP_COL[p], out var col);
-                mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(tp)); mat.SetColor("_BaseColor", col);
-                mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .45f); mat.EnableKeyword("_ALPHATEST_ON");
+                if (p >= full.Length || !full[p]) continue;
+                string mp = $"{dir}/{IDS[p]}_imp.mesh.asset", matp = $"{dir}/{IDS[p]}_imp.mat";
+                var m = AssetDatabase.LoadAssetAtPath<Mesh>(mp); if (!m) { m = new Mesh { name = IDS[p] + "_imp" }; AssetDatabase.CreateAsset(m, mp); }
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(matp); if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, matp); }
+                int n = full[p].subMeshCount, s0 = start[p];
+                var tex = BakeImpostor(full[p], Enumerable.Range(s0, n).Select(i => i < mats.Length ? mats[i] : null).ToArray(), m, $"{dir}/{IDS[p]}_imp.png");
+                mat.shader = Shader.Find("Universal Render Pipeline/Lit");
+                mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+                mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .5f); mat.EnableKeyword("_ALPHATEST_ON");
                 mat.SetFloat("_Cull", 0); mat.doubleSidedGI = true; mat.SetFloat("_Smoothness", .05f); mat.SetFloat("_SpecularHighlights", 0); mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
                 mat.renderQueue = 2450; mat.enableInstancing = true;
                 // impostor: the crossed quads' normals bent to a sphere around the crown's middle (as the near mesh's leaves)
-                Foliage(mat, null, -1); mat.SetFloat("_CrownY", B + S * .5f); mat.SetFloat("_CrownR", S * .5f); mat.SetFloat("_Bend", .8f); mat.SetFloat("_Inner", .2f);
-                EditorUtility.SetDirty(mat);
-                meshes[p] = AssetDatabase.LoadAssetAtPath<Mesh>(mp); mats[p] = mat;
+                var b = m.bounds; Foliage(mat, null, -1); mat.SetFloat("_CrownY", b.center.y); mat.SetFloat("_CrownR", Mathf.Max(b.extents.x, b.extents.y)); mat.SetFloat("_Bend", .8f); mat.SetFloat("_Inner", .2f);
+                mat.SetColor("baseColorFactor", new Color(IMP_SHADE, IMP_SHADE, IMP_SHADE, 1));
+                EditorUtility.SetDirty(mat); EditorUtility.SetDirty(m);
+                meshes[p] = m; impMats[p] = mat;
             }
             AssetDatabase.SaveAssets();
+        }
+
+        const int TILE = 512;
+        /// the albedo of a whole crown on 4 cards is lit as if every leaf faced out: darker, to match the full mesh's own shading
+        /// (screenshots of one pose with all full meshes / all impostors, 23. 11.)
+        const float IMP_SHADE = .74f;
+        /// renders `mesh` (its submeshes with the albedo of `mats`) orthographically from the 4 quad normals into a 4-tile atlas
+        /// (png, imported alpha-clip friendly) and writes the crossed quads into `quads`: centred on the pivot, as wide as the
+        /// plant's largest horizontal reach from it, from its lowest to its highest point, so the impostor stands where the mesh does
+        public static Texture2D BakeImpostor(Mesh mesh, Material[] mats, Mesh quads, string png)
+        {
+            var v = mesh.vertices; float R = .01f, y0 = float.MaxValue, y1 = float.MinValue;
+            foreach (var q in v) { R = Mathf.Max(R, new Vector2(q.x, q.z).magnitude); y0 = Mathf.Min(y0, q.y); y1 = Mathf.Max(y1, q.y); }
+            y0 = Mathf.Min(y0, 0); R *= 1.01f; y1 += (y1 - y0) * .01f;
+            var sh = Shader.Find("Hidden/Magistrala/ImpostorBake");
+            var bm = new Material[mesh.subMeshCount];
+            for (int s = 0; s < bm.Length; s++)
+            {
+                var src = s < mats.Length ? mats[s] : null; bm[s] = new Material(sh);
+                if (!src) continue;
+                Texture t = src.HasProperty("baseColorTexture") ? src.GetTexture("baseColorTexture") : src.HasProperty("_BaseMap") ? src.GetTexture("_BaseMap") : src.HasProperty("_MainTex") ? src.GetTexture("_MainTex") : null;
+                var c = src.HasProperty("baseColorFactor") ? src.GetColor("baseColorFactor") : src.HasProperty("_BaseColor") ? src.GetColor("_BaseColor") : Color.white;
+                float cut = src.HasProperty("alphaCutoff") ? src.GetFloat("alphaCutoff") : src.HasProperty("_Cutoff") ? src.GetFloat("_Cutoff") : .5f;
+                bool clip = src.renderQueue >= 2450 || src.IsKeywordEnabled("_ALPHATEST_ON");
+                bm[s].SetTexture("_MainTex", t ? t : Texture2D.whiteTexture); bm[s].SetColor("_Color", c); bm[s].SetFloat("_Cutoff", clip ? cut : -1);
+                if (src.HasProperty("baseColorTexture_ST")) { var st = src.GetVector("baseColorTexture_ST"); if (st.x != 0 || st.y != 0) bm[s].SetVector("_MainTex_ST", st); }
+            }
+            var rt = RenderTexture.GetTemporary(new RenderTextureDescriptor(TILE * 4, TILE, RenderTextureFormat.ARGB32, 24) { sRGB = true });
+            var cb = new UnityEngine.Rendering.CommandBuffer();
+            cb.SetRenderTarget(rt); cb.ClearRenderTarget(true, true, Color.clear);
+            for (int q = 0; q < 4; q++)
+            {
+                // quad q spans r = (cos a, 0, sin a); seen from -f looking along f = (-sin a, 0, cos a), the screen's right is +r
+                float a = q * Mathf.PI / 4; var f = new Vector3(-Mathf.Sin(a), 0, Mathf.Cos(a));
+                var view = Matrix4x4.TRS(-f * (R + 10), Quaternion.LookRotation(f, Vector3.up), new Vector3(1, 1, -1)).inverse;
+                cb.SetViewport(new Rect(q * TILE, 0, TILE, TILE));
+                cb.SetViewProjectionMatrices(view, Matrix4x4.Ortho(-R, R, y0, y1, .1f, 2 * R + 20));
+                for (int s = 0; s < bm.Length; s++) cb.DrawMesh(mesh, Matrix4x4.identity, bm[s], s, 0);
+            }
+            Graphics.ExecuteCommandBuffer(cb); cb.Release();
+            var prev = RenderTexture.active; RenderTexture.active = rt;
+            var img = new Texture2D(TILE * 4, TILE, TextureFormat.RGBA32, false); img.ReadPixels(new Rect(0, 0, TILE * 4, TILE), 0, 0); img.Apply();
+            RenderTexture.active = prev; RenderTexture.ReleaseTemporary(rt);
+            foreach (var m in bm) Object.DestroyImmediate(m);
+            var px = img.GetPixels32(); Bleed(px, TILE * 4, TILE); img.SetPixels32(px);
+            File.WriteAllBytes(png, img.EncodeToPNG()); Object.DestroyImmediate(img);
+            AssetDatabase.ImportAsset(png);
+            var ti = (TextureImporter)AssetImporter.GetAtPath(png);
+            ti.alphaIsTransparency = true; ti.mipMapsPreserveCoverage = true; ti.alphaTestReferenceValue = .5f; ti.wrapMode = TextureWrapMode.Clamp;
+            ti.sRGBTexture = true; ti.maxTextureSize = 2048; ti.SaveAndReimport();
+            // the quads: same layout as the bake, u of tile q from -r to +r, v from y0 to y1
+            var qv = new List<Vector3>(); var qn = new List<Vector3>(); var uv = new List<Vector2>(); var tri = new List<int>();
+            for (int q = 0; q < 4; q++)
+            {
+                float a = q * Mathf.PI / 4; var r = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * R; var f = new Vector3(-Mathf.Sin(a), 0, Mathf.Cos(a));
+                var nrm = (f * .35f + Vector3.up).normalized; int b0 = qv.Count;
+                qv.Add(-r + Vector3.up * y0); qv.Add(r + Vector3.up * y0); qv.Add(r + Vector3.up * y1); qv.Add(-r + Vector3.up * y1);
+                for (int k = 0; k < 4; k++) qn.Add(nrm);
+                float u0 = q / 4f, u1 = (q + 1) / 4f;
+                uv.Add(new Vector2(u0, 0)); uv.Add(new Vector2(u1, 0)); uv.Add(new Vector2(u1, 1)); uv.Add(new Vector2(u0, 1));
+                tri.AddRange(new[] { b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2 });
+            }
+            quads.Clear(); quads.SetVertices(qv); quads.SetNormals(qn); quads.SetUVs(0, uv); quads.SetTriangles(tri, 0); quads.RecalculateBounds();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(png);
+        }
+
+        /// colour of the clipped-away texels from their opaque neighbours (a few rings), so mips / filtering do not pull in black
+        static void Bleed(Color32[] px, int w, int h)
+        {
+            var o = (Color32[])px.Clone();
+            for (int it = 0; it < 8; it++)
+            {
+                for (int y = 0; y < h; y++)
+                    for (int x = 0; x < w; x++)
+                    {
+                        int i = y * w + x; if (px[i].a > 0) continue;
+                        int r = 0, g = 0, b = 0, n = 0;
+                        for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
+                            {
+                                int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+                                var c = px[yy * w + xx];
+                                if (c.a == 0 && c.r == 0 && c.g == 0 && c.b == 0) continue;
+                                r += c.r; g += c.g; b += c.b; n++;
+                            }
+                        if (n > 0) o[i] = new Color32((byte)(r / n), (byte)(g / n), (byte)(b / n), 0);
+                    }
+                System.Array.Copy(o, px, px.Length);
+            }
+        }
+
+        /// the scene's TreeRenderer: the impostors of our prototypes (and the crnika's, which shares the olive's quads) rebaked
+        /// from the full meshes in place – same mesh / material assets, so the scene and trees.bytes stay as they are
+        [MenuItem("Magistrala/Trees: bake impostors")]
+        public static string BakeSceneImpostors()
+        {
+            MainScene.Ensure();
+            // (props, parked cars and boats have TreeRenderers too: the plants' one is World/Vegetation)
+            var tr = System.Array.Find(Object.FindObjectsByType<Magistrala.TreeRenderer>(FindObjectsSortMode.None), t => t.name == "Vegetation");
+            if (!tr || tr.impMeshes == null) { Debug.LogWarning("[stabla] no Vegetation TreeRenderer"); return "no TreeRenderer"; }
+            Impostors(tr.meshes, tr.materials, tr.materialStart, out var im, out var imat);
+            int n = 0;
+            for (int p = 0; p < IDS.Length - 1 && p < tr.impMeshes.Length; p++) if (im[p]) n++;
+            // prototypes that reuse one of ours' impostor quads (crnika = the olive's): their own tinted material gets the new atlas
+            for (int p = IDS.Length; p < tr.impMeshes.Length; p++)
+            {
+                int src = System.Array.IndexOf(im, tr.impMeshes[p]); if (src < 0 || !tr.impMaterials[p] || !imat[src]) continue;
+                var mt = tr.impMaterials[p]; Color a = Leaf(tr, p), b = Leaf(tr, src), tint = tr.meshes[p] == tr.meshes[src] ? new Color(a.r / b.r, a.g / b.g, a.b / b.b) : Color.white;
+                mt.shader = imat[src].shader; mt.CopyPropertiesFromMaterial(imat[src]);
+                mt.SetColor("baseColorFactor", new Color(tint.r * IMP_SHADE, tint.g * IMP_SHADE, tint.b * IMP_SHADE, 1)); EditorUtility.SetDirty(mt); n++;
+            }
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[stabla] impostors baked: {n}");
+            return $"impostors baked: {n}";
+        }
+        /// the first leaf material's colour of a prototype (Foliage leaves): the tint between two prototypes on one mesh
+        static Color Leaf(Magistrala.TreeRenderer tr, int p)
+        {
+            int n = tr.meshes[p].subMeshCount;
+            for (int i = tr.materialStart[p]; i < tr.materialStart[p] + n && i < tr.materials.Length; i++)
+            {
+                var m = tr.materials[i]; if (m && m.HasProperty("baseColorFactor") && m.shader && m.shader.name == "Magistrala/Foliage") { var c = m.GetColor("baseColorFactor"); return new Color(Mathf.Max(c.r, .01f), Mathf.Max(c.g, .01f), Mathf.Max(c.b, .01f)); }
+            }
+            return Color.white;
         }
 
         /// leaves: the glTF leaf materials are alpha-blended (queue 3000, no depth write, shadow caster without clipping): under

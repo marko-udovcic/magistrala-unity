@@ -49,6 +49,12 @@ namespace Magistrala
         byte[] state;
         const float HYST = 4, FADE = .12f, FADE_MAX = 30; // m either side of a switch distance; plants grow in over the last 12 % of their draw distance, at most 30 m
         public static bool NoFix; // measuring only (-trees-nofix): no hysteresis / impostor shadow fill / shadow cells / grow-in
+        /// per prototype (Start): shadow distance and far cutoff caps of the small plants; NoCaps (-trees-nocaps, measuring only) = off
+        float[] shadowCap, drawCap; const float SMALL_SHADOW = 30;
+        public static bool NoCaps, ImpOwnShadow;
+        /// measuring only (-trees-near k): full mesh / impostor switch distances × k (100 = all full meshes, .01 = all impostors:
+        /// screenshots of both from one camera pose show whether the impostor matches the mesh)
+        public static float NearScale = 1;
         readonly List<Bucket> buckets = new List<Bucket>();
         readonly Plane[] planes = new Plane[6];
         public int Count { get; private set; }
@@ -71,10 +77,15 @@ namespace Magistrala
             {
                 if (args[i] == "-trees-legacy") Legacy = true;
                 if (args[i] == "-trees-nofix") NoFix = true;
+                if (args[i] == "-trees-stat") Stat10 = true;
+                if (args[i] == "-trees-nocaps") NoCaps = true;
+                if (args[i] == "-trees-impshadow") ImpOwnShadow = true; // measuring only: the old impostor-cast shadow inside the full-mesh shadow distance
+                if (args[i] == "-trees-near" && i + 1 < args.Length) float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out NearScale);
                 if (args[i] == "-trees-blend" && blendMaterials != null && blendMaterials.Length == materials.Length) materials = blendMaterials;
                 if (args[i] == "-trees-skip" && i + 1 < args.Length) foreach (var w in args[i + 1].Split(',')) Skip |= w == "imp" ? 1 : w == "impsh" ? 2 : w == "full" ? 4 : w == "fullsh" ? 8 : 0;
             }
             var b = data.bytes; int n = b.Length / 24;
+            var sumS = new double[meshes.Length]; var cnt = new int[meshes.Length];
             var map = new Dictionary<long, Bucket>();
             for (int i = 0; i < n; i++)
             {
@@ -91,7 +102,7 @@ namespace Magistrala
                     bk.bounds = new Bounds(c, new Vector3(CELL, 1, CELL)); map[key] = bk;
                 }
                 var m = Matrix4x4.TRS(new Vector3(x, y, z), Quaternion.Euler(0, yaw, 0), Vector3.one * s);
-                bk.perProto[p].Add(m);
+                bk.perProto[p].Add(m); sumS[p] += s; cnt[p]++;
                 bk.bounds.Encapsulate(new Bounds(new Vector3(x, y, z) + Vector3.up * meshes[p].bounds.center.y * s, meshes[p].bounds.size * s));
                 Count++;
             }
@@ -122,6 +133,16 @@ namespace Magistrala
             if (blendMaterials != null && blendMaterials.Length == materials.Length)
                 for (int i = 0; i < materials.Length; i++) if (!materials[i] && blendMaterials[i]) materials[i] = Clip(blendMaterials[i]);
             foreach (var m in materials) if (m) m.enableInstancing = true;
+            // small plants (bushes, hedges, oleanders: under 3 m as placed): shadows only near the camera and a shorter far cutoff
+            // (a 1.5 m bush is ~5 px tall at 160 m); yard-sized trees (olive, crnika: under 8 m) end at 650 m, where they are
+            // 2–3 px and only overdraw (the Kaštel Stari trial drew ~5.5 k of their impostors a frame); tall trees keep theirs
+            shadowCap = new float[meshes.Length]; drawCap = new float[meshes.Length];
+            for (int p = 0; p < meshes.Length; p++)
+            {
+                float h = meshes[p] && cnt[p] > 0 ? meshes[p].bounds.size.y * (float)(sumS[p] / cnt[p]) : 10;
+                bool small = h < 3 && !NoCaps;
+                shadowCap[p] = small ? SMALL_SHADOW : 1e9f; drawCap[p] = NoCaps ? 1e9f : small ? 100 + 40 * h : h < 8 ? 650 : 1e9f;
+            }
             int np = meshes.Length; statFull = new int[np]; statImp = new int[np]; statFullSh = new int[np]; statImpSh = new int[np];
         }
 
@@ -143,6 +164,28 @@ namespace Magistrala
         void LateUpdate()
         {
             sw.Restart(); UpdateDraw(); sw.Stop(); LastMs = (float)sw.Elapsed.TotalMilliseconds; SumMs += LastMs;
+            if (Stat10) LogStats();
+        }
+
+        /// measuring only (-trees-stat): every 10 s per prototype the average instances a frame (full / impostor, and into the
+        /// shadow maps) and the triangles, to see which plants cost
+        public static bool Stat10;
+        long[] sF, sI, sFS, sIS; int sN; float sT;
+        void LogStats()
+        {
+            if (statFull == null) return;
+            if (sF == null) { sF = new long[meshes.Length]; sI = new long[meshes.Length]; sFS = new long[meshes.Length]; sIS = new long[meshes.Length]; sT = Time.realtimeSinceStartup; }
+            for (int p = 0; p < meshes.Length; p++) { sF[p] += statFull[p]; sI[p] += statImp[p]; sFS[p] += statFullSh[p]; sIS[p] += statImpSh[p]; }
+            sN++; if (Time.realtimeSinceStartup - sT < 10 || trisFull == null) return;
+            var sb = new System.Text.StringBuilder($"[trees] {name} t={Time.realtimeSinceStartup:F0}s per frame (full/imp/fullSh/impSh, ktris main+shadow):");
+            for (int p = 0; p < meshes.Length; p++)
+            {
+                if (sF[p] + sI[p] + sFS[p] + sIS[p] == 0) continue;
+                long kt = (sF[p] * trisFull[p] + sI[p] * trisImp[p] + sFS[p] * trisFull[p] + sIS[p] * trisImp[p]) / sN / 1000;
+                sb.Append($" {(meshes[p] ? meshes[p].name : "?")} {sF[p] / sN}/{sI[p] / sN}/{sFS[p] / sN}/{sIS[p] / sN} {kt}k;");
+            }
+            Debug.Log(sb.ToString());
+            System.Array.Clear(sF, 0, sF.Length); System.Array.Clear(sI, 0, sI.Length); System.Array.Clear(sFS, 0, sFS.Length); System.Array.Clear(sIS, 0, sIS.Length); sN = 0; sT = Time.realtimeSinceStartup;
         }
 
         void UpdateDraw()
@@ -173,8 +216,8 @@ namespace Magistrala
                     for (int p = 0; p < meshes.Length; p++)
                     {
                         if (p >= impMeshes.Length || !impMeshes[p]) continue;
-                        float draw = drawDistance[p] * k;
-                        if (d <= nearDistance[p] * k + HYST || dmax > draw - Mathf.Min(draw * FADE, FADE_MAX)) continue; // straddles a switch: cells
+                        float draw = Mathf.Min(drawDistance[p], drawCap[p]) * k;
+                        if (d <= nearDistance[p] * k * NearScale + HYST || dmax > draw - Mathf.Min(draw * FADE, FADE_MAX)) continue; // straddles a switch: cells
                         blockDone[bi * meshes.Length + p] = true;
                         var arr = bl.arr[p]; if (!view || arr.Length == 0) continue; // no shadows this far: off screen = nothing
                         Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bl.bounds, ShadowCastingMode.Off); Stat(p, false, arr.Length, false); drawn += arr.Length;
@@ -193,16 +236,16 @@ namespace Magistrala
                     if (fix && blockDone[bk.block * meshes.Length + p]) continue;
                     bool hasImp = impMeshes != null && p < impMeshes.Length && impMeshes[p];
                     if (Legacy) { if (d > drawDistance[p]) continue; DrawLegacy(bk, p, arr, d, hasImp); drawn += arr.Length; continue; }
-                    float draw = drawDistance[p] * k; if (d > draw) continue;
-                    float near = hasImp ? nearDistance[p] * k : 1e9f;
-                    bool impSh = d < impShD;
-                    if (d > near + (fix ? HYST : 0) && dmax <= draw - (fix ? Mathf.Min(draw * FADE, FADE_MAX) : 0))
+                    float draw = Mathf.Min(drawDistance[p], drawCap[p]) * k; if (d > draw) continue;
+                    float near = hasImp ? nearDistance[p] * k * NearScale : 1e9f;
+                    float shP = Mathf.Min(shD, shadowCap[p] * k); bool impSh = d < impShD && shadowCap[p] > 1e8f;
+                    if (d > near + (fix ? HYST : 0) && dmax <= draw - (fix ? Mathf.Min(draw * FADE, FADE_MAX) : 0) && (!fix || ImpOwnShadow || d > shP + HYST))
                     {
                         if (!view) { if (impSh) Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bk.bounds, ShadowCastingMode.ShadowsOnly); continue; }
                         Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bk.bounds, impSh ? ShadowCastingMode.On : ShadowCastingMode.Off); Stat(p, false, arr.Length, impSh); drawn += arr.Length;
                         continue;
                     }
-                    drawn += fix ? Split2(p, bk, arr, cp, draw, near, shD, impSh, view, hasImp) : Split(p, arr, cp, draw, near, shD, impSh);
+                    drawn += fix ? Split2(p, bk, arr, cp, draw, near, shP, impSh, view, hasImp) : Split(p, arr, cp, draw, near, shD, impSh);
                 }
             }
             DrawnLastFrame = drawn;
@@ -214,7 +257,7 @@ namespace Magistrala
         void Stat(int p, bool full, int n, bool sh) { if (full) { statFull[p] += n; if (sh) statFullSh[p] += n; } else { statImp[p] += n; if (sh) statImpSh[p] += n; } }
 
         // lists: 0 full + shadow, 1 full (no shadow), 2 full shadow only (outside the view), 3 impostor
-        readonly List3[] L = new List3[5];
+        readonly List3[] L = new List3[6]; // 5 = impostor without its own shadow (Split2)
 
         int Split(int p, Matrix4x4[] arr, Vector3 cp, float draw, float near, float shD, bool impShadow)
         {
@@ -258,7 +301,7 @@ namespace Magistrala
             float nIn = Mathf.Max(0, near - HYST), nOut = near + HYST, sIn = Mathf.Max(0, shD - HYST), sOut = shD + HYST;
             float nIn2 = nIn * nIn, nOut2 = nOut * nOut, sIn2 = sIn * sIn, sOut2 = sOut * sOut;
             int drawn = 0, b0 = bk.start[p];
-            for (int i = 0; i < 5; i++) L[i].n = 0;
+            for (int i = 0; i < 6; i++) L[i].n = 0;
             for (int i = 0; i < arr.Length; i++)
             {
                 ref var m = ref arr[i];
@@ -274,8 +317,13 @@ namespace Magistrala
                 int li, li2 = -1;
                 if (!full)
                 {
-                    if (view) li = 3;
-                    else if (impShadow && ShadowInView(c, r, (cy + eb.y) * s * g)) li = 4;
+                    // the impostor's shadow: inside the full-mesh shadow distance the full mesh's (23. 11.: the crossed quads cast
+                    // next to nothing, so a crnika / pine / oleander's shadow vanished at its impostor switch, 25–60 m in front of
+                    // the truck, and came back on approach), past it the impostor's
+                    int sl = ImpOwnShadow ? (impShadow ? 4 : -1) : fsh ? 2 : impShadow ? 4 : -1;
+                    if (sl >= 0 && !ShadowInView(c, r, (cy + eb.y) * s * g)) sl = -1;
+                    if (view) { li = ImpOwnShadow ? 3 : 5; li2 = ImpOwnShadow ? -1 : sl; }
+                    else if (sl >= 0) li = sl;
                     else continue;
                 }
                 else
@@ -298,7 +346,7 @@ namespace Magistrala
                     if (l.n == CHUNK) drawn += Flush(lj, p, impShadow);
                 }
             }
-            for (int li = 0; li < 5; li++) if (L[li].n > 0) drawn += Flush(li, p, impShadow);
+            for (int li = 0; li < 6; li++) if (L[li].n > 0) drawn += Flush(li, p, impShadow);
             return drawn;
         }
 
@@ -326,6 +374,7 @@ namespace Magistrala
             ref var l = ref L[li]; int n = l.n; l.n = 0;
             var b = new Bounds((l.lo + l.hi) * .5f, l.hi - l.lo);
             if (li == 4) { if (impShadow) Submit(impMaterials[p], impMeshes[p], 0, l.a, n, b, ShadowCastingMode.ShadowsOnly); statImpSh[p] += n; return 0; }
+            if (li == 5) { Submit(impMaterials[p], impMeshes[p], 0, l.a, n, b, ShadowCastingMode.Off); Stat(p, false, n, false); return n; }
             if (li == 3) { Submit(impMaterials[p], impMeshes[p], 0, l.a, n, b, impShadow ? ShadowCastingMode.On : ShadowCastingMode.Off); Stat(p, false, n, impShadow); return n; }
             var mode = li == 0 ? ShadowCastingMode.On : li == 1 ? ShadowCastingMode.Off : ShadowCastingMode.ShadowsOnly;
             var mesh = meshes[p];
