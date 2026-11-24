@@ -76,25 +76,25 @@ namespace Magistrala.Game
         /// the Galeb's physics (TruckController.Spec): Mate's old TN-type panel van, up to 4 t payload, ~2.4 l diesel, 5 gears
         public static TruckController.Spec GalebSpec() => new TruckController.Spec
         {
-            id = "galeb", mass = 2300, radius = 0.37f, finalDrive = 4.0f, torqueNm = 330, topKmh = 135, reverseKmh = 18,
+            id = "galeb", mass = 2300, radius = 0.405f, finalDrive = 4.0f, torqueNm = 330, topKmh = 135, reverseKmh = 18,
             idle = 750, redline = 4200, rpmScale = 1.7f, shiftTime = 0.45f,
             travel = 0.22f, sag = 0.10f, sagLoaded = 0.135f, springTarget = 0.3f, damping = 0.5f,
             ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 1.9f, steerRate = 1.9f,
             wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.45f, comFront = 0.56f, cargoAboveAxle = 0.55f, cargoRefKg = 4000,
             brakeEmpty = 6.5f, brakeLoaded = 4.8f, engineBrake = 0.25f, cabFloor = 0.45f, boxFloor = 0.4f,
-            eyeModel = new Vector3(-0.42f, 0.68f, 0.58f), antiRollFront = 5200, antiRollRear = 3800,
+            eyeModel = new Vector3(-0.42f, 1.04f, 1.02f), antiRollFront = 5200, antiRollRear = 3800, // galeb-tn.glb (kabina-v3)
         };
 
         /// the firm's van: a long high-roof 3.5 t-class panel van, heavier and slower to stop than the Galeb, ~2.5 t payload
         public static TruckController.Spec KombiSpec() => new TruckController.Spec
         {
-            id = "kombi", mass = 2600, radius = 0.37f, finalDrive = 4.2f, torqueNm = 360, topKmh = 140, reverseKmh = 18,
+            id = "kombi", mass = 2600, radius = 0.367f, finalDrive = 4.2f, torqueNm = 360, topKmh = 140, reverseKmh = 18,
             idle = 750, redline = 4200, rpmScale = 1.7f, shiftTime = 0.45f,
             travel = 0.22f, sag = 0.10f, sagLoaded = 0.14f, springTarget = 0.3f, damping = 0.52f,
             ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 2.4f, steerRate = 1.8f,
             wheelMassFront = 26, wheelMassRear = 32, comAboveAxle = 0.5f, comFront = 0.52f, cargoAboveAxle = 0.6f, cargoRefKg = 2500,
             brakeEmpty = 6.3f, brakeLoaded = 4.9f, engineBrake = 0.25f, cabFloor = 0.45f, boxFloor = 0.4f,
-            eyeModel = new Vector3(-0.42f, 0.68f, 0.58f), antiRollFront = 5600, antiRollRear = 4400,
+            eyeModel = new Vector3(-0.42f, 0.72f, 0.58f), antiRollFront = 5600, antiRollRear = 4400, // kombi-firma.glb (kabina-v3)
         };
 
         // ------------------------------------------------------------------ setup (MagistralaGame.Start)

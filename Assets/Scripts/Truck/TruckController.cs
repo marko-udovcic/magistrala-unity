@@ -118,6 +118,8 @@ public sealed class TruckController : MonoBehaviour
         var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
         // the Galeb's old-van dial (kabina v3 round 2): one speedo 10…140 km/h over 270°, no tachometer
         if (spec.id == "galeb") { rig.speedMin = 10f; rig.speedMax = 140f; rig.speedSweepDeg = 270f; }
+        // the firm's Kombi (kabina-v3 kombi-firma, the round 1 modern cluster): 0…180 km/h and 0…50 ×100 r/min, both over 260°
+        if (spec.id == "kombi") { rig.speedMin = 0f; rig.speedMax = 180f; rig.speedSweepDeg = 260f; rig.rpmMax = 5000f; rig.sweepDeg = 260f; }
         rig.Bind(this, model);
         // side mirrors that show the road behind in the cab view (nodes mglass_L / mglass_R)
         (GetComponent<MirrorCams>() ?? gameObject.AddComponent<MirrorCams>()).Bind(this, model);
