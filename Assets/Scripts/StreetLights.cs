@@ -85,7 +85,12 @@ namespace Magistrala
             return Mathf.Clamp01((6 - elev) / 10);
         }
 
+        static readonly System.Diagnostics.Stopwatch swc = new System.Diagnostics.Stopwatch();
         void LateUpdate()
+        {
+            swc.Restart(); LateUpdate0(); Magistrala.Cells.CellStats.Add(Magistrala.Cells.CellStats.LAMPS, (float)swc.Elapsed.TotalMilliseconds);
+        }
+        void LateUpdate0()
         {
             if (mtx == null) return;
             var cam = Camera.main; if (!cam) return;

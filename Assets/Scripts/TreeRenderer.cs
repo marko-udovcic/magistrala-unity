@@ -213,7 +213,7 @@ namespace Magistrala
 
         void LateUpdate()
         {
-            sw.Restart(); UpdateDraw(); sw.Stop(); LastMs = (float)sw.Elapsed.TotalMilliseconds; SumMs += LastMs;
+            sw.Restart(); UpdateDraw(); sw.Stop(); LastMs = (float)sw.Elapsed.TotalMilliseconds; SumMs += LastMs; Magistrala.Cells.CellStats.Add(Magistrala.Cells.CellStats.TREES, LastMs);
             if (Stat10) LogStats();
         }
 

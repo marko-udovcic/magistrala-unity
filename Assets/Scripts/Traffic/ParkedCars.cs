@@ -129,10 +129,11 @@ namespace Magistrala.Traffic
             ps[b][psN[b]++] = m;
         }
 
+        static readonly System.Diagnostics.Stopwatch swc = new System.Diagnostics.Stopwatch();
         void LateUpdate()
         {
             if (!cam) cam = Camera.main;
-            Draw(cam, null);
+            swc.Restart(); Draw(cam, null); Magistrala.Cells.CellStats.Add(Magistrala.Cells.CellStats.PARKED, (float)swc.Elapsed.TotalMilliseconds);
         }
 
         /// collects and submits this frame's draws for camera c (target: only that camera, null = every camera)
