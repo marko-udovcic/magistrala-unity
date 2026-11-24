@@ -62,7 +62,7 @@ namespace Magistrala
         /// fades out by dither (else it shrinks); fullDither = every full-mesh submesh on Foliage (fades out by dither, else shrinks)
         bool[] xfade, impDither, fullDither;
         MaterialPropertyBlock[] mpbFull, mpbImp;
-        const float XFADE = .15f, XFADE_MIN = 4, SHFADE = .15f, SHFADE_MIN = 3; // band widths: share of the switch distance, at least m
+        const float XFADE = .10f, XFADE_MIN = 3, SHFADE = .15f, SHFADE_MIN = 3; // band widths: share of the switch distance, at least m (cross-fade band 15 % -> 10 %: the plants in it draw twice)
         static readonly int ID_FadeIn = Shader.PropertyToID("_FadeIn"), ID_FadeSh = Shader.PropertyToID("_FadeSh"), ID_FadeFrame = Shader.PropertyToID("_VegFadeFrame");
         /// per prototype (Start): shadow distance and far cutoff caps of the small plants; NoCaps (-trees-nocaps, measuring only) = off
         float[] shadowCap, drawCap; const float SMALL_SHADOW = 30;
