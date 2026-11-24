@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Magistrala.Cells;
+using Magistrala.Streaming;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -6,8 +8,12 @@ using UnityEngine.Rendering.Universal;
 namespace Magistrala
 {
     /// Instanced vegetation: the importer writes all plants as binary records (x, y, z, yaw, scale, proto) into `data`;
-    /// at start they are bucketed per 128 m cell and prototype; each frame the cells near the camera are drawn with
+    /// they are bucketed per 128 m cell and prototype; each frame the cells near the camera are drawn with
     /// Graphics.RenderMeshInstanced. Far cutoff per prototype (shrubs / rocks short).
+    /// Pages (streaming phase 2, Assets/Scripts/Cells/CellData.cs): the plants of one CellGrid cell are one page (one matrix array:
+    /// its 128 m buckets and 256 m blocks are ranges of it, plus the per-plant hysteresis state); a page is attached / detached
+    /// without touching the others. `data` set (the AC units, an editor scene): split into pages at start, all attached. In a
+    /// player / play mode where CellBake took trees.bytes out, the pages come from the cell blobs (CellData, ICellLayer).
     /// Cells that straddle a LOD / shadow / draw distance are split per plant (a 128 m cell is too coarse: its nearest
     /// corner decided for the whole cell, so full meshes and their shadows reached ~200 m): full mesh within nearDistance,
     /// impostor (crossed quads) beyond; full-mesh shadows only within shadowDistance; near full meshes outside the view
@@ -24,7 +30,7 @@ namespace Magistrala
     /// per draw from a property block and the distance from the instance's origin, so no per-instance data. Plants on other
     /// shaders (package pines, oleanders, hedges) keep the switch with hysteresis and the grow-in.
     [DefaultExecutionOrder(10000)]
-    public class TreeRenderer : MonoBehaviour
+    public class TreeRenderer : MonoBehaviour, ICellLayer
     {
         public TextAsset data;
         public Mesh[] meshes;
@@ -46,14 +52,17 @@ namespace Magistrala
         readonly System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         const float CELL = 128;
 
-        class Bucket { public Bounds bounds; public Vector3 centre; public List<Matrix4x4>[] perProto; public Matrix4x4[][] arr; public int[] start; public int block; }
+        /// a 128 m bucket: per prototype a range [off, off + cnt) of the page's matrices (and of its state)
+        class Bucket { public Bounds bounds; public Vector3 centre; public Matrix4x4[] m; public byte[] st; public int[] off, cnt; public Block block; public Page page; }
         /// 256 m blocks of 2 x 2 cells: where a whole block is impostor-only and past the impostor shadow distance, one draw per
-        /// prototype for the block instead of one per cell (22. 11.: ~2 k impostor draws a frame at oštro, -15 ms GPU without them)
+        /// prototype for the block instead of one per cell (22. 11.: ~2 k impostor draws a frame at oštro, -15 ms GPU without them).
+        /// Its matrices: a second range of the page's array (impostor prototypes only); done[p]: drawn as a block this frame
+        class Block { public Bounds bounds; public Vector3 centre; public Matrix4x4[] m; public int[] off, cnt; public bool[] done; public Page page; }
+        /// one CellGrid cell's plants
+        class Page { public Vector2Int cell; public Matrix4x4[] m; public byte[] st; public Bucket[] buckets; public Block[] blocks; public int count; }
         const float BLOCK = 256;
-        readonly List<Bucket> blocks = new List<Bucket>();
-        bool[] blockDone; // [block * prototypes + p]: drawn as a block this frame
-        /// per plant: bit 0 full mesh, bit 1 full-mesh shadow (the hysteresis state)
-        byte[] state;
+        readonly List<Block> blocks = new List<Block>();
+        readonly List<Page> pages = new List<Page>();
         const float HYST = 4, FADE = .12f, FADE_MAX = 30; // m either side of a switch distance; plants grow in over the last 12 % of their draw distance, at most 30 m
         public static bool NoFix; // measuring only (-trees-nofix): no hysteresis / impostor shadow fill / shadow cells / grow-in
         /// measuring only (-trees-nofade): no dither fades (the switches and grow-in as before 25. 11.)
@@ -84,12 +93,14 @@ namespace Magistrala
         Matrix4x4[] Take() { if (poolUsed == pool.Count) pool.Add(new Matrix4x4[CHUNK]); return pool[poolUsed++]; }
         struct List3 { public Matrix4x4[] a; public int n; public Vector3 lo, hi; }
 
-        void Start()
+        static bool argsRead;
+        static void ReadArgs(TreeRenderer t)
         {
-            if (!data) return;
             var args = System.Environment.GetCommandLineArgs(); // measuring only
             for (int i = 0; i < args.Length; i++)
             {
+                if (args[i] == "-trees-blend" && t.blendMaterials != null && t.blendMaterials.Length == t.materials.Length) t.materials = t.blendMaterials;
+                if (argsRead) continue;
                 if (args[i] == "-trees-legacy") Legacy = true;
                 if (args[i] == "-trees-nofix") NoFix = true;
                 if (args[i] == "-trees-nofade") NoFade = true;
@@ -97,54 +108,59 @@ namespace Magistrala
                 if (args[i] == "-trees-nocaps") NoCaps = true;
                 if (args[i] == "-trees-impshadow") ImpOwnShadow = true; // measuring only: the old impostor-cast shadow inside the full-mesh shadow distance
                 if (args[i] == "-trees-near" && i + 1 < args.Length) float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out NearScale);
-                if (args[i] == "-trees-blend" && blendMaterials != null && blendMaterials.Length == materials.Length) materials = blendMaterials;
                 if (args[i] == "-trees-skip" && i + 1 < args.Length) foreach (var w in args[i + 1].Split(',')) Skip |= w == "imp" ? 1 : w == "impsh" ? 2 : w == "full" ? 4 : w == "fullsh" ? 8 : 0;
             }
-            var b = data.bytes; int n = b.Length / 24;
-            var sumS = new double[meshes.Length]; var cnt = new int[meshes.Length];
-            var map = new Dictionary<long, Bucket>();
+            argsRead = true;
+        }
+
+        void Start()
+        {
+            if (!data || inited) return;
+            // the whole file: mean scale per prototype, then one page per CellGrid cell, all attached
+            var b = data.bytes; int n = b.Length / 24, np = meshes.Length;
+            var sumS = new double[np]; var cnt = new int[np];
             for (int i = 0; i < n; i++)
             {
-                int o = i * 24;
-                float x = System.BitConverter.ToSingle(b, o), y = System.BitConverter.ToSingle(b, o + 4), z = System.BitConverter.ToSingle(b, o + 8);
-                float yaw = System.BitConverter.ToSingle(b, o + 12), s = System.BitConverter.ToSingle(b, o + 16); int p = (int)System.BitConverter.ToSingle(b, o + 20);
-                if (p < 0 || p >= meshes.Length || !meshes[p]) continue;
-                long key = ((long)Mathf.FloorToInt(x / CELL) << 32) ^ (uint)Mathf.FloorToInt(z / CELL);
-                if (!map.TryGetValue(key, out var bk))
-                {
-                    bk = new Bucket { perProto = new List<Matrix4x4>[meshes.Length] };
-                    for (int k = 0; k < meshes.Length; k++) bk.perProto[k] = new List<Matrix4x4>();
-                    var c = new Vector3((Mathf.Floor(x / CELL) + .5f) * CELL, y, (Mathf.Floor(z / CELL) + .5f) * CELL);
-                    bk.bounds = new Bounds(c, new Vector3(CELL, 1, CELL)); map[key] = bk;
-                }
-                var m = Matrix4x4.TRS(new Vector3(x, y, z), Quaternion.Euler(0, yaw, 0), Vector3.one * s);
-                bk.perProto[p].Add(m); sumS[p] += s; cnt[p]++;
-                bk.bounds.Encapsulate(new Bounds(new Vector3(x, y, z) + Vector3.up * meshes[p].bounds.center.y * s, meshes[p].bounds.size * s));
-                Count++;
+                int p = (int)System.BitConverter.ToSingle(b, i * 24 + 20);
+                if (p < 0 || p >= np || !meshes[p]) continue;
+                sumS[p] += System.BitConverter.ToSingle(b, i * 24 + 16); cnt[p]++;
             }
-            foreach (var bk in map.Values)
+            var mean = new double[np]; for (int p = 0; p < np; p++) mean[p] = cnt[p] > 0 ? sumS[p] / cnt[p] : 0;
+            Init(mean);
+            var byCell = new Dictionary<Vector2Int, List<int>>();
+            for (int i = 0; i < n; i++)
             {
-                bk.arr = new Matrix4x4[meshes.Length][];
-                for (int k = 0; k < meshes.Length; k++) bk.arr[k] = bk.perProto[k].ToArray();
-                bk.perProto = null; bk.centre = bk.bounds.center; buckets.Add(bk);
+                var c = CellGrid.Cell(new Vector3(System.BitConverter.ToSingle(b, i * 24), 0, System.BitConverter.ToSingle(b, i * 24 + 8)));
+                if (!byCell.TryGetValue(c, out var l)) byCell[c] = l = new List<int>(); l.Add(i);
             }
-            var bmap = new Dictionary<long, (Bucket b, List<Bucket> kids)>();
-            foreach (var bk in buckets)
+            var tmp = new byte[0];
+            foreach (var kv in byCell)
             {
-                var c = bk.centre; long key = ((long)Mathf.FloorToInt(c.x / BLOCK) << 32) ^ (uint)Mathf.FloorToInt(c.z / BLOCK);
-                if (!bmap.TryGetValue(key, out var e)) { e = (new Bucket { bounds = bk.bounds }, new List<Bucket>()); bmap[key] = e; }
-                e.b.bounds.Encapsulate(bk.bounds); e.kids.Add(bk);
+                if (tmp.Length < kv.Value.Count * 24) tmp = new byte[kv.Value.Count * 24];
+                for (int k = 0; k < kv.Value.Count; k++) System.Buffer.BlockCopy(b, kv.Value[k] * 24, tmp, k * 24, 24);
+                var pg = Build(ctx, kv.Key, tmp, 0, kv.Value.Count);
+                if (pg != null) Attach(kv.Key, pg);
             }
-            foreach (var (blk, kids) in bmap.Values)
+        }
+
+        // ------------------------------------------------------------------ pages
+        /// what a decode needs, snapshotted on the main thread (Init)
+        sealed class Ctx { public int np; public bool[] valid, imp; public Vector3[] bc, bs; }
+        Ctx ctx; bool inited;
+
+        /// prototypes' per-plant constants (once; the mean scale per prototype over the whole map)
+        void Init(double[] meanScale)
+        {
+            if (inited) return; inited = true;
+            ReadArgs(this);
+            int np = meshes.Length;
+            ctx = new Ctx { np = np, valid = new bool[np], imp = new bool[np], bc = new Vector3[np], bs = new Vector3[np] };
+            for (int p = 0; p < np; p++)
             {
-                blk.arr = new Matrix4x4[meshes.Length][];
-                for (int k = 0; k < meshes.Length; k++) { var l = new List<Matrix4x4>(); foreach (var kb in kids) l.AddRange(kb.arr[k]); blk.arr[k] = l.ToArray(); }
-                blk.centre = blk.bounds.center; foreach (var kb in kids) kb.block = blocks.Count; blocks.Add(blk);
+                ctx.valid[p] = meshes[p]; if (!meshes[p]) continue;
+                ctx.bc[p] = meshes[p].bounds.center; ctx.bs[p] = meshes[p].bounds.size;
+                ctx.imp[p] = impMeshes != null && p < impMeshes.Length && impMeshes[p];
             }
-            blockDone = new bool[blocks.Count * meshes.Length];
-            int total = 0;
-            foreach (var bk in buckets) { bk.start = new int[meshes.Length]; for (int k = 0; k < meshes.Length; k++) { bk.start[k] = total; total += bk.arr[k].Length; } }
-            state = new byte[total];
             // a checkout without the generated clip materials (Assets/Generated is not in git): make them here from the originals
             if (blendMaterials != null && blendMaterials.Length == materials.Length)
                 for (int i = 0; i < materials.Length; i++) if (!materials[i] && blendMaterials[i]) materials[i] = Clip(blendMaterials[i]);
@@ -152,14 +168,14 @@ namespace Magistrala
             // small plants (bushes, hedges, oleanders: under 3 m as placed): shadows only near the camera and a shorter far cutoff
             // (a 1.5 m bush is ~5 px tall at 160 m); yard-sized trees (olive, crnika: under 8 m) end at 650 m, where they are
             // 2–3 px and only overdraw (the Kaštel Stari trial drew ~5.5 k of their impostors a frame); tall trees keep theirs
-            shadowCap = new float[meshes.Length]; drawCap = new float[meshes.Length];
-            for (int p = 0; p < meshes.Length; p++)
+            shadowCap = new float[np]; drawCap = new float[np];
+            for (int p = 0; p < np; p++)
             {
-                float h = meshes[p] && cnt[p] > 0 ? meshes[p].bounds.size.y * (float)(sumS[p] / cnt[p]) : 10;
+                float h = meshes[p] && p < meanScale.Length && meanScale[p] > 0 ? meshes[p].bounds.size.y * (float)meanScale[p] : 10;
                 bool small = h < 3 && !NoCaps;
                 shadowCap[p] = small ? SMALL_SHADOW : 1e9f; drawCap[p] = NoCaps ? 1e9f : small ? 100 + 40 * h : h < 8 ? 650 : 1e9f;
             }
-            int np = meshes.Length; statFull = new int[np]; statImp = new int[np]; statFullSh = new int[np]; statImpSh = new int[np];
+            statFull = new int[np]; statImp = new int[np]; statFullSh = new int[np]; statImpSh = new int[np];
             xfade = new bool[np]; impDither = new bool[np]; fullDither = new bool[np]; mpbFull = new MaterialPropertyBlock[np]; mpbImp = new MaterialPropertyBlock[np];
             for (int p = 0; p < np; p++)
             {
@@ -171,6 +187,106 @@ namespace Magistrala
                 xfade[p] = impDither[p] && any; fullDither[p] = all;
             }
         }
+
+        // ICellLayer (CellData): the TREE section of a cell blob
+        public void Prepare(CellManifest m) => Init(m.treeMeanScale);
+        public object Decode(CellSections s) { int o = s.Find(CellBlob.TREE, out int n); return o < 0 || n == 0 ? null : Build(ctx, s.cell, s.b, o, n); }
+        public void Attach(Vector2Int cell, object page)
+        {
+            var pg = (Page)page; pages.Add(pg);
+            buckets.AddRange(pg.buckets); blocks.AddRange(pg.blocks); Count += pg.count;
+        }
+        public void Detach(Vector2Int cell, object page)
+        {
+            var pg = (Page)page; if (!pages.Remove(pg)) return;
+            int w = 0; for (int i = 0; i < buckets.Count; i++) if (buckets[i].page != pg) buckets[w++] = buckets[i]; buckets.RemoveRange(w, buckets.Count - w);
+            w = 0; for (int i = 0; i < blocks.Count; i++) if (blocks[i].page != pg) blocks[w++] = blocks[i]; blocks.RemoveRange(w, blocks.Count - w);
+            Count -= pg.count;
+        }
+        // phase-3 scheduler (ICellDataSystem names): this system's part of a cell (CellData decodes the cell once for all systems)
+        bool Mine => CellData.I && CellData.I.trees == this;
+        public void LoadCell(Vector2Int c) { if (Mine) CellData.Load(c, 1 << CellBlob.TREES); }
+        public void UnloadCell(Vector2Int c) { if (Mine) CellData.Unload(c, 1 << CellBlob.TREES); }
+        public bool IsLoaded(Vector2Int c) => !Mine || CellData.IsLoaded(c, 1 << CellBlob.TREES);
+
+        public void Release(object page) { var pg = (Page)page; ArrayPool<Matrix4x4>.Return(pg.m); ArrayPool<byte>.Return(pg.st); pg.m = null; pg.st = null; }
+
+        /// one page from n plant records at b[o..] (any thread: plain math only). Buckets 128 m on the world grid (a bucket at a cell
+        /// border is cut in two: one per page), blocks 256 m of buckets; within a bucket the plants by prototype, in file order.
+        static Page Build(Ctx c, Vector2Int cell, byte[] b, int o, int n)
+        {
+            int np = c.np;
+            var bIdx = new Dictionary<long, int>(); var bk = new List<(int bx, int bz, float y)>();
+            var pb = ArrayPool<int>.Rent(n);  // per plant its bucket (-1 = invalid prototype)
+            for (int i = 0; i < n; i++)
+            {
+                int r = o + i * 24; int p = (int)CellBlob.F(b, r + 20);
+                if (p < 0 || p >= np || !c.valid[p]) { pb[i] = -1; continue; }
+                float x = CellBlob.F(b, r), z = CellBlob.F(b, r + 8);
+                int bx = Mathf.FloorToInt(x / CELL), bz = Mathf.FloorToInt(z / CELL); long key = ((long)bx << 32) ^ (uint)bz;
+                if (!bIdx.TryGetValue(key, out int k)) { k = bk.Count; bIdx[key] = k; bk.Add((bx, bz, CellBlob.F(b, r + 4))); }
+                pb[i] = k;
+            }
+            int nb = bk.Count; if (nb == 0) { ArrayPool<int>.Return(pb); return null; }
+            // counts per bucket × prototype -> ranges (bucket-major)
+            var cnt = new int[nb * np];
+            for (int i = 0; i < n; i++) if (pb[i] >= 0) cnt[pb[i] * np + (int)CellBlob.F(b, o + i * 24 + 20)]++;
+            int total = 0; var off = new int[nb * np];
+            for (int i = 0; i < cnt.Length; i++) { off[i] = total; total += cnt[i]; }
+            // blocks: 2 x 2 buckets; their ranges after the buckets', impostor prototypes only
+            var blIdx = new Dictionary<long, int>(); var blOf = new int[nb]; var blKids = new List<List<int>>();
+            for (int k = 0; k < nb; k++)
+            {
+                long key = ((long)(bk[k].bx >> 1) << 32) ^ (uint)(bk[k].bz >> 1);
+                if (!blIdx.TryGetValue(key, out int q)) { q = blKids.Count; blIdx[key] = q; blKids.Add(new List<int>()); }
+                blOf[k] = q; blKids[q].Add(k);
+            }
+            int nbl = blKids.Count, totalB = 0; var blOff = new int[nbl * np]; var blCnt = new int[nbl * np];
+            for (int q = 0; q < nbl; q++)
+                for (int p = 0; p < np; p++)
+                {
+                    blOff[q * np + p] = total + totalB; if (!c.imp[p]) continue;
+                    int s = 0; foreach (int k in blKids[q]) s += cnt[k * np + p];
+                    blCnt[q * np + p] = s; totalB += s;
+                }
+            var pg = new Page { cell = cell, count = total, m = ArrayPool<Matrix4x4>.Rent(total + totalB), st = ArrayPool<byte>.Rent(total) };
+            System.Array.Clear(pg.st, 0, total);
+            pg.buckets = new Bucket[nb]; pg.blocks = new Block[nbl];
+            for (int k = 0; k < nb; k++)
+            {
+                var ctr = new Vector3((bk[k].bx + .5f) * CELL, bk[k].y, (bk[k].bz + .5f) * CELL);
+                var u = new Bucket { m = pg.m, st = pg.st, page = pg, off = new int[np], cnt = new int[np], bounds = new Bounds(ctr, new Vector3(CELL, 1, CELL)) };
+                for (int p = 0; p < np; p++) { u.off[p] = off[k * np + p]; u.cnt[p] = 0; }
+                pg.buckets[k] = u;
+            }
+            for (int i = 0; i < n; i++)
+            {
+                int k = pb[i]; if (k < 0) continue;
+                int r = o + i * 24; var u = pg.buckets[k];
+                var pos = new Vector3(CellBlob.F(b, r), CellBlob.F(b, r + 4), CellBlob.F(b, r + 8));
+                float yaw = CellBlob.F(b, r + 12), s = CellBlob.F(b, r + 16); int p = (int)CellBlob.F(b, r + 20);
+                pg.m[u.off[p] + u.cnt[p]++] = CellMath.TRSYaw(pos, yaw, s);
+                u.bounds.Encapsulate(new Bounds(pos + Vector3.up * c.bc[p].y * s, c.bs[p] * s));
+            }
+            for (int k = 0; k < nb; k++) pg.buckets[k].centre = pg.buckets[k].bounds.center;
+            for (int q = 0; q < nbl; q++)
+            {
+                var kids = blKids[q];
+                var bl = new Block { m = pg.m, page = pg, off = new int[np], cnt = new int[np], done = new bool[np], bounds = pg.buckets[kids[0]].bounds };
+                foreach (int k in kids) bl.bounds.Encapsulate(pg.buckets[k].bounds);
+                for (int p = 0; p < np; p++)
+                {
+                    bl.off[p] = blOff[q * np + p]; bl.cnt[p] = blCnt[q * np + p];
+                    int w = bl.off[p];
+                    if (bl.cnt[p] > 0) foreach (int k in kids) { var u = pg.buckets[k]; System.Array.Copy(pg.m, u.off[p], pg.m, w, u.cnt[p]); w += u.cnt[p]; }
+                }
+                bl.centre = bl.bounds.center; pg.blocks[q] = bl;
+                foreach (int k in kids) pg.buckets[k].block = bl;
+            }
+            ArrayPool<int>.Return(pb);
+            return pg;
+        }
+
         static bool IsFoliage(Material m) => m && m.shader && m.shader.name == "Magistrala/Foliage";
 
         /// this frame's fade bands into the property blocks (the quality level's distance scale may change)
@@ -213,7 +329,8 @@ namespace Magistrala
 
         void LateUpdate()
         {
-            sw.Restart(); UpdateDraw(); sw.Stop(); LastMs = (float)sw.Elapsed.TotalMilliseconds; SumMs += LastMs; Magistrala.Cells.CellStats.Add(Magistrala.Cells.CellStats.TREES, LastMs);
+            sw.Restart(); UpdateDraw(); sw.Stop(); LastMs = (float)sw.Elapsed.TotalMilliseconds; SumMs += LastMs;
+            CellStats.Add(CellStats.TREES, LastMs);
             if (Stat10) LogStats();
         }
 
@@ -240,7 +357,7 @@ namespace Magistrala
 
         void UpdateDraw()
         {
-            cam = Camera.main; if (!cam || buckets.Count == 0) return;
+            cam = Camera.main; if (!cam || buckets.Count == 0 || !inited) return;
             if (trisFull == null)
             {
                 trisFull = new int[meshes.Length]; trisImp = new int[meshes.Length];
@@ -259,7 +376,7 @@ namespace Magistrala
             if (!ImpOwnShadow) impShD = shD;
             float shMax = Mathf.Max(shD, impShD); bool fix = !NoFix && !Legacy;
             SetFades(k, shD, fix && !NoFade);
-            System.Array.Clear(blockDone, 0, blockDone.Length);
+            for (int bi = 0; bi < blocks.Count; bi++) System.Array.Clear(blocks[bi].done, 0, blocks[bi].done.Length);
             if (fix && impMeshes != null)
                 for (int bi = 0; bi < blocks.Count; bi++)
                 {
@@ -273,13 +390,14 @@ namespace Magistrala
                         if (p >= impMeshes.Length || !impMeshes[p]) continue;
                         float draw = Mathf.Min(drawDistance[p], drawCap[p]) * k;
                         if (d <= nearDistance[p] * k * NearScale + HYST || dmax > draw - Mathf.Min(draw * FADE, FADE_MAX)) continue; // straddles a switch: cells
-                        blockDone[bi * meshes.Length + p] = true;
-                        var arr = bl.arr[p]; if (!view || arr.Length == 0) continue; // no shadows this far: off screen = nothing
-                        Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bl.bounds, ShadowCastingMode.Off, mpbImp[p]); Stat(p, false, arr.Length, false); drawn += arr.Length;
+                        bl.done[p] = true;
+                        int n = bl.cnt[p]; if (!view || n == 0) continue; // no shadows this far: off screen = nothing
+                        Submit(impMaterials[p], impMeshes[p], 0, bl.m, bl.off[p], n, bl.bounds, ShadowCastingMode.Off, mpbImp[p]); Stat(p, false, n, false); drawn += n;
                     }
                 }
-            foreach (var bk in buckets)
+            for (int bi = 0; bi < buckets.Count; bi++)
             {
+                var bk = buckets[bi];
                 float dc = Vector3.Distance(new Vector3(cp.x, 0, cp.z), new Vector3(bk.centre.x, 0, bk.centre.z));
                 float d = dc - CELL * .71f, dmax = dc + CELL * .71f;
                 if (d > 1400 * k) continue;
@@ -287,20 +405,20 @@ namespace Magistrala
                 if (!view && !(fix && d < shMax && ShadowCellInView(bk.bounds))) continue; // off screen: only if its shadows may fall into view
                 for (int p = 0; p < meshes.Length; p++)
                 {
-                    var arr = bk.arr[p]; if (arr.Length == 0) continue;
-                    if (fix && blockDone[bk.block * meshes.Length + p]) continue;
+                    int n = bk.cnt[p], o = bk.off[p]; if (n == 0) continue;
+                    if (fix && bk.block.done[p]) continue;
                     bool hasImp = impMeshes != null && p < impMeshes.Length && impMeshes[p];
-                    if (Legacy) { if (d > drawDistance[p]) continue; DrawLegacy(bk, p, arr, d, hasImp); drawn += arr.Length; continue; }
+                    if (Legacy) { if (d > drawDistance[p]) continue; DrawLegacy(bk, p, d, hasImp); drawn += n; continue; }
                     float draw = Mathf.Min(drawDistance[p], drawCap[p]) * k; if (d > draw) continue;
                     float near = hasImp ? nearDistance[p] * k * NearScale : 1e9f;
                     float shP = Mathf.Min(shD, shadowCap[p] * k); bool impSh = d < impShD && shadowCap[p] > 1e8f;
                     if (d > near + (fix ? HYST : 0) && dmax <= draw - (fix ? Mathf.Min(draw * FADE, FADE_MAX) : 0) && (!fix || ImpOwnShadow || d > shP + HYST))
                     {
-                        if (!view) { if (impSh) Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bk.bounds, ShadowCastingMode.ShadowsOnly, mpbImp[p]); continue; }
-                        Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bk.bounds, impSh ? ShadowCastingMode.On : ShadowCastingMode.Off, mpbImp[p]); Stat(p, false, arr.Length, impSh); drawn += arr.Length;
+                        if (!view) { if (impSh) Submit(impMaterials[p], impMeshes[p], 0, bk.m, o, n, bk.bounds, ShadowCastingMode.ShadowsOnly, mpbImp[p]); continue; }
+                        Submit(impMaterials[p], impMeshes[p], 0, bk.m, o, n, bk.bounds, impSh ? ShadowCastingMode.On : ShadowCastingMode.Off, mpbImp[p]); Stat(p, false, n, impSh); drawn += n;
                         continue;
                     }
-                    drawn += fix ? Split2(p, bk, arr, cp, draw, near, shP, impSh, view, hasImp) : Split(p, arr, cp, draw, near, shD, impSh);
+                    drawn += fix ? Split2(p, bk, cp, draw, near, shP, impSh, view, hasImp) : Split(p, bk.m, o, n, cp, draw, near, shD, impSh);
                 }
             }
             DrawnLastFrame = drawn;
@@ -314,13 +432,13 @@ namespace Magistrala
         // lists: 0 full + shadow, 1 full (no shadow), 2 full shadow only (outside the view), 3 impostor
         readonly List3[] L = new List3[6]; // 5 = impostor without its own shadow (Split2)
 
-        int Split(int p, Matrix4x4[] arr, Vector3 cp, float draw, float near, float shD, bool impShadow)
+        int Split(int p, Matrix4x4[] arr, int o, int cnt, Vector3 cp, float draw, float near, float shD, bool impShadow)
         {
             var mb = meshes[p].bounds; float rad = mb.extents.magnitude, cy = mb.center.y;
             var eb = mb.extents; float ex = Mathf.Max(eb.x, eb.z);
             float draw2 = draw * draw, near2 = near * near, sh2 = shD * shD; int drawn = 0;
             for (int i = 0; i < 4; i++) L[i].n = 0;
-            for (int i = 0; i < arr.Length; i++)
+            for (int i = o; i < o + cnt; i++)
             {
                 ref var m = ref arr[i];
                 float dx = m.m03 - cp.x, dz = m.m23 - cp.z, dd = dx * dx + dz * dz;
@@ -348,7 +466,7 @@ namespace Magistrala
 
         /// per plant with hysteresis and grow-in; lists 0..3 as in Split, 4 = impostor into the shadow map only
         /// (off-screen impostors, and full meshes past the full-mesh shadow distance so their shadow does not vanish)
-        int Split2(int p, Bucket bk, Matrix4x4[] arr, Vector3 cp, float draw, float near, float shD, bool impShadow, bool view, bool hasImp)
+        int Split2(int p, Bucket bk, Vector3 cp, float draw, float near, float shD, bool impShadow, bool view, bool hasImp)
         {
             var mb = meshes[p].bounds; float rad = mb.extents.magnitude, cy = mb.center.y;
             var eb = mb.extents; float ex = Mathf.Max(eb.x, eb.z);
@@ -359,14 +477,14 @@ namespace Magistrala
             bool xf = xfade[p] && hasImp; float nA = nOut - Mathf.Max(XFADE_MIN, near * XFADE), nA2 = nA * nA;
             // the far fade by dither (no shrinking) for the impostor / a full mesh fully on Foliage
             bool ditherImp = impDither[p], ditherFull = fullDither[p] && !hasImp;
-            int drawn = 0, b0 = bk.start[p];
+            int drawn = 0; var arr = bk.m; var state = bk.st; int o = bk.off[p], end = o + bk.cnt[p];
             for (int i = 0; i < 6; i++) L[i].n = 0;
-            for (int i = 0; i < arr.Length; i++)
+            for (int i = o; i < end; i++)
             {
                 ref var m = ref arr[i];
                 float dx = m.m03 - cp.x, dz = m.m23 - cp.z, dd = dx * dx + dz * dz;
                 if (dd > draw2) continue;
-                ref byte st = ref state[b0 + i];
+                ref byte st = ref state[i];
                 bool full = !hasImp || dd < nIn2 || (dd < nOut2 && (st & 1) != 0), both = false;
                 if (xf) { full = dd < nOut2; both = full && dd > nA2; }
                 bool fsh = dd < sIn2 || (dd < sOut2 && (st & 2) != 0);
@@ -434,17 +552,18 @@ namespace Magistrala
             ref var l = ref L[li]; int n = l.n; l.n = 0;
             var b = new Bounds((l.lo + l.hi) * .5f, l.hi - l.lo);
             var pi = mpbImp?[p];
-            if (li == 4) { if (impShadow) Submit(impMaterials[p], impMeshes[p], 0, l.a, n, b, ShadowCastingMode.ShadowsOnly, pi); statImpSh[p] += n; return 0; }
-            if (li == 5) { Submit(impMaterials[p], impMeshes[p], 0, l.a, n, b, ShadowCastingMode.Off, pi); Stat(p, false, n, false); return n; }
-            if (li == 3) { Submit(impMaterials[p], impMeshes[p], 0, l.a, n, b, impShadow ? ShadowCastingMode.On : ShadowCastingMode.Off, pi); Stat(p, false, n, impShadow); return n; }
+            if (li == 4) { if (impShadow) Submit(impMaterials[p], impMeshes[p], 0, l.a, 0, n, b, ShadowCastingMode.ShadowsOnly, pi); statImpSh[p] += n; return 0; }
+            if (li == 5) { Submit(impMaterials[p], impMeshes[p], 0, l.a, 0, n, b, ShadowCastingMode.Off, pi); Stat(p, false, n, false); return n; }
+            if (li == 3) { Submit(impMaterials[p], impMeshes[p], 0, l.a, 0, n, b, impShadow ? ShadowCastingMode.On : ShadowCastingMode.Off, pi); Stat(p, false, n, impShadow); return n; }
             var mode = li == 0 ? ShadowCastingMode.On : li == 1 ? ShadowCastingMode.Off : ShadowCastingMode.ShadowsOnly;
             var mesh = meshes[p];
-            for (int sm = 0; sm < mesh.subMeshCount; sm++) Submit(materials[materialStart[p] + sm], mesh, sm, l.a, n, b, mode, mpbFull?[p]);
+            for (int sm = 0; sm < mesh.subMeshCount; sm++) Submit(materials[materialStart[p] + sm], mesh, sm, l.a, 0, n, b, mode, mpbFull?[p]);
             if (li == 2) { statFullSh[p] += n; return 0; }
             Stat(p, true, n, li == 0); return n;
         }
 
-        void Submit(Material mat, Mesh mesh, int sm, Matrix4x4[] a, int n, Bounds b, ShadowCastingMode mode, MaterialPropertyBlock mpb = null)
+        /// n instances from a[start..]
+        void Submit(Material mat, Mesh mesh, int sm, Matrix4x4[] a, int start, int n, Bounds b, ShadowCastingMode mode, MaterialPropertyBlock mpb = null)
         {
             if (Skip != 0)
             {
@@ -454,20 +573,21 @@ namespace Magistrala
                 if (main && (Skip & (imp ? 1 : 4)) != 0) { if (mode == ShadowCastingMode.Off) return; mode = ShadowCastingMode.ShadowsOnly; }
             }
             var rp = new RenderParams(mat) { shadowCastingMode = mode, receiveShadows = true, worldBounds = b, layer = gameObject.layer, matProps = mpb };
-            for (int i = 0; i < n; i += CHUNK) Graphics.RenderMeshInstanced(rp, mesh, sm, a, Mathf.Min(CHUNK, n - i), i);
+            for (int i = 0; i < n; i += CHUNK) Graphics.RenderMeshInstanced(rp, mesh, sm, a, Mathf.Min(CHUNK, n - i), start + i);
         }
 
-        void DrawLegacy(Bucket bk, int p, Matrix4x4[] arr, float d, bool hasImp)
+        void DrawLegacy(Bucket bk, int p, float d, bool hasImp)
         {
+            int o = bk.off[p], n = bk.cnt[p];
             if (d > nearDistance[p] && hasImp)
             {
                 bool sh = d < impShadowDistance;
-                Submit(impMaterials[p], impMeshes[p], 0, arr, arr.Length, bk.bounds, sh ? ShadowCastingMode.On : ShadowCastingMode.Off); Stat(p, false, arr.Length, sh); return;
+                Submit(impMaterials[p], impMeshes[p], 0, bk.m, o, n, bk.bounds, sh ? ShadowCastingMode.On : ShadowCastingMode.Off); Stat(p, false, n, sh); return;
             }
             bool shadows = d < shadowDistance;
             var mesh = meshes[p];
-            for (int sm = 0; sm < mesh.subMeshCount; sm++) Submit(materials[materialStart[p] + sm], mesh, sm, arr, arr.Length, bk.bounds, shadows ? ShadowCastingMode.On : ShadowCastingMode.Off);
-            Stat(p, true, arr.Length, shadows);
+            for (int sm = 0; sm < mesh.subMeshCount; sm++) Submit(materials[materialStart[p] + sm], mesh, sm, bk.m, o, n, bk.bounds, shadows ? ShadowCastingMode.On : ShadowCastingMode.Off);
+            Stat(p, true, n, shadows);
         }
     }
 }
