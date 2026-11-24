@@ -26,6 +26,9 @@ namespace Magistrala.Traffic
         [System.NonSerialized] public bool headlights;
         LightPreset preset;
         public float lod1Dist = 70, shadowDist = 120;
+        /// far cars dissolve (Magistrala/FarFade dither) between these distances and are not drawn beyond: a car spawned in view
+        /// (only ever beyond farFadeEnd) or despawned far away never pops — it fades in as it comes closer
+        public float farFadeStart = 400, farFadeEnd = 470;
         public Transform player;
         public int seed = 7;
 
@@ -125,13 +128,27 @@ namespace Magistrala.Traffic
                 }
             }
             farB = new int[data.kinds.Length];
+            var fadeSh = Resources.Load<Shader>("Shaders/FarFade");
+            var fade = new Dictionary<Material, Material>();
+            Material F(Material m)
+            {
+                if (!fadeSh || !m) return m;
+                if (!fade.TryGetValue(m, out var f))
+                {
+                    f = new Material(fadeSh) { name = m.name + " (fade)", enableInstancing = true };
+                    f.CopyPropertiesFromMaterial(m);
+                    if (m.IsKeywordEnabled("_EMISSION")) f.EnableKeyword("_EMISSION");
+                    fade[m] = f;
+                }
+                return f;
+            }
             for (int k = 0; k < data.kinds.Length; k++)
             {
                 var kd = data.kinds[k]; farB[k] = -1;
                 if (!kd.farMesh || kd.farPaints == null || kd.farPaints.Length != kd.paints.Length) continue;
-                farB[k] = B(kd.farMesh, 0, data.farPalette, 1);
-                for (int c = 0; c < kd.farPaints.Length; c++) B(kd.farMesh, 1, kd.farPaints[c], 1);   // farB + 1 + colour
-                B(kd.farMesh, 2, kd.farTail, 1); B(kd.farMesh, 2, kd.farTailOn, 1);                     // farB + 1 + colours (+1 lit)
+                farB[k] = B(kd.farMesh, 0, F(data.farPalette), 1);
+                for (int c = 0; c < kd.farPaints.Length; c++) B(kd.farMesh, 1, F(kd.farPaints[c]), 1);   // farB + 1 + colour
+                B(kd.farMesh, 2, F(kd.farTail), 1); B(kd.farMesh, 2, F(kd.farTailOn), 1);                     // farB + 1 + colours (+1 lit)
             }
             mats = new Matrix4x4[buckets.Count][]; matN = new int[buckets.Count];
             for (int i = 0; i < buckets.Count; i++) mats[i] = new Matrix4x4[16];
@@ -600,12 +617,13 @@ namespace Magistrala.Traffic
             var kind = PickKind(); var kd = data.kinds[kind];
             float lat = LaneOffAt(cor, s, lane);
             var pos = Point(cor, s, lat);
-            // never pop in view: out of the frustum, hidden behind terrain / buildings, or far (≥ 480 m: a few pixels)
+            // never pop in view: out of the frustum, hidden behind terrain / buildings, or beyond farFadeEnd (not drawn there:
+            // it dissolves in between farFadeEnd and farFadeStart as it comes closer)
             if (!warmStart && InView(pos))
             {
                 var eye = cam.transform.position; var tgt = pos + Vector3.up * 1.2f;
                 bool hidden = Physics.Linecast(eye, tgt, out var hit, ~0, QueryTriggerInteraction.Ignore) && (hit.point - tgt).magnitude > 6 && !hit.rigidbody;
-                if (!hidden && (pos - eye).magnitude < 480) { SpawnFails[1]++; return false; }
+                if (!hidden && (pos - eye).magnitude < farFadeEnd + 10) { SpawnFails[1]++; return false; }
             }
             // spacing
             foreach (var o in byCorridor[ci]) if (Mathf.Abs(o.s - s) < 30 + (o.len + kd.len) / 2 && Overlap(lat, kd.halfW, o.lat, o.hw, 1)) { SpawnFails[2]++; return false; }
@@ -628,6 +646,7 @@ namespace Magistrala.Traffic
             Pose(car);
             car.rb.position = car.pos; car.rb.rotation = car.rot; car.rb.transform.SetPositionAndRotation(car.pos, car.rot);
             cars.Add(car); byCorridor[ci].Add(car); Spawned++;
+            if (HitchDiag.On && !warmStart) HitchDiag.Note($"spawn {kd.name} {(pos - (cam ? cam.transform.position : PlayerPos)).magnitude:F0}m{(InView(pos) ? " view" : "")}");
             return true;
         }
 
@@ -671,6 +690,7 @@ namespace Magistrala.Traffic
                 // boxed in for good behind a standing truck (it blocks every lane it can go round by): recycle when unseen
                 if (!gone && c.stopT > 45 && !InView(c.pos) && (c.pos - PlayerPos).magnitude > 25) gone = true;
                 if (!gone) continue;
+                if (HitchDiag.On) HitchDiag.Note($"despawn {d:F0}m{(InView(c.pos) ? " view" : "")}");
                 Release(c); cars.RemoveAt(i); byCorridor[c.c].Remove(c); Despawned++;
             }
         }
@@ -694,6 +714,8 @@ namespace Magistrala.Traffic
             }
         }
 
+        static readonly int ID_FarFade = Shader.PropertyToID("_FarFade"), ID_FarFadeEye = Shader.PropertyToID("_FarFadeEye");
+
         void Add(int b, Matrix4x4 m)
         {
             if (matN[b] == mats[b].Length) System.Array.Resize(ref mats[b], mats[b].Length * 2);
@@ -706,11 +728,14 @@ namespace Magistrala.Traffic
         {
             for (int i = 0; i < matN.Length; i++) matN[i] = 0;
             var cp = cam ? cam.transform.position : PlayerPos;
+            Shader.SetGlobalVector(ID_FarFade, new Vector4(farFadeStart, farFadeEnd, 0, 0));
+            Shader.SetGlobalVector(ID_FarFadeEye, cp);
             bool blink = (clock * 1.5f) % 1f < .5f;
             foreach (var car in cars)
             {
                 var kd = data.kinds[car.kind];
                 float dist = (car.pos - cp).magnitude;
+                if (dist > farFadeEnd) continue; // dissolved (FarFade): not drawn
                 if (dist > 30 && !GeometryUtility.TestPlanesAABB(planes, new Bounds(car.pos + Vector3.up * car.h * .5f, new Vector3(car.len, car.h, car.len))) && dist > shadowDist) continue;
                 int lod = dist > lod1Dist ? 1 : 0;
                 bool three = kd.lod2 != null && kd.lod2.Length > 0;
@@ -782,7 +807,7 @@ namespace Magistrala.Traffic
             float simMs = (t1 - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency, drawMs = (t2 - t1) * 1000f / System.Diagnostics.Stopwatch.Frequency;
             AvgSimMs = AvgSimMs <= 0 ? simMs : AvgSimMs * .97f + simMs * .03f; AvgDrawMs = AvgDrawMs <= 0 ? drawMs : AvgDrawMs * .97f + drawMs * .03f;
             float ms = (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency;
-            LastUpdateMs = ms; AvgUpdateMs = AvgUpdateMs <= 0 ? ms : AvgUpdateMs * .97f + ms * .03f;
+            LastUpdateMs = ms; TrafficDiag.LastMs = ms; AvgUpdateMs = AvgUpdateMs <= 0 ? ms : AvgUpdateMs * .97f + ms * .03f;
         }
 
         /// teleports / big jumps of the player: start over
