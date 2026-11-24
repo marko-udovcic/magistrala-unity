@@ -52,6 +52,29 @@ namespace Magistrala
             styles[key] = s; return s;
         }
 
+        // ------------------------------------------------------------------ glyph prewarm
+        // IMGUI's dynamic fonts rasterise a size the first time text is drawn in it, and a full atlas is rebuilt: the first rain
+        // toast (default font 22) took 1.4 s, a new banner size ~100 ms (HitchDiag: GUI.Repaint / FontEngine). Prewarm() draws the
+        // whole Croatian charset off screen in every HUD size once per screen height (sizes scale with it), in the first frames.
+        const string Charset = "0123456789 abcčćdđefghijklmnopqrsštuvwxyzžABCČĆDĐEFGHIJKLMNOPQRSŠTUVWXYZŽ.,:;!?–-—·%€()/'\"+*=<>…„“”‘’°&#@";
+        static readonly int[] WarmSizes = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 26, 28, 30, 34, 38 };
+        static int warmH = -1; static GUIStyle warmBox;
+        /// call from OnGUI (Repaint); cheap when already done for this screen height
+        public static void Prewarm()
+        {
+            if (warmH == Screen.height || Event.current.type != EventType.Repaint) return;
+            warmH = Screen.height;
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var off = new Rect(-20000, -20000, 4000, 200);
+            int n = 0;
+            foreach (int sz in WarmSizes)
+                for (int b = 0; b < 2; b++) { var st = St(sz, b == 1, Color.white); st.CalcSize(T(Charset)); GUI.Label(off, T(Charset), st); n++; }
+            // the toasts' default-font box (WeatherSystem, CameraFeel, RenderQuality)
+            warmBox ??= new GUIStyle(GUI.skin.box) { fontSize = 22 };
+            GUI.Box(off, T(Charset), warmBox); n++;
+            Debug.Log($"[hud] fonts prewarmed: {n} sizes at {Screen.height} px in {sw.ElapsedMilliseconds} ms");
+        }
+
         static readonly GUIContent tmp = new GUIContent();
         public static GUIContent T(string s) { tmp.text = s; tmp.image = null; tmp.tooltip = null; return tmp; }
         public static float Width(GUIStyle st, string s) => st.CalcSize(T(s)).x;
