@@ -50,6 +50,11 @@ namespace Magistrala.EditorTools
         public class Net { public List<NNode> nodes = new List<NNode>(); public List<Street> streets = new List<Street>(); public List<Split> splits = new List<Split>(); public List<string> log = new List<string>(); }
 
         static double Sq(double v) => v * v;
+        /// pieces whose heights the package designed (README_11-24.md: shops_nodes.py, careva_fix.py, descents_fix.py): the shopping zone
+        /// of Kaštel Sućurac (access-s*, Ulica satnije Putalj b31, the old road there b30 / b37 / b38 / e05 / e09) and the descents with
+        /// their level crossings (Careva e26–e28, Krešimira e08, Tamunić b39, Putaljski put e15 / e16)
+        static readonly HashSet<string> DESIGNED = new HashSet<string> { "access-b31", "access-b30", "access-b37", "access-b38", "access-e05", "access-e09", "access-e26", "access-e27", "access-e28", "access-e08", "access-b39", "access-e15", "access-e16" };
+        static bool Designed(string id) { string b = id.Split('#')[0]; return DESIGNED.Contains(b) || (b.StartsWith("access-s") && b.Length == 10 && char.IsDigit(b[8])); }
         static double Smooth(double t) => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
         static double Len(List<double[]> p) { double L = 0; for (int i = 1; i < p.Count; i++) L += Math.Sqrt(Sq(p[i][0] - p[i - 1][0]) + Sq(p[i][2] - p[i - 1][2])); return L; }
 
@@ -203,7 +208,15 @@ namespace Magistrala.EditorTools
                 // y is not used as such: it is ~1.3 m below our ground and raised / lowered near models we may not have yet); where
                 // our ground is sea (the coast differs) the json height
                 var d = new double[n]; for (int i = 0; i < n; i++) { double h = Tiles.Height(S[i][0], S[i][2]); d[i] = h < .8 ? Math.Max(.8, S[i][1]) : h; }
-                var ds = Gauss(d, c, 30); for (int i = 0; i < n; i++) S[i][1] = ds[i];
+                if (pkg && Designed(r["id"].ToString()))
+                {
+                    // mag-24-11: heights the package designed (the shopping zone of Sućurac with Ulica satnije Putalj under the D8, the
+                    // descents from the D8 to the level crossings): its own profile, moved onto our ground by the median difference —
+                    // our ground smoothed gave 12 % ramps through the car parks
+                    var dv = Enumerable.Range(0, n).Select(i => d[i] - S[i][1]).OrderBy(v => v).ToList(); double off = dv[n / 2];
+                    for (int i = 0; i < n; i++) S[i][1] += off;
+                }
+                else { var ds = Gauss(d, c, 30); for (int i = 0; i < n; i++) S[i][1] = ds[i]; }
                 // coverage per sample
                 var cov = new bool[n];
                 for (int i = 0; i < n; i++)
