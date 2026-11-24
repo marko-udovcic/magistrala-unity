@@ -34,6 +34,7 @@ namespace Magistrala
                 {
                     if (a == "-autopilot") { var ap = Magistrala.Game.MagistralaGame.DrivenTruck()?.GetComponent<Autopilot>(); if (ap) ap.drive = true; }
                     if (a == "-mute") AudioListener.volume = 0; // measuring runs: no engine / radio on the speakers
+                    if (a == "-hitchdbg" && !GetComponent<HitchDiag>()) gameObject.AddComponent<HitchDiag>(); // stutter frames: what they were made of
                 }
             // measuring only: -skip trees,terrain,World/Buildings,shadows,... turns groups off to see what each one costs
             var args = System.Environment.GetCommandLineArgs();
