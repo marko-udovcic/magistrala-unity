@@ -28,7 +28,7 @@ namespace Magistrala.EditorTools
 {
     public partial class GameDataBuilder
     {
-        const string PKG = "/Users/macair/Documents/mag-11-19/world_1to1.json";
+        const string PKG = PaketData.TOCKE; // (checkpoints + tours of world_1to1.json, mag-11-19 = 24-11; Plodine / Stop Shop Sućurac at their yards)
         const string NAMES = "Assets/Editor/imena-firmi.json";
         const string CUSTOMERS = "Assets/Editor/stops-musterije.json";
         const int CustomerId0 = 500;      // PK.id of the customers' stops (node / edge ids PkNode0 / PkEdge0 + id; package ids < 500)
@@ -49,7 +49,7 @@ namespace Magistrala.EditorTools
         {
             report.Clear(); tourDefs = new List<GTour>();
             var res = new List<PK>();
-            if (!File.Exists(PKG)) { Debug.LogWarning($"[igra] {PKG} missing: no delivery points"); AddCustomers(res); Snap(res, nodes, edges, closed); return res; }
+            PaketData.Need(PKG);
             var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(PKG)));
             var pa = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "paket-approaches.json")));
             var T = MiniJson.O(MiniJson.G(MiniJson.O(pa["alignment"]), "transform") ?? pa["transform"]);

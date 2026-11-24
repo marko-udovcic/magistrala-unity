@@ -1,4 +1,4 @@
-// Streets outside Marko's road models: ~/Documents/mag-23-11-v2/ceste_izvan_modela.json (the package's roads that no hand-built
+// Streets outside Marko's road models: ceste_izvan_modela.json (PaketData.CESTE, mag-24-11) (the package's roads that no hand-built
 // model covers, world_1to1 frame: x east, z south, origin Štafilić), turned into new streets of our graph where the graph does
 // not already have them. Shared by StreetsBuilder (drawn like the graph streets: ribbon, markings, kerbs, terrain) and
 // GameDataBuilder (GPS / RoadRouter), so both see the same network.
@@ -29,7 +29,7 @@ namespace Magistrala.EditorTools
 {
     public static class OutsideStreets
     {
-        public const string SRC = "/Users/macair/Documents/mag-23-11-v2/ceste_izvan_modela.json"; // (mag-23-11-v2: new join heights, roads no longer cut at strip models' squares, Vukovarska to model 21)
+        public const string SRC = PaketData.CESTE; // (mag-24-11 Kaštela: Putalj → shops, shopping zone, rivas, old road Lukšić → Sućurac; v2: join heights, Vukovarska to 21)
         /// streets the package lacks but a signal looks at (Gomilica of semafori-bez-modela.json): same schema, game frame
         public const string EXTRA = "Assets/Editor/ulice-dodatne.json";
         public const long NODE0 = 9_000_000, EDGE0 = 9_200_000, SPLIT0 = 9_400_000;
@@ -164,7 +164,7 @@ namespace Magistrala.EditorTools
         public static Net Compute(List<GNode> nodes, List<GEdgeV> edges, List<ModelJ> models, double ax0, double ax1, double az0, double az1)
         {
             var net = new Net();
-            if (!File.Exists(SRC)) { net.log.Add($"outside streets: {SRC} missing, none"); return net; }
+            PaketData.Need(SRC);
             G = edges; GN = nodes.ToDictionary(n => n.id);
             grid = new Dictionary<long, List<(int, int)>>();
             for (int e = 0; e < G.Count; e++)

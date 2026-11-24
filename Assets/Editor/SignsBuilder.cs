@@ -631,7 +631,7 @@ namespace Magistrala.EditorTools
         /// a pedestrian-crossing sign on each kerb, facing each travel direction
         static void BuildCrossingSigns(List<ModelJ> models, Dictionary<string, Sig> sigs)
         {
-            var files = new[] { "/Users/macair/Documents/mag-23-11-v2/krizanja3d/krizanja.json", "/Users/macair/Documents/mag-23-11-v2/dionice/dionice.json" };
+            var files = new[] { PaketData.Need(PaketData.KRIZANJA), PaketData.Need(PaketData.DIONICE) };
             var byGlb = new Dictionary<string, ModelJ>();
             foreach (var m in models) byGlb[Path.GetFileNameWithoutExtension(m.glb)] = m;
             foreach (var f in files)
@@ -744,7 +744,7 @@ namespace Magistrala.EditorTools
         static void BuildModelDirSigns(List<ModelJ> models)
         {
             var byGlb = new Dictionary<string, ModelJ>(); foreach (var m in models) byGlb[m.glb] = m;
-            foreach (var f in new[] { "/Users/macair/Documents/mag-23-11-v2/krizanja3d/krizanja.json", "/Users/macair/Documents/mag-23-11-v2/dionice/dionice.json" })
+            foreach (var f in new[] { PaketData.Need(PaketData.KRIZANJA), PaketData.Need(PaketData.DIONICE) })
             {
                 var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(f)));
                 foreach (var jo in MiniJson.L(MiniJson.G(root, "junctions") ?? MiniJson.G(root, "tiles")))
