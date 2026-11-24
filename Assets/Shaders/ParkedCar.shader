@@ -25,6 +25,7 @@ Shader "Magistrala/ParkedCar"
         _GrimeH("Sill grime height (object m)", Float) = 0.45
         _WheelZ("Wheel arches: z front, z rear, radius, -", Vector) = (0,0,0,0)
         _GrimeColor("Grime colour", Color) = (0.30,0.27,0.22,1)
+        _ParkFade("Far fade: start, end (m) — the _FARFADE copy for the far level (ParkedCars)", Vector) = (0,0,0,0)
     }
     SubShader
     {
@@ -45,7 +46,21 @@ Shader "Magistrala/ParkedCar"
             half _Grime, _GrimeH;
             float4 _WheelZ;
             half4 _GrimeColor;
+            float4 _ParkFade;
         CBUFFER_END
+        float4 _FarFadeEye; // the camera (ParkedCars / TrafficSystem set it)
+        // _FARFADE (far level only): the car dissolves (4×4 Bayer dither, per car: its origin's distance) towards the draw
+        // distance instead of popping out of / into view at it
+        void ParkFadeClip(float4 positionCS)
+        {
+        #if defined(_FARFADE)
+            float3 o = float3(UNITY_MATRIX_M._m03, UNITY_MATRIX_M._m13, UNITY_MATRIX_M._m23);
+            float k = saturate((_ParkFade.y - distance(o, _FarFadeEye.xyz)) / max(_ParkFade.y - _ParkFade.x, 1e-3));
+            uint2 p = (uint2)positionCS.xy & 3;
+            const float B[16] = { 0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5 };
+            clip(k - (B[p.y * 4 + p.x] + 0.5) / 16.0);
+        #endif
+        }
         TEXTURE2D(_PlateTex); SAMPLER(sampler_PlateTex);
         TEXTURE2D(_GrimeTex); SAMPLER(sampler_GrimeTex);
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
@@ -78,12 +93,14 @@ Shader "Magistrala/ParkedCar"
             half4 flags : TEXCOORD6;
             half4 color : TEXCOORD7;
             float4 tint : TEXCOORD8;   // per instance (constant over the triangle)
+            UNITY_VERTEX_INPUT_INSTANCE_ID
             UNITY_VERTEX_OUTPUT_STEREO
         };
         Varyings LitVertex(Attributes input)
         {
             Varyings o = (Varyings)0;
             UNITY_SETUP_INSTANCE_ID(input);
+            UNITY_TRANSFER_INSTANCE_ID(input, o);
             UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
             VertexPositionInputs p = GetVertexPositionInputs(input.positionOS.xyz);
             o.positionCS = p.positionCS;
@@ -101,6 +118,8 @@ Shader "Magistrala/ParkedCar"
         half4 LitFragment(Varyings input) : SV_Target
         {
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+            UNITY_SETUP_INSTANCE_ID(input);
+            ParkFadeClip(input.positionCS);
             InputData data = (InputData)0;
             data.positionWS = input.positionWS;
             data.positionCS = input.positionCS;
@@ -184,7 +203,7 @@ Shader "Magistrala/ParkedCar"
             return result;
         }
 
-        struct ShadowVaryings { float4 positionCS : SV_POSITION; half3 normalWS : TEXCOORD0; };
+        struct ShadowVaryings { float4 positionCS : SV_POSITION; half3 normalWS : TEXCOORD0; UNITY_VERTEX_INPUT_INSTANCE_ID };
         float3 _LightDirection;
         float3 _LightPosition;
         ShadowVaryings ShadowVertex(Attributes input)
@@ -205,13 +224,17 @@ Shader "Magistrala/ParkedCar"
         {
             ShadowVaryings o = (ShadowVaryings)0;
             UNITY_SETUP_INSTANCE_ID(input);
+            UNITY_TRANSFER_INSTANCE_ID(input, o);
             o.positionCS = TransformObjectToHClip(input.positionOS.xyz);
             o.normalWS = TransformObjectToWorldNormal(input.normalOS);
             return o;
         }
         half4 DepthFragment(ShadowVaryings input) : SV_Target { return input.positionCS.z; }
+        half4 DepthFadeFragment(ShadowVaryings input) : SV_Target { UNITY_SETUP_INSTANCE_ID(input); ParkFadeClip(input.positionCS); return input.positionCS.z; }
         half4 NormalsFragment(ShadowVaryings input) : SV_Target
         {
+            UNITY_SETUP_INSTANCE_ID(input);
+            ParkFadeClip(input.positionCS);
             float3 n = NormalizeNormalPerPixel(input.normalWS);
             #if defined(_GBUFFER_NORMALS_OCT)
                 float2 oct = PackNormalOctQuadEncode(n);
@@ -241,6 +264,7 @@ Shader "Magistrala/ParkedCar"
             #pragma multi_compile_fragment _ _REFLECTION_PROBE_BOX_PROJECTION
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
             #pragma multi_compile_fog
+            #pragma multi_compile_local_fragment _ _FARFADE
             ENDHLSL
         }
         Pass
@@ -267,8 +291,9 @@ Shader "Magistrala/ParkedCar"
             HLSLPROGRAM
             #pragma target 3.5
             #pragma vertex DepthVertex
-            #pragma fragment DepthFragment
+            #pragma fragment DepthFadeFragment
             #pragma multi_compile_instancing
+            #pragma multi_compile_local_fragment _ _FARFADE
             ENDHLSL
         }
         Pass
@@ -281,6 +306,7 @@ Shader "Magistrala/ParkedCar"
             #pragma vertex DepthVertex
             #pragma fragment NormalsFragment
             #pragma multi_compile_instancing
+            #pragma multi_compile_local_fragment _ _FARFADE
             #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
             ENDHLSL
         }

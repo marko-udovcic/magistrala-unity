@@ -41,6 +41,10 @@ namespace Magistrala.Traffic
         int[] farB; Matrix4x4[][] mats; int[] matN;
         // baked: per kind × level (0..2) the visible list (+ tints), per kind × 2 the shadow-only list (level 1 mesh / far mesh)
         bool[] baked; Matrix4x4[][] pm, ps; Vector4[][] pt; int[] pmN, psN;
+        /// per baked kind: a copy of parkedMat with _FARFADE for the far level (the car dissolves over the last ~45 m before the
+        /// draw distance instead of popping in / out of view there)
+        Material[] fadeMat;
+        static readonly int ID_ParkFade = Shader.PropertyToID("_ParkFade"), ID_FarFadeEye = Shader.PropertyToID("_FarFadeEye");
         readonly Vector4[] tintTmp = new Vector4[BATCH];
         readonly List<MaterialPropertyBlock> mpb = new List<MaterialPropertyBlock>();
         Matrix4x4[] M; Vector4[] carTint;
@@ -84,12 +88,17 @@ namespace Magistrala.Traffic
                 return i;
             }
             int nk = data.kinds.Length;
-            farB = new int[nk]; baked = new bool[nk];
+            farB = new int[nk]; baked = new bool[nk]; fadeMat = new Material[nk];
             for (int k = 0; k < nk; k++)
             {
                 var kd = data.kinds[k];
                 baked[k] = !Legacy && kd.parked != null && kd.parked.Length == 3 && kd.parked[0] && kd.parked[1] && kd.parked[2] && kd.parkedMat;
-                if (baked[k]) kd.parkedMat.enableInstancing = true;
+                if (baked[k])
+                {
+                    kd.parkedMat.enableInstancing = true;
+                    fadeMat[k] = new Material(kd.parkedMat) { name = kd.parkedMat.name + " (fade)", enableInstancing = true };
+                    fadeMat[k].EnableKeyword("_FARFADE");
+                }
                 farB[k] = -1;
                 if (!kd.farMesh || kd.farPaints == null || kd.farPaints.Length != kd.paints.Length) continue;
                 farB[k] = B(kd.farMesh, 0, data.farPalette);
@@ -163,6 +172,8 @@ namespace Magistrala.Traffic
                 }
             }
             var wb = new Bounds(cp, Vector3.one * (draw * 2 + 50));
+            Shader.SetGlobalVector(ID_FarFadeEye, cp);
+            var fadeBand = new Vector4(Mathf.Max(lod1Dist, draw - 45), draw, 0, 0);
             usedMats.Clear(); int mi = 0;
             MaterialPropertyBlock Mpb() { if (mi == mpb.Count) mpb.Add(new MaterialPropertyBlock()); var b = mpb[mi++]; b.Clear(); return b; }
             for (int ki = 0; ki < data.kinds.Length; ki++)
@@ -172,13 +183,15 @@ namespace Magistrala.Traffic
                 for (int lv = 0; lv < 3; lv++)
                 {
                     int b = ki * 3 + lv, n = pmN[b]; if (n == 0) continue;
-                    usedMats.Add(mat);
+                    var lm = lv == 2 && fadeMat[ki] ? fadeMat[ki] : mat;
+                    if (lm != mat) lm.SetVector(ID_ParkFade, fadeBand);
+                    usedMats.Add(lm);
                     for (int s = 0; s < n; s += BATCH)
                     {
                         int cnt = Mathf.Min(BATCH, n - s);
                         System.Array.Copy(pt[b], s, tintTmp, 0, cnt);
                         var props = Mpb(); props.SetVectorArray("_ParkTint", tintTmp);
-                        Graphics.RenderMeshInstanced(new RenderParams(mat) { shadowCastingMode = ShadowCastingMode.Off, receiveShadows = true, worldBounds = wb, layer = gameObject.layer, matProps = props, camera = target },
+                        Graphics.RenderMeshInstanced(new RenderParams(lm) { shadowCastingMode = ShadowCastingMode.Off, receiveShadows = true, worldBounds = wb, layer = gameObject.layer, matProps = props, camera = target },
                             kd.parked[lv], 0, pm[b], cnt, s);
                         CallsMain++;
                     }
