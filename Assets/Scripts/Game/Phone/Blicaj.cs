@@ -66,7 +66,7 @@ namespace Magistrala.Game.Phone
             S("pumpa-marija", "kod Marijine pumpe", 'p', "kastela_pumpa_2"),
             S("cementara", "kod cementare", 'p', "cementara_sucurac"),
             S("marina", "kod marine", 'p', "p44"),
-            S("konjanik", "kod konjanika u Starom", 'p', "p40"),
+            S("konjanik", "kod konjanika u Novom", 'p', "p40"),
             S("riva-stari", "na rivi u Starom", 'p', "p42"),
         };
         static BlicajSpot S(string id, string where, char road, string key) => new BlicajSpot { id = id, where = where, road = road, key = key };

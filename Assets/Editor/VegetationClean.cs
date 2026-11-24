@@ -1,4 +1,4 @@
-// Vegetacija bez glupih mjesta (23. 11., Marko kod konjanika u Kaštel Starom: "tamo stvarno nema toliko stabala, a stabla su na
+// Vegetacija bez glupih mjesta (23. 11., Marko kod konjanika u Kaštel Novom: "tamo stvarno nema toliko stabala, a stabla su na
 // glupim mjestima"): one last pass over trees.bytes after every placer (tile trees, clumps, groves, yard hedges, the Kaštel Stari
 // trial, Mapillary), inside NaturePass.Boxes:
 //   keep clear  trunks ≥ 2.5 m from model asphalt / graph streets (bushes 1.2 m, hedge bodies 0.6 m) and off sidewalks / islands;
@@ -24,7 +24,7 @@ namespace Magistrala.EditorTools
     public static class VegetationClean
     {
         public static bool On = true;
-        static readonly Vector2 KONJANIK = new Vector2(-7911.9f, -4596.2f); // game x / z of stop p40 "Tonći, Kaštel Stari (kod konjanika)"
+        static readonly Vector2 KONJANIK = new Vector2(-7911.9f, -4596.2f); // game x / z of stop p40 "Tonći, Kaštel Novi (kod konjanika)"
         const float K_IN = 180, K_OUT = 300, K_TREE = .3f, K_BUSH = .4f;
 
         [MenuItem("Magistrala/Vegetacija: očisti")]

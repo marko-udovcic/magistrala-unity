@@ -67,7 +67,7 @@ namespace Magistrala.EditorTools
         };
         // OSM -> game (see the header)
         static readonly (string p, double lat, double lon, float yaw, string what)[] Landmarks = {
-            ("konjanik", 43.5493418, 16.3415904, 90, "Vjesnik slobode (konjanik), Kaštel Novi / Stari"),
+            ("konjanik", 43.5493418, 16.3415904, 90, "Vjesnik slobode (konjanik), Kaštel Novi"),
             ("stara-maslina", 43.5505621, 16.3356451, 20, "Stara maslina, Kaštel Štafilić"),
         };
 
