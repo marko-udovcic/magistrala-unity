@@ -24,6 +24,9 @@ Shader "Magistrala/Foliage"
         _Vary("Per-plant colour variation", Range(0,0.5)) = 0.12
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 0
         _ShadowFloor("Light reaching shadowed leaves", Range(0,1)) = 0.3
+        _Grade("Albedo toward its luminance x _GradeTint (0 off)", Range(0,1)) = 0
+        _GradeTint("Grade tint (linear, may be > 1)", Vector) = (1,1,1,0)
+        _DirShade("Direct light multiplier (impostors: no self-shadow)", Range(0,1)) = 1
         _Debug("Debug view (0 off, 1 albedo, 2 ambient, 3 direct)", Float) = 0
     }
     SubShader
@@ -44,6 +47,8 @@ Shader "Magistrala/Foliage"
             half _Bend, _Wrap, _Trans, _Amb, _Inner, _Vary;
             float _Cull, _Debug;
             half _ShadowFloor;
+            half _Grade, _DirShade;
+            half4 _GradeTint;
         CBUFFER_END
         TEXTURE2D(baseColorTexture);
         SAMPLER(samplerbaseColorTexture);
@@ -108,6 +113,9 @@ Shader "Magistrala/Foliage"
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
             half4 tex = SAMPLE_TEXTURE2D(baseColorTexture, samplerbaseColorTexture, input.uv) * baseColorFactor;
             clip(tex.a - alphaCutoff);
+            // olive / crnika (25. 11.): the shared broadleaf texture is a yellow green; graded toward a silvery grey-green (olive) or
+            // a dark but not black evergreen (crnika) by its luminance
+            UNITY_BRANCH if (_Grade > 0) tex.rgb = lerp(tex.rgb, dot(tex.rgb, half3(0.2126, 0.7152, 0.0722)) * _GradeTint.rgb, _Grade);
             half3 albedo = tex.rgb * input.tintFog.rgb;
             half3 n = NormalizeNormalPerPixel(input.normalWS);
             float3 v = GetWorldSpaceNormalizeViewDir(input.positionWS);
@@ -130,7 +138,7 @@ Shader "Magistrala/Foliage"
                 aoInd = ao.indirectAmbientOcclusion; aoDir = ao.directAmbientOcclusion;
             #endif
             half3 amb = max(SampleSH(n), SampleSH(half3(0, 1, 0)) * 0.6) * _Amb * occ * aoInd;
-            half3 c = albedo * (amb + L.color * (diff * sh * aoDir * lerp(0.8, 1, occ) + back * half3(0.85, 1, 0.55)));
+            half3 c = albedo * (amb + _DirShade * L.color * (diff * sh * aoDir * lerp(0.8, 1, occ) + back * half3(0.85, 1, 0.55)));
             UNITY_BRANCH if (_Wetness > 0.001) c *= 1 - 0.25 * _Wetness;
             if (_Debug > 0.5) return half4(_Debug < 1.5 ? albedo : _Debug < 2.5 ? amb : _Debug < 3.5 ? L.color * diff * sh : _Debug < 4.5 ? L.shadowAttenuation.xxx : L.distanceAttenuation.xxx, 1);
             c = MixFog(c, InitializeInputDataFog(float4(input.positionWS, 1), input.tintFog.a));

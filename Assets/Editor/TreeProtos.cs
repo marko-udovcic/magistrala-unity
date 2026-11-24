@@ -74,7 +74,7 @@ namespace Magistrala.EditorTools
                 mat.renderQueue = 2450; mat.enableInstancing = true;
                 // impostor: the crossed quads' normals bent to a sphere around the crown's middle (as the near mesh's leaves)
                 var b = m.bounds; Foliage(mat, null, -1); mat.SetFloat("_CrownY", b.center.y); mat.SetFloat("_CrownR", Mathf.Max(b.extents.x, b.extents.y)); mat.SetFloat("_Bend", .8f); mat.SetFloat("_Inner", .2f);
-                mat.SetColor("baseColorFactor", new Color(IMP_SHADE, IMP_SHADE, IMP_SHADE, 1));
+                mat.SetColor("baseColorFactor", new Color(IMP_ALB, IMP_ALB, IMP_ALB, 1)); mat.SetFloat("_DirShade", IMP_SHADE); mat.SetFloat("_Grade", 0);
                 EditorUtility.SetDirty(mat); EditorUtility.SetDirty(m);
                 meshes[p] = m; impMats[p] = mat;
             }
@@ -83,8 +83,23 @@ namespace Magistrala.EditorTools
 
         const int TILE = 512;
         /// the albedo of a whole crown on 4 cards is lit as if every leaf faced out: darker, to match the full mesh's own shading
-        /// (screenshots of one pose with all full meshes / all impostors, 23. 11.)
-        const float IMP_SHADE = .74f;
+        /// (screenshots of one pose with all full meshes / all impostors, 23. 11.). 25. 11.: on the direct light only (Foliage
+        /// _DirShade) – it stands for the crown's self-shadow, which the cards lack; on the albedo it also darkened the ambient, and
+        /// in the rain (all ambient) the impostors went far darker than the meshes (the black olives in front of the truck).
+        /// Now .9 on the albedo and .65 more on the direct light (sun: ~ the old .74 overall; rain: .9, as the meshes)
+        const float IMP_SHADE = .65f, IMP_ALB = .9f;
+
+        /// 25. 11. (Marko: "masline crne po kiši"): olive and crnika share the web game's broadleaf texture, a dark yellow green
+        /// (sRGB ~.32 .35 .15); the crnika was that × (.46 .56 .44) and its impostor × .74 more – near black, trunk included, worst
+        /// in the rain. Foliage's grade recolours the leaves from their luminance: olive a silvery grey-green, crnika a dark
+        /// evergreen that still reads as green. Leaf materials only; baseColorFactor back to white (the grade carries the colour)
+        public static readonly Vector4 OLIVE_GRADE = new Vector4(2.2f, 2.5f, 1.85f, .9f), CRNIKA_GRADE = new Vector4(.95f, 1.3f, .7f, .9f);
+        public static void Grade(Material m, Vector4 g)
+        {
+            if (!m || !m.HasProperty("_Grade")) return;
+            m.SetFloat("_Grade", g.w); m.SetVector("_GradeTint", new Vector4(g.x, g.y, g.z, 0)); m.SetColor("baseColorFactor", Color.white);
+            EditorUtility.SetDirty(m);
+        }
         /// renders `mesh` (its submeshes with the albedo of `mats`) orthographically from the 4 quad normals into a 4-tile atlas
         /// (png, imported alpha-clip friendly) and writes the crossed quads into `quads`: centred on the pivot, as wide as the
         /// plant's largest horizontal reach from it, from its lowest to its highest point, so the impostor stands where the mesh does
@@ -104,6 +119,7 @@ namespace Magistrala.EditorTools
                 float cut = src.HasProperty("alphaCutoff") ? src.GetFloat("alphaCutoff") : src.HasProperty("_Cutoff") ? src.GetFloat("_Cutoff") : .5f;
                 bool clip = src.renderQueue >= 2450 || src.IsKeywordEnabled("_ALPHATEST_ON");
                 bm[s].SetTexture("_MainTex", t ? t : Texture2D.whiteTexture); bm[s].SetColor("_Color", c); bm[s].SetFloat("_Cutoff", clip ? cut : -1);
+                if (src.HasProperty("_Grade")) { bm[s].SetFloat("_Grade", src.GetFloat("_Grade")); bm[s].SetVector("_GradeTint", src.GetVector("_GradeTint")); }
                 if (src.HasProperty("baseColorTexture_ST")) { var st = src.GetVector("baseColorTexture_ST"); if (st.x != 0 || st.y != 0) bm[s].SetVector("_MainTex_ST", st); }
             }
             var rt = RenderTexture.GetTemporary(new RenderTextureDescriptor(TILE * 4, TILE, RenderTextureFormat.ARGB32, 24) { sRGB = true });
@@ -178,30 +194,55 @@ namespace Magistrala.EditorTools
             // (props, parked cars and boats have TreeRenderers too: the plants' one is World/Vegetation)
             var tr = System.Array.Find(Object.FindObjectsByType<Magistrala.TreeRenderer>(FindObjectsSortMode.None), t => t.name == "Vegetation");
             if (!tr || tr.impMeshes == null) { Debug.LogWarning("[stabla] no Vegetation TreeRenderer"); return "no TreeRenderer"; }
+            // the olive / crnika leaf grade on the scene's materials first (the bake takes it into the atlases)
+            int olive = System.Array.IndexOf(IDS, "olive");
+            for (int p = 0; p < tr.meshes.Length; p++)
+                if (tr.meshes[p] && tr.meshes[p] == tr.meshes[olive])
+                {
+                    Grade(LeafMat(tr, p), p == olive ? OLIVE_GRADE : CRNIKA_GRADE);
+                    if (p == olive) continue;
+                    // crnika bark: the olive's × .7 (was × .55, NaturePass.Finish)
+                    for (int k = 0; k < tr.meshes[p].subMeshCount; k++)
+                    {
+                        Material bm = tr.materials[tr.materialStart[p] + k], ob = tr.materials[tr.materialStart[olive] + k];
+                        if (bm && ob && bm != ob && bm.name.Contains("bark") && bm.HasProperty("baseColorFactor") && ob.HasProperty("baseColorFactor"))
+                        { var c = ob.GetColor("baseColorFactor"); bm.SetColor("baseColorFactor", new Color(c.r * .7f, c.g * .68f, c.b * .66f, c.a)); EditorUtility.SetDirty(bm); }
+                    }
+                }
             Impostors(tr.meshes, tr.materials, tr.materialStart, out var im, out var imat);
             int n = 0;
             for (int p = 0; p < IDS.Length - 1 && p < tr.impMeshes.Length; p++) if (im[p]) n++;
-            // prototypes that reuse one of ours' impostor quads (crnika = the olive's): their own tinted material gets the new atlas
+            // prototypes that reuse one of ours' impostor quads (crnika = the olive's mesh, own leaf / bark colours): their own atlas
+            // baked from their own materials (until 25. 11. the olive's atlas × the leaf colour ratio – the trunk went as dark as the leaves)
             for (int p = IDS.Length; p < tr.impMeshes.Length; p++)
             {
                 int src = System.Array.IndexOf(im, tr.impMeshes[p]); if (src < 0 || !tr.impMaterials[p] || !imat[src]) continue;
-                var mt = tr.impMaterials[p]; Color a = Leaf(tr, p), b = Leaf(tr, src), tint = tr.meshes[p] == tr.meshes[src] ? new Color(a.r / b.r, a.g / b.g, a.b / b.b) : Color.white;
+                var mt = tr.impMaterials[p];
                 mt.shader = imat[src].shader; mt.CopyPropertiesFromMaterial(imat[src]);
-                mt.SetColor("baseColorFactor", new Color(tint.r * IMP_SHADE, tint.g * IMP_SHADE, tint.b * IMP_SHADE, 1)); EditorUtility.SetDirty(mt); n++;
+                if (tr.meshes[p] == tr.meshes[src])
+                {
+                    int sn = tr.meshes[p].subMeshCount, s0 = tr.materialStart[p];
+                    var tmp = new Mesh();
+                    var tex = BakeImpostor(tr.meshes[p], Enumerable.Range(s0, sn).Select(i => i < tr.materials.Length ? tr.materials[i] : null).ToArray(), tmp,
+                        Path.ChangeExtension(AssetDatabase.GetAssetPath(mt), ".png"));
+                    Object.DestroyImmediate(tmp);
+                    mt.SetTexture("baseColorTexture", tex);
+                }
+                mt.SetColor("baseColorFactor", new Color(IMP_ALB, IMP_ALB, IMP_ALB, 1)); EditorUtility.SetDirty(mt); n++;
             }
             AssetDatabase.SaveAssets();
             Debug.Log($"[stabla] impostors baked: {n}");
             return $"impostors baked: {n}";
         }
-        /// the first leaf material's colour of a prototype (Foliage leaves): the tint between two prototypes on one mesh
-        static Color Leaf(Magistrala.TreeRenderer tr, int p)
+        /// a prototype's first leaf material (Magistrala/Foliage)
+        static Material LeafMat(Magistrala.TreeRenderer tr, int p)
         {
             int n = tr.meshes[p].subMeshCount;
             for (int i = tr.materialStart[p]; i < tr.materialStart[p] + n && i < tr.materials.Length; i++)
             {
-                var m = tr.materials[i]; if (m && m.HasProperty("baseColorFactor") && m.shader && m.shader.name == "Magistrala/Foliage") { var c = m.GetColor("baseColorFactor"); return new Color(Mathf.Max(c.r, .01f), Mathf.Max(c.g, .01f), Mathf.Max(c.b, .01f)); }
+                var m = tr.materials[i]; if (m && m.shader && m.shader.name == "Magistrala/Foliage") return m;
             }
-            return Color.white;
+            return null;
         }
 
         /// leaves: the glTF leaf materials are alpha-blended (queue 3000, no depth write, shadow caster without clipping): under
@@ -229,6 +270,7 @@ namespace Magistrala.EditorTools
                 c.SetShaderPassEnabled("DepthOnly", true); c.SetShaderPassEnabled("SHADOWCASTER", true); c.SetShaderPassEnabled("DepthNormals", true);
                 c.enableInstancing = true;
                 Foliage(c, AssetDatabase.LoadAssetAtPath<Mesh>($"{dir}/{IDS[p]}.mesh.asset"), i - start[p]);
+                if (IDS[p] == "olive") Grade(c, OLIVE_GRADE);
                 EditorUtility.SetDirty(c);
                 outM[i] = c;
             }

@@ -287,8 +287,11 @@ namespace Magistrala.EditorTools
             {
                 // the olive (prototype 2) leaf-clipped materials and impostor, tinted dark evergreen (Quercus ilex: dark, dense, a little blue)
                 int s0 = tr.materialStart[2], sn = tr.meshes[2].subMeshCount;
-                p.mats = Enumerable.Range(s0, sn).Select(i => Tint(tr.materials[i], "crnika", tr.materials[i].name.Contains("bark") ? new Color(.55f, .52f, .5f, 1) : new Color(.46f, .56f, .44f, 1))).ToArray();
-                p.imp = tr.impMeshes[2]; p.impMat = Tint(tr.impMaterials[2], "crnika", new Color(.5f, .6f, .48f, 1));
+                // (25. 11.: the leaves through Foliage's grade, TreeProtos.CRNIKA_GRADE, instead of × .46 .56 .44 of an already dark
+                // texture – near black; bark .55 -> .7. Its impostor atlas: "Magistrala/Trees: bake impostors" bakes it from these)
+                p.mats = Enumerable.Range(s0, sn).Select(i => Tint(tr.materials[i], "crnika", tr.materials[i].name.Contains("bark") ? new Color(.7f, .68f, .66f, 1) : Color.white)).ToArray();
+                foreach (var m in p.mats) if (m && m.shader && m.shader.name == "Magistrala/Foliage") TreeProtos.Grade(m, TreeProtos.CRNIKA_GRADE);
+                p.imp = tr.impMeshes[2]; p.impMat = Tint(tr.impMaterials[2], "crnika", Color.white);
             }
             foreach (var p in extra)
             {
