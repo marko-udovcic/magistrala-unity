@@ -247,7 +247,7 @@ namespace Magistrala.Game
             if (!force && !atWarehouse) { Banner("Ture se preuzimaju u skladištu u Lukšiću."); return; }
             if (!force && Truck.SpeedKmh > 3) { Banner("Stani u skladištu pa biraj turu."); return; }
             if (!force && !ToursOpen) { Banner(FirmHours ? "Zdravko još nije dao ture." : "Firma radi radnim danom 6–17 h."); return; }
-            if (!force && InGaleb) { Banner(NearOther ? "Ture firme voziš Ategom. E – uzmi Atego." : "Ture firme voziš Ategom firme, ne Galebom."); return; }
+            if (!force && !InFirm) { Banner(NearOther && Other != null && Other.firm ? $"Ture firme voziš vozilom firme. E – uzmi {Other.acc}." : "Ture firme voziš Ategom ili kombijem firme, ne Galebom."); return; }
             j.startMin = S.clockMin; j.deadlineMin = TourDeadline(j);
             Current = j; State = Phase.Loading; phaseT = force ? 0.1f : 3f; loadingKind = 'a';
             if (j.loaded) { Truck.SetCargo(j.kg); SetPallets(true); } // four euro pallets of drinks ≈ 2.4 t
@@ -359,7 +359,7 @@ namespace Magistrala.Game
             switch (State)
             {
                 case Phase.Free:
-                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? "Ture firme voziš Ategom" : null; HomeEndDay(kb, help, ringing); break; }
+                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? "Ture firme voziš Ategom ili kombijem" : null; HomeEndDay(kb, help, ringing); break; }
                     if (atWarehouse)
                     {
                         if (ToursOpen)
@@ -499,7 +499,7 @@ namespace Magistrala.Game
                 return;
             }
             // a fatureta not yet loaded, driving the Atego: first to the parked Galeb
-            if (Current != null && Current.fatureta && !Current.loaded && !InGaleb && OtherAt is Vector3 gp)
+            if (Current != null && Current.fatureta && !Current.loaded && !InGaleb && GalebAt is Vector3 gp)
             {
                 var sp = Router.Nearest(gp, Vector3.zero);
                 if (sp.edge >= 0) { Target = gp; Route = Router.RouteTo(TruckCentre(), Truck.transform.forward, sp, out float gm); RouteMetres = Route != null ? gm : Vector3.Distance(TruckCentre(), gp); return; }
@@ -568,7 +568,7 @@ namespace Magistrala.Game
             get
             {
                 if (Waypoint != null) return "Oznaka";
-                if (Current != null && Current.fatureta && !Current.loaded && !InGaleb && OtherAt != null) return "Galeb";
+                if (Current != null && Current.fatureta && !Current.loaded && !InGaleb && GalebAt != null) return "Galeb";
                 if (Current == null && State == Phase.Free && InGaleb && !(FirmHours && S.closedDay != Day)) return Target != null ? "Dvor Bašića" : null;
                 string id = Current != null ? Current.to : State == Phase.Free && !atWarehouse ? Warehouse : null;
                 if (id == null) return null;

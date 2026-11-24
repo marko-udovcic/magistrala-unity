@@ -22,6 +22,10 @@ using Magistrala.Game.Phone;
 
 namespace Magistrala.Game
 {
+    /// a parked vehicle's pose in the save (MagistralaGame.Vehicles.cs)
+    [Serializable]
+    public class ParkPose { public string id; public float x, y, z, yaw; }
+
     [Serializable]
     public class SaveData
     {
@@ -45,11 +49,12 @@ namespace Magistrala.Game
         public float fuel = 72;
         /// the owner's map waypoint (WorldMap, Unity x / z on the road), wpOn = set
         public bool wpOn; public float wpX, wpZ;
-        /// story phase 3 (MagistralaGame.Vehicles.cs / Faturete.cs): the driven vehicle ("atego" / "galeb"), its exact pose, the
-        /// parked one's pose, the Galeb's diesel %
+        /// story phase 3 (MagistralaGame.Vehicles.cs / Faturete.cs): the driven vehicle ("atego" / "galeb" / "kombi"), its exact
+        /// pose, every parked one's pose (parks; park* = the single parked pose of older saves), the Galeb's and the Kombi's diesel %
         public string vehicle = "atego";
         public bool posOn, parkOn; public float posX, posY, posZ, posYaw, parkX, parkY, parkZ, parkYaw;
-        public float fuelG = 64;
+        public List<ParkPose> parks = new List<ParkPose>();
+        public float fuelG = 64, fuelK = 80;
         /// faturete: today's offers and their haggling state, accepted ones waiting their turn, when each job may come again
         /// ("id:day"), the customers' opinion of Mate (0..1, hidden), invoices for Ljubica ("day|hh:mm|customer|€")
         public List<MagistralaGame.FatOffer> fatOffers = new List<MagistralaGame.FatOffer>();
@@ -128,7 +133,7 @@ namespace Magistrala.Game
         void RestoreFromSave()
         {
             var s = World.Stop(S.stop);
-            if (S.posOn && Galeb != null) PlacePose(Truck, new Vector3(S.posX, S.posY, S.posZ), S.posYaw); // exact (two vehicles may share a stop)
+            if (S.posOn && fleet.Count > 1) PlacePose(Truck, new Vector3(S.posX, S.posY, S.posZ), S.posYaw); // exact (two vehicles may share a stop)
             else if (s != null && s.id != Warehouse) PlaceAtStop(s);
             if (S.job != null && S.job.legs != null && S.job.legs.Count > 0 && S.job.leg < S.job.legs.Count && S.job.legs.TrueForAll(l => World.Stop(l.stop) != null))
             {

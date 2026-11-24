@@ -14,12 +14,28 @@ namespace Magistrala.Game
         /// fuel in the tank, 0–100 %
         /// the Galeb (MagistralaGame.Vehicles.cs): 75 l tank, 10 l/100 km empty → 14 with 3 t (SaveData.fuelG)
         public const float GalebTank = 75, GalebPer100Empty = 10, GalebPer100Full = 14;
-        public float FuelPct => InGaleb ? S.fuelG : S.fuel;
-        float Tank => InGaleb ? GalebTank : TankLitres;
+        /// the firm's Kombi: 90 l tank, 11 l/100 km empty → 15 with 3 t (SaveData.fuelK)
+        public const float KombiTank = 90, KombiPer100Empty = 11, KombiPer100Full = 15;
+        string FuelId => Truck ? Truck.VehicleId : "atego";
+        public float FuelPct => FuelId == "galeb" ? S.fuelG : FuelId == "kombi" ? S.fuelK : S.fuel;
+        float Tank => FuelId == "galeb" ? GalebTank : FuelId == "kombi" ? KombiTank : TankLitres;
         public float FuelLitres => FuelPct * Tank / 100f;
         /// l/100 km at the current load
-        public float Consumption => InGaleb ? Mathf.Lerp(GalebPer100Empty, GalebPer100Full, Mathf.Clamp01(Truck.CargoKg / FullLoadKg))
-            : Mathf.Lerp(LitresPer100Empty, LitresPer100Full, Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / FullLoadKg));
+        public float Consumption
+        {
+            get
+            {
+                float k = Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / FullLoadKg);
+                return FuelId == "galeb" ? Mathf.Lerp(GalebPer100Empty, GalebPer100Full, k)
+                    : FuelId == "kombi" ? Mathf.Lerp(KombiPer100Empty, KombiPer100Full, k)
+                    : Mathf.Lerp(LitresPer100Empty, LitresPer100Full, k);
+            }
+        }
+        void SetFuelPct(float pct)
+        {
+            pct = Mathf.Clamp(pct, 0, 100);
+            if (FuelId == "galeb") S.fuelG = pct; else if (FuelId == "kombi") S.fuelK = pct; else S.fuel = pct;
+        }
 
         void TickFuel(float dt)
         {
@@ -27,16 +43,14 @@ namespace Magistrala.Game
             float km = Truck.SpeedKmh / 3600f * dt;
             if (km <= 0) return;
             float litres = km * Consumption / 100f;
-            if (InGaleb) S.fuelG = Mathf.Max(0, S.fuelG - litres / GalebTank * 100f);
-            else S.fuel = Mathf.Max(0, S.fuel - litres / TankLitres * 100f);
+            SetFuelPct(FuelPct - litres / Tank * 100f);
         }
 
         /// TODO (pumpa): call from the Pumpa Kaštela refuelling; returns the litres actually taken
         public float Refuel(float litres)
         {
             float room = Tank - FuelLitres, l = Mathf.Clamp(litres, 0, room);
-            if (InGaleb) S.fuelG = Mathf.Min(100, S.fuelG + l / GalebTank * 100f);
-            else S.fuel = Mathf.Min(100, S.fuel + l / TankLitres * 100f);
+            SetFuelPct(FuelPct + l / Tank * 100f);
             return l;
         }
     }

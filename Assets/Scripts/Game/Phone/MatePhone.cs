@@ -551,7 +551,12 @@ namespace Magistrala.Game.Phone
             "\n" +
             "Izmijenjeno: uklonjene oznake, naše tablice i boje, materijali i razine detalja (LOD). Sprinter ima i našu policijsku izvedbu.\n" +
             "\n" +
-            "Galeb koristi „Mercedes Benz Sprinter 2006” autora Max (Max-7215 / Max-5532), uz našu grafiku GALEB TRANSPORT. Izvor je naveden uz Sprinter." +
+            "Kombi firme koristi „Mercedes Benz Sprinter 2006” autora Max (Max-7215 / Max-5532), produljen i povišen, s našom unutrašnjosti. Izvor je naveden uz Sprinter.\n" +
+            "\n" +
+            "Galeb koristi „European Delivery Van” autora Evan Hiltz — CC BY 4.0\n" +
+            "sketchfab.com/3d-models/european-delivery-van-0b2f1ad95a79419f9a092420024d329c\n" +
+            "creativecommons.org/licenses/by/4.0/\n" +
+            "Izmijenjeno: uklonjene oznake i tablice, naša grafika GALEB TRANSPORT, naša unutrašnjost kabine." +
             AboutPage +
             "Prometni auti — CC BY 4.0\n" +
             "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
