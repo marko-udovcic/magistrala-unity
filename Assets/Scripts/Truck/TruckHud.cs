@@ -43,6 +43,7 @@ public sealed class TruckHud : MonoBehaviour
 
     void OnGUI()
     {
+        if (Event.current.type == EventType.Repaint) HudStyle.Prewarm(); // (once per screen height: no first-use glyph stalls later)
         if (GpuSwitches.NoHud || Event.current.type != EventType.Repaint) return;
         var g = MagistralaGame.I;
         bool phone = (g && g.Phone && g.Phone.Open) || WorldMap.IsOpen;
