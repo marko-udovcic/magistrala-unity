@@ -663,9 +663,10 @@ namespace Magistrala.EditorTools
             // pine_a, pine_b, olive, cypress, shrub_a, shrub_b, bush_c, rock_a
             tr.drawDistance = new[] { 1400f, 1400f, 1000f, 1400f, 300f, 300f, 260f, 120f };
             tr.nearDistance = new[] { 110f, 110f, 90f, 110f, 45f, 45f, 40f, 120f };
-            TreeProtos.Impostors(out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
+            TreeProtos.Impostors(tr.meshes, tr.materials, tr.materialStart, out var im, out var imat); tr.impMeshes = im; tr.impMaterials = imat;
             NaturePass.Finish(tr);
             Debug.Log(MapillaryTrees.Apply(tr, models)); // Mapillary street trees the build lacks (MapillaryTrees.cs)
+            Debug.Log(VegetationClean.Apply(tr, models)); // off roads / bays / embankments, onto the built ground (VegetationClean.cs)
             Debug.Log($"[Magistrala] trees: {total} (yard crowns kept {VegetationMask.YardKept}, dropped {VegetationMask.YardDropped})");
         }
 

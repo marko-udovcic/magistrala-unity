@@ -82,7 +82,7 @@ namespace Magistrala.EditorTools
         static void Mark(double x, double z, float r) { long k = K(x, z); if (!placed.TryGetValue(k, out var l)) placed[k] = l = new List<(double, double, float)>(); l.Add((x, z, r)); }
 
         /// model asphalt within r m (8 directions at r and r / 2 + the point); sd = WorldData.SurfDist (≥ r: off every model)
-        static bool NearAsphalt(List<ModelJ> models, double x, double z, double sd, double r)
+        internal static bool NearAsphalt(List<ModelJ> models, double x, double z, double sd, double r)
         {
             if (sd >= r) return false;
             if (LaneProfile.OnAsphalt(models, x, z)) return true;
