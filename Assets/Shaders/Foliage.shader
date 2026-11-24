@@ -24,6 +24,9 @@ Shader "Magistrala/Foliage"
         _Vary("Per-plant colour variation", Range(0,0.5)) = 0.12
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 0
         _ShadowFloor("Light reaching shadowed leaves", Range(0,1)) = 0.3
+        _Grade("Albedo toward its luminance x _GradeTint (0 off)", Range(0,1)) = 0
+        _GradeTint("Grade tint (linear, may be > 1)", Vector) = (1,1,1,0)
+        _DirShade("Direct light multiplier (impostors: no self-shadow)", Range(0,1)) = 1
         _Debug("Debug view (0 off, 1 albedo, 2 ambient, 3 direct)", Float) = 0
     }
     SubShader
@@ -44,10 +47,18 @@ Shader "Magistrala/Foliage"
             half _Bend, _Wrap, _Trans, _Amb, _Inner, _Vary;
             float _Cull, _Debug;
             half _ShadowFloor;
+            half _Grade, _DirShade;
+            half4 _GradeTint;
         CBUFFER_END
         TEXTURE2D(baseColorTexture);
         SAMPLER(samplerbaseColorTexture);
         float _Wetness;
+        // distance fade (TreeRenderer, per draw through a property block; outside the per-material buffer): a plant's visibility
+        // from its origin's horizontal distance to the camera, fading in over _FadeIn.xy and out over _FadeIn.zw (m; off when
+        // y <= x / w <= z), its shadow out over _FadeSh.xy. Dithered clip, not blending: full mesh / impostor cross-fade with
+        // complementary patterns (in = 1 - noise), plants appear / vanish at their draw distance without popping
+        float4 _FadeIn, _FadeSh;
+        float _VegFadeFrame; // TAA on: the pattern moves every frame and the history blends it into a smooth fade
 
         struct Attributes
         {
@@ -64,11 +75,33 @@ Shader "Magistrala/Foliage"
             float2 uv : TEXCOORD2;
             half4 tintFog : TEXCOORD3;   // rgb per-plant tint, a fog factor
             half inner : TEXCOORD4;      // 0 at the crown centre, 1 at its rim
+            half2 fade : TEXCOORD5;      // x fade-in, y fade-out visibility (1 = fully there)
             UNITY_VERTEX_INPUT_INSTANCE_ID
             UNITY_VERTEX_OUTPUT_STEREO
         };
 
         float Hash21(float2 p) { p = frac(p * float2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return frac((p.x + p.y) * p.x); }
+
+        half2 FadeOf(float4 band)
+        {
+            float3 origin = float3(UNITY_MATRIX_M._m03, UNITY_MATRIX_M._m13, UNITY_MATRIX_M._m23);
+            float d = length(origin.xz - _WorldSpaceCameraPos.xz);
+            half fin = band.y > band.x ? saturate((d - band.x) / (band.y - band.x)) : 1;
+            half fout = band.w > band.z ? saturate((band.w - d) / (band.w - band.z)) : 1;
+            return half2(fin, fout);
+        }
+        // interleaved gradient noise in screen pixels; fade-in uses the complement so a fading-out full mesh and the fading-in
+        // impostor fill each pixel once between them
+        void FadeClip(half2 fade, float2 pix)
+        {
+            UNITY_BRANCH if (min(fade.x, fade.y) < 1)
+            {
+                pix += _VegFadeFrame * float2(47, 17);
+                half n = frac(52.9829189 * frac(dot(pix, float2(0.06711056, 0.00583715))));
+                clip(fade.x - (1 - n) - 1e-3);
+                clip(fade.y - n - 1e-3);
+            }
+        }
 
         float3 BentNormalOS(float3 pos, float3 n, out half inner)
         {
@@ -99,6 +132,7 @@ Shader "Magistrala/Foliage"
             half t = (h2 - 0.5) * 2 * _Vary;
             o.tintFog.rgb = b * half3(1 + 0.6 * t, 1 + 0.15 * t, 1 - 0.9 * t);
             o.tintFog.a = ComputeFogFactor(p.positionCS.z);
+            o.fade = FadeOf(_FadeIn);
             return o;
         }
 
@@ -106,8 +140,12 @@ Shader "Magistrala/Foliage"
         {
             UNITY_SETUP_INSTANCE_ID(input);
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+            FadeClip(input.fade, input.positionCS.xy);
             half4 tex = SAMPLE_TEXTURE2D(baseColorTexture, samplerbaseColorTexture, input.uv) * baseColorFactor;
             clip(tex.a - alphaCutoff);
+            // olive / crnika (25. 11.): the shared broadleaf texture is a yellow green; graded toward a silvery grey-green (olive) or
+            // a dark but not black evergreen (crnika) by its luminance
+            UNITY_BRANCH if (_Grade > 0) tex.rgb = lerp(tex.rgb, dot(tex.rgb, half3(0.2126, 0.7152, 0.0722)) * _GradeTint.rgb, _Grade);
             half3 albedo = tex.rgb * input.tintFog.rgb;
             half3 n = NormalizeNormalPerPixel(input.normalWS);
             float3 v = GetWorldSpaceNormalizeViewDir(input.positionWS);
@@ -130,7 +168,7 @@ Shader "Magistrala/Foliage"
                 aoInd = ao.indirectAmbientOcclusion; aoDir = ao.directAmbientOcclusion;
             #endif
             half3 amb = max(SampleSH(n), SampleSH(half3(0, 1, 0)) * 0.6) * _Amb * occ * aoInd;
-            half3 c = albedo * (amb + L.color * (diff * sh * aoDir * lerp(0.8, 1, occ) + back * half3(0.85, 1, 0.55)));
+            half3 c = albedo * (amb + _DirShade * L.color * (diff * sh * aoDir * lerp(0.8, 1, occ) + back * half3(0.85, 1, 0.55)));
             UNITY_BRANCH if (_Wetness > 0.001) c *= 1 - 0.25 * _Wetness;
             if (_Debug > 0.5) return half4(_Debug < 1.5 ? albedo : _Debug < 2.5 ? amb : _Debug < 3.5 ? L.color * diff * sh : _Debug < 4.5 ? L.shadowAttenuation.xxx : L.distanceAttenuation.xxx, 1);
             c = MixFog(c, InitializeInputDataFog(float4(input.positionWS, 1), input.tintFog.a));
@@ -156,6 +194,7 @@ Shader "Magistrala/Foliage"
             n = dot(n, lightDir) < 0 ? -n : n;
             o.positionCS = ApplyShadowClamping(TransformWorldToHClip(ApplyShadowBias(p, n, lightDir)));
             o.uv = TRANSFORM_TEX(input.uv, baseColorTexture);
+            o.fade = FadeOf(float4(-2, -1, _FadeSh.xy));
             return o;
         }
         Varyings DepthVertex(Attributes input)
@@ -168,11 +207,13 @@ Shader "Magistrala/Foliage"
             half inner;
             o.normalWS = TransformObjectToWorldNormal(BentNormalOS(input.positionOS.xyz, input.normalOS, inner));
             o.uv = TRANSFORM_TEX(input.uv, baseColorTexture);
+            o.fade = FadeOf(_FadeIn);
             return o;
         }
         half4 DepthFragment(Varyings input) : SV_Target
         {
             UNITY_SETUP_INSTANCE_ID(input);
+            FadeClip(input.fade, input.positionCS.xy);
             clip(SAMPLE_TEXTURE2D(baseColorTexture, samplerbaseColorTexture, input.uv).a * baseColorFactor.a - alphaCutoff);
             return input.positionCS.z;
         }
@@ -180,6 +221,7 @@ Shader "Magistrala/Foliage"
         {
             UNITY_SETUP_INSTANCE_ID(input);
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+            FadeClip(input.fade, input.positionCS.xy);
             clip(SAMPLE_TEXTURE2D(baseColorTexture, samplerbaseColorTexture, input.uv).a * baseColorFactor.a - alphaCutoff);
             float3 n = NormalizeNormalPerPixel(input.normalWS);
             #if defined(_GBUFFER_NORMALS_OCT)
