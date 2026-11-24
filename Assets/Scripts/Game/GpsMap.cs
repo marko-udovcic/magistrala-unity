@@ -30,11 +30,18 @@ namespace Magistrala.Game
         // measured in the player: IMGUI shows this half-float texture's values gamma-encoded twice (land written as Color.linear
         // came out 133 instead of 60 / 255), so the colours go in linearised twice
         static Color L(Color c) { if (QualitySettings.activeColorSpace != ColorSpace.Linear) return c; var l = c.linear.linear; l.a = c.a; return l; }
-        static readonly Color Land = L(new Color(0.36f, 0.355f, 0.345f, 1)), SeaC = L(new Color(0.3f, 0.4f, 0.45f, 1));
-        static readonly Color Minor = L(new Color(0.58f, 0.575f, 0.57f, 1)), Major = L(new Color(0.75f, 0.745f, 0.74f, 1));
-        static readonly Color Route = L(new Color(1f, 0.77f, 0.1f, 1)), Ink = L(HudStyle.Ink), Accent = L(HudStyle.Accent), Shade = new Color(0, 0, 0, 0.55f);
+        // (set in Start, not as static initialisers: those run in the component's constructor, where development players throw
+        // on QualitySettings — the type initialiser failed and every frame logged an exception)
+        static Color Land, SeaC, Minor, Major, Route, Ink, Accent;
+        static readonly Color Shade = new Color(0, 0, 0, 0.55f);
 
-        void Start() { g = GetComponent<MagistralaGame>(); }
+        void Start()
+        {
+            g = GetComponent<MagistralaGame>();
+            Land = L(new Color(0.36f, 0.355f, 0.345f, 1)); SeaC = L(new Color(0.3f, 0.4f, 0.45f, 1));
+            Minor = L(new Color(0.58f, 0.575f, 0.57f, 1)); Major = L(new Color(0.75f, 0.745f, 0.74f, 1));
+            Route = L(new Color(1f, 0.77f, 0.1f, 1)); Ink = L(HudStyle.Ink); Accent = L(HudStyle.Accent);
+        }
 
         /// the panel asks for a map of w × h screen pixels; returns last frame's picture (null before the first)
         public Texture Picture(int w, int h) { wantW = w; wantH = h; return rt; }
