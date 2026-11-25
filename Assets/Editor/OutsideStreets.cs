@@ -34,6 +34,28 @@ namespace Magistrala.EditorTools
         public const string EXTRA = "Assets/Editor/ulice-dodatne.json";
         public const long NODE0 = 9_000_000, EDGE0 = 9_200_000, SPLIT0 = 9_400_000;
 
+        /// override edges a package street replaces, taken out of the graph right after the override layers (StreetsBuilder.LoadGraph,
+        /// GameDataBuilder.Build / MergedGraph), with their end nodes when nothing else uses them:
+        ///   −7000000050526  51 Kambelovac: the importer's link from the south ramps' end towards Krešimira — flat at 57.7 m (drawn as
+        ///                   a ribbon floating up to 13 m over the slope), starting at its own node 6.8 m off the ramps' node 50011 and
+        ///                   ending at a node Krešimira does not reach (13 m lower): neither the GPS nor the AI could get from the ramps
+        ///                   to Krešimira or back. Without it the package's access-e08 "Ulica kralja Krešimira (spoj na D8)" (its
+        ///                   designed climb 46.6 → 56.5 m) is built: from Krešimira's end (access-e07) onto the model where both
+        ///                   ramps meet, joined like every package street ending on a model (the ramp at the join split for the GPS).
+        public static readonly long[] Superseded = { -7000000050526 };
+        /// remove Superseded from a merged graph (edge ends a / b by the accessors); the nodes only they used go too
+        public static int DropSuperseded<N, E>(Dictionary<long, N> nodes, Dictionary<long, E> edges, Func<E, long> a, Func<E, long> b)
+        {
+            int n = 0;
+            foreach (long id in Superseded)
+            {
+                if (!edges.TryGetValue(id, out var e)) continue;
+                edges.Remove(id); n++;
+                foreach (long nd in new[] { a(e), b(e) }) if (!edges.Values.Any(o => a(o) == nd || b(o) == nd)) nodes.Remove(nd);
+            }
+            return n;
+        }
+
         // ---- the graph as seen by both builders
         public class GNode { public long id; public double x, y, z; public int deg; }
         public class GEdgeV { public long id, a, b; public List<double[]> pts; public double hw; public bool splittable; }
@@ -239,8 +261,11 @@ namespace Magistrala.EditorTools
                         };
                         int lf = (int)MiniJson.D(r["lanesForward"]), lb = (int)MiniJson.D(r["lanesBackward"]);
                         run.lanes = Math.Max(1, run.oneway ? lf : Math.Max(lf, lb));
-                        if (i0 == 0 && mS != null) { run.a.kind = 3; run.a.model = mS; }
-                        if (j0 == n - 1 && mE != null) { run.b.kind = 3; run.b.model = mE; }
+                        // (the piece's join point may lie a sample or two inside the model's paving — those samples are "covered", so the
+                        // run stops ≤ 4 m short of it: still the join onto that model. 51: access-e08 ended 2.3 m short of the south
+                        // ramps' node, as a dead end 3.6 m under the model's asphalt — Krešimira cut off from the ramps for the GPS)
+                        if (mS != null && (i0 == 0 || c[i0] <= 4)) { run.a.kind = 3; run.a.model = mS; }
+                        if (mE != null && (j0 == n - 1 || c[n - 1] - c[j0] <= 4)) { run.b.kind = 3; run.b.model = mE; }
                         runs.Add(run); built++; kmNew += (c[j0] - c[i0]) / 1000;
                     }
                     i = j + 1;
@@ -407,7 +432,7 @@ namespace Magistrala.EditorTools
                 }
                 if (pinA) P[0][1] = r.a.y; if (pinB) P[P.Count - 1][1] = r.b.y;
                 // grade relax: where a stretch is steeper than 12 %, Laplacian smoothing (the pinned ends stay)
-                for (int it = 0; it < 300; it++)
+                for (int it = 0; it < 3000; it++) // (3000: access-e08, 12.6 m up over 115 m between two pinned ends, was left at 15.5 % after 300)
                 {
                     bool any = false;
                     for (int i = 1; i + 1 < P.Count; i++)

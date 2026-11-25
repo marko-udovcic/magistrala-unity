@@ -171,6 +171,7 @@ namespace Magistrala.EditorTools
                 foreach (var eo in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(path)))["overrides"])) { var en = MiniJson.O(eo); var id = (string)en["id"]; if (!byId.ContainsKey(id)) order.Add(id); byId[id] = en; }
             }
             int ok = 0; foreach (var id in order) if (Apply(byId[id], ns, es)) ok++;
+            OutsideStreets.DropSuperseded(ns, es, e => e.a, e => e.b); // (a package street replaces them: OutsideStreets.Superseded)
             var closed = new HashSet<long>();
             foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "road-closures.json")))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
 
