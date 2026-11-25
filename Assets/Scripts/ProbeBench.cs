@@ -32,7 +32,7 @@ namespace Magistrala
             t0 = Time.realtimeSinceStartup;
             foreach (var a in System.Environment.GetCommandLineArgs())
                 {
-                    if (a == "-autopilot") { var ap = Magistrala.Game.MagistralaGame.DrivenTruck()?.GetComponent<Autopilot>(); if (ap) ap.drive = true; }
+                    if (a == "-autopilot") { var ap = Magistrala.Game.MagistralaGame.DrivenTruck()?.GetComponent<Autopilot>(); if (ap) { ap.drive = true; var aa = System.Environment.GetCommandLineArgs(); int k = System.Array.IndexOf(aa, "-apkmh"); if (k >= 0 && k + 1 < aa.Length && float.TryParse(aa[k + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var kmh)) ap.cruiseKmh = kmh; } } // (-apkmh K: the cruise speed, streaming drive tests)
                     if (a == "-mute") AudioListener.volume = 0; // measuring runs: no engine / radio on the speakers
                     if (a == "-hitchdbg" && !GetComponent<HitchDiag>()) gameObject.AddComponent<HitchDiag>(); // stutter frames: what they were made of
                 }

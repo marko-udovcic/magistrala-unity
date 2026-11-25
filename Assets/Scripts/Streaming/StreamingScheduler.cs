@@ -142,6 +142,7 @@ namespace Magistrala.Streaming
             ownsPriority = true;
             InitialLoading = true;
             Application.backgroundLoadingPriority = LoadingPriority.High;
+            HoldPhysics(true); // (before the truck is ready too: it was placed over a road whose cell is not loaded yet and fell through)
             Status = "waiting for player";
             if (maxL0LoadsInFlight > 1 || maxScenesWaitingForActivation > 1)
                 Debug.Log("[stream] serialized scene gate caps effective concurrency/waiters at 1 (Unity async queue)");
@@ -235,6 +236,7 @@ namespace Magistrala.Streaming
             StartOneLoad();
             UpdateMetrics();
             if (InitialLoading && StartRingsReady()) FinishInitialLoad();
+            else if (!InitialLoading && UnderTruckMissing()) CatchUp();
             if (ElapsedMs >= frameBudgetMs) HitBudget();
             log.Tick(this);
         }
@@ -516,8 +518,41 @@ namespace Magistrala.Streaming
             return true;
         }
 
+        /// a teleport (job start, -tpxz, vehicle swap) or a stall: the ground under the truck is not shown yet
+        bool UnderTruckMissing()
+        {
+            for (int i = 0; i < cells.Length; i++)
+            {
+                var c = cells[i];
+                if (c.distance <= 60 && !string.IsNullOrEmpty(c.definition.sceneName) && !c.ready && !HasFailedCells) return true;
+            }
+            return false;
+        }
+
+        /// the start's pause again (black overlay, scaled time 0, High priority) until the rings are back: never a fall through the road
+        void CatchUp()
+        {
+            InitialLoading = true;
+            if (!ownsPause) { savedTimeScale = Time.timeScale; Time.timeScale = 0; ownsPause = true; }
+            HoldPhysics(true);
+            Application.backgroundLoadingPriority = LoadingPriority.High;
+            Status = "catching up (teleport)";
+            Debug.Log($"[stream] catching up at x={position.x - 4200:F0} z={-position.z - 5300:F0}");
+        }
+
+        SimulationMode savedSimulation; bool holdingPhysics;
+        /// no physics step while the ground may be missing (start, teleport catch-up); scaled time and scripts keep running
+        void HoldPhysics(bool on)
+        {
+            if (on == holdingPhysics) return;
+            holdingPhysics = on;
+            if (on) { savedSimulation = Physics.simulationMode; Physics.simulationMode = SimulationMode.Script; }
+            else Physics.simulationMode = savedSimulation;
+        }
+
         void FinishInitialLoad()
         {
+            HoldPhysics(false);
             InitialLoading = false;
             RestorePause();
             Application.backgroundLoadingPriority = LoadingPriority.Low;
@@ -530,7 +565,7 @@ namespace Magistrala.Streaming
             HasFailedCells = true; Status = reason;
             Debug.LogError("[stream] " + reason);
             // A bad bake must not trap the player permanently behind a black loading overlay.
-            if (InitialLoading) { InitialLoading = false; RestorePause(); Application.backgroundLoadingPriority = LoadingPriority.Low; }
+            if (InitialLoading) { InitialLoading = false; RestorePause(); HoldPhysics(false); Application.backgroundLoadingPriority = LoadingPriority.Low; }
         }
 
         void RestorePause()
@@ -545,7 +580,7 @@ namespace Magistrala.Streaming
             if (Instance != this) return;
             // Never leave Unity's global async queue locked if this component is disabled/destroyed.
             if (load != null) load.allowSceneActivation = true;
-            RestorePause();
+            RestorePause(); HoldPhysics(false);
             if (ownsPriority) Application.backgroundLoadingPriority = savedPriority;
         }
 
