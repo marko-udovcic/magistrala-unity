@@ -487,6 +487,23 @@ namespace Magistrala.EditorTools
                     if (MiniJson.G(po, "yellow") is List<object> yl) { f.y0 = (float)MiniJson.D(yl[0]); f.y1 = (float)MiniJson.D(yl[1]); }
                     ph.Add(f);
                 }
+                // a phase whose group has only closed approaches lets nobody go (05: Marko closed both side arms, C and D of SG3):
+                // cut from the cycle, the later phases moved up (as the web importer's square.ts, 15. 11.) — else the D8 waits on red
+                {
+                    var grpEdges = new Dictionary<string, List<long>>();
+                    foreach (var kv in MiniJson.O(sig["groups"]) ?? new Dictionary<string, object>()) foreach (var eid in MiniJson.L(kv.Value)) { if (!grpEdges.TryGetValue(kv.Key, out var l)) grpEdges[kv.Key] = l = new List<long>(); l.Add((long)MiniJson.D(eid)); }
+                    foreach (var kv in MiniJson.O(MiniJson.G(sig, "left")) ?? new Dictionary<string, object>()) if (long.TryParse(kv.Key, out long le) && kv.Value is string lg) { if (!grpEdges.TryGetValue(lg, out var l)) grpEdges[lg] = l = new List<long>(); l.Add(le); }
+                    bool Closed(long id) => edges.TryGetValue(id, out var ce) && MiniJson.G(ce, "closed") is bool cb && cb;
+                    float Start(TrafficPhase q) => Mathf.Min(q.r0 >= 0 ? q.r0 : 1e9f, Mathf.Min(q.g0 >= 0 ? q.g0 : 1e9f, q.y0 >= 0 ? q.y0 : 1e9f));
+                    foreach (var dead in ph.Where(q => grpEdges.TryGetValue(q.group, out var l) && l.All(Closed)).ToList())
+                    {
+                        float sp = Start(dead), sn = ph.Where(q => q != dead && Start(q) > sp).Select(Start).DefaultIfEmpty(tp.cycle).Min(), cut = sn - sp;
+                        ph.Remove(dead);
+                        foreach (var q in ph) if (Start(q) >= sn) { if (q.r0 >= 0) { q.r0 -= cut; q.r1 -= cut; } if (q.g0 >= 0) { q.g0 -= cut; q.g1 -= cut; } if (q.y0 >= 0) { q.y0 -= cut; q.y1 -= cut; } }
+                        tp.cycle -= cut;
+                        if (!allArms) Debug.Log($"[traffic] {key}: phase {dead.group} cut (all its approaches closed), cycle {tp.cycle + cut:F0} → {tp.cycle:F0} s");
+                    }
+                }
                 tp.phases = ph.ToArray(); int pi = plans.Count; plans.Add(tp);
                 var stopLines = MiniJson.L(sig["stops"]).Select(q => MiniJson.O(q)).Select(q => (p: new Vector2((float)MiniJson.D(q["x"]), (float)MiniJson.D(q["z"])), a: (float)MiniJson.D(q["a"]))).ToList();
                 foreach (var kv in MiniJson.O(sig["groups"]))
@@ -496,6 +513,8 @@ namespace Magistrala.EditorTools
                         // (the D8's approaches, and the old road's — mag-11-19 19 / 20 / 21 / s04 — whose corridors run along Cesta dr. F. Tuđmana)
                         bool d8 = MiniJson.G(e, "ref") is string rf && rf.Contains("D8"), oldRoad = MiniJson.G(e, "name") is string nm && nm.Contains("Tuđmana");
                         if (!d8 && !oldRoad && !allArms) continue;
+                        // a closed arm (Marko's models) has no stop line anyone reaches: no red-light line for the player there
+                        if (MiniJson.G(e, "closed") is bool ecl && ecl) continue;
                         var pts = MiniJson.L(e["points"]).Select(q => MiniJson.L(q)).Select(q => new Vector2((float)MiniJson.D(q[0]), (float)MiniJson.D(q[2]))).ToList();
                         // the edge runs into the junction at b: its painted stop line is the one nearest to b − stopLine.b along the edge
                         // whose heading (atan2 z, x) runs the edge's way. (A two-way edge of the old road may run into it at a — the
