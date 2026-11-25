@@ -52,3 +52,18 @@ Root activation measures synchronous SetActive including Awake/OnEnable. Scene a
 No UnloadUnusedAssets calls. Scene unload does not guarantee immediate shared-asset reclamation. Later phases supply GPU memory caps, collider pools, PSO warmup, HLOD/dither, floating origin and teleport loading screens. There is no memory cap or automatic retry here.
 
 Validation: standalone C# compiler against local Unity 6000.3 assemblies and Input System; real GameWorld/RoadRouter/HudStyle, minimal stand-ins for unimported vehicle/game manager types. Fifteen standalone geometry/manifest checks passed. No Editor/Player launched. Integrator still needs full project compilation and Player tests for activation cost, async queue progress, allocations, reversals/teleports and the speed warning.
+
+## Integration in Magistrala (stream1, 2026-11-25)
+
+- Phase 1 (default build): `ProbeBuild.Mac()` / `Win()` run `CellMerge.Bake()` (menu *Magistrala/Bake cells (merge + cell scenes)*,
+  ~40 s) and build `Assets/Generated/Cells/Magistrala_cells.unity`: a copy of the main scene with Buildings / Roads / Tlo / Streets /
+  Signs / Riva grouped per L0 cell, renderers merged per (cell, 256 m block, settings) with one submesh per material, all box /
+  non-convex mesh colliders merged per (cell, physics material), LOD0 children collapsed onto their LODGroup, render-only meshes as
+  non-readable copies. No runtime manifest: the scheduler stays idle. `MacPlain()` / `MacProfilePlain()` build the plain scene (A/B).
+- Phase 3 (behind the switch): `ProbeBuild.MacStream()` / `MacProfileStream()` also split the copy into `Cells/Scenes/c_i_j.unity`
+  (one inactive root per cell: what is drawn only near + every collider) and `Magistrala_stream.unity` (far-visible surfaces, ad
+  boards, building far / box chunks stay), and write `Resources/Cells/manifest.json`. `-stream 1` streams; `-stream 0` (default)
+  loads every cell at the start. Changes to the skeleton: time paused from the scheduler's Start (the truck fell through a road whose
+  cell was not loaded yet), vehicles lifted onto their cell's ground once the rings are ready, catch-up pause after a teleport,
+  budget measured from the mutation work, slow-frame deferral capped at 6 frames, path-AABB prefilter, HitchDiag notes.
+- Tests: `-flykmh 130` (FlyTest: the truck kinematic along the autopilot path), `-apkmh K`, `-scenestats`, `-hitchdbg`.
