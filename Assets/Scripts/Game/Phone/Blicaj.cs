@@ -1,4 +1,5 @@
-// "Blicaj" – a phone app with the local chat group "Di stoje plavi – Kaštela" (IDEJE_IGRA.md §7, accepted instead of a radio):
+// "Policija Nas Zaustavlja" (was "Blicaj") – the local social-network group on Mate's phone (IDEJE_IGRA.md §7, accepted instead
+// of a radio; owner 2026-11-25: laid out like a big regional group page, our own neutral look, no real network's logo or colours):
 // people report where the police / a radar stand, bicker, post false alarms, yesterday's radar, cats and figs. Text only.
 // The app and the group are invented (no real network, name or logo). Posts are in Dalmatian ikavica on purpose: do NOT
 // "correct" them to standard Croatian.
@@ -9,6 +10,10 @@
 //   (MagistralaGame.Blicaj.cs). True reports ('r') name the day's patrol spot (one in the morning, one after noon: PatrolSpot,
 //   the hook for the moving tripod radar of §6); false alarms ('l') and traffic posts ('g') pick any spot.
 //   Mate reports from the app at the spot nearest to the truck; replies (thanks, and a doubter when no patrol is there) follow.
+//   {h} is a spot's headline for the short "address" posts ("Kaštel Stari, D8 prema Splitu"): the settlement, the road or the
+//   street under the spot (MagistralaGame.Blicaj.cs) and, on the D8 / old road, a direction picked per post. A true report is now
+//   and then posted again by a second member (as in big real groups), sometimes with the admin's "već javljeno".
+//   KnownPolice: the reported patrols of the last 90 min (true reports, duplicates, Mate's own) for the M map.
 // Drawing and the badge: MatePhone.Blicaj.cs; the save: PhoneSave.blicaj (BlicajSave).
 using System;
 using System.Collections.Generic;
@@ -35,15 +40,24 @@ namespace Magistrala.Game.Phone
         public char road;           // 'd' D8, 's' the old road (Ž6137), 'p' an existing game stop
         public string key;          // the place name (GameWorld.placeNames) for 'd' / 's', the stop id for 'p'
         public Vector3 pos; public bool ok;
+        /// the short address for {h} ("Kaštel Stari, D8"), set when the spot resolves; a direction is added per post on roads
+        public string head = "";
     }
 
     /// one line of the feed (a post, a reply, or Mate's report)
-    public class BlicajLine { public string who, text; public float at; public bool mate, reply, toMate, doubt, alert; }
+    public class BlicajLine
+    {
+        public string who, text, spot = ""; public float at; public bool mate, reply, toMate, doubt, alert, dup;
+        /// the post kind ('r' true, 'l' false alarm, 'g' road, 'x' chat, 'm' Mate's report) and, for a comment, its post
+        public char kind; public BlicajLine parent;
+    }
 
     public static class BlicajFeed
     {
-        public const string App = "Blicaj", Group = "Di stoje plavi – Kaštela", MateNick = "Mate B.";
-        public const int Members = 1287;
+        public const string App = "Policija Nas Zaustavlja", Group = "POLICIJA NAS ZAUSTAVLJA", MateNick = "Mate B.";
+        public const int Members = 51012;
+        /// "51,0 tis." as the group page shows it
+        public static string MembersText => (Members / 1000f).ToString("0.0", System.Globalization.CultureInfo.GetCultureInfo("hr-HR")) + " tis.";
 
         // ------------------------------------------------------------------ spots
         public static readonly BlicajSpot[] Spots =
@@ -135,23 +149,73 @@ namespace Magistrala.Game.Phone
             return l;
         }
 
-        static string Fill(string t, string spot)
+        static int Hash(float at, string s) { int h = Mathf.RoundToInt(at * 10); foreach (char ch in s) h = h * 31 + ch; return h & 0x7fffffff; }
+
+        /// the headline with a direction on the D8 / old road (fixed per post: from its time)
+        public static string Head(BlicajSpot s, float at)
         {
-            if (t.IndexOf("{m}", StringComparison.Ordinal) < 0) return t;
+            if (s == null || string.IsNullOrEmpty(s.head)) return "D8 kroz Kaštela";
+            if (s.road == 'p') return s.head;
+            return s.head + (Hash(at, s.id) % 2 == 0 ? " prema Splitu" : " prema Trogiru");
+        }
+
+        static string Fill(string t, string spot, float at)
+        {
+            if (t.IndexOf('{') < 0) return t;
             var s = Spot(spot);
+            if (t.IndexOf("{h}", StringComparison.Ordinal) >= 0) t = t.Replace("{h}", Head(s, at));
             return t.Replace("{m}", s != null ? s.where : "na D8");
         }
 
+        /// second members who post a true report again a few minutes later (first name and the last initial)
+        static readonly string[] DupWho = { "Ante K.", "Mare", "Šime B.", "Ivica P.", "Zrinka M.", "Josip R.", "Nikola T.", "Dalibor V.", "Anđela Č.", "Mario G." };
+        static readonly string[] DupText = { "{h}", "{h}, i dalje stoje", "Potvrđujem, {h}", "{h}. Stoje i sad" };
+        static readonly string[] DupJoke = { "Admin Joško|već javljeno, ali fala", "Krešo Dizel|ovo smo vidili prije 5 minuti", "Teta Neda|dvaput je sigurnije", "Bepo|duplo javljeno, duplo pazite" };
+
         static void AddPost(List<BlicajLine> o, Post p, float at, string spot)
         {
-            o.Add(new BlicajLine { who = p.who, text = Fill(p.text, spot), at = at, alert = p.kind == 'r' || p.kind == 'l' });
+            float t0 = at;
+            var post = new BlicajLine { who = p.who, text = Fill(p.text, spot, t0), at = at, alert = p.kind == 'r' || p.kind == 'l', kind = p.kind, spot = spot };
+            o.Add(post);
             float t = at;
             for (int i = 0; i < p.re.Length; i++)
             {
                 int bar = p.re[i].IndexOf('|');
                 t += 1.5f + ((p.text.Length + i * 7) % 5) * 1.2f; // a few game minutes apart, fixed per post
-                o.Add(new BlicajLine { who = p.re[i].Substring(0, bar), text = Fill(p.re[i].Substring(bar + 1), spot), at = t, reply = true });
+                o.Add(new BlicajLine { who = p.re[i].Substring(0, bar), text = Fill(p.re[i].Substring(bar + 1), spot, t0), at = t, reply = true, kind = p.kind, parent = post, spot = spot });
             }
+            // a true report: about a third of them a second member posts again
+            int h = Hash(at, p.who);
+            if (p.kind == 'r' && spot.Length > 0 && h % 100 < 35)
+            {
+                string who = DupWho[(h / 100) % DupWho.Length]; if (who == p.who) who = DupWho[(h / 100 + 1) % DupWho.Length];
+                float ad = at + 2 + (h / 7) % 6;
+                var dup = new BlicajLine { who = who, text = Fill(DupText[(h / 13) % DupText.Length], spot, t0), at = ad, alert = true, kind = 'r', spot = spot, dup = true };
+                o.Add(dup);
+                if ((h / 17) % 2 == 0)
+                {
+                    var j = DupJoke[(h / 19) % DupJoke.Length]; int bar = j.IndexOf('|');
+                    o.Add(new BlicajLine { who = j.Substring(0, bar), text = j.Substring(bar + 1), at = ad + 1.5f, reply = true, kind = 'r', parent = dup, spot = spot });
+                }
+            }
+        }
+
+        /// the patrols the group reported in the last `window` game minutes (true reports, their duplicates, Mate's radar / police
+        /// reports), the newest per spot: the M map draws them. False alarms are left out (their comments say there is nothing).
+        public static List<BlicajLine> KnownPolice(List<BlicajLine> feed, float now, float window = 90)
+        {
+            var o = new List<BlicajLine>();
+            if (feed == null) return o;
+            for (int i = feed.Count - 1; i >= 0; i--)
+            {
+                var l = feed[i];
+                if (l.reply || l.at > now || now - l.at > window || string.IsNullOrEmpty(l.spot)) continue;
+                if (!(l.kind == 'r' || (l.kind == 'm' && l.alert))) continue;
+                var s = Spot(l.spot); if (s == null || !s.ok) continue;
+                bool seen = false; foreach (var q in o) if (q.spot == l.spot) { seen = true; break; }
+                if (!seen) o.Add(l);
+            }
+            return o;
         }
 
         /// the feed visible at `now`: yesterday's last posts as history, today's posts so far, test posts and Mate's reports with
@@ -204,7 +268,8 @@ namespace Magistrala.Game.Phone
 
         static void AddMine(List<BlicajLine> o, BlicajReport r, int idx)
         {
-            o.Add(new BlicajLine { who = MateNick, text = MateText(r), at = r.at, mate = true });
+            var post = new BlicajLine { who = MateNick, text = MateText(r), at = r.at, mate = true, kind = 'm', alert = r.kind != 2, spot = r.spot ?? "" };
+            o.Add(post);
             var rnd = new System.Random(Mathf.RoundToInt(r.at * 10) + idx * 131);
             var pool = r.kind == 2 ? ClearThanks : Thanks;
             int n = 2 + rnd.Next(3); float t = r.at;
@@ -218,7 +283,7 @@ namespace Magistrala.Game.Phone
                 bool d = doubt && i == 1;
                 string s = d ? Doubt[rnd.Next(Doubt.Length)] : pool[(start + i * 3) % pool.Length];
                 int bar = s.IndexOf('|'); t += 1 + (float)rnd.NextDouble() * 4;
-                o.Add(new BlicajLine { who = s.Substring(0, bar), text = s.Substring(bar + 1), at = t, reply = true, toMate = true, doubt = d });
+                o.Add(new BlicajLine { who = s.Substring(0, bar), text = s.Substring(bar + 1), at = t, reply = true, toMate = true, doubt = d, kind = 'm', parent = post, spot = post.spot });
             }
         }
 
@@ -284,6 +349,14 @@ namespace Magistrala.Game.Phone
             R("Mladen Gomilica", 10, 18, "{m} su opet. ko god prolazi blicnite ka ljudi"),
             R("Nediljka", 9, 16, "Policija {m}. Pitali me jesan li vidila nekoga. Nisan."),
             R("Stipe", 13, 18, "posli marende su se vratili {m}"),
+            // short "address" posts ({h}: settlement, road / street, direction), like most posts in big groups
+            R("Ante K.", 7, 18, "{h}", "Mare|fala", "Šime B.|još stoje?", "Ante K.|stoje"),
+            R("Mare", 7, 17, "Radar {h}"),
+            R("Šime B.", 8, 18, "Plavi {h}, zaustavljaju", "Ivica P.|i jučer su bili tu"),
+            R("Zrinka M.", 7, 19, "{h} – kontrola, pazite"),
+            R("Josip R.", 9, 18, "Policija {h}. Vozite polako", "Mare|fala Josipe"),
+            R("Nikola T.", 7, 12, "{h}, tronožac", "Dalibor V.|u bilom autu?", "Nikola T.|u plavom"),
+            R("Anđela Č.", 13, 19, "{h}, mjere brzinu", "Mario G.|fala, baš iden tamo"),
             // --- false and stale alarms
             L("Frane", 7, 17, "radar {m}!!", "Jure Lukšić|nema tamo ništa, ja sad proša", "Frane|bija je jutros", "Jure Lukšić|jutros je bija i u ponediljak"),
             L("Stipe", 8, 18, "plavi {m}?", "Mirela K.|to je auto od struje, miću stup", "Stipe|isto ima rotirku"),
@@ -304,6 +377,7 @@ namespace Magistrala.Game.Phone
             L("Stipe", 8, 18, "e jel ima radar {m}, sad ću proć", "Bepo|ne pitaj nego vozi 50 i nema problema", "Stipe|a di je tu gušt"),
             L("Šime Kambelovac", 11, 14, "dojava od jutros {m} više ne vridi, otišli na marendu", "Krešo Dizel|na marendu ka ljudi"),
             L("Mirela K.", 9, 18, "ljudi radar {m}! a ne, sorry, to je bila moja svekrva s kišobranon"),
+            L("Ivica P.", 8, 18, "{h}?", "Ante K.|nema nikog, sad proša"),
             L("Krešo Dizel", 7, 10, "evo jučerašnji radar {m}, za svaki slučaj", "Admin Joško|Krešo jučerašnji radar nije radar", "Krešo Dizel|ali mogu se vratit"),
             // --- the road
             G("Zoran (kombi)", 7, 16, "kolona {m}, neki kamion se okreće u pet poteza", "Mladen Gomilica|ma to je onaj iz Lukšića sigurno", "Zoran (kombi)|ma neka ga, mora čovik radit"),
@@ -335,7 +409,7 @@ namespace Magistrala.Game.Phone
             X("Vinko Novi", 12, 19, "ljudi kupija san auto, jel triba javit u grupu", "Tonka|čestitam", "Vinko Novi|fala, plavi je", "Jure Lukšić|ajme opet plavi"),
             X("Teta Neda", 20, 22, "Laku noć grupa, pazite se sutra", "Bepo|laku noć Neda"),
             X("Duje_93", 7, 18, "ima li ko kabel za akumulator, stoji mi auto kod crkve", "Šime Kambelovac|evo dolazin", "Duje_93|ti si legenda"),
-            X("Ivana S.", 12, 18, "zašto ova grupa ima 1300 članova a niko ne javlja ništa danas", "Krešo Dizel|jer nema plavih", "Ivana S.|ili ste svi lini"),
+            X("Ivana S.", 12, 18, "zašto ova grupa ima 51 tisuću članova a niko ne javlja ništa danas", "Krešo Dizel|jer nema plavih", "Ivana S.|ili ste svi lini"),
             X("Ćaća od Ive", 10, 18, "Kako se ovdi piše poruka", "Tonka|tako", "Ćaća od Ive|Fala"),
             X("Admin Joško", 9, 12, "Pozdrav novim članovima! Ovdi javljamo di su plavi. Mačke i smokve NE.", "Teta Neda|a mendule?"),
             X("Mirela K.", 7, 18, "posli kiše je sve puno lokvi, vozite polako i bez plavih"),

@@ -29,6 +29,8 @@ namespace Magistrala
         public static float PanelTop = 1e6f;
         /// the HUD panel's rect on screen (zero when hidden)
         public static Rect PanelRect;
+        /// the map panel's rect on screen (bottom left; zero when hidden)
+        public static Rect MapRect;
         /// the top of everything stacked above the panel (job card, game keys)
         public static float StackTop = 1e6f;
 
