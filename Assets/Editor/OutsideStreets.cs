@@ -1,4 +1,4 @@
-// Streets outside Marko's road models: ceste_izvan_modela.json (PaketData.CESTE, mag-24-11) (the package's roads that no hand-built
+// Streets outside Marko's road models: ceste_izvan_modela.json (PaketData.CESTE, mag-25-11 Kaštela) (the package's roads that no hand-built
 // model covers, world_1to1 frame: x east, z south, origin Štafilić), turned into new streets of our graph where the graph does
 // not already have them. Shared by StreetsBuilder (drawn like the graph streets: ribbon, markings, kerbs, terrain) and
 // GameDataBuilder (GPS / RoadRouter), so both see the same network.
@@ -174,12 +174,16 @@ namespace Magistrala.EditorTools
         }
 
         /// model surface as loaded in game at (x, z), searching up to 3 m along (dx, dz) (the join point sits at the asphalt's end)
-        public static double ModelY(ModelJ m, double x, double z, double dx, double dz)
+        public static double ModelY(ModelJ m, double x, double z, double dx, double dz) => ModelY(m, x, z, dx, dz, 3, out _);
+        /// … up to maxT m; ahead = how far along (dx, dz) the paving starts (0 when the point is on it or the paving is behind)
+        public static double ModelY(ModelJ m, double x, double z, double dx, double dz, double maxT, out double ahead)
         {
-            for (double t = 0; t <= 3; t += .25)
+            ahead = 0;
+            for (double t = 0; t <= maxT; t += .25)
                 foreach (int sd in new[] { 1, -1 })
                 {
-                    double h = m.Surface(x + dx * t * sd, z + dz * t * sd); if (!double.IsNaN(h)) return h;
+                    if (sd < 0 && t > 3) continue; // (behind the end only as before: 3 m)
+                    double h = m.Surface(x + dx * t * sd, z + dz * t * sd); if (!double.IsNaN(h)) { ahead = sd > 0 ? t : 0; return h; }
                 }
             return double.NaN;
         }
@@ -300,13 +304,17 @@ namespace Magistrala.EditorTools
                 }
                 if (e.kind == 3)
                 {
-                    double y = ModelY(e.model, P[k][0], P[k][2], dx, dz);
+                    // (mag-25-11 moved the ends onto the model road axis in the package's frame; where our import cut that model's arm
+                    // shorter, the paving starts up to 6 m further on — 19 Put Zagoraca: the 3 m search missed it and the street fell back
+                    // to a graph node 2 m to the side, leaving a wedge of ground. Now up to 8 m ahead, and the street runs on to it)
+                    double y = ModelY(e.model, P[k][0], P[k][2], dx, dz, 8, out double ahead);
                     if (double.IsNaN(y)) { e.kind = 0; e.model = null; }
                     else
                     {
-                        e.y = y; Put(P[k][0] + dx * .5, y, P[k][2] + dz * .5);
+                        double ex = P[k][0], ez = P[k][2]; // (before Put: at the start it inserts the new end at P[0])
+                        e.y = y; Put(ex + dx * (ahead + .5), y, ez + dz * (ahead + .5));
                         // the model's asphalt width 1 m in from the join (the street tapers to it), when it is a road end and not a wide paving
-                        double cx = P[k][0] + dx * 1.5, cz = P[k][2] + dz * 1.5, uL = -1, uR = -1;
+                        double m1 = ahead + (atB ? 1.5 : 2.0), cx = ex + dx * m1, cz = ez + dz * m1, uL = -1, uR = -1; // (as before: 1 m in from the join; at the start P[k] used to be the inserted end)
                         if (!double.IsNaN(e.model.Surface(cx, cz)))
                         {
                             for (double u = 0; u <= 10 && uR < 0; u += .25) if (double.IsNaN(e.model.Surface(cx - dz * u, cz + dx * u))) uR = u;
