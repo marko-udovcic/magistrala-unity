@@ -189,7 +189,7 @@ namespace Magistrala
         }
 
         // ICellLayer (CellData): the TREE section of a cell blob
-        public void Prepare(CellManifest m) => Init(m.treeMeanScale);
+        public void Prepare(CellDataManifest m) => Init(m.treeMeanScale);
         public object Decode(CellSections s) { int o = s.Find(CellBlob.TREE, out int n); return o < 0 || n == 0 ? null : Build(ctx, s.cell, s.b, o, n); }
         public void Attach(Vector2Int cell, object page)
         {

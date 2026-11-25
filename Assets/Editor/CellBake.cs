@@ -29,7 +29,7 @@ namespace Magistrala.EditorTools
 {
     public static class CellBake
     {
-        public const string DIR = CellGrid.GeneratedRoot + "/Data", RES = CellGrid.GeneratedRoot + "/Resources", MANIFEST = RES + "/" + CellManifest.ResourceName + ".asset";
+        public const string DIR = CellGrid.GeneratedRoot + "/Data", RES = CellGrid.GeneratedRoot + "/Resources", MANIFEST = RES + "/" + CellDataManifest.ResourceName + ".asset";
         public const string SCENE = "Assets/Scenes/Magistrala.unity";
         /// off: no strip / no bake (the game as before phase 2) — Magistrala/Ćelije: isključi / uključi
         public static bool Enabled { get => !EditorPrefs.GetBool("Magistrala.CellsOff", false); set => EditorPrefs.SetBool("Magistrala.CellsOff", !value); }
@@ -163,7 +163,7 @@ namespace Magistrala.EditorTools
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var c = Collect(scene);
             if (!c.world) return "[cells] no World in " + scene.path;
-            var man = AssetDatabase.LoadAssetAtPath<CellManifest>(MANIFEST);
+            var man = AssetDatabase.LoadAssetAtPath<CellDataManifest>(MANIFEST);
             if (!force && man && Fresh(man, c)) return "[cells] bake is up to date";
             Dir(RES); Dir(DIR);
             var cells = new Dictionary<Vector2Int, CellOut>();
@@ -271,7 +271,7 @@ namespace Magistrala.EditorTools
             }
             finally { AssetDatabase.StopAssetEditing(); }
             // the manifest (updated in place: its GUID stays)
-            bool isNew = !man; if (isNew) man = ScriptableObject.CreateInstance<CellManifest>();
+            bool isNew = !man; if (isNew) man = ScriptableObject.CreateInstance<CellDataManifest>();
             man.version = CellBlob.VERSION; man.cellSize = CellGrid.L0; man.gridOrigin = Vector2.zero;
             man.cells = written.Select(x => x.k).ToArray(); man.blobs = written.Select(x => AssetDatabase.LoadAssetAtPath<TextAsset>(x.path)).ToArray();
             man.fingerprints = (string[])c.fp.Clone(); man.systems = 0;
@@ -288,7 +288,7 @@ namespace Magistrala.EditorTools
             return string.Join("\n", log);
         }
 
-        static bool Fresh(CellManifest man, Collected c)
+        static bool Fresh(CellDataManifest man, Collected c)
         {
             if (man.version != CellBlob.VERSION || man.fingerprints == null || man.fingerprints.Length != CellBlob.SYSTEMS) return false;
             for (int i = 0; i < CellBlob.SYSTEMS; i++) if (man.fingerprints[i] != c.fp[i]) return false;
@@ -347,7 +347,7 @@ namespace Magistrala.EditorTools
         // ================================================================== strip (a scene copy being built / entering play mode)
         public static string Strip(Scene scene)
         {
-            var man = AssetDatabase.LoadAssetAtPath<CellManifest>(MANIFEST);
+            var man = AssetDatabase.LoadAssetAtPath<CellDataManifest>(MANIFEST);
             if (!man) return "[cells] no bake (Magistrala/Ćelije: ispeci): the scene stays as it is";
             var c = Collect(scene); if (!c.world) return "[cells] no World";
             int mask = 0; var log = new List<string>();

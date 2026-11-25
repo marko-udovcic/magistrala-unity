@@ -40,7 +40,7 @@ namespace Magistrala.Cells
         readonly System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
         const int CHUNK = 511;
 
-        public void Prepare(CellManifest m)
+        public void Prepare(CellDataManifest m)
         {
             foreach (var a in System.Environment.GetCommandLineArgs()) if (a == "-props0") Off = true;
             protos = m.props; int np = protos.Length;

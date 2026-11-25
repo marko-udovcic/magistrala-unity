@@ -99,7 +99,7 @@ namespace Magistrala
         }
 
         // ICellLayer (CellData): the BOAT section
-        public void Prepare(CellManifest m) { fromCells = true; InitLists(); }
+        public void Prepare(CellDataManifest m) { fromCells = true; InitLists(); }
         public object Decode(CellSections s)
         {
             int o = s.Find(CellBlob.BOAT, out int n); if (o < 0 || n == 0) return null;

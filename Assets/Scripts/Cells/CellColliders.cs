@@ -29,7 +29,7 @@ namespace Magistrala.Cells
 
         /// systems whose colliders come from here (the others' are still the scene's: CellData.mask)
         int sysMask = ~0;
-        public void Prepare(CellManifest m) { names = m.colliderNames; mats = m.colliderMats; if (CellData.I) sysMask = CellData.I.mask; }
+        public void Prepare(CellDataManifest m) { names = m.colliderNames; mats = m.colliderMats; if (CellData.I) sysMask = CellData.I.mask; }
 
         public object Decode(CellSections s)
         {

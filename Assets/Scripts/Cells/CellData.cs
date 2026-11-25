@@ -32,7 +32,7 @@ namespace Magistrala.Cells
     /// Attach / Detach / Release on the main thread.
     public interface ICellLayer
     {
-        void Prepare(CellManifest m);
+        void Prepare(CellDataManifest m);
         object Decode(CellSections s);
         void Attach(Vector2Int cell, object page);
         void Detach(Vector2Int cell, object page);
@@ -67,7 +67,7 @@ namespace Magistrala.Cells
     [DefaultExecutionOrder(-300)]
     public class CellData : MonoBehaviour
     {
-        public CellManifest manifest;
+        public CellDataManifest manifest;
         /// systems taken out of the scene by the bake and fed from here (CellBlob bits)
         public int mask;
         public TreeRenderer trees;
@@ -144,7 +144,7 @@ namespace Magistrala.Cells
             var a = Environment.GetCommandLineArgs();
             for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-cells") { if (a[i + 1] == "stream") LoadEverything = false; if (a[i + 1] == "off") { LoadEverything = false; noLoad = true; } if (a[i + 1] == "ring") { LoadEverything = false; ring = true; } }
             CellStats.Extra = Summary;
-            if (!manifest) manifest = Resources.Load<CellManifest>(CellManifest.ResourceName);
+            if (!manifest) manifest = Resources.Load<CellDataManifest>(CellDataManifest.ResourceName);
             if (!manifest) { Debug.LogWarning("[cells] no manifest: nothing loaded"); return; }
             for (int i = 0; i < manifest.cells.Length; i++) if (manifest.blobs[i]) { blobIndex[manifest.cells[i]] = i; cellList.Add(manifest.cells[i]); }
             void L(int sys, ICellLayer l, int want) { if (Has(sys) && l != null) { layers.Add(l); layerWant.Add(want); } }

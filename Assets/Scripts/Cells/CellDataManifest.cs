@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 
 namespace Magistrala.Cells
 {
-    public class CellManifest : ScriptableObject
+    public class CellDataManifest : ScriptableObject
     {
         public const string ResourceName = "MagistralaCells";
         public int version;

@@ -113,7 +113,7 @@ namespace Magistrala
         }
 
         // ICellLayer (CellData): LAMP, HEAD and POOL sections
-        public void Prepare(CellManifest m) { fromCells = true; cellPoolMeshes = m.poolMeshes; InitOnce(); }
+        public void Prepare(CellDataManifest m) { fromCells = true; cellPoolMeshes = m.poolMeshes; InitOnce(); }
         public object Decode(CellSections s)
         {
             int o = s.Find(CellBlob.LAMP, out int n), oh = s.Find(CellBlob.HEAD, out int nh), op = s.Find(CellBlob.POOL, out int np);
