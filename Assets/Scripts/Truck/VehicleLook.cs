@@ -10,7 +10,7 @@
 // Reflections: the scene's baked reflection probes (17, swapped for the sunset / rain sets by LightPreset / WeatherSystem) — no
 // realtime probe following the vehicle: even one 128 px face per frame re-culls and redraws this scene (~2.4 k draws) once more
 // per frame, the main-thread cost alone would eat the +0.7 ms budget, and the baked set already moves with the time of day. Shader
-// variants the runtime // keywords need are held by the materials in Resources/Vehicles/Look (Clearcoat + occlusion for the Galeb body).
+// variants the runtime keywords need are held by the materials in Resources/Vehicles/Look (Clearcoat + occlusion for the Galeb body).
 // Measuring: -vozlook 0 turns all of this off (A/B in one build).
 using System.Collections.Generic;
 using UnityEngine;
