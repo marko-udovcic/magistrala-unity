@@ -259,11 +259,15 @@ namespace Magistrala.Streaming
             if (!current) return false;
             if (current != truck) { truck = current; body = truck.GetComponent<Rigidbody>(); nextPathRefresh = 0; }
             position = truck.transform.position;
-            velocity = body ? body.linearVelocity : truck.transform.forward * (truck.SpeedKmh / 3.6f);
+            velocity = body && !body.isKinematic ? body.linearVelocity : truck.transform.forward * (truck.SpeedKmh / 3.6f);
+            // a kinematic truck (FlyTest -flykmh) reports no velocity: from its motion instead
+            if (body && body.isKinematic && Time.deltaTime > 0) { var v = (position - kinPrev) / Time.deltaTime; if (v.sqrMagnitude < 100 * 100) kinVel = Vector3.Lerp(kinVel, v, .2f); velocity = kinVel; }
+            kinPrev = position;
             velocity.y = 0;
             return true;
         }
 
+        Vector3 kinPrev, kinVel;
         void RefreshPath()
         {
             double now = Time.realtimeSinceStartupAsDouble;
