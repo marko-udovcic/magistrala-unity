@@ -232,7 +232,9 @@ Shader "Magistrala/TripoCar"
                 s.clearCoatMask *= 1 - g;
                 s.clearCoatSmoothness *= lerp(1, 0.9 + 0.1 * gt.r, _Grime);
             }
-            s.emission = _LampColor.rgb * lamp;
+            // only lamp texels glow: some candidate kinds' lamp submeshes also hold body panels (golf2 / yugo45 tail = the whole
+            // tailgate, rcc / jeep head = the bonnet front) — their paint texels (mask r) stay unlit (25. 11., lamp audit)
+            s.emission = _LampColor.rgb * lamp * (1 - paint);
 
             half4 result = UniversalFragmentPBR(data, s);
             result.rgb = MixFog(result.rgb, data.fogCoord);
