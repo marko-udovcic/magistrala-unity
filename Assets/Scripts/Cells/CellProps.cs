@@ -29,7 +29,9 @@ namespace Magistrala.Cells
         Vector3[] pRef, pBc; float[] pSize, pBr;
         /// per prototype: its parts' slot index base; per part: its slot (main list) — a slot = one (mesh, submesh, material) draw
         int[] slot0; int nSlots;
-        sealed class Page { public int n; public int[] proto; public Matrix4x4[] M; public Vector3[] refW, bc; public float[] sizeW, br; public Bounds b; }
+        sealed class Page { public int n; public int[] proto; public Matrix4x4[] M; public Vector3[] refW, bc; public float[] sizeW, br; public Bounds b; public float reach, maxDist; }
+        /// per prototype: 1 / its last LOD height (0 = no LODGroup: drawn to maxDist)
+        float[] pInvLast, pMax;
         readonly List<Page> pages = new List<Page>();
         struct List3 { public Matrix4x4[] a; public int n; public Vector3 lo, hi; }
         List3[] main, shadow;
@@ -42,10 +44,10 @@ namespace Magistrala.Cells
         {
             foreach (var a in System.Environment.GetCommandLineArgs()) if (a == "-props0") Off = true;
             protos = m.props; int np = protos.Length;
-            pRef = new Vector3[np]; pBc = new Vector3[np]; pSize = new float[np]; pBr = new float[np]; slot0 = new int[np + 1];
+            pRef = new Vector3[np]; pBc = new Vector3[np]; pSize = new float[np]; pBr = new float[np]; slot0 = new int[np + 1]; pInvLast = new float[np]; pMax = new float[np];
             for (int p = 0; p < np; p++)
             {
-                var pr = protos[p]; pRef[p] = pr.lodRef; pSize[p] = pr.lodSize; pBc[p] = pr.bounds.center; pBr[p] = pr.bounds.extents.magnitude;
+                var pr = protos[p]; pInvLast[p] = pr.lodHeights.Length > 0 && pr.lodHeights[pr.lodHeights.Length - 1] > 0 ? 1 / pr.lodHeights[pr.lodHeights.Length - 1] : 0; pMax[p] = pr.maxDist; pRef[p] = pr.lodRef; pSize[p] = pr.lodSize; pBc[p] = pr.bounds.center; pBr[p] = pr.bounds.extents.magnitude;
                 slot0[p] = nSlots; nSlots += pr.parts.Length;
                 foreach (var part in pr.parts) if (part.mat) part.mat.enableInstancing = true;
             }
@@ -71,6 +73,8 @@ namespace Magistrala.Cells
                 var m = CellBlob.M34(s.b, r + 4); float sc = MaxScale(m);
                 pg.proto[w] = p; pg.M[w] = m; pg.refW[w] = m.MultiplyPoint3x4(pRef[p]); pg.sizeW[w] = pSize[p] * sc;
                 pg.bc[w] = m.MultiplyPoint3x4(pBc[p]); pg.br[w] = pBr[p] * sc;
+                // the farthest this instance can be drawn: size / last LOD height (× the per-frame k), or maxDist without LODs
+                if (pInvLast[p] > 0) pg.reach = Mathf.Max(pg.reach, pg.sizeW[w] * pInvLast[p]); else pg.maxDist = Mathf.Max(pg.maxDist, pMax[p]);
                 var bb = new Bounds(pg.bc[w], Vector3.one * pg.br[w] * 2);
                 if (first) { pg.b = bb; first = false; } else pg.b.Encapsulate(bb);
                 w++;
@@ -126,7 +130,8 @@ namespace Magistrala.Cells
             for (int pi = 0; pi < pages.Count; pi++)
             {
                 var pg = pages[pi];
-                if (Mathf.Sqrt(pg.b.SqrDistance(cp)) > far) continue;
+                float pd = Mathf.Sqrt(pg.b.SqrDistance(cp));
+                if (pd > far || pd > Mathf.Max(pg.reach * k, pg.maxDist)) continue; // nothing of this page is drawn that far
                 for (int i = 0; i < pg.n; i++)
                 {
                     int p = pg.proto[i]; var pr = protos[p];

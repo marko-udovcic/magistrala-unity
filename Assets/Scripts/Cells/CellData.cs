@@ -142,7 +142,7 @@ namespace Magistrala.Cells
         {
             if (setUp) return; setUp = true; I = this;
             var a = Environment.GetCommandLineArgs();
-            for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-cells") { if (a[i + 1] == "stream") LoadEverything = false; if (a[i + 1] == "off") { LoadEverything = false; noLoad = true; } }
+            for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-cells") { if (a[i + 1] == "stream") LoadEverything = false; if (a[i + 1] == "off") { LoadEverything = false; noLoad = true; } if (a[i + 1] == "ring") { LoadEverything = false; ring = true; } }
             CellStats.Extra = Summary;
             if (!manifest) manifest = Resources.Load<CellManifest>(CellManifest.ResourceName);
             if (!manifest) { Debug.LogWarning("[cells] no manifest: nothing loaded"); return; }
@@ -252,8 +252,30 @@ namespace Magistrala.Cells
             slots.Remove(s.cell);
         }
 
+        /// testing only (-cells ring): a stand-in for the phase-3 scheduler - every 0.5 s the cells within RingIn of the camera are
+        /// loaded, those beyond RingOut unloaded ([cells] ring lines: loads / unloads and the worst main-thread ms)
+        bool ring; float nextRing; public static float RingIn = 1000, RingOut = 1400; int ringLoads, ringUnloads;
+        readonly List<Vector2Int> ringTmp = new List<Vector2Int>();
+        void Ring()
+        {
+            if (!ring || Time.unscaledTime < nextRing || !Camera.main) return;
+            nextRing = Time.unscaledTime + .5f; SetUp();
+            var cp = Camera.main.transform.position; float in2 = RingIn * RingIn, out2 = RingOut * RingOut;
+            foreach (var c in cellList)
+            {
+                var b = Magistrala.Streaming.CellGrid.CellBounds(c); float d2 = b.SqrDistance(new Vector3(cp.x, b.center.y, cp.z));
+                var st = State(c);
+                if (d2 < in2 && (st == CellState.None || !IsLoaded(c, ALL))) { if (LoadCell(c, ALL)) ringLoads++; }
+                else if (d2 > out2 && st != CellState.None && slots[c].want != 0) ringTmp.Add(c);
+            }
+            foreach (var c in ringTmp) { UnloadCell(c, ALL); ringUnloads++; }
+            ringTmp.Clear();
+        }
+        public string RingSummary() => ring ? $" ring loads {ringLoads} unloads {ringUnloads}" : "";
+
         void Update()
         {
+            Ring();
             if (running.Count == 0) return;
             sw.Restart();
             // in order (the queue head first); several per frame while under the budget
@@ -282,7 +304,7 @@ namespace Magistrala.Cells
 
         public string Summary()
         {
-            var sb = new System.Text.StringBuilder($"cells {LoadedCells}/{cellList.Count} loaded, {running.Count} pending, systems");
+            var sb = new System.Text.StringBuilder($"cells {LoadedCells}/{cellList.Count} loaded, {running.Count} pending{RingSummary()}, systems");
             for (int i = 0; i < CellBlob.SYSTEMS; i++) if ((mask & (1 << i)) != 0) sb.Append(' ').Append(CellBlob.SysNames[i]);
             if (trees && Has(CellBlob.TREES)) sb.Append($"; trees {trees.Count}");
             if (props && Has(CellBlob.PROPS)) sb.Append($"; props {props.Count} (drawn {props.DrawnLastFrame})");
