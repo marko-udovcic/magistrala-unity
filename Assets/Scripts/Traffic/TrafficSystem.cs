@@ -85,6 +85,10 @@ namespace Magistrala.Traffic
         readonly List<(Mesh mesh, int sub, Material mat, int lod)> buckets = new List<(Mesh, int, Material, int)>();
         int[][][] kindParts; // [kind][lod][part] -> bucket, paint parts: bucket of paint 0, + paint index
         int[] farB;          // [kind] -> first bucket of the merged far mesh (palette, paints…, tail, tail lit), -1 none
+        /// [kind] the far mesh's tail submesh is lamp-sized (0 < height ≤ 0.45 m): only then is it lit. Taller ones carry body
+        /// panels from a mixed lod1 tail submesh (golf2 / yugo45 tailgate, sprinter, mazda, coach) — the far mesh has no paint
+        /// mask, so those stay unlit rather than glow as a whole red rear (25. 11., lamp audit)
+        bool[] farTailLit;
 
         void OnEnable()
         {
@@ -155,7 +159,13 @@ namespace Magistrala.Traffic
                     }
                 }
             }
-            farB = new int[data.kinds.Length];
+            farB = new int[data.kinds.Length]; farTailLit = new bool[data.kinds.Length];
+            for (int k = 0; k < data.kinds.Length; k++)
+            {
+                var fm = data.kinds[k].farMesh;
+                float h = fm && fm.subMeshCount > 2 ? fm.GetSubMesh(2).bounds.size.y : 0;
+                farTailLit[k] = h > 0 && h <= .45f;
+            }
             var fadeSh = Resources.Load<Shader>("Shaders/FarFade");
             var fade = new Dictionary<Material, Material>();
             Material F(Material m)
@@ -771,7 +781,7 @@ namespace Magistrala.Traffic
                 {
                     var MF = Matrix4x4.TRS(car.pos, car.rot, Vector3.one);
                     int f0 = farB[car.kind], np = kd.farPaints.Length;
-                    Add(f0, MF); Add(f0 + 1 + car.paint, MF); Add(f0 + 1 + np + (car.braking || headlights ? 1 : 0), MF); // (tail lamps lit at night too: the lit variant is all there is)
+                    Add(f0, MF); Add(f0 + 1 + car.paint, MF); Add(f0 + 1 + np + ((car.braking || headlights) && farTailLit[car.kind] ? 1 : 0), MF); // (tail lamps lit at night too: the lit variant is all there is)
                     continue;
                 }
                 if (three && lod == 0) lod = dist < kd.lodNear ? 0 : dist < kd.lodMid ? 1 : 2;

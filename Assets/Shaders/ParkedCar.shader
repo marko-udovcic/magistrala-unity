@@ -195,7 +195,7 @@ Shader "Magistrala/ParkedCar"
                 s.clearCoatMask *= 1 - g;
                 s.clearCoatSmoothness *= lerp(1, 0.9 + 0.1 * gt.r, grime);
             }
-            s.emission = half3(0.22, 0.01, 0.005) * input.flags.w;   // unlit tail lamps keep their faint red (TripoCar's off state)
+            s.emission = half3(0.22, 0.01, 0.005) * input.flags.w * (1 - paint); // (paint texels of a mixed lamp submesh stay unlit)   // unlit tail lamps keep their faint red (TripoCar's off state)
 
             half4 result = UniversalFragmentPBR(data, s);
             result.rgb = MixFog(result.rgb, data.fogCoord);
