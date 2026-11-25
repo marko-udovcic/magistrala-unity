@@ -115,7 +115,7 @@ namespace Magistrala.Streaming
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i + 1 < args.Length; i++)
                 if (args[i] == "-stream") StreamingEnabled = args[i + 1] == "1";
-            if (!StreamingEnabled) return;
+            if (!StreamingEnabled) { LoadEverything(); return; }
             if (!CellManifest.TryLoad(out var manifest, out var error)) { FailStartup(error); return; }
             Manifest = manifest;
             cells = new Cell[manifest.l0.Length];
@@ -146,6 +146,28 @@ namespace Magistrala.Streaming
             if (maxL0LoadsInFlight > 1 || maxScenesWaitingForActivation > 1)
                 Debug.Log("[stream] serialized scene gate caps effective concurrency/waiters at 1 (Unity async queue)");
         }
+
+        /// -stream 0 in a build whose world was split into cell scenes (ProbeBuild.MacStream): every cell is loaded at the start
+        /// and shown, nothing is ever unloaded (A/B against streaming). A build of the unsplit scene has no manifest: nothing happens.
+        void LoadEverything()
+        {
+            if (!CellManifest.TryLoad(out var manifest, out _)) return;
+            int n = 0; double t0 = Time.realtimeSinceStartupAsDouble;
+            SceneManager.sceneLoaded += ShowAll;
+            foreach (var c in manifest.l0)
+                if (!string.IsNullOrEmpty(c.sceneName) && Application.CanStreamedLevelBeLoaded(c.sceneName) && !FindScene(c.sceneName).IsValid())
+                { SceneManager.LoadScene(c.sceneName, LoadSceneMode.Additive); n++; }
+            if (n > 0) { allPending = n; allTimeScale = Time.timeScale; Time.timeScale = 0; } // (no physics step before the roads are there)
+            Status = $"-stream 0: all {n} cell scenes loaded at the start";
+            Debug.Log($"[stream] {Status} (queued in {(Time.realtimeSinceStartupAsDouble - t0) * 1000:F0} ms)");
+        }
+        static void ShowAll(Scene s, LoadSceneMode mode)
+        {
+            if (mode != LoadSceneMode.Additive || !s.path.StartsWith(CellGrid.GeneratedRoot)) return;
+            foreach (var g in s.GetRootGameObjects()) g.SetActive(true);
+            if (allPending > 0 && --allPending == 0) { if (Time.timeScale == 0) Time.timeScale = allTimeScale; Debug.Log($"[stream] -stream 0: every cell shown at {Time.realtimeSinceStartup:F1} s"); }
+        }
+        static int allPending; static float allTimeScale = 1;
 
         void FailStartup(string reason)
         {

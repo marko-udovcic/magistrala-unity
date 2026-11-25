@@ -402,7 +402,7 @@ namespace Magistrala.EditorTools
             }
             public void OnProcessScene(Scene scene, BuildReport report)
             {
-                if (!Enabled || scene.path != SCENE) return;
+                if (!Enabled || scene.path != SCENE && scene.path != CellMerge.SCENE && scene.path != CellMerge.STREAMSCENE) return; // (phase 1/3: ProbeBuild builds CellMerge's copies of the main scene)
                 Debug.Log(Strip(scene));
             }
         }

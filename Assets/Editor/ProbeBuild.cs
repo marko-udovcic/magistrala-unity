@@ -7,18 +7,32 @@ namespace Magistrala.EditorTools
 {
     public static class ProbeBuild
     {
+        /// streaming phase 1/3: the build takes the cell-baked copy of the main scene (CellMerge, menu Magistrala/Bake cells, run here
+        /// first); false = the plain Assets/Scenes/Magistrala.unity as before (A/B: MacPlain / MacProfilePlain)
+        public static bool Cells = true;
         static string Build(BuildTarget target, BuildTargetGroup group, string path, bool dev = false)
         {
             MainScene.EnsureSaved();
+            string[] scenes = { MainScene.PATH }; string bake = "";
+            if (Cells) { bake = CellMerge.Bake(); scenes = CellMerge.BuildScenes(); }
+            // MeshColliders cooked at build time, not on the main thread while the scene / a cell loads
+            PlayerSettings.bakeCollisionMeshes = Cells;
             PlayerSettings.companyName = "Magistrala"; PlayerSettings.productName = "Magistrala Unity proba";
             PlayerSettings.runInBackground = true; PlayerSettings.enableFrameTimingStats = true;
             PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
             PlayerSettings.defaultScreenWidth = 1920; PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(group), ScriptingImplementation.Mono2x);
-            var opts = new BuildPlayerOptions { scenes = new[] { "Assets/Scenes/Magistrala.unity" }, locationPathName = path, target = target, targetGroup = group, options = (dev ? BuildOptions.Development : BuildOptions.None) | BuildOptions.CompressWithLz4HC };
+            var opts = new BuildPlayerOptions { scenes = scenes, locationPathName = path, target = target, targetGroup = group, options = (dev ? BuildOptions.Development : BuildOptions.None) | BuildOptions.CompressWithLz4HC };
             var r = BuildPipeline.BuildPlayer(opts);
-            return $"{target}: {r.summary.result} {r.summary.totalSize / 1048576f:F0} MB, {r.summary.totalTime.TotalSeconds:F0} s, errors {r.summary.totalErrors}";
+            return $"{target}: {r.summary.result} {r.summary.totalSize / 1048576f:F0} MB, {r.summary.totalTime.TotalSeconds:F0} s, errors {r.summary.totalErrors}" + (Cells ? $" | {scenes.Length} scenes | {bake}" : " | plain scene");
         }
+        static string Plain(System.Func<string> f) { bool c = Cells; Cells = false; try { return f(); } finally { Cells = c; } }
+        static string Streamed(System.Func<string> f) { bool sp = CellMerge.Split; CellMerge.Split = true; try { return f(); } finally { CellMerge.Split = sp; } }
+        /// phase 3: the cell scenes streamed by StreamingScheduler (-stream 1; -stream 0 loads every cell at the start)
+        public static string MacStream() => Streamed(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac-stream/Magistrala.app"));
+        public static string MacProfileStream() => Streamed(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/macprof-stream/Magistrala.app", true));
+        public static string MacPlain() => Plain(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac-plain/Magistrala.app"));
+        public static string MacProfilePlain() => Plain(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/macprof-plain/Magistrala.app", true));
         [MenuItem("Magistrala/Build macOS")] public static string Mac() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac/Magistrala.app");
         // development player with profiler markers in the [perf] log line (Builds/macprof): for measuring only, not for Marko
         public static string MacProfile() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/macprof/Magistrala.app", true);

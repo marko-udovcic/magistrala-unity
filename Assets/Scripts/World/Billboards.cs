@@ -67,7 +67,14 @@ namespace Magistrala
             ApplyAll();
         }
 
-        static void OnLoaded(Scene s, LoadSceneMode m) { if (m == LoadSceneMode.Additive) ApplyAll(); }
+        // an additive scene (a streamed world cell): only its own renderers (a scan of every loaded renderer costs ms per cell)
+        static void OnLoaded(Scene s, LoadSceneMode m)
+        {
+            if (m != LoadSceneMode.Additive) return;
+            int n = 0;
+            foreach (var g in s.GetRootGameObjects()) foreach (var r in g.GetComponentsInChildren<MeshRenderer>(true)) if (Apply(r)) n++;
+            Applied += n;
+        }
 
         /// walks every loaded MeshRenderer once; call again after streaming in new model tiles
         public static void ApplyAll()
