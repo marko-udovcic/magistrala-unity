@@ -24,6 +24,9 @@ namespace Magistrala.Traffic
         public float spawnMin = 480, spawnMax = 850, despawnDist = 920;
         /// the view-range defaults (TrafficBuilder writes them onto the scene's component; `-trafold` = the pre-paket25 values
         /// 34 / 320 / 600 / 680 / 400 / 470 / 300 and the one-ray hidden test, for A/B)
+        /// 1 = the scene's values were written by TrafficBuilder with the paket25 view range; 0 (a scene saved before, whose serialized
+        /// 34 / 320 / 600 / 680 would fight the new 650–750 m fade) = the VIEW_* defaults are applied at runtime
+        public int viewVersion;
         public const int VIEW_CARS = 46; public const float VIEW_SPAWN_MIN = 480, VIEW_SPAWN_MAX = 850, VIEW_DESPAWN = 920, VIEW_FADE0 = 650, VIEW_FADE1 = 750, VIEW_REACH = 450;
         public bool signals = true;
         /// headlight lenses lit (follows LightPreset: sunset)
@@ -97,6 +100,7 @@ namespace Magistrala.Traffic
                 var a = System.Environment.GetCommandLineArgs();
                 spawnLog = System.Array.IndexOf(a, "-spawnlog") >= 0;
                 oldView = System.Array.IndexOf(a, "-trafold") >= 0;
+                if (viewVersion < 1 && !oldView) { targetCars = VIEW_CARS; spawnMin = VIEW_SPAWN_MIN; spawnMax = VIEW_SPAWN_MAX; despawnDist = VIEW_DESPAWN; farFadeStart = VIEW_FADE0; farFadeEnd = VIEW_FADE1; corridorReach = VIEW_REACH; }
                 if (oldView) { targetCars = 34; spawnMin = 320; spawnMax = 600; despawnDist = 680; farFadeStart = 400; farFadeEnd = 470; corridorReach = 300; }
                 if (spawnLog || oldView) Debug.Log($"[traffic] view {(oldView ? "old" : "new")}: cars {targetCars}, spawn {spawnMin}–{spawnMax} m, despawn {despawnDist} m, fade {farFadeStart}–{farFadeEnd} m, reach {corridorReach} m");
             }
