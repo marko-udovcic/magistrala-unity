@@ -59,7 +59,7 @@ namespace Magistrala.Game.Phone
 
         void OnGUI()
         {
-            if (Magistrala.GpuSwitches.NoHud) return;
+            if (Magistrala.GpuSwitches.NoHud || WorldMap.IsOpen) return; // (the full-screen map covers everything; the clock stands)
             if (slide <= 0.001f) return;
             Styles();
             GUI.depth = -10;
@@ -177,12 +177,14 @@ namespace Magistrala.Game.Phone
             var view = new Rect(scr.x, top, scr.width, scr.yMax - bottomGap - top);
             selTop = selBot = -1;
             GUI.BeginClip(view);
+            GUI.BeginGroup(new Rect(0, -scroll, view.width, 100000)); // (content coordinates: y down from the content's top)
             float h = draw(view.width);
+            GUI.EndGroup();
             GUI.EndClip();
             float max = Mathf.Max(0, h - view.height + 8);
             if (follow && selTop >= 0)
             {
-                float yt = selTop + scroll, yb = selBot + scroll; // content coordinates
+                float yt = selTop, yb = selBot; // content coordinates
                 if (yt - 8 < scroll) scroll = yt - 8;
                 else if (yb + 8 > scroll + view.height) scroll = yb + 8 - view.height;
             }
@@ -633,7 +635,6 @@ namespace Magistrala.Game.Phone
                 // balance card (deep sea blue, our own)
                 var bc = new Rect(12, y, cw, 118);
                 Fill(bc, new Color32(0x17, 0x3A, 0x55, 0xff), 16);
-                Fill(new Rect(bc.xMax - 96, bc.y - 0, 96, 70), new Color(1, 1, 1, 0.06f), 16);
                 GUI.Label(new Rect(bc.x + 16, bc.y + 14, cw - 32, 16), "Stanje računa", St(12, false, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleLeft, false));
                 GUI.Label(new Rect(bc.x + 16, bc.y + 34, cw - 32, 40), Eur(b.account), St(30, true, b.account < 0 ? new Color(1f, 0.6f, 0.55f) : Color.white, TextAnchor.MiddleLeft, false));
                 GUI.Label(new Rect(bc.x + 16, bc.y + 84, cw - 32, 18), "HR·· ···· ···· ···· 0811 · obrt", St(11, false, new Color(1, 1, 1, 0.55f), TextAnchor.MiddleLeft, false));

@@ -196,7 +196,11 @@ namespace Magistrala.Game
             };
             Phone.Show(sc);
             if (sc == MatePhone.Screen.Thread) Phone.OpenThread("vesna");
-            if (Arg("-phonescroll") is string ps && float.TryParse(ps, NumberStyles.Float, CultureInfo.InvariantCulture, out var px)) Phone.ScrollTo(px);
+            if (Arg("-phonescroll") is string ps && float.TryParse(ps, NumberStyles.Float, CultureInfo.InvariantCulture, out var px))
+            {
+                yield return new WaitForSecondsRealtime(2); // (the app has laid out its content by then)
+                Phone.ScrollTo(px);
+            }
         }
 
         System.Collections.IEnumerator CallPick(int k)
@@ -218,7 +222,7 @@ namespace Magistrala.Game
             Phone.openMap = () => { if (GetComponent<WorldMap>() is WorldMap wm) wm.Open(); };
             Phone.bank = () =>
             {
-                var b = new BankInfo { account = S.account, cash = S.cash, debt = LoanLeft, debtTotal = LoanTotal, rate = LoanRate, loanName = "GALEB TRANSPORT · teretno vozilo · Mate jamac-platac" };
+                var b = new BankInfo { account = S.account, cash = S.cash, debt = LoanLeft, debtTotal = LoanTotal, rate = LoanRate, loanName = "GALEB TRANSPORT · Mate jamac-platac" };
                 // the last payments into the account: the invoiced faturete (S.invoices "day|hh:mm|customer|€"), newest first
                 for (int i = S.invoices.Count - 1; i >= 0 && b.moves.Count < 8; i--)
                 {
