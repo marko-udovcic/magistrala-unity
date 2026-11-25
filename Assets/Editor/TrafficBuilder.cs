@@ -644,6 +644,9 @@ namespace Magistrala.EditorTools
             var go = GameObject.Find("Traffic") ?? new GameObject("Traffic");
             var ts = go.GetComponent<TrafficSystem>() ?? go.AddComponent<TrafficSystem>();
             ts.data = data;
+            // view range (paket25): the scene keeps its serialized values, so the build writes the defaults onto the component
+            ts.targetCars = TrafficSystem.VIEW_CARS; ts.spawnMin = TrafficSystem.VIEW_SPAWN_MIN; ts.spawnMax = TrafficSystem.VIEW_SPAWN_MAX; ts.despawnDist = TrafficSystem.VIEW_DESPAWN;
+            ts.farFadeStart = TrafficSystem.VIEW_FADE0; ts.farFadeEnd = TrafficSystem.VIEW_FADE1; ts.corridorReach = TrafficSystem.VIEW_REACH; ts.viewVersion = 1;
             EditorUtility.SetDirty(ts);
             EditorSceneManager.MarkSceneDirty(go.scene);
             EditorSceneManager.SaveScene(go.scene);

@@ -5,7 +5,8 @@
 //    the player's truck (its collider footprint projected onto the corridor: it blocks every lane it straddles), red / amber lights
 //    at the D8 stop lines of the models' signal plans; a hard clamp keeps a car from ever moving into its obstacle;
 //  - lane changes: merge before a lane drop, pass a slow leader on the left, keep right (gap acceptance), ~2.6 s per change;
-//  - spawn ring 320–600 m from the player outside the camera view (warm start fills 40–600 m once), despawn beyond 680 m;
+//  - spawn ring 480–850 m from the player outside the camera view (warm start fills 40–850 m once), despawn beyond 920 m
+//    (paket25: was 320–600 / 680 with the fade at 400–470 m — Marko saw cars pop in close while waiting at a side street);
 //  - drawing: Graphics.RenderMeshInstanced per (kind, part, paint colour); beyond 70 m the merged far mesh (palette, paint, tail:
 //    3 draws per kind); brake lights / indicators as lit material variants;
 //  - physics: one kinematic Rigidbody + BoxCollider per car (pooled), moved with MovePosition, so the truck collides with them.
@@ -19,8 +20,14 @@ namespace Magistrala.Traffic
     public class TrafficSystem : MonoBehaviour
     {
         public TrafficData data;
-        [Range(0, 60)] public int targetCars = 34;
-        public float spawnMin = 320, spawnMax = 600, despawnDist = 680;
+        [Range(0, 80)] public int targetCars = VIEW_CARS;
+        public float spawnMin = 480, spawnMax = 850, despawnDist = 920;
+        /// the view-range defaults (TrafficBuilder writes them onto the scene's component; `-trafold` = the pre-paket25 values
+        /// 34 / 320 / 600 / 680 / 400 / 470 / 300 and the one-ray hidden test, for A/B)
+        /// 1 = the scene's values were written by TrafficBuilder with the paket25 view range; 0 (a scene saved before, whose serialized
+        /// 34 / 320 / 600 / 680 would fight the new 650–750 m fade) = the VIEW_* defaults are applied at runtime
+        public int viewVersion;
+        public const int VIEW_CARS = 46; public const float VIEW_SPAWN_MIN = 480, VIEW_SPAWN_MAX = 850, VIEW_DESPAWN = 920, VIEW_FADE0 = 650, VIEW_FADE1 = 750, VIEW_REACH = 450;
         public bool signals = true;
         /// headlight lenses lit (follows LightPreset: sunset)
         [System.NonSerialized] public bool headlights;
@@ -28,7 +35,7 @@ namespace Magistrala.Traffic
         public float lod1Dist = 70, shadowDist = 120;
         /// far cars dissolve (Magistrala/FarFade dither) between these distances and are not drawn beyond: a car spawned in view
         /// (only ever beyond farFadeEnd) or despawned far away never pops — it fades in as it comes closer
-        public float farFadeStart = 400, farFadeEnd = 470;
+        public float farFadeStart = 650, farFadeEnd = 750;
         public Transform player;
         public int seed = 7;
 
@@ -76,7 +83,7 @@ namespace Magistrala.Traffic
         float[] pS0 = new float[2], pS1 = new float[2], pL0 = new float[2], pL1 = new float[2], pSc = new float[2], pFar = new float[2];
         bool[] pOn = new bool[2];
         /// a corridor farther than this from the player (the old road while driving the D8, 500 m south) gets no new cars
-        public float corridorReach = 300;
+        public float corridorReach = 450;
         float playerSpeed;
 
         // drawing
@@ -93,6 +100,14 @@ namespace Magistrala.Traffic
         void OnEnable()
         {
             rng = new System.Random(seed);
+            {
+                var a = System.Environment.GetCommandLineArgs();
+                spawnLog = System.Array.IndexOf(a, "-spawnlog") >= 0;
+                oldView = System.Array.IndexOf(a, "-trafold") >= 0;
+                if (viewVersion < 1 && !oldView) { targetCars = VIEW_CARS; spawnMin = VIEW_SPAWN_MIN; spawnMax = VIEW_SPAWN_MAX; despawnDist = VIEW_DESPAWN; farFadeStart = VIEW_FADE0; farFadeEnd = VIEW_FADE1; corridorReach = VIEW_REACH; }
+                if (oldView) { targetCars = 34; spawnMin = 320; spawnMax = 600; despawnDist = 680; farFadeStart = 400; farFadeEnd = 470; corridorReach = 300; }
+                if (spawnLog || oldView) Debug.Log($"[traffic] view {(oldView ? "old" : "new")}: cars {targetCars}, spawn {spawnMin}–{spawnMax} m, despawn {despawnDist} m, fade {farFadeStart}–{farFadeEnd} m, reach {corridorReach} m");
+            }
             if (data == null) { enabled = false; Debug.LogWarning("[traffic] no TrafficData (run Magistrala/Build traffic)"); return; }
             int nc = data.corridors?.Length ?? 0;
             if (byCorridor.Length != nc)
@@ -623,6 +638,29 @@ namespace Magistrala.Traffic
             return 0;
         }
 
+        bool spawnLog, oldView;
+        static readonly RaycastHit[] occHits = new RaycastHit[8];
+        /// the segment eye → p is blocked by something solid that is not a car, not within 6 m of p (paket25)
+        static bool Blocked(Vector3 eye, Vector3 p)
+        {
+            var d = p - eye; float L = d.magnitude; if (L < 7) return false;
+            int n = Physics.RaycastNonAlloc(eye, d / L, occHits, L - 6, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++) if (!occHits[i].rigidbody) return true;
+            return false;
+        }
+        /// a car at `pos` (body half width hw, height h) is hidden from the eye: the old test was one linecast to 1.2 m above the road,
+        /// which grazes a crest, a guardrail, a kerb or a sign post from a low camera — the car then popped in fully drawn at 320 m.
+        /// Now every ray must be blocked: 1.2 m up, and 0.5 m over the roof at the middle and both sides of the body (only terrain
+        /// or a building covers all of them)
+        bool HiddenFrom(Vector3 eye, Vector3 pos, float hw, float h)
+        {
+            if (oldView)
+                return Physics.Linecast(eye, pos + Vector3.up * 1.2f, out var hit, ~0, QueryTriggerInteraction.Ignore) && (hit.point - pos - Vector3.up * 1.2f).magnitude > 6 && !hit.rigidbody;
+            var side = Vector3.Cross(Vector3.up, pos - eye); side.y = 0; side = side.sqrMagnitude > 1e-6f ? side.normalized * (hw + .3f) : Vector3.zero;
+            var roof = pos + Vector3.up * (h + .5f);
+            return Blocked(eye, pos + Vector3.up * 1.2f) && Blocked(eye, roof) && Blocked(eye, roof + side) && Blocked(eye, roof - side);
+        }
+
         bool TrySpawn(bool warmStart)
         {
             // the emptiest quarter (corridor × ahead / behind the player) gets the next car, so every direction stays populated
@@ -657,11 +695,16 @@ namespace Magistrala.Traffic
             var pos = Point(cor, s, lat);
             // never pop in view: out of the frustum, hidden behind terrain / buildings, or beyond farFadeEnd (not drawn there:
             // it dissolves in between farFadeEnd and farFadeStart as it comes closer)
-            if (!warmStart && InView(pos))
+            bool inView = !warmStart && InView(pos), hidden = false;
+            if (inView)
             {
-                var eye = cam.transform.position; var tgt = pos + Vector3.up * 1.2f;
-                bool hidden = Physics.Linecast(eye, tgt, out var hit, ~0, QueryTriggerInteraction.Ignore) && (hit.point - tgt).magnitude > 6 && !hit.rigidbody;
-                if (!hidden && (pos - eye).magnitude < farFadeEnd + 10) { SpawnFails[1]++; return false; }
+                var eye = cam.transform.position; float de = (pos - eye).magnitude;
+                // (paket25: a hidden car never closer than farFadeStart either — a wrong guess still dissolves in)
+                if (de < farFadeEnd + 10)
+                {
+                    hidden = (oldView || de >= farFadeStart) && HiddenFrom(eye, pos, kd.halfW, kd.h);
+                    if (!hidden) { SpawnFails[1]++; return false; }
+                }
             }
             // spacing
             foreach (var o in byCorridor[ci]) if (Mathf.Abs(o.s - s) < 30 + (o.len + kd.len) / 2 && Overlap(lat, kd.halfW, o.lat, o.hw, 1)) { SpawnFails[2]++; return false; }
@@ -684,6 +727,7 @@ namespace Magistrala.Traffic
             Pose(car);
             car.rb.position = car.pos; car.rb.rotation = car.rot; car.rb.transform.SetPositionAndRotation(car.pos, car.rot);
             cars.Add(car); byCorridor[ci].Add(car); Spawned++;
+            if (spawnLog && !warmStart) Debug.Log($"[spawn] {kd.name} c{ci} {(pos - (cam ? cam.transform.position : PlayerPos)).magnitude:F0} m {(inView ? hidden ? "view-hidden" : "view-far" : "out")} cars {cars.Count}");
             if (HitchDiag.On && !warmStart) HitchDiag.Note($"spawn {kd.name} {(pos - (cam ? cam.transform.position : PlayerPos)).magnitude:F0}m{(InView(pos) ? " view" : "")}");
             return true;
         }
