@@ -114,6 +114,7 @@ namespace Magistrala.Traffic
                 return i;
             }
             int nk = data.kinds.Length;
+            TrafficSystem.TunePaints(data);
             farB = new int[nk]; baked = new bool[nk]; fadeMat = new Material[nk];
             for (int k = 0; k < nk; k++)
             {

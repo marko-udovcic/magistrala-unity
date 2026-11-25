@@ -22,22 +22,37 @@ namespace Magistrala
         void Start()
         {
             truck = GetComponent<TruckController>(); preset = FindFirstObjectByType<LightPreset>();
-            Renderer head = null;
+            VehicleLook.Apply(transform, truck && truck.spec != null ? truck.spec.id : "atego"); // paint, glass, lamp submeshes (before the lenses are collected)
+            Renderer head = null; Bounds headB = default; bool headSub = false;
             foreach (var r in GetComponentsInChildren<Renderer>(true))
             {
-                if (r.name == "body_L_head" || (!head && r.name.StartsWith("Phare"))) head = r; // (Galeb: both lamps in one "Phare" mesh)
+                if (r.name == "body_L_head" || (!head && VehicleLook.Off && r.name.StartsWith("Phare"))) head = r; // (Kombi: both lamps in one "Phare" mesh, VehicleLook splits it)
                 var mats = r.materials; // instances: only this truck glows
                 foreach (var m in mats)
                 {
                     if (!m) continue; string n = m.name.Replace(" (Instance)", "");
                     if (!n.StartsWith("L_")) continue;
                     if (!lens.TryGetValue(n, out var l)) lens[n] = l = new List<Material>();
-                    l.Add(m); m.EnableKeyword("_EMISSION"); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                    l.Add(m); m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                    // glTFast graphs: emissiveFactor (× emissiveTexture, white when none) under _EMISSIVE; URP Lit: _EmissionColor
+                    if (m.HasProperty(ID_Emis)) m.EnableKeyword("_EMISSIVE"); else m.EnableKeyword("_EMISSION");
+                    // head lamps that are a submesh of a bigger part (VehicleLook: the Kombi's "Phare", the Galeb's body atlas)
+                    if (n == "L_head" && !head && r.GetComponent<MeshFilter>() is MeshFilter mf && mf.sharedMesh)
+                    {
+                        int si = System.Array.IndexOf(mats, m);
+                        if (si >= 0 && si < mf.sharedMesh.subMeshCount)
+                        {
+                            var sb = mf.sharedMesh.GetSubMesh(si).bounds; var M = r.transform.localToWorldMatrix;
+                            var wb = new Bounds(M.MultiplyPoint3x4(sb.center), Vector3.zero);
+                            for (int i = 0; i < 8; i++) wb.Encapsulate(M.MultiplyPoint3x4(sb.center + Vector3.Scale(sb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1))));
+                            headB = wb; headSub = true;
+                        }
+                    }
                 }
             }
-            if (head)
+            if (head || headSub)
             {
-                var b = head.bounds; var right = transform.right; var c = b.center;
+                var b = head ? head.bounds : headB; var right = transform.right; var c = b.center;
                 float half = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(right.x), Mathf.Abs(right.y), Mathf.Abs(right.z))));
                 var fwd = Vector3.ProjectOnPlane(c - transform.position, transform.up).normalized;
                 foreach (float s in new[] { -1f, 1f })
@@ -53,10 +68,11 @@ namespace Magistrala
             Set(false, 0, false);
         }
 
+        static readonly int ID_Emis = Shader.PropertyToID("emissiveFactor"), ID_EmissionColor = Shader.PropertyToID("_EmissionColor");
         void Glow(string mat, Color c)
         {
             if (!lens.TryGetValue(mat, out var l)) return;
-            foreach (var m in l) m.SetColor("_EmissionColor", c);
+            foreach (var m in l) m.SetColor(m.HasProperty(ID_Emis) ? ID_Emis : ID_EmissionColor, c);
         }
 
         void Set(bool on, float brake, bool rev)
