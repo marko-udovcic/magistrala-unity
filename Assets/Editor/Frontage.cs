@@ -10,7 +10,7 @@
 //   model asphalt and sidewalks, our sidewalks / courts, the carriageways of StreetsBuilder) to the first soft ground: the
 //   property line, the wall 0.2 m behind it. No wall where the paving goes on for more than 9 m (a square, a court, a parking,
 //   a side street), where a house stands at the line (its facade is the frontage), within 10 m of a stop / delivery point or on
-//   its bay, on a model object or a slope, or where no house (kind house / apartment) stands behind the line within 30 m.
+//   its bay, on a slope, or where no house (kind house / apartment) stands behind the line within 30 m.
 //   The line is smoothed (median over ±3 m) and cut into plots by the house behind it (its owner); each plot is one property:
 //   its type (below), piers at its ends, a driveway gate (3 m, iron, with piers; sometimes two clipped cypresses inside) or a
 //   pedestrian gate (1.1 m). Emitted with the owner house (BuildingsFromTiles' house loop) into its cell / chunk meshes by
@@ -69,7 +69,7 @@ namespace Magistrala.EditorTools
             var g = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "graph.json")));
             foreach (var eo in MiniJson.L(g["edges"]))
             {
-                var e = MiniJson.O(eo); if ((string)MiniJson.G(e, "name") != "Cesta dr. Franje Tuđmana" || (string)e["id"] == "1088") continue;
+                var e = MiniJson.O(eo); if (Convert.ToString(MiniJson.G(e, "name")) != "Cesta dr. Franje Tuđmana" || Convert.ToString(e["id"], System.Globalization.CultureInfo.InvariantCulture) == "1088") continue;
                 var pts = new List<double[]>(); bool any = false;
                 foreach (var q in MiniJson.L(e["points"])) { var qq = MiniJson.L(q); double x = MiniJson.D(qq[0]), z = MiniJson.D(qq[2]); pts.Add(new[] { x, z }); if (x >= x0 && x <= x1) any = true; }
                 if (any && pts.Count >= 2) L.Add((pts, MiniJson.D(MiniJson.G(e, "width") ?? 7.0) / 2));
@@ -215,7 +215,7 @@ namespace Magistrala.EditorTools
                 }
                 if (double.IsNaN(edge)) { Skip("paving > 9 m"); continue; }
                 double o = edge + .2, x = s.x + nx * o, z = s.z + nz * o;
-                if (WorldData.FootDist(models, x, z) < .3) { Skip("model object"); continue; }
+                // (no FootDist test here: the tiles' 2 m grid counts the whole sidewalk cell as an object; the paving scan above has them)
                 bool nearStop = false; var u = W.U(x, 0, z);
                 foreach (var st in stops) { var d = st.pos - u; d.y = 0; if (d.sqrMagnitude < STOP_R * STOP_R) { nearStop = true; break; } var db = st.bay - u; db.y = 0; if (st.bayHl > 0 && db.sqrMagnitude < (st.bayHl + 4) * (st.bayHl + 4)) { nearStop = true; break; } }
                 if (nearStop) { Skip("stop / bay"); continue; }

@@ -35,7 +35,7 @@ namespace Magistrala.EditorTools
         static readonly (bool rose, Vector4 r)[] Src =
         {
             (true, new Vector4(.12f, .63f, .52f, .83f)), (true, new Vector4(.52f, .58f, .94f, .79f)), (true, new Vector4(.10f, .48f, .50f, .68f)),
-            (true, new Vector4(.55f, .40f, .95f, .60f)), (true, new Vector4(.30f, .70f, .70f, .90f)),                       // 0-4 rose leaf sprigs
+            (true, new Vector4(.55f, .40f, .95f, .60f)), (true, new Vector4(.12f, .55f, .52f, .75f)),                       // 0-4 rose leaf sprigs
             (false, new Vector4(.527f, .893f, .732f, .99f)), (false, new Vector4(.36f, .756f, .71f, .878f)), (false, new Vector4(.107f, .805f, .361f, .98f)),
             (false, new Vector4(.31f, .014f, .60f, .16f)), (false, new Vector4(.34f, .14f, .47f, .31f)),                     // 5-9 buckthorn sprigs
             (true, new Vector4(.578f, .922f, .734f, .998f)), (true, new Vector4(.84f, .883f, .96f, .937f)),                  // 10-11 pink flowers
@@ -50,7 +50,7 @@ namespace Magistrala.EditorTools
         {
             var sh = Shader.Find("Magistrala/Hedge"); if (!sh) { Debug.LogError("[zivice] no Magistrala/Hedge shader"); return null; }
             if (!AssetDatabase.IsValidFolder(OUT)) AssetDatabase.CreateFolder(WorldBuilder.GEN, "Nature");
-            if (!File.Exists(ATLAS)) BakeAtlas();
+            BakeAtlas();
             var mat = AssetDatabase.LoadAssetAtPath<Material>(MAT);
             if (!mat) { mat = new Material(sh); AssetDatabase.CreateAsset(mat, MAT); } else mat.shader = sh;
             mat.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(ATLAS));
@@ -173,7 +173,8 @@ namespace Magistrala.EditorTools
                         float ao = Mathf.Lerp(.5f, 1f, Mathf.Clamp01((y + .3f) / Mathf.Max(.6f, h * .6f))) * (depth < .01f ? .82f : 1f);
                         Card(g, r, c, nF, Vector3.right, card, Slot(), L.tint, ao, up01 * .6f);
                         if (L.flowers > 0 && side < 0 && y > h * .35f && r.NextDouble() < L.flowers * 2.2f)
-                            Card(g, r, c + nF * .09f, nF, Vector3.right, card * .3f, L.f0 + r.Next(L.f1 - L.f0 + 1), Color.white * 1.05f, 1, up01 * .4f);
+                            for (int fl = 0, nf = 2 + r.Next(3); fl < nf; fl++)   // a truss of 2–4 flowers (~8 cm each)
+                                Card(g, r, c + nF * .09f + new Vector3(((float)r.NextDouble() - .5f) * .14f, ((float)r.NextDouble() - .5f) * .12f, 0), nF, Vector3.right, .09f + .03f * (float)r.NextDouble(), L.f0 + r.Next(L.f1 - L.f0 + 1), Color.white * 1.05f, 1, up01 * .4f);
                     }
                 }
                 // the top: cards across it, the outer rows rounded over the edges, a few standing proud (an uneven trim)
@@ -186,7 +187,8 @@ namespace Magistrala.EditorTools
                     var c = new Vector3(x + ((float)r.NextDouble() - .5f) * .1f, h + lift - .04f * edge * edge, z * (1 + .06f * edge));
                     Card(g, r, c, nF, Vector3.right, card, Slot(), L.tint * 1.04f, 1, 0);
                     if (L.flowers > 0 && r.NextDouble() < L.flowers * 2.5f)
-                        Card(g, r, c + Vector3.up * .08f, nF, Vector3.right, card * .3f, L.f0 + r.Next(L.f1 - L.f0 + 1), Color.white * 1.05f, 1, 0);
+                        for (int fl = 0, nf = 2 + r.Next(3); fl < nf; fl++)
+                            Card(g, r, c + Vector3.up * .08f + new Vector3(((float)r.NextDouble() - .5f) * .14f, 0, ((float)r.NextDouble() - .5f) * .14f), nF, Vector3.right, .09f + .03f * (float)r.NextDouble(), L.f0 + r.Next(L.f1 - L.f0 + 1), Color.white * 1.05f, 1, 0);
                 }
             }
         }
