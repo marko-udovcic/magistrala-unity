@@ -314,7 +314,8 @@ namespace Magistrala.EditorTools
         /// also run at the end of Build trees
         public static string Commit()
         {
-            var tr = UnityEngine.Object.FindFirstObjectByType<Magistrala.TreeRenderer>();
+            // World/Vegetation's (not the AC units' TreeRenderer under World/Buildings)
+            var veg = GameObject.Find("World")?.transform.Find("Vegetation"); var tr = veg ? veg.GetComponent<Magistrala.TreeRenderer>() : null;
             string tp = WorldBuilder.GEN + "/trees.bytes";
             if (!tr || tr.meshes == null || !File.Exists(tp)) return "[zivice] no TreeRenderer / trees.bytes";
             var map = new int[Ids.Length]; int found = 0;
