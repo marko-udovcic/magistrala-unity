@@ -87,6 +87,9 @@ namespace Magistrala.EditorTools
                     : V((BuildingTextures.PPainted, .4), (BuildingTextures.PBeige, .35), (BuildingTextures.PPreconcrete, .15), (BuildingTextures.PConcreteWall, .1));
                 k.old = k.dirt > .6f && b < .2 && (k.variant == BuildingTextures.PPreconcrete || k.variant == BuildingTextures.PConcreteWall);
             }
+            // old peeling render (worn_plaster_wall, Marko's approved pick 25. 11.): on 40 % of the old / derelict plastered houses;
+            // its own draw after the others, so every other house keeps its variant
+            if (k.old && k.family != 0 && r.NextDouble() < .4) k.variant = BuildingTextures.PWorn;
             k.wallCode = k.wallCode % 64 + 64 * k.variant + (k.old ? 1024 : 0);
         }
 
@@ -161,7 +164,7 @@ namespace Magistrala.EditorTools
         static Vector4 Data(Slot s, float y)
         {
             float code = s == Slot.Wall ? look.wallCode : s == Slot.Roof ? BuildingTextures.Roof * 9 : s == Slot.Trim ? look.trimLayer * 9
-                : s == Slot.Balcony ? BuildingTextures.Concrete * 9 : s == Slot.Shutter ? BuildingTextures.Louvre * 9
+                : s == Slot.Balcony ? BuildingTextures.Concrete * 9 + (metalSlab ? 64 * BuildingTextures.PMetal : 0) : s == Slot.Shutter ? BuildingTextures.Louvre * 9
                 : s == Slot.Yard ? BuildingTextures.Rubble * 9 : s == Slot.Hedge ? 64 * BuildingTextures.PHedge : BuildingTextures.Plain * 9;
             if (rustOn && s == Slot.Wall) code += 2048;
             return new Vector4(code, y - gY, tY - y, s == Slot.Detail ? look.dirt * .4f : look.dirt);
@@ -419,6 +422,8 @@ namespace Magistrala.EditorTools
         public static Color ConcreteTint(Color c) { var l = c.linear; return new Color(Mathf.Clamp01(l.r / .605f), Mathf.Clamp01(l.g / .605f), Mathf.Clamp01(l.b / .605f)).gamma; }
         // the flat roof's slab tint of the house being emitted (null: the old dark weathered concrete) and tiles on it
         static Color? flatSlab; static bool flatTiles;
+        /// the flat roof slab being emitted is a hall's corrugated metal roof (the plaster array's PMetal layer on the concrete code)
+        static bool metalSlab, industrialNow;
         /// counters of the last BuildingsFromTiles.Build (ortho roofs decided / panels)
         public static int nOrthoPitched, nOrthoFlat, nOrthoTiledFlat, nSolar, nSolarPanels;
 
@@ -476,7 +481,7 @@ namespace Magistrala.EditorTools
             float bottom = (float)bottomY, ground = (float)baseY, top = (float)topY;
             look = Look.Pick(new System.Random(o.lookSeed * 31 + 7), kind, ground, top - ground, o.core); gY = ground; tY = top;
             MapillaryFacades.Apply(ref look, o.mly, industrial, Lod == 0); Look.Finish(ref look, o.lookSeed, o.core);
-            var orr = o.ortho; flatSlab = null; flatTiles = false;
+            var orr = o.ortho; flatSlab = null; flatTiles = false; industrialNow = industrial;
             if (OrthoRoofs.Enabled)
             {
                 // roof colours from the orthophoto (else a draw from the same palette); flat roofs: light membranes / greys
@@ -1207,7 +1212,17 @@ namespace Magistrala.EditorTools
             // the roof slab: dark, weathered concrete / bitumen (not the light balcony concrete), the parapet a light coping
             var keep = look.balcony; float keepDirt = look.dirt;
             look.balcony = flatSlab ?? new Color(.55f, .54f, .51f); look.dirt = Mathf.Max(.7f, look.dirt);
-            Surface(g, points, triangles, top, flatTiles ? Slot.Roof : Slot.Balcony, Vector3.up);
+            // halls / warehouses: corrugated metal (corrugated_iron_02), still in the orthophoto's roof colour
+            metalSlab = industrialNow && !flatTiles; if (metalSlab) look.dirt = keepDirt * .6f;
+            Vector3? ridge = null;
+            if (metalSlab)
+            {
+                // the longest footprint edge: the hall's ridge direction (the sheets run from it to the eaves)
+                float best = 0;
+                for (int i = 0; i < points.Count; i++) { var e = points[(i + 1) % points.Count] - points[i]; e.y = 0; if (e.magnitude > best) { best = e.magnitude; ridge = e.normalized; } }
+            }
+            Surface(g, points, triangles, top, flatTiles ? Slot.Roof : Slot.Balcony, Vector3.up, ridge);
+            metalSlab = false;
             look.balcony = keep; look.dirt = keepDirt;
             var inner = Inset(points, area, .16f);
             Vector3 low = Vector3.up * top, high = Vector3.up * (top + .4f);
@@ -1324,14 +1339,16 @@ namespace Magistrala.EditorTools
             }
         }
 
-        static void Surface(HouseGeo g, List<Vector3> points, List<int> triangles, float y, Slot slot, Vector3 want)
+        /// along: horizontal direction of UV u (null: world x / z); a hall roof's corrugations (texture v) then run across it
+        static void Surface(HouseGeo g, List<Vector3> points, List<int> triangles, float y, Slot slot, Vector3 want, Vector3? along = null)
         {
             Vector3 offset = Vector3.up * y;
+            Vector3 eu = along ?? Vector3.right, ev = along.HasValue ? new Vector3(-eu.z, 0, eu.x) : Vector3.forward;
+            Vector2 UV(Vector3 p) => new Vector2(Vector3.Dot(p, eu), Vector3.Dot(p, ev));
             for (int i = 0; i < triangles.Count; i += 3)
             {
                 Vector3 a = points[triangles[i]], b = points[triangles[i + 1]], c = points[triangles[i + 2]];
-                Tri(g, slot, a + offset, b + offset, c + offset,
-                    new Vector2(a.x, a.z), new Vector2(b.x, b.z), new Vector2(c.x, c.z), want);
+                Tri(g, slot, a + offset, b + offset, c + offset, UV(a), UV(b), UV(c), want);
             }
         }
 

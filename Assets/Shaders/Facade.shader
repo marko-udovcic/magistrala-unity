@@ -1,6 +1,8 @@
 // Buildings (HouseBuilder / BuildingsFromTiles): one material for walls, roofs, trims, shutters and the small clutter of a chunk.
 // Texture array layers (BuildingTextures): 0 plaster, 1 stone ashlar, 2 roof tiles (kupa kanalica), 3 brick, 4 concrete,
 // 5 shutter louvres, 6 plain (painted metal / plastic), 7 rubble (dry-stone yard walls). UV0 = world metres on the face.
+// Sources: Marko's approved Poly Haven CC0 set (25. 11. 2026): white_sandstone_blocks_02, clay_roof_tiles_02, large_red_bricks,
+// concrete_wall_007, painted_metal_shutter, stone_wall; _Plaster layers 10 / 11 worn_plaster_wall and corrugated_iron_02 (hall roofs).
 // UV2: x = baked occlusion 0..1 (window / door reveals, deeper = darker), y = drip mask under a window sill (1 at the sill),
 //      z = darkening of the untinted stone layers (0 none .. 1 black), w = their greying (0 as photographed .. 1 grey).
 //      Every mesh on this material must carry UV2 (zeros when unused): a missing stream reads garbage on Metal.
@@ -44,12 +46,14 @@ Shader "Magistrala/Facade"
         float _Wetness; // global (WeatherSystem)
 
         // metres per texture repeat, per layer; tintable layers take the vertex colour, the others keep their own colour
-        static const float TILE[8] = { 1.6, 2.4, 3.0, 2.0, 2.7, 0.55, 1.0, 2.2 };
+        // (stone 4.2: ~13 courses = 32 cm blocks; brick 2.8: 20 cm courses, nearer the hollow clay blocks of unfinished storeys;
+        // concrete 2.2 and louvres 2.2 = Poly Haven's real sizes, ~5 cm slats)
+        static const float TILE[8] = { 1.6, 4.2, 3.0, 2.8, 2.2, 2.2, 1.0, 2.2 };
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
         // the plaster variants: metres per repeat (Poly Haven's real sizes, the 1 m ones a little larger against visible repeats)
-        static const float PTILE[10] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2, 1.0 };
-        static const float PGLOSS[10] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08, 0.25 };
+        static const float PTILE[12] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2, 1.0, 2.4, 2.7 };
+        static const float PGLOSS[12] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08, 0.25, 0.07, 0.34 };
         // _Plaster layer 9 (variant 10) is not a plaster but the trimmed yard hedge (HouseBuilder Slot.Hedge): no peeling, grime,
         // rising damp or micro grain on it
         // roof layer: mean luminance 0.197 (linear) -> 0.40 (HouseBuilder.RoofTint)
@@ -125,6 +129,7 @@ Shader "Magistrala/Facade"
             bool pl = variant > .5 && (li == 0 || li == 4);
             int pi = (int)variant - 1;
             bool hedge = pl && pi == 9;
+            bool metal = pl && pi == 11; // corrugated hall roof: no micro grain, peeling or rising damp
             float2 uv = input.uv / (pl ? PTILE[max(pi, 0)] : TILE[li]);
             half3 tex, ns;
             UNITY_BRANCH if (pl)
@@ -162,9 +167,12 @@ Shader "Magistrala/Facade"
                 crack = saturate(1 - cl * 90) * allow * saturate((40 - camDist) / 15);
             }
             half rough = ns.b; // photoscanned roughness (BuildingTextures packs it into blue)
-            half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale; nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
+            // (the hall roof's corrugations are its form, not fine grain: a stronger normal; the orthophoto's light membranes /
+            // galvanised sheets a little darker, so the sheets' shading reads from the road)
+            half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale * (metal ? 1.8 : 1); nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
             half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, pl ? lerp(1, 0, peel) : TINTED[li]);
             albedo *= 1 - .45 * peelRim * (1 - peel) - .55 * crack;
+            if (metal) albedo *= .8;
             // roof tiles with a free colour (HouseBuilder, colour measured on the orthophoto): COLOR.a lerps the tiles to their
             // own luminance x ROOF_GREY (mean 0.40 linear) before the tint, so the tint alone sets the roof's colour
             // (a = 0: the tile texture's own terracotta x tint, as the package buildings use it)
@@ -181,7 +189,7 @@ Shader "Magistrala/Facade"
             }
             // near micro grain (the walls are not plastic up close): fades in from 25 m, full within 12 m
             half micro = saturate((25 - camDist) / 13);
-            UNITY_BRANCH if (micro > 0.01 && li != 2 && li != 5 && li != 6 && !hedge)
+            UNITY_BRANCH if (micro > 0.01 && li != 2 && li != 5 && li != 6 && !hedge && !metal)
             {
                 half3 mg = SAMPLE_TEXTURE2D(_Micro, sampler_Micro, input.uv / .45).rgb;
                 albedo *= 1 + (mg.r - .5) * .5 * micro;

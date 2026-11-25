@@ -90,10 +90,18 @@ namespace Magistrala.EditorTools
                 GraphicsPass.PaintMaterial(),
                 Lit("Steel", new Color(.62f, .65f, .67f), .55f, .65f),
                 Lit("Kerb", new Color(.92f, .91f, .88f), .12f, 0, grey, "concrete_n.jpg", .6f),
-                Lit("Concrete", new Color(1f, 1f, .97f), .14f, 0, grey, "concrete_n.jpg", .6f),
+                PodzidConcrete(),
                 Lit("Paving", new Color(.82f, .81f, .79f), .15f, 0, grey, "concrete_n.jpg", .8f),
                 DeckMat(),
             };
+        }
+
+        /// the road models' light concrete (podzidi / retaining walls, parapets, islands): Marko's approved concrete_wall_007 (Poly Haven
+        /// CC0, Tools/zbuke/materijali.py: grey at concrete_grey_d's mean, 1k). The models' UVs run ~0.3 per metre: x1.45 = its real 2.2 m
+        static Material PodzidConcrete()
+        {
+            var m = Lit("Concrete", new Color(1f, 1f, .97f), .14f, 0, "PolyHaven/concrete_wall_007_d.jpg", "PolyHaven/concrete_wall_007_n.jpg", .9f);
+            m.SetTextureScale("_BaseMap", new Vector2(1.45f, 1.45f)); EditorUtility.SetDirty(m); return m;
         }
 
         static string GreyConcrete() { Tinted("concrete_d.jpg", "concrete_grey_d.jpg", new Color(1.55f, 1.55f, 1.53f), new Color(.2f, .2f, .2f), 0); return "concrete_grey_d.jpg"; }

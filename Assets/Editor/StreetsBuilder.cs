@@ -1485,7 +1485,10 @@ namespace Magistrala.EditorTools
             var grey = "concrete_grey_d.jpg"; // (concrete_d.jpg is brown: the grey copy WorldBuilder.DeckMat made)
             var verge = WorldBuilder.Lit("StreetVerge", new Color(.78f, .76f, .72f), .05f, 0, "PolyHaven/gravel_ground_01_diff.jpg", "PolyHaven/gravel_ground_01_nor.jpg", .7f); // (the terrain's pale gravel layer, as the near-road blend)
             var kerb = WorldBuilder.Lit("StreetKerb", new Color(1f, 1f, .97f), .12f, 0, grey, "concrete_n.jpg", .6f);
-            var walk = WorldBuilder.Lit("StreetWalk", new Color(.86f, .85f, .83f), .14f, 0, grey, "concrete_n.jpg", .8f);
+            // footway slabs: Marko's approved concrete_tiles_02 (Poly Haven CC0, 1.8 m; Tools/zbuke/materijali.py: grey at concrete_grey_d's
+            // mean, 1k); the top's UV is world xz x .25 (4 m per repeat): x2.22 = its real size
+            var walk = WorldBuilder.Lit("StreetWalk", new Color(.86f, .85f, .83f), .14f, 0, "PolyHaven/concrete_tiles_02_d.jpg", "PolyHaven/concrete_tiles_02_n.jpg", .9f);
+            walk.SetTextureScale("_BaseMap", new Vector2(2.22f, 2.22f)); EditorUtility.SetDirty(walk);
             var court = WorldBuilder.Lit("StreetCourt", new Color(.82f, .81f, .79f), .12f, 0, grey, "concrete_n.jpg", .6f);
             var bay = WorldBuilder.Lit("PaintBay", new Color(.86f, .8f, .55f), .3f, 0, null);
             if (paint.GetTexture("_BaseMap")) bay.SetTexture("_BaseMap", paint.GetTexture("_BaseMap"));

@@ -20,24 +20,39 @@ namespace Magistrala.EditorTools
         /// texture array the plaster / concrete layers switch to (Look.variant 1..9 = layer 0..8, 0 = layer 0 above), plus the near micro grain
         public const string PlasterFolder = "Assets/Textures/PolyHaven/zbuke/";
         public const string PlasterAlbedo = PlasterFolder + "zbuke_albedo.jpg", PlasterNormal = PlasterFolder + "zbuke_normal.jpg", Micro = PlasterFolder + "mikro.png";
-        public const int PlasterLayers = 10;
+        public const int PlasterLayers = 12;
         public const int PConcreteWall = 1, PWhiteRough = 2, PCracked = 3, PPreconcrete = 4, PBeige = 5, PPainted = 6, PYellow = 7, PRedWeathered = 8, PGrey = 9;
         /// not a plaster: the trimmed yard hedge (Tools/zbuke/zivica.py; HouseBuilder Slot.Hedge, its colour kept, no weathering)
         public const int PHedge = 10;
+        /// Marko's approved materials in the plaster array (zbuke.py layers 10 / 11): old peeling render (worn_plaster_wall) and the
+        /// corrugated metal of hall roofs (corrugated_iron_02, HouseBuilder FlatRoof of industrial buildings)
+        public const int PWorn = 11, PMetal = 12;
 
         // source (Poly Haven id) and the sRGB mean the layer is scaled to (null: grey, tinted per building)
         // grey layers keep `contrast` of their detail (plaster 0.8: the trowel marks and blotches read at street level)
         static readonly (string id, Color? mean, float grey, float contrast)[] Src =
         {
             ("white_plaster_02", null, .86f, .8f),
-            // dressed limestone ashlar in irregular courses (Kaštela riva fronts: owner photos 43 / 44 / 48), 3 m sample
-            ("sandstone_blocks_08", Hex("C6BEAB"), 0, 1),
+            // dressed limestone blocks in courses (Marko's approved pick 25. 11.: white_sandstone_blocks_02; before: sandstone_blocks_08)
+            ("white_sandstone_blocks_02", Hex("C6BEAB"), 0, 1),
             ("clay_roof_tiles_02", Hex("A9573F"), 0, 1),
             ("large_red_bricks", Hex("B5573D"), 0, 1),
-            ("concrete_wall_008", null, .8f, .7f),
+            // bare concrete with formwork lines (approved: concrete_wall_007; before concrete_wall_008)
+            ("concrete_wall_007", null, .8f, .7f),
         };
-        // layer 7 (after the procedural louvre / plain layers): dry-stone yard walls, Dalmatian limestone rubble
-        static readonly (string id, Color? mean, float grey, float contrast) RubbleSrc = ("old_stone_wall", Hex("C9BDA3"), 0, 1);
+        // layer 5: shutter louvres (approved: painted_metal_shutter, grey, tinted per house; before procedural)
+        static readonly (string id, Color? mean, float grey, float contrast) LouvreSrc = ("painted_metal_shutter", null, .84f, 1);
+        // layer 7 (after the louvre / plain layers): dry-stone yard walls, Dalmatian limestone rubble (approved: stone_wall; before old_stone_wall)
+        static readonly (string id, Color? mean, float grey, float contrast) RubbleSrc = ("stone_wall", Hex("C9BDA3"), 0, 1);
+        static (string id, Color? mean, float grey, float contrast) SrcOf(int l) => l == Rubble ? RubbleSrc : l == Louvre ? LouvreSrc : Src[l];
+        /// Marko's approved Poly Haven set (assets-src/polyhaven-materijali, 25. 11. 2026) into the committed strips: the 1k copies
+        /// that Tools/zbuke/materijali.py writes into dir1k (stone, roof, brick, concrete, louvre, rubble; plaster / plain stay)
+        public static string Approved(string dir1k)
+        {
+            var log = new System.Text.StringBuilder();
+            foreach (int l in new[] { Stone, Roof, Brick, Concrete, Louvre, Rubble }) log.Append(ReplaceLayer(l, dir1k)).Append("; ");
+            return log.ToString();
+        }
         static Color Hex(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
 
         /// one-off: build the two strips from srcDir/{id}_diff_1k.jpg and {id}_nor_gl_1k.jpg, plus the room atlas
@@ -47,9 +62,9 @@ namespace Magistrala.EditorTools
             for (int l = 0; l < Layers; l++)
             {
                 Color32[] a, n;
-                if (l < Src.Length || l == Rubble)
+                if (l < Src.Length || l == Rubble || l == Louvre)
                 {
-                    var src = l == Rubble ? RubbleSrc : Src[l];
+                    var src = SrcOf(l);
                     a = Load(Path.Combine(srcDir, src.id + "_diff_1k.jpg"));
                     n = Load(Path.Combine(srcDir, src.id + "_nor_gl_1k.jpg"));
                     Normalise(a, src.mean, src.grey, src.contrast);
@@ -57,7 +72,7 @@ namespace Magistrala.EditorTools
                     var ro = Load(Path.Combine(srcDir, src.id + "_rough_1k.jpg"));
                     for (int i = 0; i < n.Length; i++) n[i].b = ro[i].r;
                 }
-                else (a, n) = l == Louvre ? LouvreLayer() : PlainLayer();
+                else (a, n) = PlainLayer();
                 // flipbook order: the first layer is the TOP row of the strip; Texture2D rows run bottom-up
                 int row = Layers - 1 - l;
                 Array.Copy(a, 0, alb, row * Size * Size, Size * Size);
@@ -79,7 +94,7 @@ namespace Magistrala.EditorTools
         /// layers' sources need not be present)
         public static string ReplaceLayer(int layer, string srcDir)
         {
-            var src = layer == Rubble ? RubbleSrc : Src[layer];
+            var src = SrcOf(layer);
             var a = Load(Path.Combine(srcDir, src.id + "_diff_1k.jpg")); var n = Load(Path.Combine(srcDir, src.id + "_nor_gl_1k.jpg"));
             Normalise(a, src.mean, src.grey, src.contrast);
             var ro = Load(Path.Combine(srcDir, src.id + "_rough_1k.jpg"));
@@ -148,7 +163,7 @@ namespace Magistrala.EditorTools
         }
         static byte B(double v) => (byte)Mathf.Clamp(Mathf.RoundToInt((float)v * 255), 0, 255);
 
-        // shutter louvres: 0.55 m repeat, 9 slats with dark gaps and a lit upper edge (both leaves, any colour)
+        // (unused since painted_metal_shutter, kept for reference) shutter louvres: 0.55 m repeat, 9 slats with dark gaps and a lit upper edge (both leaves, any colour)
         static (Color32[], Color32[]) LouvreLayer()
         {
             var a = new Color32[Size * Size]; var n = new Color32[Size * Size];
@@ -261,7 +276,8 @@ namespace Magistrala.EditorTools
             var st = new TextureImporterSettings(); im.ReadTextureSettings(st);
             st.textureShape = TextureImporterShape.Texture2DArray; st.flipbookRows = layers; st.flipbookColumns = 1;
             st.sRGBTexture = srgb; st.mipmapEnabled = true; st.wrapMode = TextureWrapMode.Repeat; st.filterMode = FilterMode.Trilinear; st.aniso = 4;
-            im.SetTextureSettings(st); im.maxTextureSize = 8192; im.textureCompression = TextureImporterCompression.Compressed;
+            // high-quality compression (BC7 on desktop): the normal xy + roughness strips blocked visibly in BC1; ~+27 MB GPU in all
+            im.SetTextureSettings(st); im.maxTextureSize = 16384; im.textureCompression = TextureImporterCompression.CompressedHQ;
             im.SaveAndReimport();
         }
 

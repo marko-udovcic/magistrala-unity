@@ -417,7 +417,33 @@ namespace Magistrala.EditorTools
                 if (c.HasProperty(prop)) c.SetColor(prop, new Color(1.05f, 1.04f, 1.02f, 1) * new Color(.95f, .95f, .97f));
             // a grey-white cover on top instead of grass / sand where the top-cover shaders have one
             foreach (var prop in new[] { "_Cover_Base_Color", "_CoverBaseColor", "_Cover_Color" }) if (c.HasProperty(prop)) c.SetColor(prop, new Color(.75f, .72f, .62f, 1));
+            // close-up karst detail: Marko's approved rock_boulder_dry (Poly Haven CC0, 1.8 m; Tools/zbuke/materijali.py) as URP Lit's detail
+            // albedo (x2, grey .5 = unchanged) + detail normal over the package's own texture (its UVs: ~12 m per repeat on 01, ~20 m on 02)
+            if (c.HasProperty("_DetailAlbedoMap"))
+            {
+                var da = Detail("Assets/Textures/PolyHaven/rock_boulder_dry_detail.jpg", false); var dn = Detail("Assets/Textures/PolyHaven/rock_boulder_dry_n.jpg", true);
+                if (da && dn)
+                {
+                    float rep = m.name.Contains("_02") ? 11f : 6.5f;
+                    c.SetTexture("_DetailAlbedoMap", da); c.SetTexture("_DetailNormalMap", dn); c.SetFloat("_DetailAlbedoMapScale", 1); c.SetFloat("_DetailNormalMapScale", .8f);
+                    c.SetTextureScale("_DetailAlbedoMap", new Vector2(rep, rep)); c.EnableKeyword("_DETAIL_MULX2");
+                }
+            }
             c.enableInstancing = true; EditorUtility.SetDirty(c); return c;
+        }
+
+        static Texture2D Detail(string path, bool normal)
+        {
+            if (AssetImporter.GetAtPath(path) is TextureImporter imp)
+            {
+                bool want = normal ? imp.textureType == TextureImporterType.NormalMap : !imp.sRGBTexture;
+                if (!want || imp.anisoLevel != 4 || imp.maxTextureSize != 1024)
+                {
+                    if (normal) imp.textureType = TextureImporterType.NormalMap; else imp.sRGBTexture = false; // URP detail albedo is linear
+                    imp.anisoLevel = 4; imp.maxTextureSize = 1024; imp.mipmapEnabled = true; imp.SaveAndReimport();
+                }
+            }
+            return Load<Texture2D>(path);
         }
 
         static string Cliffs(Transform parent)
