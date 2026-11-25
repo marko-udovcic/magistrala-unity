@@ -342,9 +342,11 @@ namespace Magistrala.EditorTools
         /// (-e.z, 0, e.x) of the run's direction e), `w` wide, `h` high, a chamfered top; near level: a station every ~1.3 m with
         /// a few cm of noise in width and height (an uneven trim), mid / hull: one piece per straight segment. Submesh 0 (the
         /// facade material's hedge layer), so no draw call of its own; the hull's copy casts the shadow and collides.
-        public static void YardHedge(HouseGeo g, List<Vector3> pts, float side, float off, float w, float h, Color tint)
+        public static void YardHedge(HouseGeo g, List<Vector3> pts, float side, float off, float w, float h, Color tint, float y0 = -.2f, HedgeShell.Sp sp = HedgeShell.Sp.Pittosporum, float overhang = 0, int seed = 0)
         {
             if (pts.Count < 2) return;
+            // the box takes the leaf module's size (HedgeShell.Fit: the nearest module class, scaled), so the leaves sit on its skin
+            if (HedgeShell.On) { bool onWall = y0 > 0; var f = HedgeShell.Fit(sp, onWall ? h - y0 : h, onWall); w = f.w; h = (onWall ? y0 : 0) + f.h; }
             float g0 = float.MaxValue; foreach (var p in pts) g0 = Mathf.Min(g0, p.y);
             float sg = gY, st = tY; gY = g0; tY = g0 + 100; hedgeTint = tint;
             // stations: ground point on the line, its inward vector (mitred at bends), jitter allowed
@@ -363,15 +365,23 @@ namespace Magistrala.EditorTools
             if (S.Count == 0) { gY = sg; tY = st; return; }
             S.Add((pts[pts.Count - 1], prev, false));
             float Hash(Vector3 v, float k) { float x = Mathf.Sin(v.x * 12.9898f + v.z * 78.233f + k) * 43758.5453f; return x - Mathf.Floor(x); }
-            Vector3[] Profile(int k)
+            (float hw, float hh) Size(int k)
             {
                 var (p, s, j) = S[k];
                 float hw = w / 2, hh = h;
                 if (j && Lod == 0) { hw += (Hash(p, 1) - .5f) * .1f; hh += (Hash(p, 2) - .5f) * .14f; }
+                return (hw, hh);
+            }
+            Vector3[] Profile(int k)
+            {
+                var (p, s, j) = S[k]; var (hw, hh) = Size(k);
                 float c = Mathf.Min(.15f, hw * .4f), mid = off + w / 2;
                 Vector3 P(float x, float y) => p + s * (mid + x) + Vector3.up * y;
-                return new[] { P(-hw, -.2f), P(-hw, hh - c), P(-hw + c, hh), P(hw - c, hh), P(hw, hh - c), P(hw, -.2f) };
+                return new[] { P(-hw, y0), P(-hw, hh - c), P(-hw + c, hh), P(hw - c, hh), P(hw, hh - c), P(hw, y0) };
             }
+            // the leaf shell over the box (near level only: instanced leaf modules, HedgeShell)
+            if (Lod == 0 && HedgeShell.On)
+                HedgeShell.AddRun(pts, side, off + w / 2, y0 > 0 ? y0 : 0, sp, y0 > 0 ? h - y0 : h, y0 > 0, seed != 0 ? seed : (int)(Mathf.Abs(pts[0].x * 31 + pts[0].z * 17) % 100000));
             var A = Profile(0);
             for (int k = 1; k < S.Count; k++)
             {
@@ -389,6 +399,44 @@ namespace Magistrala.EditorTools
                 Face(g, Slot.Hedge, Q[1], Q[4], Q[3], Q[2], e);
             }
             gY = sg; tY = st;
+        }
+
+        /// A clipped column of green (a cypress by a gate, Frontage): an octagonal core (the hedge layer) narrowing to a point,
+        /// radius r0 at the foot, height h above p (ground); near level: the leaf shell too (HedgeShell.AddPillar)
+        public static void HedgePillar(HouseGeo g, Vector3 p, float r0, float h, Color tint, HedgeShell.Sp sp, int seed)
+        {
+            float sg = gY, st = tY; gY = p.y; tY = p.y + 100; hedgeTint = tint;
+            int rings = Lod == 0 ? 7 : 4, n = Lod == 0 ? 8 : 6;
+            Vector3[] Ring(float y) { float r = HedgeShell.PillarR(r0, h, y) * .9f; var R = new Vector3[n]; for (int i = 0; i < n; i++) { float a = i * Mathf.PI * 2 / n; R[i] = p + new Vector3(Mathf.Cos(a) * r, y, Mathf.Sin(a) * r); } return R; }
+            var A = Ring(-.2f);
+            for (int k = 1; k <= rings; k++)
+            {
+                float y = k == rings ? h * .985f : h * k / rings; var B = Ring(y);
+                for (int i = 0; i < n; i++)
+                {
+                    int j = (i + 1) % n; var m = (A[i] + A[j]) / 2 - p; m.y = 0;
+                    Face(g, Slot.Hedge, A[i], A[j], B[j], B[i], m.normalized + Vector3.up * .2f);
+                }
+                A = B;
+            }
+            var top = p + Vector3.up * h;
+            for (int i = 0; i < n; i++) { int j = (i + 1) % n; Tri(g, Slot.Hedge, A[i], A[j], top, Vector2.zero, new Vector2(.3f, 0), new Vector2(.15f, .3f), Vector3.up); }
+            if (Lod == 0) HedgeShell.AddPillar(p, r0, h, seed);
+            gY = sg; tY = st;
+        }
+
+        /// A closed iron gate between two piers (Frontage): the railing atlas' bars from y 0.05 to h over the ground at a / b, a
+        /// top and bottom rail; in the hull a plain panel (the truck stops at it)
+        public static void YardGate(HouseGeo g, Vector3 a, Vector3 b, float h)
+        {
+            Vector3 e = b - a; e.y = 0; float L = e.magnitude; if (L < .2f) return; e /= L;
+            Vector3 sd = new Vector3(-e.z, 0, e.x), lo = Vector3.up * .05f, hi = Vector3.up * h;
+            Quad(g, Slot.Rail, a + lo, b + lo, b + hi, a + hi, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, BarV), new Vector2(0, BarV), sd);
+            Quad(g, Slot.Rail, a + lo, b + lo, b + hi, a + hi, new Vector2(0, 0), new Vector2(L / 3, 0), new Vector2(L / 3, BarV), new Vector2(0, BarV), -sd);
+            if (Lod > 0) return;
+            Box(g, Slot.Rail, a + hi - sd * .025f, e, sd, L, .05f, .05f);
+            Box(g, Slot.Rail, a + lo + Vector3.up * .1f - sd * .025f, e, sd, L, .05f, .05f);
+            Box(g, Slot.Rail, a + e * (L / 2 - .02f) + lo - sd * .025f, e, sd, .04f, h - .05f, .05f);
         }
 
         /// the wall strip between the storey below and this row of windows, cut per column so the piece under each sill

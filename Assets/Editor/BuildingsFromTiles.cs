@@ -219,9 +219,9 @@ namespace Magistrala.EditorTools
                     foreach (var (P, b, rec, mly, id) in feed)
                     {
                         double cx = 0, cz = 0; foreach (var p in P) { cx += p.x; cz += p.z; } cx /= P.Count; cz /= P.Count;
-                        if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; continue; }
+                        if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
-                        if (onFoot) { skipped++; continue; }
+                        if (onFoot) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
                         string kind = (string)MiniJson.G(b, "kind") ?? "house";
                         // storeys: the owner's corrections > OSM > the orthophoto shadow estimate > the tile's h (BuildingFloors)
                         double h = BuildingFloors.Height(id, b, MiniJson.D(MiniJson.G(b, "h") ?? 7.0), out var hSrc, out var storeys);
@@ -275,6 +275,12 @@ namespace Magistrala.EditorTools
                     }
                 }
 
+            // 1b. the frontage of the old road / link roads (walls and hedges at the property line, Frontage), before the yards
+            {
+                var fh = new List<Frontage.House>();
+                foreach (var b in B) fh.Add(new Frontage.House { P = b.P, cx = b.cx, cz = b.cz, baseY = b.baseY, house = b.kind == "house" || b.kind == "apartment" });
+                HedgeShell.Begin(); Frontage.Prepare(models, fh);
+            }
             // 2. party walls: an index of every edge (game coords, 8 m cells)
             var edges = new Dictionary<long, List<(int b, Vector2d a, Vector2d c)>>();
             for (int bi = 0; bi < B.Count; bi++)
@@ -385,7 +391,9 @@ namespace Magistrala.EditorTools
                     HouseBuilder.Lod = 3; HouseBuilder.AddHouse(kg[1], fp, bl.kind, bl.bottom, bl.baseY, bl.top, bl.seed, opts);
                     nDetailed++;
                     // the old cores' houses stand at the street (no front yard: the paving goes up to the facade)
+                    if (Frontage.OldRoad(bl.cx, bl.cz)) Yards.Count(bl.annex ? "house: annex (its main block has the yard)" : bl.core ? "house: old core (no yard)" : !bl.yard ? "house: not a house or 13 m+" : "house: yard ring");
                     if (bl.yard && !bl.annex && !bl.core && Yards.Build(cg[0], cg[1], kg[2], bl.orig, bl.baseY, bl.seed)) nYards++;
+                    Frontage.Emit(bi, cg[0], cg[1], kg[2]);
                     nPaved += Pave(cg, bl.P, models, bi);
                 }
                 catch (ArgumentException)
@@ -397,6 +405,7 @@ namespace Magistrala.EditorTools
                     Extrude(kg[0], bl.P, bl.kind, bl.bottom, bl.baseY, bl.top - .25, bl.cx, bl.cz, true);
                     Extrude(kg[1], bl.P, bl.kind, bl.bottom, bl.baseY, bl.top - .25, bl.cx, bl.cz, false);
                     Extrude(kg[2], bl.P, bl.kind, bl.bottom, bl.baseY, bl.top, bl.cx, bl.cz, false);
+                    Frontage.Emit(bi, cg[0], cg[1], kg[2]);
                 }
                 finally { HouseBuilder.Lod = 0; HouseBuilder.Shrink = 0; }
             }
@@ -464,6 +473,8 @@ namespace Magistrala.EditorTools
             Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, shape filter {nShapeSkipped} skipped / {nShapeCapped} capped, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
             Debug.Log($"[Magistrala] orthophoto roofs ({OrthoRoofs.PATH}): {nOrtho} footprints with a record, pitched {HouseBuilder.nOrthoPitched} + tiled slab {HouseBuilder.nOrthoTiledFlat}, flat {HouseBuilder.nOrthoFlat}, solar on {HouseBuilder.nSolar} roofs ({HouseBuilder.nSolarPanels} modules), Mapillary facades {MapillaryFacades.nApplied} ({MapillaryFacades.PATH}), OSM shifted {nShifted} ({nShiftRoad} kept: carriageway), added {nAdded}");
             Yards.WriteSpots();
+            Debug.Log($"[zivice] {HedgeShell.Count} leaf modules placed; " + HedgeShell.Save());
+            Frontage.Diagnose(Frontage.On ? "after (frontage on)" : "before (frontage off)");
             BuildingFloors.End();
         }
 

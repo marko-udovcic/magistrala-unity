@@ -211,6 +211,7 @@ namespace Magistrala.EditorTools
             foreach (var p in PineSrc) { var pr = Pine(p); if (pr != null) extra.Add(pr); }
             { var sp = Pine(PineSrc[0], true); if (sp != null) extra.Add(sp); }   // pinija (stone pine): umbrella crown, Index("pinija")
             MedianHedge.Protos(extra);
+            HedgeShell.Protos(extra);   // garden hedges' leaf modules (placed by Build tile buildings: HedgeShell.Commit)
             // crnika (holm oak / closed dark maquis crown): our olive's mesh, leaves a dark evergreen; materials made in Finish from
             // the scene's (leaf-clipped) olive materials (VegetationMask)
             var olive = Load<Mesh>(WorldBuilder.GEN + "/Plants/olive.mesh.asset");

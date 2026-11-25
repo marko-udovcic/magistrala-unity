@@ -32,7 +32,7 @@ namespace Magistrala.EditorTools
         /// all footprints (all tiles), carriageways and bays; call once before the houses
         public static void Begin(List<ModelJ> m, List<double[]> packageRects)
         {
-            models = m; rects = packageRects; gates.Clear(); green.Clear(); mly = null; gch = null;
+            models = m; rects = packageRects; gates.Clear(); green.Clear(); mly = null; gch = null; Drops.Clear();
             nRuns = new int[7]; metres = new double[7]; nEvidOrtho = nEvidMly = nEvidGc = nNoGreen = 0;
             roads = StreetsBuilder.Carriageways(); roadGrid = new Dictionary<(int, int), List<int>>();
             for (int i = 0; i < roads.Count; i++)
@@ -152,14 +152,16 @@ namespace Magistrala.EditorTools
                 for (int k = 0; k < n; k++)
                 {
                     double t = (double)k / n, x = pa.x + (pb.x - pa.x) * t, z = pa.z + (pb.z - pa.z) * t;
-                    bool ok = true, street = false;
+                    bool ok = true, street = false; string why = null;
                     double r = RoadClear(x, z);
                     if (r < ROAD_CLEAR)
                     {
                         double shift = ROAD_CLEAR - r + .1;
-                        if (shift > d - 1.2) ok = false;
-                        else { x -= mx * shift; z -= mz * shift; street = true; if (RoadClear(x, z) < ROAD_CLEAR - .1) ok = false; }
+                        if (shift > d - 1.2) { ok = false; why = "carriageway (no room to pull back)"; }
+                        else { x -= mx * shift; z -= mz * shift; street = true; if (RoadClear(x, z) < ROAD_CLEAR - .1) { ok = false; why = "carriageway (no room to pull back)"; } }
                     }
+                    // the frontage (Frontage: walls at the road's property line) takes the street side
+                    if (ok && Frontage.Claims(x, z, mx, mz)) { ok = false; why = "frontage"; }
                     if (ok)
                     {
                         double mine = PolyDist(own, x, z);
@@ -167,18 +169,20 @@ namespace Magistrala.EditorTools
                             foreach (int id in l)
                             {
                                 var F = foot[id]; if (F.Count == own.Count && Math.Abs(F[0].x - own[0].x) < 1e-6 && Math.Abs(F[0].z - own[0].z) < 1e-6) continue;
-                                double o = PolyDist(F, x, z); if (o < 1.2 || o < mine) { ok = false; break; }
+                                double o = PolyDist(F, x, z); if (o < 1.2 || o < mine) { ok = false; why = "another building"; break; }
                             }
                     }
-                    if (ok && (WorldData.FootDist(models, x, z) < 2.5 || OnBay(x, z))) ok = false;
-                    if (ok) foreach (var rc in rects) { double dx = x - rc[0], dz = z - rc[1]; if (dx * dx + dz * dz > 2500) continue; double ca = Math.Cos(rc[2]), sa = Math.Sin(rc[2]); double uu = dx * ca + dz * sa, vv = -dx * sa + dz * ca, m = Math.Max(rc[3], rc[4]) / 2 + 2; if (Math.Abs(uu) < m && Math.Abs(vv) < m) { ok = false; break; } }
+                    if (ok && WorldData.FootDist(models, x, z) < 2.5) { ok = false; why = "model ground (road tile / junction model)"; }
+                    if (ok && OnBay(x, z)) { ok = false; why = "stop bay"; }
+                    if (ok) foreach (var rc in rects) { double dx = x - rc[0], dz = z - rc[1]; if (dx * dx + dz * dz > 2500) continue; double ca = Math.Cos(rc[2]), sa = Math.Sin(rc[2]); double uu = dx * ca + dz * sa, vv = -dx * sa + dz * ca, m = Math.Max(rc[3], rc[4]) / 2 + 2; if (Math.Abs(uu) < m && Math.Abs(vv) < m) { ok = false; why = "package building"; break; } }
+                    if (Frontage.OldRoad(x, z)) Drop(ok ? "kept" : why);
                     S.Add((x, z, mx, mz, ok, street));
                 }
             }
             int N = S.Count; if (N < 8) return false;
             var okA = new bool[N]; for (int i = 0; i < N; i++) okA[i] = S[i].ok;
             var ground = new float[N];
-            for (int i = 0; i < N; i++) if (okA[i]) { ground[i] = (float)BuildingsFromTiles.Ground(models, S[i].x, S[i].z); if (Math.Abs(ground[i] - baseY) > 3) okA[i] = false; }
+            for (int i = 0; i < N; i++) if (okA[i]) { ground[i] = (float)BuildingsFromTiles.Ground(models, S[i].x, S[i].z); if (Math.Abs(ground[i] - baseY) > 3) { okA[i] = false; if (Frontage.OldRoad(S[i].x, S[i].z)) { Drop("slope"); Drop("kept", -1); } } }
             // the gate: the middle of the longest street run (>= 6 samples), 3 samples taken out
             var post = new bool[N]; int bs = -1, bl = 0;
             for (int i = 0; i < N; i++)
@@ -227,6 +231,9 @@ namespace Magistrala.EditorTools
             bool galv = rt.NextDouble() < .4; float baseH = .3f + .3f * (float)rt.NextDouble(), lowH = .6f + .3f * (float)rt.NextDouble();
             float hedgeH = 1.2f + 1f * (float)rt.NextDouble(), hedgeW = .6f + .35f * (float)rt.NextDouble();
             var tint = Color.HSVToRGB(.22f + .06f * (float)rt.NextDouble(), .12f * (float)rt.NextDouble(), .85f + .25f * (float)rt.NextDouble());
+            // the leaf shell's species (HedgeShell; drawn after the old draws, so the boundary types above stay as they were)
+            double rsp = new System.Random(seed * 41 + 9).NextDouble();
+            var sp = rsp < .4 ? HedgeShell.Sp.Pittosporum : rsp < .6 ? HedgeShell.Sp.Laurel : rsp < .75 ? HedgeShell.Sp.Privet : rsp < .85 ? HedgeShell.Sp.Oleander : rsp < .9 ? HedgeShell.Sp.OleanderWhite : HedgeShell.Sp.Cypress;
             double evid = rt.NextDouble();
             int emitted = 0;
             foreach (var run in parts)
@@ -281,13 +288,13 @@ namespace Magistrala.EditorTools
                     switch (type)
                     {
                         case THedge:
-                            HouseBuilder.YardHedge(g, pts, side, -.1f, hedgeW, hedgeH, tint);
+                            HouseBuilder.YardHedge(g, pts, side, -.1f, hedgeW, hedgeH, tint, -.2f, sp, 0, seed * 5 + emitted);
                             break;
                         case TFence:
                         case TFenceHedge:
                             HouseBuilder.YardWall(g, pts, baseH, 3, piers && pa, piers && pb, baseH + 1.2f);
                             HouseBuilder.YardFence(g, pts, baseH, baseH + (type == TFence ? 1.2f : 1.1f), galv);
-                            if (type == TFenceHedge) HouseBuilder.YardHedge(g, pts, side, .25f, hedgeW, Mathf.Max(hedgeH, baseH + 1.3f), tint);
+                            if (type == TFenceHedge) HouseBuilder.YardHedge(g, pts, side, .25f, hedgeW, Mathf.Max(hedgeH, baseH + 1.3f), tint, -.2f, sp, 0, seed * 5 + emitted);
                             break;
                         case TLowFence:
                             HouseBuilder.YardWall(g, pts, lowH, 1, piers && pa, piers && pb, lowH + 1f);
@@ -301,6 +308,7 @@ namespace Magistrala.EditorTools
                 HouseBuilder.Lod = 0; emitted++;
                 float len = 0; for (int k = 0; k + 1 < pts.Count; k++) len += Vector3.Distance(pts[k], pts[k + 1]);
                 int ti = type == TWall ? kind : type; nRuns[ti]++; metres[ti] += len;
+                Frontage.Record(pts, type != THedge, type == THedge || type == TFenceHedge);
             }
             return emitted > 0;
         }
@@ -431,6 +439,12 @@ namespace Magistrala.EditorTools
                     { if (!gch.TryGetValue((gx, gz), out var l)) gch[(gx, gz)] = l = new List<double[]>(); l.Add(h); }
             }
         }
+        public static readonly Dictionary<string, int> Drops = new Dictionary<string, int>();
+        static void Drop(string why, int n = 1) { Drops.TryGetValue(why, out var c); Drops[why] = c + n; }
+        public static void Count(string why) => Drop(why);
+        public static bool NearMlyHedgeP(double x, double z, double r) => NearMlyHedge(x, z, r);
+        public static bool NearGcHedgeP(double x, double z, double r) => NearGcHedge(x, z, r);
+        public static bool GreenP(double x, double z, double nx, double nz) => Green(x, z, nx, nz);
         static bool NearMlyHedge(double x, double z, double r)
         {
             if (mly == null) LoadEvidence();
