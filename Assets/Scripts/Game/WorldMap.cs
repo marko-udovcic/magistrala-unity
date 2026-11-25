@@ -1,6 +1,9 @@
 // The full-screen map (M): Kaštela from above in the HUD's style – blue sea, warm land, darker hills and greenery, light building
 // footprints, white roads (the D8 wider and warm), place and street names – with the truck, the warehouse, every delivery stop,
-// the pumps, the running job's stops, the GPS route and the owner's waypoint. The game pauses while it is open (like the phone).
+// the pumps, the running job's stops, the GPS route, the owner's waypoint and the police the phone's group reported in the last
+// 1½ h (Phone/Blicaj.cs KnownPolice: red-orange beacon markers, the post on hover). The game pauses while it is open (like the
+// phone): timeScale 0 stops the truck's physics, so no driving input acts. M opens it, M (or Esc) closes it – nothing in between;
+// the phone's Karta app opens it too.
 //   keys    M / Esc close · WASD / arrows move the view (accelerating; the cursor goes back to the centre) · mouse: the cursor
 //           follows it, drag pans · wheel / + − zoom (anchored at the cursor) · Enter / left click: a waypoint at the cursor
 //           (snapped to the nearest road; Enter / click on the waypoint removes it). The GPS and the minimap then lead there
@@ -54,6 +57,9 @@ namespace Magistrala.Game
         int hover = -1; string tip = ""; Vector2 tipAt;
         string info = ""; long infoKey = long.MinValue;
         readonly CachedText tWp = new CachedText();
+        // the police the group reported (refreshed with the picture)
+        readonly List<(Vector2 p, string tip)> police = new List<(Vector2, string)>();
+        static readonly Color PoliceC = new Color32(0xC8, 0x3E, 0x2A, 0xff);
 
         static Color Hex(int v, float a = 1) => new Color(((v >> 16) & 255) / 255f, ((v >> 8) & 255) / 255f, (v & 255) / 255f, a);
         /// GL colours into the target: measured in the player, IMGUI shows this render texture gamma-encoded twice (a stop dot
@@ -375,9 +381,11 @@ namespace Magistrala.Game
             float d = (ToScreen(tc) - cur).magnitude; if (d < best) { best = d; h = 1000; }
             if (g.Waypoint is Vector3 wp) { d = (ToScreen(wp) - cur).magnitude; if (d < best) { best = d; h = 1001; } }
             for (int i = 0; i < stopPos.Length; i++) { d = (ToScreen(stopPos[i]) - cur).magnitude; if (d < best) { best = d; h = i; } }
+            for (int i = 0; i < police.Count; i++) { d = (ToScreen(police[i].p) - cur).magnitude; if (d < best + 4 * K) { best = d; h = 3000 + i; } }
             hover = h;
             if (h == 1000) { tip = "Kamion"; tipAt = ToScreen(tc); }
             else if (h == 1001) { tip = tWp.Get(Mathf.RoundToInt(g.RouteMetres / 10), k => "Oznaka · " + HudStyle.Km(k * 10)); tipAt = ToScreen(g.Waypoint.Value); }
+            else if (h >= 3000) { tip = police[h - 3000].tip; tipAt = ToScreen(police[h - 3000].p); }
             else if (h >= 0) { tip = stopTip[h]; tipAt = ToScreen(stopPos[h]); }
             else tip = "";
             // info line: nearest road segment within 14 px, and the place
@@ -431,7 +439,23 @@ namespace Magistrala.Game
             redrawT -= Time.unscaledDeltaTime; if (redrawT <= 0) dirty = true;
             if (!dirty) return;
             dirty = false; redrawT = 1; drawnCentre = centre; drawnZoom = zoom; drawnWp = g.Waypoint; drawnJob = job; drawnLeg = leg;
+            Police();
             Draw(W, H);
+        }
+
+        /// the police posts the phone's group reported lately ("Policija · Bepo, 12 min: radar na D8 iznad Starog")
+        void Police()
+        {
+            police.Clear();
+            if (!g.Phone) return;
+            float now = g.ClockMin;
+            foreach (var l in g.Phone.KnownPolice())
+            {
+                var s = Magistrala.Game.Phone.BlicajFeed.Spot(l.spot); if (s == null) continue;
+                int ago = Mathf.Max(0, Mathf.FloorToInt(now - l.at));
+                string t = l.text.Length > 60 ? l.text.Substring(0, 59) + "…" : l.text;
+                police.Add((new Vector2(s.pos.x, s.pos.z), $"Policija · {l.who}, {(ago < 1 ? "upravo" : ago < 60 ? ago + " min" : ago / 60 + " h")}: {t}"));
+            }
         }
 
         void Draw(int W, int H)
@@ -520,6 +544,11 @@ namespace Magistrala.Game
                     var p = ToScreen(st.bay);
                     Disc(p, 12 * K, Lc(Color.white), 22); Disc(p, 10 * K, Lc(LegC), 22);
                 }
+            foreach (var (pp, _) in police)
+            {
+                var p = ToScreen(pp); if (!view.Contains(p)) continue;
+                Disc(p, 14 * K, Lc(Color.white), 24); Disc(p, 12 * K, Lc(PoliceC), 24);
+            }
             if (g.Waypoint is Vector3 wpt)
             {
                 var p = ToScreen(wpt);
@@ -621,6 +650,12 @@ namespace Magistrala.Game
                 var p = ToScreen(stopPos[i]); if (p.x < -30 || p.x > W + 30 || p.y < -30 || p.y > H + 30) continue;
                 float gs = (stopKind[i] == 2 ? 16 : 13) * K;
                 HudStyle.Glyph(new Rect(p.x - gs * .5f, p.y - gs * .5f, gs, gs), stopKind[i] == 2 ? HudStyle.Truck : HudStyle.Pump, stopKind[i] == 2 ? HudStyle.Ink : Color.white);
+            }
+            foreach (var (pp, _) in police)
+            {
+                var p = ToScreen(pp); if (p.x < -30 || p.x > W + 30 || p.y < -30 || p.y > H + 30) continue;
+                float gs = 15 * K;
+                HudStyle.Glyph(new Rect(p.x - gs * .5f, p.y - gs * .5f - K, gs, gs), Magistrala.Game.Phone.PhoneArt.Beacon, Color.white);
             }
             var job = g.Current;
             if (job != null)
@@ -770,6 +805,7 @@ namespace Magistrala.Game
             Item(PumpC, 8, "Pumpa", true, HudStyle.Pump, Color.white);
             Item(LegC, 8, "Tura");
             Item(WpC, 8, "Oznaka");
+            if (police.Count > 0) Item(PoliceC, 9, "Policija", true, Magistrala.Game.Phone.PhoneArt.Beacon, Color.white);
             Line(RouteC, RouteCase, 5, "GPS");
             Line(D8C, D8Case, 5, "D8");
             var hs = HudStyle.St(13, false, HudStyle.Muted, TextAnchor.MiddleRight);

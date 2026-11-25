@@ -1,8 +1,10 @@
 // Mate's phone (web: ui/hud/MatePhone.tsx, PhoneCall.tsx, game/calls.ts; design: magistrala-tehnicka-strana.md "Dok je mobitel
-// otvoren, igra je pauzirana i sat stoji"). GTA-like: Tab raises it in the bottom-right corner; while it is open the game is
-// paused (timeScale 0, the clock stops). Apps: Poruke (messages), Pozivi (recent calls + contacts, calling a contact), Poslovi
-// (the job offers: a provider from the game, 1/2/3 stay shortcuts at the warehouse), Kontakti; Karta and Banka are placeholders.
-// Blicaj: the local "Di stoje plavi" group (MatePhone.Blicaj.cs, Blicaj.cs).
+// otvoren, igra je pauzirana i sat stoji"). GTA-like: Tab raises it in the bottom-right corner (a phone in a holder right of the
+// wheel, owner 2026-11-25; the minimap moved to the bottom left); while it is open the game is paused (timeScale 0, the clock
+// stops). Apps: Poslovi (the job offers: a provider from the game, 1/2/3 stay shortcuts at the warehouse), Karta (closes the
+// phone and opens the full-screen M map), Banka (the trade account, cash, the loan Mate guarantees, the last payments: bank
+// provider), Policija Nas Zaustavlja (the local group page, was "Blicaj": MatePhone.Blicaj.cs, Blicaj.cs), Postavke (sound;
+// "O igri" – the licence credits – inside it); the dock: Pozivi, Poruke, Kontakti. Drawing: MatePhone.Draw.cs.
 // Incoming calls ring with the caller's name without pausing (Y answer · N decline); answering opens the phone on the call:
 // the caller's lines as bubbles and 2–4 choices; a choice shows Mate's line and the caller's reply.
 // Keys while open: ↑ / ↓ select · Enter open / choose · 1–9 pick directly · Backspace back · Tab close. Mouse works too.
@@ -45,27 +47,41 @@ namespace Magistrala.Game.Phone
 
     public class PhoneJob { public string label, sub; public Action take; public Color? col; }
 
+    /// the Banka app: the trade account, the cash in the pocket, the loan Mate guarantees (left to pay, the next instalment)
+    /// and the last payments (who, when, € – positive in)
+    public class BankInfo
+    {
+        public float account, cash, debt, debtTotal, rate; public string rateWhen = "", loanName = "";
+        public List<(string who, string when, float eur)> moves = new List<(string, string, float)>();
+    }
+
     [Serializable] public class PhoneMsg { public string from, text; public float at; public bool read, story; }
     [Serializable] public class PhoneLog { public string who; public float at; public int kind; } // 0 in, 1 missed, 2 out, 3 declined
     [Serializable] public class PhoneSave { public List<PhoneMsg> msgs = new List<PhoneMsg>(); public List<PhoneLog> log = new List<PhoneLog>(); public int randDay = -1, randCount; public BlicajSave blicaj = new BlicajSave(); }
 
     public partial class MatePhone : MonoBehaviour
     {
-        public struct Contact { public string id, name, role; public Color color; }
+        /// a phone contact: as Mate saved it (family without a description, "Vesna" with a heart), the grey line under the name
+        public struct Contact { public string id, name, role; public Color color; public bool heart; }
+        /// the game's people (calls, messages) and the scenario's family / friends (references/magistrala: Lucija, šogor Ante,
+        /// šjor Duje – no calls yet: "Ne javlja se.")
         public static readonly Contact[] Contacts =
         {
-            new Contact { id = "zdravko", name = "Šef Zdravko", role = "Dispečer, skladište u Lukšiću", color = new Color(0.95f, 0.62f, 0.15f) },
-            new Contact { id = "vesna", name = "Vesna", role = "Žena", color = new Color(0.86f, 0.36f, 0.48f) },
+            new Contact { id = "zdravko", name = "Šef Zdravko", role = "Dispečer · firma", color = new Color(0.95f, 0.62f, 0.15f) },
+            new Contact { id = "vesna", name = "Vesna", role = "", color = new Color(0.86f, 0.36f, 0.48f), heart = true },
             new Contact { id = "zare", name = "Žare", role = "Ćaćin stari kolega", color = new Color(0.35f, 0.62f, 0.9f) },
-            new Contact { id = "marija", name = "Marija", role = "Pumpa u Kaštelima", color = new Color(0.4f, 0.75f, 0.45f) },
-            new Contact { id = "punica", name = "Dragica", role = "Punica", color = new Color(0.62f, 0.5f, 0.85f) },
+            new Contact { id = "marija", name = "Marija", role = "Pumpa Kaštela", color = new Color(0.4f, 0.75f, 0.45f) },
+            new Contact { id = "punica", name = "Punica", role = "", color = new Color(0.62f, 0.5f, 0.85f) },
+            new Contact { id = "lucija", name = "Lucija", role = "", color = new Color(0.95f, 0.45f, 0.62f) },
+            new Contact { id = "ante", name = "Ante šogor", role = "", color = new Color(0.55f, 0.6f, 0.3f) },
+            new Contact { id = "duje", name = "Šjor Duje", role = "Taksist", color = new Color(0.9f, 0.75f, 0.2f) },
         };
         static readonly List<Contact> extra = new List<Contact>();
         /// people outside the fixed list (fatureta customers); replaces one with the same id
         public static void AddContact(Contact c) { extra.RemoveAll(x => x.id == c.id); extra.Add(c); }
         public static Contact Who(string id) { foreach (var c in Contacts) if (c.id == id) return c; foreach (var c in extra) if (c.id == id) return c; return new Contact { id = id, name = id, role = "", color = Color.gray }; }
 
-        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About, Settings, Blicaj, BlicajJavi }
+        public enum Screen { Home, Messages, Thread, Calls, Contacts, Jobs, InCall, Outgoing, Soon, About, Settings, Blicaj, BlicajJavi, Bank }
         public bool Open { get; private set; }
         public Screen Current { get; private set; } = Screen.Home;
         public PhoneCall Ringing { get; private set; }
@@ -84,6 +100,12 @@ namespace Magistrala.Game.Phone
         public Func<string, string> outgoing;
         public Action<string> toast;
         public Action changed;
+        /// the Karta app: the full-screen map (WorldMap), opened the frame after the phone closes (the Enter that chose the app
+        /// must not also set a waypoint there)
+        public Action openMap;
+        /// the Banka app's figures (MagistralaGame.Day.cs)
+        public Func<BankInfo> bank;
+        int mapAt = -1;
 
         PhoneSave data = new PhoneSave();
         PhoneCall call; List<(bool mate, string text)> bubbles = new List<(bool, string)>(); bool callDone; PhoneCall afterJobs;
@@ -119,7 +141,9 @@ namespace Magistrala.Game.Phone
         public PhoneSave Export() => data;
         public void Import(PhoneSave s) { data = s ?? new PhoneSave(); if (data.blicaj == null) data.blicaj = new BlicajSave(); blicajFeed = null; }
 
-        public void Show(Screen s) { Open = true; Current = s; sel = 0; }
+        public void Show(Screen s) { Open = true; Current = s; sel = 0; scroll = 0; }
+        /// go to an app screen (the selection and the scroll start at the top)
+        void Go(Screen s) { Current = s; sel = 0; scroll = 0; }
         /// a message conversation with choices (faturete): no ringing, no call log
         public void OpenChat(PhoneCall c)
         {
@@ -141,6 +165,7 @@ namespace Magistrala.Game.Phone
             float dt = Time.unscaledDeltaTime;
             if (Current != Screen.About) aboutPage = 0;
             TickBlicaj();
+            if (mapAt >= 0 && Time.frameCount > mapAt) { mapAt = -1; openMap?.Invoke(); }
             bool show = Open || Ringing != null;
             slide = Mathf.MoveTowards(slide, show ? 1 : 0, dt * 5);
             if (Ringing != null && !Open && clock() - Ringing.ringAt >= Ringing.timeoutMin)
@@ -157,8 +182,8 @@ namespace Magistrala.Game.Phone
             else if (kb.tabKey.wasPressedThisFrame) { if (Open) { if (Current != Screen.InCall || callDone || (call != null && call.chat)) { if (call != null && call.chat) call = null; Close(); } } else Show(Screen.Home); }
             else if (Open)
             {
-                if (kb.upArrowKey.wasPressedThisFrame) sel--;
-                if (kb.downArrowKey.wasPressedThisFrame) sel++;
+                if (kb.upArrowKey.wasPressedThisFrame) { sel--; follow = true; }
+                if (kb.downArrowKey.wasPressedThisFrame) { sel++; follow = true; }
                 if (items.Count > 0) sel = (sel % items.Count + items.Count) % items.Count;
                 if (!KatoviTool.Active && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) { if (sel < items.Count) items[sel].act?.Invoke(); }
                 else if (kb.backspaceKey.wasPressedThisFrame) Back();
@@ -180,9 +205,10 @@ namespace Magistrala.Game.Phone
         {
             if (Current == Screen.InCall && !callDone && !(call != null && call.chat)) return; // choose first (a conversation can wait)
             if (Current == Screen.InCall || Current == Screen.Outgoing) { EndCall(); return; }
-            if (Current == Screen.Thread) { Current = Screen.Messages; sel = 0; return; }
-            if (Current == Screen.BlicajJavi) { Current = Screen.Blicaj; sel = 0; return; }
-            if (Current == Screen.Home) Close(); else { Current = Screen.Home; sel = 0; }
+            if (Current == Screen.Thread) { Go(Screen.Messages); return; }
+            if (Current == Screen.BlicajJavi) { Go(Screen.Blicaj); return; }
+            if (Current == Screen.About) { Go(Screen.Settings); return; }
+            if (Current == Screen.Home) Close(); else Go(Screen.Home);
         }
 
         public void Answer()
@@ -230,262 +256,10 @@ namespace Magistrala.Game.Phone
         void EndCall()
         {
             bool jobs = afterJobs != null; afterJobs = null; call = null;
-            if (jobs) { Current = Screen.Jobs; sel = 0; } else { Current = Screen.Home; sel = 0; }
+            Go(jobs ? Screen.Jobs : Screen.Home);
         }
 
         void Log(string who, int kind) { data.log.Add(new PhoneLog { who = who, at = clock(), kind = kind }); if (data.log.Count > 30) data.log.RemoveAt(0); }
-
-        // ------------------------------------------------------------------ drawing (IMGUI): our own modern smartphone – thin black bezel,
-        // big rounded corners, a pill notch, status bar (game time · signal · wifi · battery), wallpaper, rounded-square app icons
-        // drawn in code (PhoneArt), a dock, a home bar; Inter (OFL, Assets/Resources/Fonts) for all text.
-        const float W = 330, H = 660;
-        GUIStyle txt, small, head, big, status, label, bubble, item;
-        Font regular, semi;
-
-        GUIStyle St(int size, bool bold, Color c, TextAnchor a = TextAnchor.UpperLeft, bool wrap = true) =>
-            new GUIStyle(GUI.skin.label) { font = bold ? semi : regular, fontSize = size, alignment = a, wordWrap = wrap, richText = true, padding = new RectOffset(0, 0, 0, 0), normal = { textColor = c } };
-
-        void Styles()
-        {
-            if (txt != null) return;
-            regular = Resources.Load<Font>("Fonts/Inter-Regular"); semi = Resources.Load<Font>("Fonts/Inter-SemiBold") ?? regular;
-            txt = St(14, false, Color.white); small = St(11, false, new Color(1, 1, 1, 0.62f)); head = St(26, true, Color.white);
-            big = St(60, false, Color.white, TextAnchor.MiddleCenter); status = St(13, true, Color.white, TextAnchor.MiddleLeft, false);
-            label = St(11, false, Color.white, TextAnchor.UpperCenter, false);
-            bubble = St(14, false, Color.white); bubble.padding = new RectOffset(12, 12, 8, 8);
-            item = St(15, true, Color.white); item.padding = new RectOffset(12, 12, 10, 10);
-        }
-
-        void Fill(Rect r, Color c, float radius) => GUI.DrawTexture(r, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, c, 0, radius);
-        void Ring(Rect r, Color c, float width, float radius) => GUI.DrawTexture(r, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, c, width, radius);
-        void Glyph(Rect r, Texture2D t, Color c) => GUI.DrawTexture(r, t, ScaleMode.ScaleToFit, true, 0, c, 0, 0);
-
-        void OnGUI()
-        {
-            if (Magistrala.GpuSwitches.NoHud) return;
-            if (slide <= 0.001f) return;
-            Styles();
-            GUI.depth = -10;
-            // owner's mockup hud-mobitel.png: the phone ~0.66 of the screen height, at the right edge (HUD margin), vertically
-            // centred; drawn in its own 660 px frame scaled by GUI.matrix (Screen.height-based, like the HUD)
-            float s = UnityEngine.Screen.height / 1000f, vw = UnityEngine.Screen.width / s, vh = UnityEngine.Screen.height / s;
-            var oldM = GUI.matrix; GUI.matrix = Matrix4x4.Scale(new Vector3(s, s, 1));
-            float e = 1 - Mathf.Pow(1 - slide, 3);
-            float x = vw - W - Magistrala.HudStyle.Margin / s, y0 = Mathf.Round((vh - H) / 2);
-            float y = y0 + (1 - e) * (vh - y0 + 40);
-            bool ringingOnly = Ringing != null && !Open;
-            // the incoming call peeks up above the HUD panel (and what is stacked on it): its top ~345 px (caller, answer / decline)
-            bool clip = false;
-            if (ringingOnly)
-            {
-                float stack = Mathf.Min(Magistrala.HudStyle.StackTop, Magistrala.HudStyle.PanelTop);
-                float bottom = stack < UnityEngine.Screen.height ? stack / s - 12 : vh;
-                float yr = Mathf.Max(Magistrala.HudStyle.Margin / s, Mathf.Min(y0, bottom - 345));
-                y = yr + (1 - e) * (vh - yr + 40);
-                if (bottom < vh) { clip = true; GUI.BeginClip(new Rect(0, 0, vw, bottom)); }
-            }
-            // device: thin black bezel, rounded corners, a pill notch
-            Fill(new Rect(x - 2, y - 2, W + 4, H + 4), new Color(0.32f, 0.33f, 0.36f, 1), 56); // metal edge
-            Fill(new Rect(x, y, W, H), Color.black, 54);
-            var scr = new Rect(x + 9, y + 9, W - 18, H - 18);
-            bool call = ringingOnly || Current == Screen.InCall || Current == Screen.Outgoing;
-            GUI.DrawTexture(scr, call ? PhoneArt.WallBlur : PhoneArt.Wall, ScaleMode.StretchToFill, true, 0, Color.white, 0, 46);
-            if (Current != Screen.Home && !call) Fill(scr, new Color(0.02f, 0.025f, 0.035f, 0.97f), 46);
-            if (call) Fill(scr, new Color(0, 0, 0, 0.35f), 46);
-            Fill(new Rect(x + W / 2 - 46, scr.y + 10, 92, 26), Color.black, 13); // the pill
-            // status bar
-            GUI.Label(new Rect(scr.x + 30, scr.y + 12, 70, 22), Hm(clock()), status);
-            float sx = scr.xMax - 92;
-            for (int i = 0; i < 4; i++) Fill(new Rect(sx + i * 5, scr.y + 28 - (i + 1) * 3f, 3.4f, (i + 1) * 3f), new Color(1, 1, 1, i < 3 ? 1 : 0.35f), 1);
-            Glyph(new Rect(sx + 24, scr.y + 14, 17, 14), PhoneArt.Wifi, Color.white);
-            Ring(new Rect(sx + 46, scr.y + 16, 24, 12), new Color(1, 1, 1, 0.55f), 1.2f, 3.5f);
-            Fill(new Rect(sx + 48, scr.y + 18, 15, 8), Color.white, 2);
-            Fill(new Rect(sx + 71, scr.y + 20, 1.8f, 4), new Color(1, 1, 1, 0.55f), 1);
-            var area = new Rect(scr.x + 18, scr.y + 48, scr.width - 36, scr.height - 48 - 30);
-            items.Clear();
-            if (ringingOnly) DrawRinging(scr);
-            else switch (Current)
-            {
-                case Screen.Home: DrawHome(scr, area); break;
-                case Screen.Messages: DrawMessages(area); break;
-                case Screen.Thread: DrawThread(area); break;
-                case Screen.Calls: DrawCalls(area); break;
-                case Screen.Contacts: DrawContacts(area); break;
-                case Screen.Jobs: DrawJobs(area); break;
-                case Screen.InCall: DrawCall(area); break;
-                case Screen.Outgoing: DrawOutgoing(scr, area); break;
-                case Screen.Soon: DrawSoon(area); break;
-                case Screen.About: DrawAbout(area); break;
-                case Screen.Settings: DrawSettings(area); break;
-                case Screen.Blicaj: DrawBlicaj(area); break;
-                case Screen.BlicajJavi: DrawBlicajJavi(area); break;
-            }
-            Fill(new Rect(x + W / 2 - 62, scr.yMax - 13, 124, 5), new Color(1, 1, 1, 0.85f), 2.5f); // home bar
-            if (Open)
-            {
-                int nCh = this.call != null ? Mathf.Max(1, this.call.choices.Count) : 4;
-                string hint = Current == Screen.InCall && !callDone ? $"↑ ↓ Enter / 1–{nCh} odgovori" : "↑ ↓ Enter · Backspace natrag · Tab zatvori";
-                var hs = St(13, true, new Color(1f, 0.86f, 0.35f), TextAnchor.MiddleRight, false);
-                GUI.Label(new Rect(x - 330, y + H - 40, 316, 20), hint, hs);
-                GUI.Label(new Rect(x - 330, y + H - 62, 316, 20), "PAUZA · sat stoji", hs);
-            }
-            else if (ringingOnly) GUI.Label(new Rect(x - 330, y + 30, 316, 20), "Y javi se · N odbij", St(14, true, new Color(1f, 0.86f, 0.35f), TextAnchor.MiddleRight, false));
-            if (clip) GUI.EndClip();
-            GUI.matrix = oldM;
-        }
-
-        float Title(Rect a, string t, string sub = null)
-        {
-            GUI.Label(new Rect(a.x, a.y + 2, a.width, 34), t, head);
-            if (sub != null) { GUI.Label(new Rect(a.x, a.y + 36, a.width, 16), sub, small); return a.y + 60; }
-            return a.y + 46;
-        }
-
-        void Avatar(Rect r, string who)
-        {
-            var c = Who(who);
-            GUI.DrawTexture(r, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0, c.color, 0, r.width / 2);
-            string ini = c.name.Replace("Šef ", ""); ini = ini.Length > 0 ? ini.Substring(0, 1) : "?";
-            GUI.Label(r, ini, St((int)(r.height * 0.46f), true, Color.white, TextAnchor.MiddleCenter, false));
-        }
-
-        /// grouped rows (inset list) from `items`, starting at y
-        float List(Rect a, float y, bool grouped = true)
-        {
-            for (int i = 0; i < items.Count; i++)
-            {
-                var it = items[i];
-                string lab = it.label + (it.sub != null ? $"\n<size=12><color=#ffffff99>{it.sub}</color></size>" : "");
-                var st = new GUIStyle(item) { font = semi };
-                float h = st.CalcHeight(new GUIContent(lab), a.width);
-                if (y + h > a.yMax + 4) break;
-                var r = new Rect(a.x, y, a.width, h);
-                Color bg = i == sel ? (it.col ?? new Color(0.04f, 0.52f, 1f)) : new Color(1, 1, 1, 0.1f);
-                Fill(r, bg, 12);
-                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { sel = i; it.act?.Invoke(); }
-                GUI.Label(r, lab, st);
-                y += h + 6;
-            }
-            return y;
-        }
-
-        void DrawRinging(Rect scr)
-        {
-            var c = Ringing; var who = Who(c.caller);
-            GUI.Label(new Rect(scr.x, scr.y + 58, scr.width, 18), c.title, St(13, false, new Color(1, 1, 1, 0.75f), TextAnchor.MiddleCenter));
-            GUI.Label(new Rect(scr.x, scr.y + 76, scr.width, 40), who.name, St(30, true, Color.white, TextAnchor.MiddleCenter));
-            GUI.Label(new Rect(scr.x, scr.y + 114, scr.width, 18), c.sub ?? who.role, St(13, false, new Color(1, 1, 1, 0.7f), TextAnchor.MiddleCenter));
-            float pulse = 1 + 0.05f * Mathf.Sin(Time.unscaledTime * 8);
-            float s = 70 * pulse; Avatar(new Rect(scr.center.x - s / 2, scr.y + 146 + (70 - s) / 2, s, s), c.caller);
-            // round decline (red, handset turned down) / answer (green) buttons
-            float by = scr.y + 236, d = 64;
-            var no = new Rect(scr.x + 46, by, d, d); var ok = new Rect(scr.xMax - 46 - d, by, d, d);
-            Fill(no, new Color(1f, 0.23f, 0.19f), d / 2); Fill(ok, new Color(0.2f, 0.78f, 0.35f), d / 2);
-            var m = GUI.matrix; GUIUtility.RotateAroundPivot(135, no.center); Glyph(Shrink(no, 18), PhoneArt.Handset, Color.white); GUI.matrix = m;
-            Glyph(Shrink(ok, 18), PhoneArt.Handset, Color.white);
-            GUI.Label(new Rect(no.x - 20, no.yMax + 6, d + 40, 16), "Odbij  (N)", label);
-            GUI.Label(new Rect(ok.x - 20, ok.yMax + 6, d + 40, 16), "Javi se  (Y)", label);
-            if (GUI.Button(no, GUIContent.none, GUIStyle.none)) Decline();
-            if (GUI.Button(ok, GUIContent.none, GUIStyle.none)) Answer();
-        }
-
-        static Rect Shrink(Rect r, float p) => new Rect(r.x + p, r.y + p, r.width - 2 * p, r.height - 2 * p);
-
-        struct App { public string name; public Texture2D glyph; public Color c; public Screen s; public int badge; }
-
-        void DrawHome(Rect scr, Rect a)
-        {
-            GUI.Label(new Rect(scr.x, scr.y + 56, scr.width, 20), DayText?.Invoke() ?? "", St(15, true, new Color(1, 1, 1, 0.85f), TextAnchor.MiddleCenter));
-            GUI.Label(new Rect(scr.x, scr.y + 74, scr.width, 76), Hm(clock()), St(68, true, Color.white, TextAnchor.MiddleCenter, false));
-            var grid = new[]
-            {
-                new App { name = "Poslovi", glyph = PhoneArt.Box, c = new Color(1f, 0.58f, 0.1f), s = Screen.Jobs },
-                new App { name = BlicajFeed.App, glyph = PhoneArt.Beacon, c = BlicajBlue, s = Screen.Blicaj, badge = BlicajUnread },
-                new App { name = "Karta", glyph = PhoneArt.Map, c = new Color(0.3f, 0.75f, 0.55f), s = Screen.Soon },
-                new App { name = "Banka", glyph = PhoneArt.Bank, c = new Color(0.2f, 0.32f, 0.62f), s = Screen.Soon },
-                new App { name = "O igri", glyph = PhoneArt.Person, c = new Color(0.45f, 0.47f, 0.52f), s = Screen.About },
-                new App { name = "Postavke", glyph = PhoneArt.Gear, c = new Color(0.42f, 0.44f, 0.5f), s = Screen.Settings },
-            };
-            var dock = new[]
-            {
-                new App { name = "Pozivi", glyph = PhoneArt.Handset, c = new Color(0.2f, 0.78f, 0.35f), s = Screen.Calls, badge = MissedCount() },
-                new App { name = "Poruke", glyph = PhoneArt.Bubble, c = new Color(0.2f, 0.78f, 0.35f), s = Screen.Messages, badge = Unread },
-                new App { name = "Kontakti", glyph = PhoneArt.Person, c = new Color(0.56f, 0.58f, 0.62f), s = Screen.Contacts },
-            };
-            float icon = 58, cell = (scr.width - 24) / 4, gx = scr.x + 12;
-            int k = 0;
-            void Icon(App ap, Rect r, bool lab)
-            {
-                int idx = k++; var s2 = ap.s; var nm = ap.name;
-                items.Add((ap.name, null, () => { if (s2 == Screen.Soon) soonName = nm; Current = s2; sel = 0; if (s2 == Screen.Calls) MarkMissedSeen(); if (s2 == Screen.Blicaj) BlicajOpened(); }, null));
-                if (sel == idx) Fill(new Rect(r.x - 4, r.y - 4, r.width + 8, r.height + 8), new Color(1, 1, 1, 0.55f), 17);
-                Fill(r, ap.c, 14);
-                Glyph(Shrink(r, 13), ap.glyph, Color.white);
-                if (GUI.Button(r, GUIContent.none, GUIStyle.none)) { sel = idx; items[idx].act(); }
-                if (lab) GUI.Label(new Rect(r.x - 12, r.yMax + 5, r.width + 24, 16), ap.name, label);
-                if (ap.badge > 0) { var b = new Rect(r.xMax - 15, r.y - 7, 22, 22); Fill(b, new Color(1f, 0.23f, 0.19f), 11); GUI.Label(b, ap.badge > 99 ? "99" : ap.badge.ToString(), St(12, true, Color.white, TextAnchor.MiddleCenter, false)); }
-            }
-            float top = scr.y + 176;
-            for (int i = 0; i < grid.Length; i++) Icon(grid[i], new Rect(gx + (i % 4) * cell + (cell - icon) / 2, top + (i / 4) * 92, icon, icon), true);
-            top += ((grid.Length - 1) / 4) * 92; // (a second row of apps pushes the notification card down)
-            // the latest message as a notification card
-            // (or the newest unread Blicaj post, when it is newer: the same card with the app's colour)
-            var bl = LatestUnreadBlicaj();
-            if (bl != null && (data.msgs.Count == 0 || bl.at > data.msgs[data.msgs.Count - 1].at))
-                NoteCard(new Rect(scr.x + 12, top + 96, scr.width - 24, 78), BlicajBlue, PhoneArt.Beacon, $"{BlicajFeed.App} · {bl.who}", bl.at, bl.text);
-            else if (data.msgs.Count > 0)
-            {
-                var m = data.msgs[data.msgs.Count - 1];
-                NoteCard(new Rect(scr.x + 12, top + 96, scr.width - 24, 78), new Color(0.2f, 0.78f, 0.35f), PhoneArt.Bubble, Who(m.from).name, m.at, m.text);
-            }
-            // dock
-            var dk = new Rect(scr.x + 12, scr.yMax - 108, scr.width - 24, 84);
-            Fill(dk, new Color(1, 1, 1, 0.22f), 26);
-            float dc = dk.width / dock.Length;
-            for (int i = 0; i < dock.Length; i++) Icon(dock[i], new Rect(dk.x + i * dc + (dc - icon) / 2, dk.y + 13, icon, icon), false);
-        }
-
-        void NoteCard(Rect r, Color c, Texture2D glyph, string title, float at, string text)
-        {
-            Fill(r, new Color(0.12f, 0.13f, 0.16f, 0.72f), 18);
-            Fill(new Rect(r.x + 12, r.y + 12, 22, 22), c, 6); Glyph(new Rect(r.x + 15, r.y + 15, 16, 16), glyph, Color.white);
-            GUI.Label(new Rect(r.x + 42, r.y + 12, r.width - 100, 22), $"<b>{title}</b>", St(13, true, Color.white, TextAnchor.MiddleLeft, false));
-            GUI.Label(new Rect(r.xMax - 64, r.y + 12, 52, 22), Hm(at), St(11, false, new Color(1, 1, 1, 0.6f), TextAnchor.MiddleRight, false));
-            GUI.Label(new Rect(r.x + 12, r.y + 38, r.width - 24, 36), Cut(text, 80), St(13, false, Color.white));
-        }
-
-        public Func<string> DayText;
-        string soonName;
-        void DrawSoon(Rect a)
-        {
-            float y = Title(a, soonName ?? "");
-            GUI.Label(new Rect(a.x, y, a.width, 60), "Uskoro.", txt);
-            items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
-            List(a, a.yMax - 50);
-        }
-
-        // settings: sound volumes (Audio/MagistralaAudio: the mixer groups, remembered in PlayerPrefs "zvuk.*"); Enter or → / ← change
-        // the selected one by 10 % (Enter wraps 100 % → 0 %), a short tick plays through the changed group although the game is paused
-        void DrawSettings(Rect a)
-        {
-            float y = Title(a, "Postavke", "Zvuk · Enter / ← → mijenja");
-            int n = Magistrala.Audio.MagistralaAudio.VolLabels.Length;
-            for (int i = 0; i < n; i++)
-            {
-                int k = i; float v = Magistrala.Audio.MagistralaAudio.Volume(i);
-                items.Add(($"{Magistrala.Audio.MagistralaAudio.VolLabels[i]}  {Mathf.RoundToInt(v * 100)} %", Bar(v), () => Magistrala.Audio.MagistralaAudio.SetVolume(k, Magistrala.Audio.MagistralaAudio.Volume(k) >= 0.95f ? 0 : Magistrala.Audio.MagistralaAudio.Volume(k) + 0.1f), null));
-            }
-            items.Add(($"Kvaliteta slike: {Magistrala.RenderQuality.Label}", "tipka K mijenja", null, null));
-            items.Add(("Natrag", null, () => { Current = Screen.Home; sel = 0; }, null));
-            var kb = Keyboard.current;
-            if (kb != null && sel < n && Event.current.type == EventType.Repaint)
-            {
-                if (kb.rightArrowKey.wasPressedThisFrame) Magistrala.Audio.MagistralaAudio.SetVolume(sel, Magistrala.Audio.MagistralaAudio.Volume(sel) + 0.1f);
-                if (kb.leftArrowKey.wasPressedThisFrame) Magistrala.Audio.MagistralaAudio.SetVolume(sel, Magistrala.Audio.MagistralaAudio.Volume(sel) - 0.1f);
-            }
-            List(a, y);
-        }
-        static string Bar(float v) { int f = Mathf.RoundToInt(v * 10); return new string('●', f) + new string('·', 10 - f); } // (● is in Inter, used by Poruke)
 
         // credits / sources (the attribution the data licences ask for; full list in CREDITS.md)
         public const string AboutText =
@@ -705,146 +479,6 @@ namespace Magistrala.Game.Phone
         /// AboutText is shown in pages (the phone screen is short): the marker splits them
         const string AboutPage = "\f";
         int aboutPage;
-        void DrawAbout(Rect a)
-        {
-            var pages = AboutText.Split('\f');
-            aboutPage = Mathf.Clamp(aboutPage, 0, pages.Length - 1);
-            float y = Title(a, "O igri", pages.Length > 1 ? $"Izvori podataka · {aboutPage + 1}/{pages.Length}" : "Izvori podataka");
-            GUI.Label(new Rect(a.x, y, a.width, a.yMax - 110 - y), pages[aboutPage].Trim('\n'), small);
-            if (aboutPage + 1 < pages.Length) items.Add(("Dalje", null, () => { aboutPage++; sel = 0; }, null));
-            items.Add(("Natrag", null, () => { if (aboutPage > 0) { aboutPage--; sel = 0; } else { Current = Screen.Home; sel = 0; } }, null));
-            List(a, a.yMax - (items.Count > 1 ? 100 : 50));
-        }
-
-        int MissedCount() { int n = 0; foreach (var l in data.log) if (l.kind == 1) n++; return n; }
-        void MarkMissedSeen() { foreach (var l in data.log) if (l.kind == 1) l.kind = 4; }
-
-        void DrawMessages(Rect a)
-        {
-            float y = Title(a, "Poruke");
-            var seen = new List<string>();
-            for (int i = data.msgs.Count - 1; i >= 0; i--)
-            {
-                var m = data.msgs[i]; if (seen.Contains(m.from)) continue; seen.Add(m.from);
-                int un = 0; foreach (var q in data.msgs) if (q.from == m.from && !q.read) un++;
-                string from = m.from;
-                items.Add(($"{Who(from).name}{(un > 0 ? $"  <color=#0a84ff>●</color>" : "")}", $"{Hm(m.at)} · {Cut(m.text, 46)}", () => { thread = from; Current = Screen.Thread; sel = 0; }, null));
-            }
-            if (items.Count == 0) GUI.Label(new Rect(a.x, y, a.width, 40), "Nema poruka.", small);
-            List(a, y);
-        }
-
-        static string Cut(string s, int n) => s.Length <= n ? s : s.Substring(0, n - 1) + "…";
-
-        /// chat bubbles from the bottom up: grey for others, blue for Mate
-        /// returns how many of the newest bubbles fitted
-        int Bubbles(Rect a, float top, float bottom, List<(bool mate, string text, string stamp)> list)
-        {
-            int drawn = 0;
-            for (int i = list.Count - 1; i >= 0; i--)
-            {
-                var (mate, text, stamp) = list[i];
-                float bw = a.width * 0.8f;
-                float h = bubble.CalcHeight(new GUIContent(text), bw);
-                var size = bubble.CalcSize(new GUIContent(text)); if (size.x < bw) bw = Mathf.Max(60, size.x + 2);
-                float sh = stamp != null ? 14 : 0;
-                if (bottom - h - sh < top) break;
-                bottom -= h + sh; drawn++;
-                var r = new Rect(mate ? a.xMax - bw : a.x, bottom, bw, h);
-                Fill(r, mate ? new Color(0.04f, 0.52f, 1f) : new Color(0.23f, 0.23f, 0.25f), 17);
-                GUI.Label(r, text, bubble);
-                if (stamp != null) GUI.Label(new Rect(r.x + 6, r.yMax + 1, 120, 13), stamp, St(10, false, new Color(1, 1, 1, 0.5f), mate ? TextAnchor.UpperRight : TextAnchor.UpperLeft, false));
-                bottom -= 8;
-            }
-            return drawn;
-        }
-
-        void DrawThread(Rect a)
-        {
-            var c = Who(thread);
-            Avatar(new Rect(a.center.x - 22, a.y, 44, 44), thread);
-            GUI.Label(new Rect(a.x, a.y + 46, a.width, 18), c.name, St(13, true, Color.white, TextAnchor.MiddleCenter, false));
-            var mine = data.msgs.FindAll(m => m.from == thread);
-            foreach (var m in mine) m.read = true;
-            var list = new List<(bool, string, string)>(); foreach (var m in mine) list.Add((false, m.text, Hm(m.at)));
-            var ta = threadAction?.Invoke(thread);
-            Bubbles(a, a.y + 74, a.yMax - (ta != null ? 100 : 50), list);
-            if (ta.HasValue) items.Add((ta.Value.label, null, ta.Value.act, new Color(1f, 0.58f, 0.1f)));
-            items.Add(("Natrag", null, () => { Current = Screen.Messages; sel = 0; }, null));
-            List(a, a.yMax - (ta != null ? 94 : 44));
-        }
-
-        void DrawCalls(Rect a)
-        {
-            float y = Title(a, "Pozivi", "Zadnji pozivi");
-            for (int i = data.log.Count - 1; i >= 0 && items.Count < 8; i--)
-            {
-                var l = data.log[i]; string id = l.who;
-                string kind = l.kind == 1 || l.kind == 4 ? "<color=#ff453a>propušten</color>" : l.kind == 2 ? "odlazni" : l.kind == 3 ? "odbijen" : "dolazni";
-                items.Add((Who(id).name, $"{kind} · {Hm(l.at)}", () => CallOut(id), null));
-            }
-            if (items.Count == 0) GUI.Label(new Rect(a.x, y, a.width, 30), "Nema poziva.", small);
-            List(a, y);
-        }
-
-        void DrawContacts(Rect a)
-        {
-            float y = Title(a, "Kontakti");
-            foreach (var c in Contacts) { string id = c.id; items.Add((c.name, c.role, () => CallOut(id), null)); }
-            foreach (var c in extra) { string id = c.id; items.Add((c.name, c.role, () => CallOut(id), null)); }
-            List(a, y);
-        }
-
-        void CallOut(string id)
-        {
-            outWho = id; outText = outgoing?.Invoke(id); Log(id, 2);
-            Current = Screen.Outgoing; sel = 0;
-            Debug.Log($"[phone] calling {id}: {outText ?? "(no answer)"}");
-        }
-
-        void DrawOutgoing(Rect scr, Rect a)
-        {
-            Avatar(new Rect(scr.center.x - 40, scr.y + 70, 80, 80), outWho);
-            GUI.Label(new Rect(scr.x, scr.y + 158, scr.width, 36), Who(outWho).name, St(28, true, Color.white, TextAnchor.MiddleCenter));
-            GUI.Label(new Rect(scr.x, scr.y + 194, scr.width, 18), outText == null ? "Ne javlja se." : "u pozivu", St(13, false, new Color(1, 1, 1, 0.7f), TextAnchor.MiddleCenter));
-            if (outText != null) Bubbles(a, scr.y + 220, a.yMax - 96, new List<(bool, string, string)> { (false, outText, null) });
-            var end = new Rect(scr.center.x - 32, a.yMax - 80, 64, 64);
-            Fill(end, new Color(1f, 0.23f, 0.19f), 32);
-            var m = GUI.matrix; GUIUtility.RotateAroundPivot(135, end.center); Glyph(Shrink(end, 18), PhoneArt.Handset, Color.white); GUI.matrix = m;
-            items.Add(("Prekini", null, EndCall, null));
-            if (GUI.Button(end, GUIContent.none, GUIStyle.none)) EndCall();
-        }
-
-        void DrawJobs(Rect a)
-        {
-            float y = Title(a, "Poslovi", jobsTitle?.Invoke() ?? "Ture firme · skladište u Lukšiću");
-            var jobs = jobsProvider?.Invoke();
-            string note = jobsNote?.Invoke();
-            if (note != null)
-            {
-                var ns = St(13, false, new Color(1f, 0.82f, 0.45f));
-                float h = ns.CalcHeight(new GUIContent(note), a.width);
-                GUI.Label(new Rect(a.x, y, a.width, h), note, ns); y += h + 10;
-            }
-            if (jobs != null) foreach (var j in jobs) { var jj = j; items.Add((j.label, j.sub, () => jj.take(), j.col ?? new Color(1f, 0.58f, 0.1f))); }
-            if (jobs == null || jobs.Count == 0) GUI.Label(new Rect(a.x, y, a.width, 20), "Danas nema ponuda.", small);
-            List(a, y);
-        }
-
-        void DrawCall(Rect a)
-        {
-            var c = call; if (c == null) { Current = Screen.Home; return; }
-            Avatar(new Rect(a.x, a.y, 44, 44), c.caller);
-            GUI.Label(new Rect(a.x + 54, a.y + 2, a.width - 54, 24), Who(c.caller).name, St(17, true, Color.white, TextAnchor.MiddleLeft, false));
-            GUI.Label(new Rect(a.x + 54, a.y + 24, a.width - 54, 16), (c.sub ?? Who(c.caller).role) + (c.chat ? "" : callDone ? " · poziv završen" : " · u pozivu"), small);
-            if (!callDone) { int n = 1; foreach (var ch in c.choices) { var cc = ch; items.Add(($"{n++}  {ch.label}", null, () => Choose(cc), new Color(0.04f, 0.52f, 1f))); } }
-            else items.Add((afterJobs != null ? "Otvori Poslove" : c.chat ? "Zatvori" : "Završi poziv", null, c.chat ? (Action)(() => { call = null; Close(); }) : EndCall, afterJobs != null ? new Color(1f, 0.58f, 0.1f) : new Color(1f, 0.23f, 0.19f)));
-            float ih = 0; var st = new GUIStyle(item) { font = semi }; foreach (var it in items) ih += st.CalcHeight(new GUIContent(it.label), a.width) + 6;
-            float listTop = a.yMax - ih;
-            var list = new List<(bool, string, string)>(); foreach (var b in bubbles) list.Add((b.mate, b.text, null));
-            Bubbles(a, a.y + 56, listTop - 8, list);
-            List(a, listTop);
-        }
     }
 
     /// self-made phone art (no real brand artwork): the wallpaper and white app glyphs as small generated textures
@@ -869,6 +503,94 @@ namespace Magistrala.Game.Phone
             float outer = Mathf.Cos(a * 8) > 0.25f ? 0.42f : 0.33f;
             return Mathf.Clamp01((outer - r) * 60f) * Mathf.Clamp01((r - 0.13f) * 60f);
         });
+        // ---- the light apps' and the group page's glyphs (our own simple shapes)
+        static Texture2D back, chevron, search, dots, lockT, photo, heart, heartLine, bubbleLine, share, house, play, people, bell, menu, close, check, walletT, arrowIn, arrowOut, shadeDown, cover;
+        static float Seg(float u, float v, float ax, float ay, float bx, float by, float w)
+        {
+            var p = new Vector2(u, v); var a = new Vector2(ax, ay); var ab = new Vector2(bx, by) - a;
+            float t = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+            return S((p - (a + ab * t)).magnitude - w);
+        }
+        static float HeartF(float u, float v, float k)
+        {
+            float x = (u - 0.5f) * 2.5f * k, y = (v - 0.47f) * 2.5f * k;
+            float q = x * x + y * y - 1, f = q * q * q - x * x * y * y * y;
+            return Mathf.Clamp01(0.5f - f * 6);
+        }
+        public static Texture2D Back => back ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.64f, 0.88f, 0.3f, 0.5f, 0.075f), Seg(u, v, 0.3f, 0.5f, 0.64f, 0.12f, 0.075f)));
+        public static Texture2D Chevron => chevron ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.36f, 0.88f, 0.7f, 0.5f, 0.075f), Seg(u, v, 0.7f, 0.5f, 0.36f, 0.12f, 0.075f)));
+        public static Texture2D Search => search ??= Make(96, (u, v) => Mathf.Max(Ring(u, v, 0.43f, 0.57f, 0.26f, 0.065f), Seg(u, v, 0.62f, 0.38f, 0.86f, 0.14f, 0.08f)));
+        public static Texture2D Dots => dots ??= Make(96, (u, v) => Mathf.Max(Ell(u, v, 0.18f, 0.5f, 0.09f, 0.09f), Mathf.Max(Ell(u, v, 0.5f, 0.5f, 0.09f, 0.09f), Ell(u, v, 0.82f, 0.5f, 0.09f, 0.09f))));
+        public static Texture2D Lock => lockT ??= Make(96, (u, v) => Mathf.Max(RRect(u, v, 0.5f, 0.3f, 0.33f, 0.26f, 0.07f), Ring(u, v, 0.5f, 0.6f, 0.2f, 0.065f) * (v > 0.55f ? 1 : 0)));
+        public static Texture2D Photo => photo ??= Make(96, (u, v) =>
+        {
+            float frame = Mathf.Clamp01(RRect(u, v, 0.5f, 0.5f, 0.44f, 0.36f, 0.09f) - RRect(u, v, 0.5f, 0.5f, 0.36f, 0.28f, 0.04f));
+            float mtn = Mathf.Max(Tri(u, v, new Vector2(0.16f, 0.24f), new Vector2(0.58f, 0.24f), new Vector2(0.37f, 0.56f)), Tri(u, v, new Vector2(0.44f, 0.24f), new Vector2(0.84f, 0.24f), new Vector2(0.64f, 0.46f)));
+            return Mathf.Max(frame, Mathf.Max(mtn, Ell(u, v, 0.68f, 0.64f, 0.07f, 0.07f)));
+        });
+        public static Texture2D Heart => heart ??= Make(96, (u, v) => HeartF(u, v, 1));
+        public static Texture2D HeartLine => heartLine ??= Make(96, (u, v) => Mathf.Clamp01(HeartF(u, v, 1) - HeartF(u, v, 1.45f)));
+        public static Texture2D BubbleLine => bubbleLine ??= Make(96, (u, v) => Mathf.Clamp01(Mathf.Max(Ell(u, v, 0.5f, 0.56f, 0.42f, 0.33f), Tri(u, v, new Vector2(0.22f, 0.32f), new Vector2(0.4f, 0.3f), new Vector2(0.14f, 0.12f))) - Ell(u, v, 0.5f, 0.56f, 0.32f, 0.23f)));
+        public static Texture2D Share => share ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.14f, 0.3f, 0.55f, 0.55f, 0.07f), Tri(u, v, new Vector2(0.48f, 0.8f), new Vector2(0.62f, 0.3f), new Vector2(0.9f, 0.62f))));
+        public static Texture2D House => house ??= Make(96, (u, v) => Mathf.Max(Tri(u, v, new Vector2(0.08f, 0.52f), new Vector2(0.92f, 0.52f), new Vector2(0.5f, 0.92f)), Mathf.Clamp01(RRect(u, v, 0.5f, 0.3f, 0.3f, 0.24f, 0.04f) - RRect(u, v, 0.5f, 0.17f, 0.08f, 0.13f, 0.02f))));
+        public static Texture2D Play => play ??= Make(96, (u, v) => Mathf.Max(Mathf.Clamp01(RRect(u, v, 0.5f, 0.5f, 0.44f, 0.34f, 0.09f) - RRect(u, v, 0.5f, 0.5f, 0.36f, 0.26f, 0.05f)), Tri(u, v, new Vector2(0.42f, 0.66f), new Vector2(0.42f, 0.34f), new Vector2(0.66f, 0.5f))));
+        public static Texture2D People => people ??= Make(96, (u, v) =>
+        {
+            float a = Mathf.Max(Ell(u, v, 0.36f, 0.66f, 0.14f, 0.14f), Mathf.Min(Ell(u, v, 0.36f, 0.16f, 0.27f, 0.27f), v > 0.1f ? 1 : 0));
+            float b = Mathf.Max(Ell(u, v, 0.7f, 0.7f, 0.11f, 0.11f), Mathf.Min(Ell(u, v, 0.72f, 0.26f, 0.21f, 0.22f), v > 0.1f ? 1 : 0)) * (1 - Ell(u, v, 0.36f, 0.4f, 0.33f, 0.5f));
+            return Mathf.Max(a, b);
+        });
+        public static Texture2D Bell => bell ??= Make(96, (u, v) => Mathf.Max(Mathf.Max(RRect(u, v, 0.5f, 0.5f, 0.27f, 0.27f, 0.22f), RRect(u, v, 0.5f, 0.26f, 0.38f, 0.05f, 0.03f)), Mathf.Max(Ell(u, v, 0.5f, 0.13f, 0.09f, 0.07f), Ell(u, v, 0.5f, 0.82f, 0.05f, 0.05f))));
+        public static Texture2D Menu => menu ??= Make(96, (u, v) => (u > 0.14f && u < 0.86f ? 1 : 0) * Mathf.Max(Band(v, 0.25f, 0.045f), Mathf.Max(Band(v, 0.5f, 0.045f), Band(v, 0.75f, 0.045f))));
+        public static Texture2D Close => close ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.18f, 0.18f, 0.82f, 0.82f, 0.07f), Seg(u, v, 0.18f, 0.82f, 0.82f, 0.18f, 0.07f)));
+        public static Texture2D Check => check ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.14f, 0.5f, 0.4f, 0.24f, 0.08f), Seg(u, v, 0.4f, 0.24f, 0.86f, 0.76f, 0.08f)));
+        public static Texture2D Wallet => walletT ??= Make(96, (u, v) => Mathf.Clamp01(RRect(u, v, 0.5f, 0.45f, 0.42f, 0.3f, 0.08f) - RRect(u, v, 0.8f, 0.45f, 0.14f, 0.09f, 0.04f) + Ell(u, v, 0.78f, 0.45f, 0.04f, 0.04f)));
+        public static Texture2D ArrowIn => arrowIn ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.5f, 0.88f, 0.5f, 0.36f, 0.08f), Tri(u, v, new Vector2(0.22f, 0.44f), new Vector2(0.78f, 0.44f), new Vector2(0.5f, 0.12f))));
+        public static Texture2D ArrowOut => arrowOut ??= Make(96, (u, v) => Mathf.Max(Seg(u, v, 0.5f, 0.12f, 0.5f, 0.64f, 0.08f), Tri(u, v, new Vector2(0.22f, 0.56f), new Vector2(0.78f, 0.56f), new Vector2(0.5f, 0.88f))));
+        /// alpha 1 at the top to 0 at the bottom (a shade under the status bar)
+        public static Texture2D ShadeDown => shadeDown ??= Make(32, (u, v) => v * v);
+        /// the group page's cover: the picture rendered in the game (Resources/Phone/policija-naslovna.png: the police car parked by
+        /// the D8 with cones, a player shot with "-carshow policija -carshowcones 4 -carshowhide -carcam …", cropped), or a drawn
+        /// stand-in (to be redone when pedestrians / an officer exist)
+        public static Texture2D PoliceCover => cover ? cover : cover = (Resources.Load<Texture2D>("Phone/policija-naslovna") ?? CoverFallback());
+
+        /// a simple drawn cover: sky, the Kozjak ridge, the sea, the road with a white police car with a blue band and two cones
+        static Texture2D CoverFallback()
+        {
+            int w = 312, h = 150; var t = new Texture2D(w, h, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear, name = "policija cover (drawn)" };
+            var px = new Color[w * h];
+            Color sky0 = new Color(0.55f, 0.72f, 0.9f), sky1 = new Color(0.86f, 0.9f, 0.93f), hill = new Color(0.5f, 0.55f, 0.5f), road = new Color(0.33f, 0.33f, 0.35f), verge = new Color(0.62f, 0.6f, 0.52f);
+            for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
+            {
+                float v = y / (float)h, u = x / (float)w; Color c = Color.Lerp(sky1, sky0, (v - 0.4f) / 0.6f);
+                float ridge = 0.55f + 0.08f * Mathf.Sin(u * 7f + 0.6f) + 0.04f * Mathf.Sin(u * 19f);
+                if (v < ridge) c = Color.Lerp(hill, new Color(0.42f, 0.47f, 0.42f), (ridge - v) * 3);
+                if (v < 0.4f) c = verge;
+                if (v < 0.34f) c = road;
+                if (v < 0.34f && v > 0.18f && Mathf.Abs(v - 0.26f) < 0.008f && (x / 18) % 2 == 0) c = Color.white;
+                if (v < 0.06f) c = verge * 0.9f;
+                // the car: body, the blue band, windows, wheels, the light bar
+                float cx = 150, cy = 50;
+                if (x > cx - 70 && x < cx + 70 && y > cy - 6 && y < cy + 24) c = new Color(0.95f, 0.96f, 0.97f);
+                if (x > cx - 70 && x < cx + 70 && y > cy + 2 && y < cy + 10) c = new Color(0.12f, 0.3f, 0.7f);
+                if (x > cx - 44 && x < cx + 40 && y >= cy + 24 && y < cy + 44 - Mathf.Max(0, (x - (cx + 20)) * 0.9f) - Mathf.Max(0, ((cx - 30) - x) * 0.9f)) c = new Color(0.93f, 0.94f, 0.95f);
+                if (x > cx - 36 && x < cx + 32 && y > cy + 27 && y < cy + 40 - Mathf.Max(0, (x - (cx + 16)) * 0.9f) - Mathf.Max(0, ((cx - 24) - x) * 0.9f) && Mathf.Abs(x - cx) > 2) c = new Color(0.15f, 0.2f, 0.26f);
+                if (x > cx - 12 && x < cx + 12 && y >= cy + 44 && y < cy + 49) c = (x < cx) ? new Color(0.2f, 0.45f, 1f) : new Color(0.9f, 0.2f, 0.2f);
+                float w1 = (x - (cx - 42)) * (x - (cx - 42)) + (y - (cy - 6)) * (y - (cy - 6)), w2 = (x - (cx + 44)) * (x - (cx + 44)) + (y - (cy - 6)) * (y - (cy - 6));
+                if (w1 < 150 || w2 < 150) c = new Color(0.08f, 0.08f, 0.09f);
+                if (w1 < 40 || w2 < 40) c = new Color(0.6f, 0.6f, 0.62f);
+                // two cones
+                for (int k = 0; k < 2; k++)
+                {
+                    float kx = 248 + k * 30, ky = 30 + k * 4, hh = 30, half = 10 * (1 - (y - ky) / hh);
+                    if (y >= ky && y < ky + hh && Mathf.Abs(x - kx) < half) c = Mathf.Abs((y - ky) - 14) < 4 ? Color.white : new Color(1f, 0.45f, 0.1f);
+                    if (y >= ky - 3 && y < ky && Mathf.Abs(x - kx) < 13) c = new Color(1f, 0.45f, 0.1f) * 0.8f;
+                }
+                c.a = 1; px[y * w + x] = c;
+            }
+            t.SetPixels(px); t.Apply(); return t;
+        }
+
         public static Texture2D Wall => wall ??= Wallpaper(false);
         public static Texture2D WallBlur => wallBlur ??= Wallpaper(true);
         public static Texture2D Handset => handset ??= Make(96, HandsetA);

@@ -1,13 +1,14 @@
-// The in-game HUD (owner's mockup references/grafika/hud-mockup-11-20/hud-voznja.png): one dark rounded panel at the bottom
-// right (HudStyle) –
-//   top row     speed (big, orange over the limit) km/h · fuel % (pump) · cargo damage % (truck) · the clock and "Utorak · Dan 2"
-//   second row  cash (muted, left) · "Račun obrta 200,00 €" (orange, right)
-//   map         GpsMap's picture (rounded), the speed limit of the road under the truck in its top-left corner (LocationLabel)
-//   bottom row  where the GPS leads (MagistralaGame.DestName) and the road distance
-// Above it, right-aligned: the job card (MagistralaGame.JobCard: the running tour, or the warehouse board) and the game's keys
-// for now (MagistralaGame.HelpKeys, e.g. "Tab mobitel (3 nova poruka)"). The driving keys show for 15 s at the start and while
-// the F1 graph is on (then with the fps readout). Hidden while the phone is open (the phone takes the right side), and with
-// -nohud. Only the Repaint event draws (useGUILayout off), strings are rebuilt only when their value changes.
+// The in-game HUD (owner's mockup references/grafika/hud-mockup-11-20/hud-voznja.png; owner 2026-11-25: the minimap to the bottom
+// LEFT, ~20 % smaller, GTA layout – the phone comes up at the bottom right), dark rounded panels (HudStyle):
+//   bottom left  the map panel: GpsMap's picture (rounded), the speed limit of the road under the truck in its top-left corner
+//                (LocationLabel), under it where the GPS leads (MagistralaGame.DestName) and the road distance
+//   bottom right the gauges panel: speed (big, orange over the limit) km/h · fuel % (pump) · cargo damage % (truck) · the clock
+//                and "Utorak · Dan 2"; under them cash (muted, left) · "Račun obrta 200,00 €" (orange, right)
+// Above the gauges, right-aligned: the job card (MagistralaGame.JobCard: the running tour, or the warehouse board) and the game's
+// keys for now (MagistralaGame.HelpKeys, e.g. "Tab mobitel (3 nova poruka)"). Above the map: the driving keys for 15 s at the
+// start and while the F1 graph is on (then with the fps readout). While the phone is open it takes the right side (the gauges
+// and the stack hide, the map stays); the full-screen map hides everything; -nohud hides all. Only the Repaint event draws
+// (useGUILayout off), strings are rebuilt only when their value changes.
 using System.Collections.Generic;
 using Magistrala;
 using Magistrala.Game;
@@ -19,7 +20,9 @@ public sealed class TruckHud : MonoBehaviour
     public TruckController target;
     float smoothedFrameTime = 1f / 60f;
     // 1080 p layout of the panel
-    const float PW = 485, PH = 361, Pad = 18, TopH = 62, Row2H = 26, MapY = 96, MapH = 213, MapInset = 10, BottomH = 52, HintsFor = 15;
+    const float PW = 485, PH = 98, Pad = 18, TopH = 62, Row2H = 26, HintsFor = 15;
+    // the map panel (bottom left): the map 0.8 × the old 465 × 213
+    const float MapW = 372, MapH = 170, MapInset = 10, BottomH = 46, LW = MapW + 2 * MapInset, LH = MapInset + MapH + BottomH;
     readonly CachedText tSpeed = new CachedText(), tFuel = new CachedText(), tDmg = new CachedText(), tClock = new CachedText(), tDay = new CachedText(),
         tAcc = new CachedText(), tCash = new CachedText(), tDist = new CachedText(), tLimit = new CachedText(), tFps = new CachedText();
     readonly List<(string text, int kind)> card = new List<(string, int)>();
@@ -46,12 +49,13 @@ public sealed class TruckHud : MonoBehaviour
         if (Event.current.type == EventType.Repaint) HudStyle.Prewarm(); // (once per screen height: no first-use glyph stalls later)
         if (GpuSwitches.NoHud || Event.current.type != EventType.Repaint) return;
         var g = MagistralaGame.I;
-        bool phone = (g && g.Phone && g.Phone.Open) || WorldMap.IsOpen;
-        if (phone) { HudStyle.PanelTop = Screen.height; HudStyle.PanelRect = Rect.zero; return; }
+        if (WorldMap.IsOpen) { HudStyle.PanelTop = Screen.height; HudStyle.PanelRect = HudStyle.MapRect = Rect.zero; return; }
+        bool phone = g && g.Phone && g.Phone.Open;
         float K = HudStyle.K, M = HudStyle.Margin;
-        float pw = Mathf.Round(PW * K), ph = Mathf.Round(PH * K);
         bool map = g && g.World != null;
-        if (!map) ph = Mathf.Round(TopH * K);
+        HudStyle.MapRect = map ? MapPanel(g, K, M) : Rect.zero;
+        if (phone) { HudStyle.PanelTop = Screen.height; HudStyle.PanelRect = Rect.zero; return; }
+        float pw = Mathf.Round(PW * K), ph = Mathf.Round((map ? PH : TopH) * K);
         var P = new Rect(Screen.width - M - pw, Screen.height - M - ph, pw, ph);
         HudStyle.PanelTop = P.y; HudStyle.PanelRect = P;
         HudStyle.PanelBg(P, 14);
@@ -92,8 +96,19 @@ public sealed class TruckHud : MonoBehaviour
         HudStyle.Label(new Rect(X(PW - Pad - 300), Y(TopH), 300 * K, Row2H * K), tAcc.Get(Mathf.RoundToInt(g.Account * 100), k => "Račun obrta " + MagistralaGame.Eur(k / 100f)), HudStyle.St(16, true, HudStyle.Accent, TextAnchor.MiddleRight));
         if (g.Cash > 0.004f) HudStyle.Label(new Rect(X(Pad), Y(TopH), 200 * K, Row2H * K), tCash.Get(Mathf.RoundToInt(g.Cash * 100), k => "Gotovina " + MagistralaGame.Eur(k / 100f)), HudStyle.St(14, false, HudStyle.Muted));
 
-        // ---- the map
-        var mr = new Rect(X(MapInset), Y(MapY), Mathf.Round((PW - 2 * MapInset) * K), Mathf.Round(MapH * K));
+        Extras(g, P);
+    }
+
+    /// the map panel at the bottom left: the minimap with the speed limit sign, the destination and the distance under it
+    Rect MapPanel(MagistralaGame g, float K, float M)
+    {
+        float lw = Mathf.Round(LW * K), lh = Mathf.Round(LH * K);
+        var P = new Rect(M, Screen.height - M - lh, lw, lh);
+        HudStyle.PanelBg(P, 14);
+        float X(float v) => P.x + v * K;
+        float Y(float v) => P.y + v * K;
+        int limit = LocationLabel.SpeedLimit;
+        var mr = new Rect(X(MapInset), Y(MapInset), Mathf.Round(MapW * K), Mathf.Round(MapH * K));
         var gps = g.GetComponent<GpsMap>();
         var pic = gps ? gps.Picture((int)mr.width, (int)mr.height) : null;
         if (pic) GUI.DrawTexture(mr, pic, ScaleMode.StretchToFill, false, 0, Color.white, 0, 10 * K);
@@ -108,21 +123,35 @@ public sealed class TruckHud : MonoBehaviour
         }
 
         // ---- bottom row: destination · distance
-        string dest = g.DestName; float by = Y(MapY + MapH), bh = BottomH * K;
+        string dest = g.DestName; float by = Y(MapInset + MapH), bh = BottomH * K;
         if (dest != null)
         {
             string d = tDist.Get(Mathf.RoundToInt(g.RouteMetres / 10), k => HudStyle.Km(k * 10));
-            var dst = HudStyle.St(19, true, Color.white, TextAnchor.MiddleRight);
+            var dst = HudStyle.St(18, true, Color.white, TextAnchor.MiddleRight);
             float dw = HudStyle.Width(dst, d);
-            HudStyle.Label(new Rect(X(PW - Pad) - dw - 2, by, dw + 2, bh), d, dst);
-            HudStyle.Label(new Rect(X(Pad), by, P.width - 2 * Pad * K - dw - 16 * K, bh), dest, HudStyle.St(19, false, Color.white));
+            HudStyle.Label(new Rect(X(LW - Pad) - dw - 2, by, dw + 2, bh), d, dst);
+            var ds = HudStyle.St(18, false, Color.white);
+            float avail = P.width - 2 * Pad * K - dw - 14 * K;
+            HudStyle.Label(new Rect(X(Pad), by, avail, bh), FitText(ds, dest, avail), ds);
         }
         else
         {
             string place = LocationLabel.Place;
-            HudStyle.Label(new Rect(X(Pad), by, P.width - 2 * Pad * K, bh), string.IsNullOrEmpty(place) ? "Bez odredišta" : place, HudStyle.St(19, false, HudStyle.Muted));
+            var ps = HudStyle.St(18, false, HudStyle.Muted);
+            HudStyle.Label(new Rect(X(Pad), by, P.width - 2 * Pad * K, bh), FitText(ps, string.IsNullOrEmpty(place) ? "Bez odredišta" : place, P.width - 2 * Pad * K), ps);
         }
-        Extras(g, P);
+        return P;
+    }
+
+    /// s cut with "…" to fit w (the map panel is narrower now); remembers the last cut per style
+    string fitIn, fitOut; GUIStyle fitSt; float fitW;
+    string FitText(GUIStyle st, string s, float w)
+    {
+        if (s == fitIn && st == fitSt && Mathf.Abs(w - fitW) < 0.5f) return fitOut;
+        fitIn = s; fitSt = st; fitW = w; fitOut = s;
+        if (HudStyle.Width(st, s) > w)
+            for (int n = s.Length - 1; n > 1; n--) { string t = s.Substring(0, n).TrimEnd() + "…"; if (HudStyle.Width(st, t) <= w) { fitOut = t; break; } }
+        return fitOut;
     }
 
     static void Divider(float x, float y, float h) => HudStyle.Fill(new Rect(x, y, Mathf.Max(1, Mathf.Round(HudStyle.K)), h), HudStyle.Line);
@@ -169,7 +198,8 @@ public sealed class TruckHud : MonoBehaviour
             w = Mathf.Min(w, P.x - 2 * M);
             if (w > 200 * K)
             {
-                var r = new Rect(M, Screen.height - M - h, w, h);
+                float bottom = HudStyle.MapRect.width > 0 ? HudStyle.MapRect.y - gap : Screen.height - M;
+                var r = new Rect(M, bottom - h, w, h);
                 HudStyle.PanelBg(r, 14, a);
                 var old = GUI.color; GUI.color = new Color(1, 1, 1, a);
                 float cy = r.y + 9 * K;

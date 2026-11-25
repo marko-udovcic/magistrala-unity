@@ -2,6 +2,9 @@
 // traffic cars; drawn like TrafficSystem draws them: lod parts, lamps, beacons). -carcam f34,left,right,rear,r34,row,d40,d60 then
 // moves the main camera through those views of the first car, one every -carcamdt seconds (default 2.5) from -carcamt0 (default 7),
 // so -shots can capture them. -carpaint i: paint colour index of every car (default 0). -carlod 0|1|2: force a parts level.
+// -carshowcones n: n traffic cones (drawn here: an orange cone with a white band) in a line behind the first car, towards the road;
+// -carshowhide: the player's truck hidden (its renderers off) – the cover of the phone's police group (MatePhone.Blicaj.cs) is
+// "-carshow policija -carshowcones 4 -carshowhide -carcam …" with -shot.
 using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
@@ -56,6 +59,53 @@ namespace Magistrala.Traffic
                 Debug.Log($"[carshow] {kd.name} at {at}");
             }
             placed = true;
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-carshowhide") >= 0)
+                foreach (var r in truck.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+            if (Arg("-carshowcones") is string cn && int.TryParse(cn, out int nc) && shown.Count > 0) Cones(nc, shown[0], right);
+        }
+
+        /// n cones from the car's rear corner diagonally out towards the road (as a patrol sets them out)
+        static void Cones(int n, Shown c, Vector3 right)
+        {
+            var mesh = ConeMesh();
+            var sh = Shader.Find("Universal Render Pipeline/Lit");
+            var orange = new Material(sh) { color = new Color(1f, 0.36f, 0.05f) }; orange.SetFloat("_Smoothness", 0.35f);
+            var white = new Material(sh) { color = new Color(0.95f, 0.95f, 0.95f) }; white.SetFloat("_Smoothness", 0.5f);
+            var f = c.rot * Vector3.forward;
+            for (int i = 0; i < n; i++)
+            {
+                var at = c.pos - f * (3.2f + i * 2.4f) - right * (0.6f + i * 0.75f);
+                float y = at.y;
+                if (Physics.Raycast(at + Vector3.up * 3, Vector3.down, out var h, 8, ~0, QueryTriggerInteraction.Ignore)) y = h.point.y;
+                var go = new GameObject("cone");
+                go.transform.position = new Vector3(at.x, y, at.z);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                go.AddComponent<MeshRenderer>().sharedMaterials = new[] { orange, white };
+            }
+        }
+
+        /// a 0.7 m traffic cone: a square base, the cone (sub-mesh 0 orange) with a white band (sub-mesh 1)
+        static Mesh ConeMesh()
+        {
+            var v = new List<Vector3>(); var n = new List<Vector3>(); var t0 = new List<int>(); var t1 = new List<int>();
+            const int seg = 20;
+            void Ring(float y0, float r0, float y1, float r1, List<int> tri)
+            {
+                int b = v.Count; float slope = (r0 - r1) / (y1 - y0);
+                for (int i = 0; i <= seg; i++)
+                {
+                    float a = i * Mathf.PI * 2 / seg; var d = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)); var nn = (d + Vector3.up * slope).normalized;
+                    v.Add(d * r0 + Vector3.up * y0); n.Add(nn); v.Add(d * r1 + Vector3.up * y1); n.Add(nn);
+                }
+                for (int i = 0; i < seg; i++) { int k = b + i * 2; tri.AddRange(new[] { k, k + 1, k + 3, k, k + 3, k + 2 }); }
+            }
+            Ring(0.06f, 0.17f, 0.3f, 0.115f, t0); Ring(0.3f, 0.115f, 0.42f, 0.09f, t1); Ring(0.42f, 0.09f, 0.7f, 0.025f, t0);
+            // the base plate
+            int bb = v.Count; float hw = 0.21f;
+            foreach (var p in new[] { new Vector3(-hw, 0.06f, -hw), new Vector3(hw, 0.06f, -hw), new Vector3(hw, 0.06f, hw), new Vector3(-hw, 0.06f, hw) }) { v.Add(p); n.Add(Vector3.up); }
+            t0.AddRange(new[] { bb, bb + 2, bb + 1, bb, bb + 3, bb + 2 });
+            var m = new Mesh { name = "cone" }; m.SetVertices(v); m.SetNormals(n); m.subMeshCount = 2; m.SetTriangles(t0, 0); m.SetTriangles(t1, 1); m.RecalculateBounds();
+            return m;
         }
 
         void Update()

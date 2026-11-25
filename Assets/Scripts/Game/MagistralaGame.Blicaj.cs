@@ -26,23 +26,32 @@ namespace Magistrala.Game
                 if (s.road == 'p')
                 {
                     var st = World.Stop(s.key);
-                    if (st != null) { s.pos = st.pos; s.ok = true; ok++; }
+                    if (st != null)
+                    {
+                        s.pos = st.pos; s.ok = true; ok++;
+                        string pl = World.PlaceAt(st.pos);
+                        s.head = string.IsNullOrEmpty(pl) || st.name.Contains(pl) ? st.name : $"{st.name}, {pl}";
+                    }
                     continue;
                 }
-                var pts = new List<Vector3>();
+                var pts = new List<Vector3>(); var names = new List<string>();
                 foreach (var e in World.edges)
                 {
                     bool match = s.road == 'd' ? e.road == "D8" : e.road != null && e.road.StartsWith("Ž6137");
                     if (!match) continue;
-                    for (int k = 0; k < e.pn; k++) { var p = World.pts[e.p0 + k]; if (World.PlaceAt(p) == s.key) pts.Add(p); }
+                    for (int k = 0; k < e.pn; k++) { var p = World.pts[e.p0 + k]; if (World.PlaceAt(p) == s.key) { pts.Add(p); names.Add(e.name); } }
                 }
                 if (pts.Count == 0) { Debug.LogWarning($"[blicaj] spot {s.id}: no {(s.road == 'd' ? "D8" : "Ž6137")} in {s.key}"); continue; }
                 Vector3 c = Vector3.zero; foreach (var p in pts) c += p; c /= pts.Count;
                 float bd = float.MaxValue;
-                foreach (var p in pts) { float d = (p - c).sqrMagnitude; if (d < bd) { bd = d; s.pos = p; } }
+                string street = "";
+                for (int k = 0; k < pts.Count; k++) { float d = (pts[k] - c).sqrMagnitude; if (d < bd) { bd = d; s.pos = pts[k]; street = names[k]; } }
                 s.ok = true; ok++;
+                // the headline: the settlement and the road there (the old road by its street name)
+                s.head = s.road == 'd' ? $"{s.key}, D8" : $"{s.key}, {(string.IsNullOrEmpty(street) ? "stara cesta" : street)}";
             }
             BlicajFeed.Reset();
+            foreach (var s in BlicajFeed.Spots) if (s.ok) Debug.Log($"[blicaj] spot {s.id}: \"{s.head}\"");
             Debug.Log($"[blicaj] {ok}/{BlicajFeed.Spots.Length} spots; today's patrol {BlicajFeed.PatrolSpot(Day, 9)?.id} (morning), {BlicajFeed.PatrolSpot(Day, 15)?.id} (afternoon)");
 
             Phone.truckPos = () => Truck ? TruckCentre() : (Vector3?)null;

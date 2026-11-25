@@ -175,7 +175,8 @@ namespace Magistrala.Game
                 S.zdravkoDay = Day; if (angry) { S.missedDay = Day; S.recallDay = Day; S.rep -= 2; }
                 Phone.Ring(angry ? Recall7() : Call6());
             }
-            // test: -phonedemo  a story and a random message · -phone home|poruke|pozivi|kontakti|poslovi|thread|blicaj  open the phone there
+            // test: -phonedemo  a story and a random message · -phone home|poruke|pozivi|kontakti|poslovi|banka|policija (blicaj)|javi|
+            //   postavke|thread  open the phone there · -phonescroll px  scroll that app (screenshots of the lower part)
             if (Has("-phonedemo")) { Phone.Message("vesna", "Kupi kruv i mliko, i ono šta san ti rekla.", true); Phone.TryRandom(Day, "zare", "Bura na D8. Prazan kamion je jedrilica, drži volan."); }
             if (Has("-blicajdemo")) Phone.BlicajDemo();
             if (Arg("-phone") is string ph) StartCoroutine(OpenPhoneLater(ph));
@@ -187,9 +188,19 @@ namespace Magistrala.Game
         System.Collections.IEnumerator OpenPhoneLater(string screen)
         {
             yield return new WaitForSeconds(2.5f);
-            var sc = screen switch { "poruke" => MatePhone.Screen.Messages, "pozivi" => MatePhone.Screen.Calls, "kontakti" => MatePhone.Screen.Contacts, "poslovi" => MatePhone.Screen.Jobs, "blicaj" => MatePhone.Screen.Blicaj, "thread" => MatePhone.Screen.Thread, _ => MatePhone.Screen.Home };
+            var sc = screen switch
+            {
+                "poruke" => MatePhone.Screen.Messages, "pozivi" => MatePhone.Screen.Calls, "kontakti" => MatePhone.Screen.Contacts, "poslovi" => MatePhone.Screen.Jobs,
+                "blicaj" or "policija" => MatePhone.Screen.Blicaj, "javi" => MatePhone.Screen.BlicajJavi, "banka" => MatePhone.Screen.Bank, "postavke" => MatePhone.Screen.Settings,
+                "thread" => MatePhone.Screen.Thread, _ => MatePhone.Screen.Home,
+            };
             Phone.Show(sc);
             if (sc == MatePhone.Screen.Thread) Phone.OpenThread("vesna");
+            if (Arg("-phonescroll") is string ps && float.TryParse(ps, NumberStyles.Float, CultureInfo.InvariantCulture, out var px))
+            {
+                yield return new WaitForSecondsRealtime(2); // (the app has laid out its content by then)
+                Phone.ScrollTo(px);
+            }
         }
 
         System.Collections.IEnumerator CallPick(int k)
@@ -208,6 +219,19 @@ namespace Magistrala.Game
             Phone.DayText = () => $"{char.ToUpper(DayNames[Day % 7][0])}{DayNames[Day % 7].Substring(1)}, dan {Day + 1}";
             Phone.toast = Banner;
             Phone.changed = () => SaveNow("phone");
+            Phone.openMap = () => { if (GetComponent<WorldMap>() is WorldMap wm) wm.Open(); };
+            Phone.bank = () =>
+            {
+                var b = new BankInfo { account = S.account, cash = S.cash, debt = LoanLeft, debtTotal = LoanTotal, rate = LoanRate, loanName = "GALEB TRANSPORT · Mate jamac-platac" };
+                // the last payments into the account: the invoiced faturete (S.invoices "day|hh:mm|customer|€"), newest first
+                for (int i = S.invoices.Count - 1; i >= 0 && b.moves.Count < 8; i--)
+                {
+                    var p = S.invoices[i].Split('|');
+                    if (p.Length < 4 || !int.TryParse(p[0], out int d) || !float.TryParse(p[3].Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var eur)) continue;
+                    b.moves.Add((p[2], $"{DayNames[d % 7]} {p[1]} · fatureta, račun", eur));
+                }
+                return b;
+            };
             Phone.jobsProvider = () =>
             {
                 var l = new List<PhoneJob>();
@@ -238,6 +262,11 @@ namespace Magistrala.Game
             };
             SetupBlicaj();
         }
+
+        /// the loan Mate guarantees (scenario + faza1-odgovori: 18.000 € on ćaća's obrt, the first instalment 300 €): shown in the
+        /// Banka app; nothing is paid off yet – the debt system (instalments, the bank's letter) comes with the story
+        public const float LoanTotal = 18000, LoanRate = 300;
+        public float LoanLeft => LoanTotal;
 
         /// 6:00 (MatePhone.tsx ZdravkoCall + the approved Q3 choices)
         PhoneCall Call6()
