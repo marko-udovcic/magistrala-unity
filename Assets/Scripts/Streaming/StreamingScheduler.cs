@@ -142,7 +142,9 @@ namespace Magistrala.Streaming
             ownsPriority = true;
             InitialLoading = true;
             Application.backgroundLoadingPriority = LoadingPriority.High;
-            HoldPhysics(true); // (before the truck is ready too: it was placed over a road whose cell is not loaded yet and fell through)
+            // paused from the start, not only once the truck is found: it stood over a road whose cell was not loaded yet and fell
+            // through. (Not Physics.simulationMode = Script: forces added by FixedUpdate then pile up and launch the truck.)
+            savedTimeScale = Time.timeScale; Time.timeScale = 0; ownsPause = true;
             Status = "waiting for player";
             if (maxL0LoadsInFlight > 1 || maxScenesWaitingForActivation > 1)
                 Debug.Log("[stream] serialized scene gate caps effective concurrency/waiters at 1 (Unity async queue)");
@@ -222,12 +224,14 @@ namespace Magistrala.Streaming
             {
                 if (!truck.IsReady) { log.Tick(this); return; }
                 started = true;
-                savedTimeScale = Time.timeScale;
-                Time.timeScale = 0; ownsPause = true;
+                if (!ownsPause) { savedTimeScale = Time.timeScale; Time.timeScale = 0; ownsPause = true; }
                 Status = "loading start rings";
             }
             RefreshPath();
             UpdateWants(); // Also drops stale, not-yet-started requests on reversals/teleports.
+            // the admission budget is for the work that follows (activations, gate, loads, unloads), not this bookkeeping:
+            // measured from here (drive test: bookkeeping alone used the 1.5 ms on a busy M2, nothing loaded, the ring ran out)
+            frameStart = Time.realtimeSinceStartupAsDouble;
             PollOperations();
             ReleaseSceneGate();
             StepRoots();
@@ -287,14 +291,19 @@ namespace Magistrala.Streaming
 
         void UpdateWants()
         {
+            // the path's box (+ corridor): cells outside it skip the per-segment tests (117 cells × up to 255 segments every frame)
+            float px0 = float.MaxValue, pz0 = float.MaxValue, px1 = float.MinValue, pz1 = float.MinValue;
+            for (int p = 0; p < pathCount; p++) { var q = path[p]; px0 = Mathf.Min(px0, q.x); px1 = Mathf.Max(px1, q.x); pz0 = Mathf.Min(pz0, q.z); pz1 = Mathf.Max(pz1, q.z); }
+            px0 -= lookaheadCorridorRadius; pz0 -= lookaheadCorridorRadius; px1 += lookaheadCorridorRadius; pz1 += lookaheadCorridorRadius;
             for (int i = 0; i < cells.Length; i++)
             {
                 var c = cells[i];
                 c.distance = DistanceXZ(position, c.definition.bounds);
                 c.wantActive = c.distance <= activeRadius;
-                bool ahead = false;
+                var bmin = c.definition.bounds.min; var bmax = c.definition.bounds.max;
+                bool ahead = false, outside = bmax.x < px0 || bmin.x > px1 || bmax.z < pz0 || bmin.z > pz1;
                 // A segment/AABB test, not point sampling: no skipped cells on a long straight edge.
-                for (int p = 1; p < pathCount && !ahead; p++)
+                if (!outside) for (int p = 1; p < pathCount && !ahead; p++)
                     ahead = SegmentIntersects(path[p - 1], path[p], c.definition.bounds, lookaheadCorridorRadius);
                 c.wantPreload = c.distance <= preloadRadius || ahead;
                 c.keep = c.distance < unloadRadius || ahead;
@@ -315,8 +324,18 @@ namespace Magistrala.Streaming
             if (budgetHitFrame == Time.frameCount) return;
             budgetHitFrame = Time.frameCount; BudgetHits++;
         }
-        bool CanActivate => activationFrame != Time.frameCount && HasBudget(Math.Min(Math.Max(LastActivationMs, .1), frameBudgetMs * .75)) &&
-            (InitialLoading || Time.unscaledDeltaTime * 1000 <= slowFrameThresholdMs);
+        // slow frames defer an activation, but never for long: on a 30 fps machine every frame is "slow" (drive test: at 40–60 fps
+        // with spikes the gate stayed shut, the active ring emptied and the catch-up pause had to step in)
+        int slowDeferrals;
+        bool CanActivate
+        {
+            get
+            {
+                if (activationFrame == Time.frameCount || !HasBudget(Math.Min(Math.Max(LastActivationMs, .1), frameBudgetMs * .75))) return false;
+                if (InitialLoading || Time.unscaledDeltaTime * 1000 <= slowFrameThresholdMs || slowDeferrals >= 6) { slowDeferrals = 0; return true; }
+                slowDeferrals++; return false;
+            }
+        }
 
         void PollOperations()
         {
@@ -336,6 +355,7 @@ namespace Magistrala.Streaming
             else
             {
                 loaded.state = Residency.Resident;
+                if (HitchDiag.On) HitchDiag.Note($"scene+ {loaded.definition.key} {LastSceneActivationLatencyMs:F0}ms");
                 loaded.roots.Capacity = Mathf.Max(loaded.roots.Capacity, loaded.scene.rootCount + 1);
                 loaded.scene.GetRootGameObjects(loaded.roots);
                 for (int i = 0; i < loaded.roots.Count; i++)
@@ -358,6 +378,7 @@ namespace Magistrala.Streaming
             gateReleasedAt = Time.realtimeSinceStartupAsDouble;
             gateReleased = true;
             load.allowSceneActivation = true;
+            if (HitchDiag.On) HitchDiag.Note("gate " + cells[loadingIndex].definition.key);
         }
 
         void StepRoots()
@@ -376,6 +397,7 @@ namespace Magistrala.Streaming
                     root.SetActive(c.wantActive); // A root is the indivisible bake unit. Keep it small.
                     LastActivationMs = (Time.realtimeSinceStartupAsDouble - before) * 1000;
                     MaxActivationMs = Math.Max(MaxActivationMs, LastActivationMs);
+                    if (HitchDiag.On) HitchDiag.Note($"root {c.definition.key} {(c.wantActive ? "on" : "off")} {LastActivationMs:F1}ms");
                     activationFrame = Time.frameCount;
                     rootCursor = (i + 1) % cells.Length;
                     return;
@@ -452,6 +474,7 @@ namespace Magistrala.Streaming
                 if (c.state != Residency.Resident || c.keep || !DataReleased(i)) continue;
                 if (!c.scene.IsValid()) { c.state = Residency.Absent; return; } // data-only
                 c.unload = SceneManager.UnloadSceneAsync(c.scene);
+                if (HitchDiag.On) HitchDiag.Note("unload " + c.definition.key);
                 if (c.unload == null) { c.state = Residency.Failed; CellFailed("unload rejected: " + c.definition.key); }
                 else c.state = Residency.Unloading;
                 return;
@@ -534,25 +557,36 @@ namespace Magistrala.Streaming
         {
             InitialLoading = true;
             if (!ownsPause) { savedTimeScale = Time.timeScale; Time.timeScale = 0; ownsPause = true; }
-            HoldPhysics(true);
             Application.backgroundLoadingPriority = LoadingPriority.High;
             Status = "catching up (teleport)";
             Debug.Log($"[stream] catching up at x={position.x - 4200:F0} z={-position.z - 5300:F0}");
         }
 
-        SimulationMode savedSimulation; bool holdingPhysics;
-        /// no physics step while the ground may be missing (start, teleport catch-up); scaled time and scripts keep running
-        void HoldPhysics(bool on)
+        /// vehicles placed (MagistralaGame.Place / PlaceAtStopFor: a ground raycast) before their cell's colliders existed stand on
+        /// the terrain under a yard / road surface: lifted onto the highest surface at most 3 m above their wheels' ground
+        static readonly RaycastHit[] groundHits = new RaycastHit[32];
+        void Reground()
         {
-            if (on == holdingPhysics) return;
-            holdingPhysics = on;
-            if (on) { savedSimulation = Physics.simulationMode; Physics.simulationMode = SimulationMode.Script; }
-            else Physics.simulationMode = savedSimulation;
+            foreach (var tc in FindObjectsByType<TruckController>(FindObjectsSortMode.None))
+            {
+                var rb = tc.GetComponent<Rigidbody>(); var p = tc.transform.position; float ground = p.y - 1.1f, best = float.NegativeInfinity;
+                int n = Physics.RaycastNonAlloc(new Vector3(p.x, p.y + 30, p.z), Vector3.down, groundHits, 80, ~0, QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++)
+                {
+                    var h = groundHits[i];
+                    if (h.collider.attachedRigidbody || h.transform.IsChildOf(tc.transform)) continue;
+                    if (h.point.y <= ground + 3f && h.point.y > best) best = h.point.y;
+                }
+                if (float.IsNegativeInfinity(best) || best <= ground + .05f) continue;
+                var q = p + Vector3.up * (best - ground);
+                tc.transform.position = q; if (rb) { rb.position = q; rb.linearVelocity = Vector3.zero; rb.angularVelocity = Vector3.zero; }
+                Debug.Log($"[stream] {tc.name} lifted {best - ground:F2} m onto its cell's ground at x={q.x - 4200:F0} z={-q.z - 5300:F0}");
+            }
         }
 
         void FinishInitialLoad()
         {
-            HoldPhysics(false);
+            Physics.SyncTransforms(); Reground();
             InitialLoading = false;
             RestorePause();
             Application.backgroundLoadingPriority = LoadingPriority.Low;
@@ -565,7 +599,7 @@ namespace Magistrala.Streaming
             HasFailedCells = true; Status = reason;
             Debug.LogError("[stream] " + reason);
             // A bad bake must not trap the player permanently behind a black loading overlay.
-            if (InitialLoading) { InitialLoading = false; RestorePause(); HoldPhysics(false); Application.backgroundLoadingPriority = LoadingPriority.Low; }
+            if (InitialLoading) { InitialLoading = false; RestorePause(); Application.backgroundLoadingPriority = LoadingPriority.Low; }
         }
 
         void RestorePause()
@@ -580,7 +614,7 @@ namespace Magistrala.Streaming
             if (Instance != this) return;
             // Never leave Unity's global async queue locked if this component is disabled/destroyed.
             if (load != null) load.allowSceneActivation = true;
-            RestorePause(); HoldPhysics(false);
+            RestorePause();
             if (ownsPriority) Application.backgroundLoadingPriority = savedPriority;
         }
 
