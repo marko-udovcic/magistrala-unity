@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Magistrala.Cells;
+using Magistrala.Streaming;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -11,8 +13,11 @@ namespace Magistrala
     /// pools on the ground under each head (World/Props/rasvjeta/pools: draped additive meshes, Magistrala/LightPool) switch on, and
     /// the `realLights` heads nearest the camera get a pooled real point light (no shadows), faded in / out by distance — no
     /// thousands of real-time lights.
+    /// Pages (streaming phase 2, Assets/Scripts/Cells/CellData.cs): lamps, heads and light pools of one CellGrid cell are one page.
+    /// From the scene's arrays at start (editor scene), or from the cell blobs when the bake took the arrays, the pool renderers
+    /// and the pole colliders out (player / play mode; the pools are then drawn here, the colliders come from CellColliders).
     [DefaultExecutionOrder(10001)]
-    public class StreetLights : MonoBehaviour
+    public class StreetLights : MonoBehaviour, ICellLayer
     {
         public Vector4[] lamps;            // Unity x, ground y, z, yaw (deg; local +z = the arm, towards the road)
         public byte[] types;
@@ -29,43 +34,54 @@ namespace Magistrala
         public static float Level;
         /// measuring only (-lamps 0): no lamps drawn, no lights
         public static bool Off;
+        public int Count { get; private set; }
 
         const float CELL = 128;
-        class Cell { public Bounds b; public int[] idx; }
-        readonly List<Cell> cells = new List<Cell>();
-        Matrix4x4[] mtx; Material[] lensRun; Light[] pool; LightPreset preset; Light sun;
+        /// a 128 m bucket of a page: bounds and a range of the page's lamps
+        struct Sub { public Bounds b; public int o, n; }
+        /// one CellGrid cell: lamps (+ matrices, types) by bucket, lamp heads, light pools (mesh, matrix, layer, world bounds)
+        sealed class Page { public Vector4[] lamps; public byte[] types; public Matrix4x4[] mtx; public int n; public Sub[] subs; public Vector3[] heads; public int nh;
+            public Mesh[] poolMesh; public Matrix4x4[] poolM; public int[] poolLayer; public Bounds[] poolB; }
+        readonly List<Page> pages = new List<Page>();
+        Material[] lensRun; Light[] pool; LightPreset preset; Light sun;
         readonly Plane[] planes = new Plane[6];
         float lastLevel = -1;
         const int CHUNK = 500;
         // per type: near + shadow, near no shadow, near shadow only, far
         List<Matrix4x4>[,] lists; Vector3[,] lo, hi;
         public int DrawnLastFrame { get; private set; }
+        Mesh[] cellPoolMeshes; bool inited, fromCells;
+        readonly System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
 
         void Start()
         {
+            InitOnce();
+            if (fromCells || lamps == null || lamps.Length == 0) return;
+            // the scene's arrays: one page per CellGrid cell (the pools stay the scene's renderers)
+            var byCell = new Dictionary<Vector2Int, (List<int> l, List<Vector3> h)>();
+            (List<int> l, List<Vector3> h) At(Vector3 p) { var c = CellGrid.Cell(p); if (!byCell.TryGetValue(c, out var e)) byCell[c] = e = (new List<int>(), new List<Vector3>()); return e; }
+            for (int i = 0; i < lamps.Length; i++) At(lamps[i]).l.Add(i);
+            if (heads != null) foreach (var h in heads) At(h).h.Add(h);
+            foreach (var kv in byCell)
+            {
+                var pg = new Page { n = kv.Value.l.Count, lamps = new Vector4[kv.Value.l.Count], types = new byte[kv.Value.l.Count], heads = kv.Value.h.ToArray(), nh = kv.Value.h.Count };
+                for (int k = 0; k < pg.n; k++) { pg.lamps[k] = lamps[kv.Value.l[k]]; pg.types[k] = types[kv.Value.l[k]]; }
+                Finish(pg); Attach(kv.Key, pg);
+            }
+        }
+
+        void InitOnce()
+        {
+            if (inited) return; inited = true;
             foreach (var a in System.Environment.GetCommandLineArgs()) if (a == "-lamps0") Off = true;
-            if (lamps == null || lamps.Length == 0 || near == null) return;
-            mtx = new Matrix4x4[lamps.Length];
-            var map = new Dictionary<long, List<int>>();
-            for (int i = 0; i < lamps.Length; i++)
-            {
-                var l = lamps[i]; mtx[i] = Matrix4x4.TRS(new Vector3(l.x, l.y, l.z), Quaternion.Euler(0, l.w, 0), Vector3.one);
-                long k = ((long)Mathf.FloorToInt(l.x / CELL) << 32) ^ (uint)Mathf.FloorToInt(l.z / CELL);
-                if (!map.TryGetValue(k, out var li)) map[k] = li = new List<int>(); li.Add(i);
-            }
-            foreach (var li in map.Values)
-            {
-                var b = new Bounds(new Vector3(lamps[li[0]].x, lamps[li[0]].y, lamps[li[0]].z), Vector3.one);
-                foreach (int i in li) { var p = new Vector3(lamps[i].x, lamps[i].y, lamps[i].z); b.Encapsulate(new Bounds(p + Vector3.up * 6, new Vector3(5, 13, 5))); }
-                cells.Add(new Cell { b = b, idx = li.ToArray() });
-            }
+            if (near == null) return;
             lists = new List<Matrix4x4>[near.Length, 4];
             for (int t = 0; t < near.Length; t++) for (int k = 0; k < 4; k++) lists[t, k] = new List<Matrix4x4>(256);
             lo = new Vector3[near.Length, 4]; hi = new Vector3[near.Length, 4];
             // the lens materials as runtime copies (the emission changes at night; never the assets)
             lensRun = new Material[mats.Length];
             for (int i = 0; i < mats.Length; i++) { if (!mats[i]) continue; if (i % 2 == 1) { lensRun[i] = new Material(mats[i]); lensRun[i].EnableKeyword("_EMISSION"); } else lensRun[i] = mats[i]; lensRun[i].enableInstancing = true; }
-            if (poolMat) { poolMat = new Material(poolMat); foreach (var r in pools) if (r) { r.sharedMaterial = poolMat; r.enabled = false; } }
+            if (poolMat) { poolMat = new Material(poolMat); if (pools != null) foreach (var r in pools) if (r) { r.sharedMaterial = poolMat; r.enabled = false; } }
             pool = new Light[Mathf.Max(0, realLights)];
             for (int i = 0; i < pool.Length; i++)
             {
@@ -73,7 +89,56 @@ namespace Magistrala
                 var L = go.AddComponent<Light>(); L.type = LightType.Point; L.range = realRange; L.color = lampColor; L.shadows = LightShadows.None;
                 L.renderMode = LightRenderMode.ForcePixel; L.enabled = false; pool[i] = L;
             }
+            chosen = new int[pool.Length]; for (int i = 0; i < chosen.Length; i++) chosen[i] = -1;
         }
+
+        /// matrices and 128 m buckets (the lamps sorted by bucket, stable) of a page
+        static void Finish(Page pg)
+        {
+            var idx = new Dictionary<long, int>(); var lists = new List<List<int>>();
+            for (int i = 0; i < pg.n; i++) { long k = CellMath.Key(pg.lamps[i].x, pg.lamps[i].z, CELL); if (!idx.TryGetValue(k, out int b)) { b = lists.Count; idx[k] = b; lists.Add(new List<int>()); } lists[b].Add(i); }
+            var L = new Vector4[pg.n]; var T = new byte[pg.n]; pg.mtx = new Matrix4x4[pg.n]; pg.subs = new Sub[lists.Count]; int w = 0;
+            for (int b = 0; b < lists.Count; b++)
+            {
+                var l0 = pg.lamps[lists[b][0]]; var bb = new Bounds(new Vector3(l0.x, l0.y, l0.z), Vector3.one);
+                pg.subs[b].o = w; pg.subs[b].n = lists[b].Count;
+                foreach (int i in lists[b])
+                {
+                    var l = pg.lamps[i]; L[w] = l; T[w] = pg.types[i]; pg.mtx[w] = CellMath.TRSYaw(new Vector3(l.x, l.y, l.z), l.w, 1); w++;
+                    bb.Encapsulate(new Bounds(new Vector3(l.x, l.y, l.z) + Vector3.up * 6, new Vector3(5, 13, 5)));
+                }
+                pg.subs[b].b = bb;
+            }
+            pg.lamps = L; pg.types = T;
+        }
+
+        // ICellLayer (CellData): LAMP, HEAD and POOL sections
+        public void Prepare(CellDataManifest m) { fromCells = true; cellPoolMeshes = m.poolMeshes; InitOnce(); }
+        public object Decode(CellSections s)
+        {
+            int o = s.Find(CellBlob.LAMP, out int n), oh = s.Find(CellBlob.HEAD, out int nh), op = s.Find(CellBlob.POOL, out int np);
+            if (n == 0 && nh == 0 && np == 0) return null;
+            var pg = new Page { n = n, lamps = new Vector4[n], types = new byte[n], heads = new Vector3[nh], nh = nh, poolMesh = new Mesh[np], poolM = new Matrix4x4[np], poolLayer = new int[np], poolB = new Bounds[np] };
+            for (int k = 0; k < n; k++) { int r = o + k * CellBlob.LAMP_B; pg.lamps[k] = CellBlob.V4(s.b, r); pg.types[k] = (byte)CellBlob.I(s.b, r + 16); }
+            for (int k = 0; k < nh; k++) pg.heads[k] = CellBlob.V3(s.b, oh + k * CellBlob.HEAD_B);
+            for (int k = 0; k < np; k++)
+            {
+                int r = op + k * CellBlob.POOL_B, mi = CellBlob.I(s.b, r);
+                pg.poolMesh[k] = cellPoolMeshes != null && mi >= 0 && mi < cellPoolMeshes.Length ? cellPoolMeshes[mi] : null; // (reading the array of references: no Unity API)
+                pg.poolLayer[k] = CellBlob.I(s.b, r + 4); pg.poolM[k] = CellBlob.M34(s.b, r + 8);
+                pg.poolB[k] = new Bounds(CellBlob.V3(s.b, r + 56), CellBlob.V3(s.b, r + 68) * 2);
+            }
+            Finish(pg); return pg;
+        }
+        public void Attach(Vector2Int cell, object page) { var pg = (Page)page; pages.Add(pg); Count += pg.n; nextSearch = 0; }
+        public void Detach(Vector2Int cell, object page) { var pg = (Page)page; if (pages.Remove(pg)) { Count -= pg.n; nextSearch = 0; } }
+        public void Release(object page) { }
+        // phase-3 scheduler (ICellDataSystem names): this system's part of a cell (CellData decodes the cell once for all systems)
+        bool Mine => CellData.I && CellData.I.lamps == this;
+        public void LoadCell(Vector2Int c) { if (Mine) CellData.Load(c, 1 << CellBlob.LAMPS); }
+        public void UnloadCell(Vector2Int c) { if (Mine) CellData.Unload(c, 1 << CellBlob.LAMPS); }
+        public bool IsLoaded(Vector2Int c) => !Mine || CellData.IsLoaded(c, 1 << CellBlob.LAMPS);
+
 
         float NightLevel()
         {
@@ -87,7 +152,12 @@ namespace Magistrala
 
         void LateUpdate()
         {
-            if (mtx == null) return;
+            sw.Restart(); DrawAll(); sw.Stop(); CellStats.Add(CellStats.LAMPS, (float)sw.Elapsed.TotalMilliseconds);
+        }
+
+        void DrawAll()
+        {
+            if (lists == null || pages.Count == 0) return;
             var cam = Camera.main; if (!cam) return;
             float lv = Off ? 0 : NightLevel(); Level = lv;
             if (Mathf.Abs(lv - lastLevel) > .001f)
@@ -95,7 +165,7 @@ namespace Magistrala
                 lastLevel = lv;
                 for (int i = 1; i < lensRun.Length; i += 2) if (lensRun[i]) lensRun[i].SetColor("_EmissionColor", lampColor * (lv > 0 ? lensEmission * (.4f + .6f * lv) : 0));
                 if (poolMat) poolMat.SetFloat("_Level", lv);
-                foreach (var r in pools) if (r) r.enabled = lv > 0;
+                if (pools != null) foreach (var r in pools) if (r) r.enabled = lv > 0;
             }
             if (Off) { foreach (var L in pool) L.enabled = false; return; }
             GeometryUtility.CalculateFrustumPlanes(cam, planes);
@@ -103,26 +173,39 @@ namespace Magistrala
             float near2 = nearDistance * nearDistance, sh2 = shadowDistance * shadowDistance, draw2 = drawDistance * drawDistance;
             for (int t = 0; t < near.Length; t++) for (int k = 0; k < 4; k++) lists[t, k].Clear();
             int drawn = 0;
-            foreach (var c in cells)
+            for (int pi = 0; pi < pages.Count; pi++)
             {
-                float d = Mathf.Sqrt(c.b.SqrDistance(cp));
-                if (d > drawDistance) continue;
-                bool view = GeometryUtility.TestPlanesAABB(planes, c.b);
-                if (!view && d > shadowDistance) continue;
-                foreach (int i in c.idx)
+                var pg = pages[pi];
+                for (int si = 0; si < pg.subs.Length; si++)
                 {
-                    var l = lamps[i]; float dx = l.x - cp.x, dz = l.z - cp.z, dd = dx * dx + dz * dz;
-                    if (dd > draw2) continue;
-                    int t = types[i];
-                    if (dd < near2)
+                    ref var c = ref pg.subs[si];
+                    float d = Mathf.Sqrt(c.b.SqrDistance(cp));
+                    if (d > drawDistance) continue;
+                    bool view = GeometryUtility.TestPlanesAABB(planes, c.b);
+                    if (!view && d > shadowDistance) continue;
+                    for (int i = c.o, end = c.o + c.n; i < end; i++)
                     {
-                        bool vis = view && InView(new Vector3(l.x, l.y + 6, l.z), 7);
-                        int k = vis ? (dd < sh2 ? 0 : 1) : (dd < sh2 ? 2 : -1);
-                        if (k < 0) continue;
-                        Add(t, k, i); if (vis) drawn++;
+                        var l = pg.lamps[i]; float dx = l.x - cp.x, dz = l.z - cp.z, dd = dx * dx + dz * dz;
+                        if (dd > draw2) continue;
+                        int t = pg.types[i];
+                        if (dd < near2)
+                        {
+                            bool vis = view && InView(new Vector3(l.x, l.y + 6, l.z), 7);
+                            int k = vis ? (dd < sh2 ? 0 : 1) : (dd < sh2 ? 2 : -1);
+                            if (k < 0) continue;
+                            Add(t, k, l, pg.mtx[i]); if (vis) drawn++;
+                        }
+                        else if (view) { Add(t, 3, l, pg.mtx[i]); drawn++; }
                     }
-                    else if (view) { Add(t, 3, i); drawn++; }
                 }
+                // the light pools of the cells (scene renderers when not from the cells: those are switched above)
+                if (lv > 0 && pg.poolMesh != null && poolMat)
+                    for (int k = 0; k < pg.poolMesh.Length; k++)
+                    {
+                        if (!pg.poolMesh[k] || !GeometryUtility.TestPlanesAABB(planes, pg.poolB[k])) continue;
+                        var rp = new RenderParams(poolMat) { shadowCastingMode = ShadowCastingMode.Off, receiveShadows = false, layer = pg.poolLayer[k], worldBounds = pg.poolB[k], lightProbeUsage = LightProbeUsage.Off, reflectionProbeUsage = ReflectionProbeUsage.Off };
+                        Graphics.RenderMesh(rp, pg.poolMesh[k], 0, pg.poolM[k]);
+                    }
             }
             DrawnLastFrame = drawn;
             for (int t = 0; t < near.Length; t++)
@@ -142,33 +225,35 @@ namespace Magistrala
             RealLights(cp, lv);
         }
 
-        void Add(int t, int k, int i)
+        void Add(int t, int k, Vector4 l, in Matrix4x4 m)
         {
-            var l = lamps[i]; var a = new Vector3(l.x - 3, l.y, l.z - 3); var b = new Vector3(l.x + 3, l.y + 13, l.z + 3);
+            var a = new Vector3(l.x - 3, l.y, l.z - 3); var b = new Vector3(l.x + 3, l.y + 13, l.z + 3);
             if (lists[t, k].Count == 0) { lo[t, k] = a; hi[t, k] = b; } else { lo[t, k] = Vector3.Min(lo[t, k], a); hi[t, k] = Vector3.Max(hi[t, k], b); }
-            lists[t, k].Add(mtx[i]);
+            lists[t, k].Add(m);
         }
 
         // the nearest heads get the pooled point lights (a full search ~4 times a second, the intensity faded every frame)
-        readonly List<(float d, int h)> best = new List<(float, int)>();
-        float nextSearch; int[] chosen = new int[0];
+        readonly List<(float d, Vector3 h)> best = new List<(float, Vector3)>();
+        float nextSearch; int[] chosen = new int[0]; Vector3[] chosenP = new Vector3[0];
+        static readonly System.Comparison<(float d, Vector3 h)> ByD = (a, b) => a.d.CompareTo(b.d);
         void RealLights(Vector3 cp, float lv)
         {
             if (pool.Length == 0) return;
-            if (lv <= 0 || heads == null) { foreach (var L in pool) L.enabled = false; return; }
-            if (Time.unscaledTime >= nextSearch || chosen.Length != pool.Length)
+            if (lv <= 0) { foreach (var L in pool) L.enabled = false; return; }
+            if (chosenP.Length != pool.Length) { chosenP = new Vector3[pool.Length]; chosen = new int[pool.Length]; nextSearch = 0; }
+            if (Time.unscaledTime >= nextSearch)
             {
                 nextSearch = Time.unscaledTime + .25f; best.Clear(); float r2 = realReach * realReach;
-                for (int h = 0; h < heads.Length; h++) { float d = (heads[h] - cp).sqrMagnitude; if (d < r2) best.Add((d, h)); }
-                best.Sort((a, b) => a.d.CompareTo(b.d));
-                chosen = new int[pool.Length]; for (int i = 0; i < chosen.Length; i++) chosen[i] = i < best.Count ? best[i].h : -1;
+                for (int pi = 0; pi < pages.Count; pi++) { var pg = pages[pi]; for (int h = 0; h < pg.nh; h++) { float d = (pg.heads[h] - cp).sqrMagnitude; if (d < r2) best.Add((d, pg.heads[h])); } }
+                best.Sort(ByD);
+                for (int i = 0; i < chosen.Length; i++) { chosen[i] = i < best.Count ? 1 : -1; if (i < best.Count) chosenP[i] = best[i].h; }
             }
             for (int i = 0; i < pool.Length; i++)
             {
-                var L = pool[i]; int h = chosen[i];
-                if (h < 0) { L.enabled = false; continue; }
-                float d = Vector3.Distance(heads[h], cp);
-                L.transform.position = heads[h] - Vector3.up * .25f;
+                var L = pool[i];
+                if (chosen[i] < 0) { L.enabled = false; continue; }
+                float d = Vector3.Distance(chosenP[i], cp);
+                L.transform.position = chosenP[i] - Vector3.up * .25f;
                 L.intensity = realIntensity * lv * Mathf.Clamp01((realReach - d) / 20f);
                 L.enabled = L.intensity > .01f;
             }
