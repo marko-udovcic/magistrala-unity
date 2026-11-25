@@ -1,4 +1,5 @@
-// Gusta vegetacija – the Kaštel Stari trial of ~/Documents/mag-23-11-v2/VEGETACIJA_I_TLO.md (23. 11.): Marko wants the town to
+// Gusta vegetacija – the Kaštel Stari trial of ~/Documents/mag-23-11-v2/VEGETACIJA_I_TLO.md (23. 11.), since 24. 11. over all of
+// Kaštela (Štafilić … Sućurac, Kastela boxes; Variant 0 = the Stari trial only, for A/B measuring): Marko wants the town to
 // read like a lived-in Mediterranean place seen from a truck (many trees of several kinds and shades close to the road and
 // between the houses, hiding plain house sides and empty patches). The existing build keeps ~10 trees / ha in built-up land;
 // this pass adds, inside Boxes only, on top of the tile / orthophoto / Mapillary trees (same TreeRenderer, no new prototype,
@@ -24,15 +25,52 @@ namespace Magistrala.EditorTools
     public static class GustaVegetacija
     {
         /// game frame boxes (x0, z0, x1, z1): Kaštel Stari from the D8 hillside to the sea (brief: package x 1200…2100,
-        /// z −1350…80 through paket-approaches' affine). Add a box to extend once Marko agrees.
-        public static readonly (double x0, double z0, double x1, double z1)[] Boxes =
+        /// z −1350…80 through paket-approaches' affine), the trial of 23. 11.
+        public static readonly (double x0, double z0, double x1, double z1)[] Stari =
         {
             (-8180, -5832, -7275, -4404),
         };
+        /// all of Kaštela (24. 11., Marko: the Stari trial everywhere): Štafilić (from the Trogir side, c09 / 41) through Novi, Stari,
+        /// Lukšić, Kambelovac, Gomilica to the east end of Sućurac, in 300–600 m bands across the bay; each band from 250 m above
+        /// the D8 (its northernmost point in the band, graph.json) down to the sea (sea / beach below 0.8 m is skipped by the
+        /// height test). The Stari box is the trial's own, unchanged, so Stari keeps exactly its plants.
+        public static readonly (double x0, double z0, double x1, double z1)[] Kastela =
+        {
+            (-9900, -5470, -9500, -3900),   // Štafilić
+            (-9500, -5600, -9000, -3900),
+            (-9000, -5800, -8500, -3900),   // Novi
+            (-8500, -5910, -8180, -3900),
+            (-8180, -5832, -7275, -4404),   // Stari (the trial box)
+            (-7275, -5840, -6800, -3900),   // Stari → Lukšić
+            (-6800, -5870, -6300, -3900),
+            (-6300, -5870, -5800, -3900),   // Lukšić
+            (-5800, -5830, -5300, -3900),
+            (-5300, -5730, -4800, -3900),   // Kambelovac
+            (-4800, -5730, -4300, -3900),
+            (-4300, -5730, -3800, -3900),
+            (-3800, -5640, -3300, -3900),   // Gomilica
+            (-3300, -5460, -2800, -3900),
+            (-2800, -5290, -2300, -3900),
+            (-2300, -5110, -1800, -3900),   // Sućurac
+            (-1800, -5010, -1300, -3900),
+            (-1300, -5010, -800, -3900),
+            (-800, -5010, -300, -3900),
+            (-300, -4920, 0, -3900),
+        };
+        /// 0 = the Stari trial only, 1 = all of Kaštela at the trial's density (default), 2 = all of Kaštela, lighter outside the
+        /// Stari box (LightBush / LightTree). Measured 25. 11. (M2 Air, srednje 1600×900, Mac build, against variant 0, alternated,
+        /// 60 s cool-down; autopilot Lukšić → Gomilica / fixed views on the old road in Novi and Gomilica): variant 1 −10 / −3 / −12 %,
+        /// variant 2 −10 / −3 / −12 % too — the cost is the main thread (TreeRenderer +0.6–0.8 ms, ~3 ms more per frame), not the
+        /// bushes, so halving them buys nothing measurable; run-to-run noise is ±5 %
+        public static int Variant = 1;
+        static (double x0, double z0, double x1, double z1)[] Boxes => Variant == 0 ? Stari : Kastela;
         public static bool On = true;
         public static int[] Kinds = new int[16];
         public static int Yard, Empty, Verge, SignsRemoved;
 
+        /// the lighter variant's density factors outside the Stari box (bushes, yard trees)
+        public static float LightBush = .5f, LightTree = .5f;
+        static bool InStari(double x, double z) { foreach (var b in Stari) if (x >= b.x0 && x < b.x1 && z >= b.z0 && z < b.z1) return true; return false; }
         static bool InBox(double x, double z) { foreach (var b in Boxes) if (x >= b.x0 && x < b.x1 && z >= b.z0 && z < b.z1) return true; return false; }
 
         // ---- 2 m and 30 m building masks per 1 km tile (OrthoGround's 0.5 m footprint mask)
@@ -146,6 +184,8 @@ namespace Magistrala.EditorTools
                         if (yard) { pTree = 9f / 80 * pk; pBush = 9f / 45 * pk; }
                         else if (verge) { pTree = 9f / 300 * pk; pBush = 9f / 40 * pk; }
                         else { pTree = 9f / 260 * pk; pBush = 9f / 35 * pk; }   // open land stays open: trees in patches
+                        // the lighter variant (2): outside the Stari trial box half the bushes and half the yard trees; same seeds and rules
+                        if (Variant == 2 && !InStari(x, z)) { pBush *= LightBush; if (yard) pTree *= LightTree; }
                         bool tree = r < pTree, bush = !tree && r < pTree + pBush;
                         if (!tree && !bush) continue;
                         // keep clear
@@ -204,53 +244,86 @@ namespace Magistrala.EditorTools
             int n = 0;
             var keep = RemoveSigns(outL);
             foreach (var p in keep) { put(p.x, p.y, p.z, p.yaw, p.s, p.proto); Kinds[Math.Min(15, p.proto < 8 ? p.proto : p.proto == crn ? 8 : p.proto == ol || p.proto == ow ? 9 : p.proto == gt ? 10 : p.proto == pin ? 12 : 11)]++; n++; }
-            Debug.Log($"[gusto] Kaštel Stari: {n} plants (trees yard {Yard}, empty {Empty}, verge {Verge}; removed for signs {SignsRemoved}); " +
+            Debug.Log($"[gusto] {(Variant == 0 ? "Kaštel Stari" : Variant == 2 ? "Kaštela (lakša)" : "Kaštela")}: {n} plants (trees yard {Yard}, empty {Empty}, verge {Verge}; removed for signs {SignsRemoved}); " +
                       $"pine_a {Kinds[0]} pine_b {Kinds[1]} olive {Kinds[2]} cypress {Kinds[3]} shrub_a {Kinds[4]} shrub_b {Kinds[5]} bush_c {Kinds[6]} crnika {Kinds[8]} oleander {Kinds[9]} grm-tamni {Kinds[10]} pines(NM) {Kinds[11]} pinija {Kinds[12]}");
             placed.Clear(); masks.Clear();
             return n;
         }
 
-        /// the sign test: signs / signals of the scene (SignsBuilder "Signs", signals) in the boxes; sight lines from 10–100 m
-        /// along the face normal (both ways: the face's side is not known here) at 2.5 m above the ground to the face's middle
+        /// the sign test: every sign / signal face in the boxes — the posts SignsBuilder placed (Logs/znakovi-polozaji.tsv: kind,
+        /// game x, z, travel heading), the signal heads (World/Signals TrafficSignals, lens position and facing) and any separate
+        /// small renderer under World/Signs / Signals (the merged 256 m chunks are not faces); sight lines from 10–100 m along the
+        /// face normal (both ways) at 2.5 m above the ground to the face's middle. (Build trees runs before Build signals: the faces
+        /// are those of the last signals build.)
         static List<Plant> RemoveSigns(List<Plant> plants)
         {
             var faces = new List<(Vector3 c, Vector3 n)>();
+            int nPosts = 0, nHeads = 0, nRend = 0;
+            if (System.IO.File.Exists("Logs/znakovi-polozaji.tsv"))
+                foreach (var line in System.IO.File.ReadAllLines("Logs/znakovi-polozaji.tsv"))
+                {
+                    var f = line.Split('\t'); if (f.Length < 4) continue;
+                    if (!double.TryParse(f[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double gx) ||
+                        !double.TryParse(f[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double gz) ||
+                        !float.TryParse(f[3], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float hd)) continue;
+                    if (!InBox(gx, gz)) continue;
+                    float a = hd * Mathf.Deg2Rad;
+                    faces.Add((W.U(gx, Tiles.Height(gx, gz) + 2.6, gz), new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)))); nPosts++;
+                }
+            foreach (var ts in UnityEngine.Object.FindObjectsByType<Magistrala.Traffic.TrafficSignals>(FindObjectsSortMode.None))
+                foreach (var h in ts.heads ?? new Magistrala.Traffic.TrafficSignals.Head[0])
+                {
+                    Vector3 c = h.mAmber.GetColumn(3), f = h.mAmber.GetColumn(2); f.y = 0; if (f.sqrMagnitude < 1e-4f) continue;
+                    var g = W.G(c); if (!InBox(g.x, g.y)) continue;
+                    faces.Add((c, f.normalized)); nHeads++;
+                }
             foreach (var rootName in new[] { "Signs", "Signals", "Signali", "Znakovi" })
             {
                 var root = GameObject.Find("World/" + rootName) ?? GameObject.Find(rootName);
                 if (!root) continue;
                 foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
                 {
-                    var b = r.bounds; if (b.size.y > 8 || b.size.magnitude < .3f) continue;
+                    var b = r.bounds; if (b.size.y > 8 || b.size.magnitude < .3f || b.size.x > 12 || b.size.z > 12) continue;
                     var g = W.G(b.center); if (!InBox(g.x, g.y)) continue;
                     var f = r.transform.forward; f.y = 0; if (f.sqrMagnitude < 1e-4f) f = Vector3.forward; f.Normalize();
-                    faces.Add((b.center, f));
+                    faces.Add((b.center, f)); nRend++;
                 }
             }
             if (faces.Count == 0) { Debug.Log("[gusto] sign test: no sign / signal objects in the scene"); return plants; }
+            // faces per 128 m cell (a plant tests the faces of its cell and the 8 around: sight lines reach 100 m)
+            var cells = new Dictionary<long, List<int>>();
+            long CK(float x, float z) => ((long)Mathf.FloorToInt(x / 128) << 32) ^ (uint)Mathf.FloorToInt(z / 128);
+            for (int i = 0; i < faces.Count; i++) { long k = CK(faces[i].c.x, faces[i].c.z); if (!cells.TryGetValue(k, out var l)) cells[k] = l = new List<int>(); l.Add(i); }
             var keep = new List<Plant>();
             foreach (var p in plants)
             {
                 var u = W.U(p.x, p.y, p.z); bool hit = false;
-                foreach (var (c, n) in faces)
-                {
-                    if ((new Vector2(u.x - c.x, u.z - c.z)).sqrMagnitude > 110 * 110) continue;
-                    for (int sgn = -1; sgn <= 1 && !hit; sgn += 2)
-                        for (int d = 10; d <= 100 && !hit; d += 10)
+                int cx = Mathf.FloorToInt(u.x / 128), cz = Mathf.FloorToInt(u.z / 128);
+                for (int ax = -1; ax <= 1 && !hit; ax++)
+                    for (int az = -1; az <= 1 && !hit; az++)
+                    {
+                        if (!cells.TryGetValue(((long)(cx + ax) << 32) ^ (uint)(cz + az), out var l)) continue;
+                        foreach (int fi in l)
                         {
-                            var eye = c + n * (sgn * d); eye.y = c.y + 1;   // ~2.5 m above the road
-                            // distance from the plant's axis (at the sight line's height) to the segment eye → face, in plan
-                            Vector2 a = new Vector2(eye.x, eye.z), bb = new Vector2(c.x, c.z), pp = new Vector2(u.x, u.z);
-                            var ab = bb - a; float t = Mathf.Clamp01(Vector2.Dot(pp - a, ab) / ab.sqrMagnitude); if (t > .97f) continue;
-                            float yLine = Mathf.Lerp(eye.y, c.y, t);
-                            if (yLine < u.y || yLine > u.y + p.h + .5f) continue;
-                            if ((a + ab * t - pp).magnitude < p.r * .5f + 1.5f) hit = true;
+                            var (c, n) = faces[fi];
+                            if ((new Vector2(u.x - c.x, u.z - c.z)).sqrMagnitude > 110 * 110) continue;
+                            for (int sgn = -1; sgn <= 1 && !hit; sgn += 2)
+                                for (int d = 10; d <= 100 && !hit; d += 10)
+                                {
+                                    var eye = c + n * (sgn * d); eye.y = c.y + 1;   // ~2.5 m above the road
+                                    // distance from the plant's axis (at the sight line's height) to the segment eye → face, in plan
+                                    Vector2 a = new Vector2(eye.x, eye.z), bb = new Vector2(c.x, c.z), pp = new Vector2(u.x, u.z);
+                                    var ab = bb - a; float t = Mathf.Clamp01(Vector2.Dot(pp - a, ab) / ab.sqrMagnitude); if (t > .97f) continue;
+                                    float yLine = Mathf.Lerp(eye.y, c.y, t);
+                                    if (yLine < u.y || yLine > u.y + p.h + .5f) continue;
+                                    if ((a + ab * t - pp).magnitude < p.r * .5f + 1.5f) hit = true;
+                                }
+                            if (hit) break;
                         }
-                    if (hit) break;
-                }
+                    }
                 if (hit) SignsRemoved++; else keep.Add(p);
             }
-            Debug.Log($"[gusto] sign test: {faces.Count} sign / signal faces, {SignsRemoved} plants removed");
+            Debug.Log($"[gusto] sign test: {faces.Count} sign / signal faces ({nPosts} posts, {nHeads} signal heads, {nRend} small renderers), {SignsRemoved} plants removed");
             return keep;
         }
 

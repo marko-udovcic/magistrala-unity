@@ -59,6 +59,7 @@ namespace Magistrala.EditorTools
                 }
             }
             foreach (var id in order) Apply(byId[id], nodes, edges);
+            OutsideStreets.DropSuperseded(nodes, edges, e => e.a, e => e.b); // (as Build)
             closed = new HashSet<long>();
             var cf = W.REGION + "road-closures.json";
             if (File.Exists(cf)) foreach (var c in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(cf)))["closedEdgeIds"])) closed.Add((long)MiniJson.D(c));
@@ -108,6 +109,9 @@ namespace Magistrala.EditorTools
             }
             int applied = 0, skipped = 0;
             foreach (var id in order) { if (Apply(byId[id], nodes, edges)) applied++; else skipped++; }
+            // override edges a package street replaces (51's stub towards Krešimira: OutsideStreets.Superseded), as StreetsBuilder.LoadGraph
+            int superseded = OutsideStreets.DropSuperseded(nodes, edges, e => e.a, e => e.b);
+            if (superseded > 0) Debug.Log($"[igra] {superseded} override edge(s) replaced by package streets: {string.Join(", ", OutsideStreets.Superseded)}");
             // (as StreetsBuilder: an override edge's end at its node's height — the street drawn there is)
             double fitMax = 0, relaxMax = 0;
             { var ny = nodes.ToDictionary(kv => kv.Key, kv => kv.Value.y); StreetsBuilder.RelaxNearModels(ny, edges.Values.Where(e => e.pts != null && e.pts.Count >= 2 && nodes.ContainsKey(e.a) && nodes.ContainsKey(e.b)).Select(e => (e.a, e.b, StreetsBuilder.PlanLen(e.pts))).ToList(), ref relaxMax); foreach (var kv in ny) nodes[kv.Key].y = kv.Value; }

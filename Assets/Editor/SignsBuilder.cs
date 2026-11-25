@@ -190,6 +190,12 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ data
+        /// arms Marko closed in his models (24. 11.): the signal furniture facing them (cantilever with its head, the post with its
+        /// head and priority plate; prop ids "<model>-<arm>-n") is not built — nobody drives up to those stop lines. The keep-right
+        /// bollard on the arm's island stays (it is on the model's kerb). The rest of each junction and its plan are untouched
+        /// (a plan phase left without an open approach is cut: TrafficBuilder.Signals).
+        internal static readonly HashSet<string> ClosedArms = new HashSet<string> { "krizanje-01-D", "krizanje-03-C", "krizanje-04-D", "krizanje-05-C", "krizanje-05-D", "krizanje-21-C" };
+        static bool OnClosedArm(Prop p) { int cut = p.id.LastIndexOf('-'); return cut > 0 && ClosedArms.Contains(p.id.Substring(0, cut)) && p.kind != "bollard_keep_right"; }
         class Prop { public string id, kind, model, style, mv; public long approach; public double x, z, yaw; public float height, span; public float[] lanes; public string[] text; public string[] laneMv; public HashSet<string> flags = new HashSet<string>(); public List<(float u, string text, string style)> boards = new List<(float, string, string)>(); }
 
         static List<Prop> Props(double minX, double maxX)
@@ -248,6 +254,9 @@ namespace Magistrala.EditorTools
         static void BuildSignals(List<ModelJ> models, Dictionary<string, Sig> sigs, List<(Vector2 p, Vector2 dir, int plan, string group, string model)> groupStops)
         {
             var props = Props(WorldData.MIN_X, -400);
+            int nClosed = props.RemoveAll(OnClosedArm);
+            log.Add($"zatvoreni krakovi ({string.Join(", ", ClosedArms)}): {nClosed} rekvizita semafora / znakova nije postavljeno");
+            Count("rekvizit na zatvorenom kraku (izostavljen)", nClosed);
             var byModel = models.ToDictionary(m => m.key);
             string GroupOf(Prop p, bool leftHead)
             {
