@@ -399,6 +399,28 @@ namespace Magistrala.EditorTools
                     }
                     int removed = RemoveEmpty(R, referenced, cellGos);
 
+                    // 7. render-only meshes non-readable (copies in Cells/Meshes; the builders' own assets stay as they are): no CPU copy
+                    //    in the player, and a streamed cell's meshes go up on the async upload pipeline instead of the main thread
+                    //    (drive test: Object.Register / GfxResource 45 ms when a 650k-triangle cell scene activated)
+                    var colMeshes = new HashSet<Mesh>(world.GetComponentsInChildren<MeshCollider>(true).Select(x => x.sharedMesh).Where(x => x));
+                    var copies = new Dictionary<Mesh, Mesh>(); int nCopied = 0;
+                    foreach (var kv in cellGos)
+                        foreach (var mf in kv.Value.GetComponentsInChildren<MeshFilter>(true))
+                        {
+                            var m = mf.sharedMesh;
+                            if (!m || colMeshes.Contains(m) || Billboards.FaceName(mf.transform) != null) continue;
+                            if (!EditorUtility.IsPersistent(m)) { NonReadable(m); continue; } // (merged here, saved below)
+                            if (!m.isReadable || !AssetDatabase.GetAssetPath(m).EndsWith(".asset")) continue;
+                            if (!copies.TryGetValue(m, out var cp))
+                            {
+                                cp = UnityEngine.Object.Instantiate(m); cp.name = m.name; NonReadable(cp); copies[m] = cp; nCopied++;
+                                string path = $"{MESHES}/{rootName}_{kv.Key.x}_{kv.Key.y}.asset";
+                                if (!meshFiles.TryGetValue(path, out var l)) meshFiles[path] = l = new List<Mesh>(); l.Add(cp);
+                            }
+                            mf.sharedMesh = cp;
+                        }
+                    sb.Append($"{rootName}: {nCopied} meshes copied non-readable; ");
+
                     foreach (var kv in cellGos) Cell(kv.Key).R(rootName)[0] = kv.Value.GetComponentsInChildren<Transform>(true).Length;
                     int g1 = R.GetComponentsInChildren<Transform>(true).Length, r1 = R.GetComponentsInChildren<MeshRenderer>(true).Length, c1 = R.GetComponentsInChildren<Collider>(true).Length;
                     goAfter += g1; rAfter += r1; cAfter += c1;
@@ -422,6 +444,12 @@ namespace Magistrala.EditorTools
 
         /// a new MeshCollider's options (m_CookingOptions: 30, every collider of the scene has them)
         const MeshColliderCookingOptions DefaultCook = MeshColliderCookingOptions.CookForFasterSimulation | MeshColliderCookingOptions.EnableMeshCleaning | MeshColliderCookingOptions.WeldColocatedVertices | MeshColliderCookingOptions.UseFastMidphase;
+
+        static void NonReadable(Mesh m)
+        {
+            var so = new SerializedObject(m); var p = so.FindProperty("m_IsReadable");
+            if (p != null && p.boolValue) { p.boolValue = false; so.ApplyModifiedPropertiesWithoutUndo(); }
+        }
 
         static int Tris(Mesh m) { long n = 0; for (int s = 0; s < m.subMeshCount; s++) n += m.GetIndexCount(s) / 3; return (int)n; }
         static int LodTris(MeshFilter mf) => Tris(mf.sharedMesh);
