@@ -1498,7 +1498,7 @@ namespace Magistrala.EditorTools
             var court = WorldBuilder.Lit("StreetCourt", new Color(.82f, .81f, .79f), .12f, 0, grey, "concrete_n.jpg", .6f);
             var bay = WorldBuilder.Lit("PaintBay", new Color(.86f, .8f, .55f), .3f, 0, null);
             if (paint.GetTexture("_BaseMap")) bay.SetTexture("_BaseMap", paint.GetTexture("_BaseMap"));
-            verge = CesteMaterials.Stone(verge, "bankina", false);
+            verge = CesteMaterials.Shoulder(verge);
             kerb = CesteMaterials.Stone(kerb, "rubnjak");
             return new[] { asph, paint, verge, kerb, walk, court, bay };
         }
@@ -1545,10 +1545,10 @@ namespace Magistrala.EditorTools
             CesteCrossings.Load(WorldData.Models());
             log.Add(LoadFeet()); walkOurs = new Dictionary<string, double>();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
-            gravelCover.Clear();
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
             tris = dropped = segsDrawn = sidewalkSegs = discs = nCourts = 0; kmDrawn = 0;
             if (!AssetDatabase.IsValidFolder(OUT)) AssetDatabase.CreateFolder(WorldBuilder.GEN, "Streets");
+            PrepareShoulders();
             foreach (var f in Directory.GetFiles(OUT, "chunk_*.asset")) AssetDatabase.DeleteAsset(f);
             for (int ei = 0; ei < edges.Count; ei++)
             {
@@ -1769,7 +1769,7 @@ namespace Magistrala.EditorTools
         {
             var m = new byte[(MNX * MNZ + 7) / 8]; int n = 0;
             void Mark(double gx, double gz) { int i = (int)Math.Floor((gx - AX0) / MC), j = (int)Math.Floor((gz - AZ0) / MC); if (i < 0 || j < 0 || i >= MNX || j >= MNZ) return; int b = j * MNX + i; if ((m[b >> 3] & (1 << (b & 7))) == 0) { m[b >> 3] |= (byte)(1 << (b & 7)); n++; } }
-            foreach (var q in carve.Concat(gravelCover))
+            foreach (var q in carve)
             {
                 double reach = q[6] + .3, bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
                 for (double gz = Math.Floor((Math.Min(q[1], q[4]) - reach) / MC) * MC; gz <= Math.Max(q[1], q[4]) + reach; gz += MC)

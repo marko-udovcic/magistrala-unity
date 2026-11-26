@@ -122,6 +122,20 @@ namespace Magistrala.EditorTools
             EditorUtility.SetDirty(m); return m;
         }
 
+        public static Material Shoulder(Material fallback)
+        {
+            var m=Stone(fallback,"bankina",false);
+            var shader=Shader.Find("Magistrala/CesteShoulder");
+            if (!shader || m==fallback) return fallback;
+            m.shader=shader;
+            m.SetColor("_GravelColor",new Color(.335f,.329f,.317f));
+            m.SetColor("_DirtColor",new Color(.35f,.335f,.30f));
+            m.SetFloat("_GrainMean",.373f); m.SetFloat("_GrainContrast",.25f);
+            m.SetFloat("_BumpScale",.4f);
+            m.SetFloat("_FeatherStart",.4f); m.SetFloat("_ShoulderWidth",.8f);
+            EditorUtility.SetDirty(m);return m;
+        }
+
         [MenuItem("Magistrala/Ceste: osvježi materijale")]
         public static void Refresh()
         {
