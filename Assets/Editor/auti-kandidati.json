@@ -2093,16 +2093,16 @@
           "depth": 0.22
         },
         {
-          "type": "head",
+          "type": "ind",
           "mat": "UCB_Lights_and_Glass",
-          "color": "light",
+          "color": "amber",
           "end": "front",
           "depth": 0.18
         },
         {
-          "type": "ind",
+          "type": "head",
           "mat": "UCB_Lights_and_Glass",
-          "color": "amber",
+          "color": "any",
           "end": "front",
           "depth": 0.18
         }
@@ -2577,16 +2577,16 @@
           "depth": 0.22
         },
         {
-          "type": "head",
+          "type": "ind",
           "mat": "UCB_Lights_and_Glass",
-          "color": "light",
+          "color": "amber",
           "end": "front",
           "depth": 0.18
         },
         {
-          "type": "ind",
+          "type": "head",
           "mat": "UCB_Lights_and_Glass",
-          "color": "amber",
+          "color": "any",
           "end": "front",
           "depth": 0.18
         }
@@ -2698,16 +2698,16 @@
           "depth": 0.22
         },
         {
-          "type": "head",
+          "type": "ind",
           "mat": "UCB_Lights_and_Glass",
-          "color": "light",
+          "color": "amber",
           "end": "front",
           "depth": 0.18
         },
         {
-          "type": "ind",
+          "type": "head",
           "mat": "UCB_Lights_and_Glass",
-          "color": "amber",
+          "color": "any",
           "end": "front",
           "depth": 0.18
         }
