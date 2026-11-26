@@ -91,6 +91,7 @@ namespace Magistrala
         void Set(int lvl, bool toast)
         {
             Current = Mathf.Clamp(lvl, 0, Levels.Length - 1);
+            Shader.SetGlobalFloat("_CesteLowQuality", Current == 0 ? 1f : 0f);
             var L = Levels[Current];
             lastW = Screen.width; lastH = Screen.height;
             float px = Mathf.Max(1, (float)Screen.width * Screen.height) / 1e6f;
@@ -160,6 +161,7 @@ namespace Magistrala
 
         void OnDestroy()
         {
+            Shader.SetGlobalFloat("_CesteLowQuality", 0f);
             if (!saved || !rp) return;
             rp.renderScale = o_scale; rp.shadowDistance = o_dist; rp.mainLightShadowmapResolution = o_res; rp.shadowCascadeCount = o_casc; rp.upscalingFilter = o_up; rp.fsrOverrideSharpness = o_fsrO; rp.fsrSharpness = o_fsr;
             if (ao != null && o_aoSource != null) { aoSource.SetValue(ao, o_aoSource); aoDown.SetValue(ao, o_aoDown); aoAfter.SetValue(ao, o_aoAfter); aoFeature.SetActive(o_aoActive); }

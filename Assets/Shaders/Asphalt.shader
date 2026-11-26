@@ -2,6 +2,18 @@ Shader "Magistrala/Asphalt"
 {
     Properties
     {
+        [NoScaleOffset] _PatchMap("Repair asphalt", 2D) = "white" {}
+        [NoScaleOffset] _TarMap("Sealed cracks (alpha)", 2D) = "black" {}
+        [NoScaleOffset] _OilMap("Oil (alpha)", 2D) = "black" {}
+        [NoScaleOffset] _DustMap("Sand (alpha)", 2D) = "black" {}
+        [NoScaleOffset] _CoverMap("Manhole (alpha)", 2D) = "black" {}
+        [NoScaleOffset] _DrainMap("Drain (alpha)", 2D) = "black" {}
+        _CesteMaps("Patch, tar, oil, dust available", Vector) = (0,0,0,0)
+        _CesteCovers("Cover, drain available", Vector) = (0,0,0,0)
+        _OverlaySize("Oil, dust, cover, drain size (m)", Vector) = (1.5,4,.8,.5)
+        _CesteBase("Direct albedo texture", Float) = 0
+        _DetailSize("Patch tile, cracks tile (m)", Vector) = (2,6,0,0)
+
         [MainTexture] [NoScaleOffset] _BaseMap("Asphalt Albedo (fine aggregate)", 2D) = "white" {}
         [Normal] [NoScaleOffset] _BumpMap("Asphalt Normal (OpenGL)", 2D) = "bump" {}
         [NoScaleOffset] _RoughMap("Roughness (R)", 2D) = "white" {}
@@ -22,7 +34,7 @@ Shader "Magistrala/Asphalt"
         _SheenAmount("Sheen Amount", Range(0,1)) = 0.55
         _ColorVar("Macro Brightness Variation", Range(0,1)) = 0.10
         _PatchAmount("Repair Patch Density", Range(0,1)) = 0.35
-        _TrackDarken("Tyre Track Darkening", Range(0,1)) = 0.12
+        _TrackDarken("Polished Wheel Track Lightening", Range(0,1)) = 0.12
         _TrackSmooth("Tyre Track Extra Smoothness", Range(0,1)) = 0.25
         _EdgeDust("Edge Dust", Range(0,1)) = 0.15
     }
@@ -39,6 +51,8 @@ Shader "Magistrala/Asphalt"
 
         // Shared by every pass, including ShadowCaster and depth passes.
         CBUFFER_START(UnityPerMaterial)
+            float4 _CesteMaps, _CesteCovers, _DetailSize, _OverlaySize;
+            float _CesteBase;
             float4 _BaseColor;
             float _Tiling;
             float _BumpScale;
@@ -58,6 +72,10 @@ Shader "Magistrala/Asphalt"
             float _WearAmount;
             float _WearScale;
         CBUFFER_END
+        TEXTURE2D(_PatchMap); TEXTURE2D(_TarMap); TEXTURE2D(_OilMap);
+        TEXTURE2D(_DustMap); TEXTURE2D(_CoverMap); TEXTURE2D(_DrainMap);
+        // Global default 0 means full detail in the Editor; quality 0 sets this to 1.
+        float _CesteLowQuality;
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
         TEXTURE2D(_BumpMap); SAMPLER(sampler_BumpMap);
         TEXTURE2D(_RoughMap); SAMPLER(sampler_RoughMap);
@@ -219,9 +237,10 @@ Shader "Magistrala/Asphalt"
                 roughness = lerp(roughness, 0.95, wear * 0.5);
             }
             albedo *= _BaseColor.rgb;
+            albedo = lerp(albedo, (fineA * .6 + fineB * .4) * .85, _CesteBase);
             float macroBig = ValueNoise(input.positionWS.xz / 95.0 + 3.3);
             albedo *= (1.0 + (macro * 2.0 - 1.0) * _ColorVar) * (1.0 + (macroBig * 2.0 - 1.0) * _ColorVar * 0.8);
-            albedo *= (1.0 - 0.06 * sheenMask) * (1.0 - tracks * _TrackDarken) * (1.0 - 0.15 * repairs);
+            albedo *= (1.0 - 0.06 * sheenMask) * (1.0 + tracks * _TrackDarken) * (1.0 - 0.15 * repairs);
             float smoothness = saturate(lerp(_SmoothMin, _SmoothMax, sheenMask) * (1.0 - 0.6 * roughness));
             smoothness = saturate(smoothness + tracks * _TrackSmooth + repairs * 0.12);
             float dust = 0.0;
@@ -229,6 +248,64 @@ Shader "Magistrala/Asphalt"
                 dust = smoothstep(input.roadWidths.x - 0.5, input.roadWidths.x, abs(input.roadUS.x)) * _EdgeDust;
             albedo = lerp(albedo, albedo * 1.55 + float3(0.06,0.05,0.035), dust);
             smoothness *= 1.0 - dust;
+            // All details share this pass. No scene decals, projectors or extra draws.
+            UNITY_BRANCH if (_CesteLowQuality < .5)
+            {
+                float2 frame = hasRoadFrame ? input.roadUS : input.positionWS.xz;
+                float edge = hasRoadFrame ? smoothstep(input.roadWidths.x - .85, input.roadWidths.x, abs(frame.x)) : 0;
+                albedo *= 1.0 - edge * .23;
+                UNITY_BRANCH if (_CesteMaps.x > .5)
+                    albedo = lerp(albedo, SAMPLE_TEXTURE2D(_PatchMap, sampler_BaseMap, input.positionWS.xz / max(_DetailSize.x,.1)).rgb * .65, repairs * .85);
+                UNITY_BRANCH if (_CesteMaps.y > .5)
+                {
+                    float4 tar = SAMPLE_TEXTURE2D(_TarMap, sampler_BaseMap, input.positionWS.xz / max(_DetailSize.y,.1));
+                    float seal = tar.a * smoothstep(.42,.66,macro) * .72;
+                    albedo = lerp(albedo, tar.rgb * .35, seal); smoothness = lerp(smoothness,.38,seal);
+                }
+                UNITY_BRANCH if (_CesteMaps.z > .5 && hasRoadFrame)
+                {
+                    float laneCentreDist = abs(frac((frame.x + input.roadWidths.x) / input.roadWidths.y) - .5) * input.roadWidths.y;
+                    float2 oilCell = float2((frame.x + input.roadWidths.x) / input.roadWidths.y, frame.y / 19.0);
+                    float2 cell = floor(oilCell);
+                    float2 oilUV = (frac(oilCell)-.5)*float2(input.roadWidths.y,19)/max(_OverlaySize.x,.1)+.5;
+                    float4 oil = SAMPLE_TEXTURE2D(_OilMap, sampler_BaseMap, saturate(oilUV));
+                    float inside = step(0,oilUV.x)*step(oilUV.x,1)*step(0,oilUV.y)*step(oilUV.y,1);
+                    float stain = oil.a * inside * (1-smoothstep(.15,.8,laneCentreDist)) * step(.64,Hash21(cell+22));
+                    albedo = lerp(albedo, albedo * .38, stain); smoothness = lerp(smoothness,.52,stain);
+                }
+                UNITY_BRANCH if (_CesteMaps.z > .5 && !hasRoadFrame)
+                {
+                    // Parking courts / stop areas without lane metadata use sparse world cells.
+                    float2 cell = floor(input.positionWS.xz / 7.0);
+                    float2 oilUV = (frac(input.positionWS.xz/7.0)-.5)*7/max(_OverlaySize.x,.1)+.5;
+                    float4 oil = SAMPLE_TEXTURE2D(_OilMap,sampler_BaseMap,saturate(oilUV));
+                    float inside = step(0,oilUV.x)*step(oilUV.x,1)*step(0,oilUV.y)*step(oilUV.y,1);
+                    float stain = oil.a * inside * step(.82,Hash21(cell+12));
+                    albedo *= 1-stain*.55; smoothness = lerp(smoothness,.45,stain);
+                }
+                UNITY_BRANCH if (_CesteMaps.w > .5)
+                {
+                    float4 sand = SAMPLE_TEXTURE2D(_DustMap, sampler_BaseMap, input.positionWS.xz / max(_OverlaySize.y,.1));
+                    float sd = edge * sand.a * (.3 + .7 * macro);
+                    albedo = lerp(albedo, sand.rgb * .7, sd * .6); smoothness *= 1-sd*.8;
+                }
+                UNITY_BRANCH if (hasRoadFrame && (_CesteCovers.x + _CesteCovers.y) > .5)
+                {
+                    // Manifest-sized covers every 47 m; grates at the edges every 29 m.
+                    float2 cuv = float2((frame.x - .35) / max(_OverlaySize.z,.1) + .5, (frac(frame.y/47.0)-.5)*47.0/max(_OverlaySize.z,.1)+.5);
+                    float2 duv = float2((abs(frame.x) - (input.roadWidths.x-.28))/max(_OverlaySize.w,.1)+.5, (frac(frame.y/29.0)-.5)*29.0/max(_OverlaySize.w,.1)+.5);
+                    float cm = step(0,cuv.x)*step(cuv.x,1)*step(0,cuv.y)*step(cuv.y,1)*_CesteCovers.x;
+                    float dm = step(0,duv.x)*step(duv.x,1)*step(0,duv.y)*step(duv.y,1)*_CesteCovers.y;
+                    UNITY_BRANCH if (cm + dm > .01)
+                    {
+                        float4 cover = SAMPLE_TEXTURE2D(_CoverMap,sampler_BaseMap,saturate(cuv));
+                        float4 drain = SAMPLE_TEXTURE2D(_DrainMap,sampler_BaseMap,saturate(duv));
+                        float mask = saturate(cover.a*cm + drain.a*dm);
+                        albedo = lerp(albedo, (cover.rgb*cm + drain.rgb*dm)/max(cm+dm,.001), mask);
+                        smoothness = lerp(smoothness,.32,mask);
+                    }
+                }
+            }
             UNITY_BRANCH if (_Wetness > 0.001)
             {
                 float wet = _Wetness;
