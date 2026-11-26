@@ -471,6 +471,7 @@ namespace Magistrala.EditorTools
                         var a = R[run][R[run].Count - 1]; var b = R[run + 1][0];
                         float gh = drive ? 1.5f : 1.4f; if (pl.type == TR || pl.type == TRH) gh = 1.55f;
                         HouseBuilder.YardGate(g, a, b, gh);
+                        Yards.FrontGates.Add((a + b) / 2);
                         if (cy)
                         {
                             var inw = Inward(pl.runs[run][0].nx, pl.runs[run][0].nz);

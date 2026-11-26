@@ -26,13 +26,16 @@ namespace Magistrala.EditorTools
         static List<List<V>> foot; static Dictionary<(int, int), List<int>> footGrid;
         static List<(Vector3 c, Vector2 dir, float hl, float hw)> bays;
         static readonly List<(Vector3 p, Vector3 n)> gates = new List<(Vector3, Vector3)>();
+        /// the street frontage's gates (Frontage: driveway / pedestrian gates in the yard walls), Unity, the opening's middle: the bus
+        /// stops (PropsBuilder.Stanice) keep off them
+        public static readonly List<Vector3> FrontGates = new List<Vector3>();
 
         static (int, int) Key(double x, double z) => ((int)Math.Floor(x / CELL), (int)Math.Floor(z / CELL));
 
         /// all footprints (all tiles), carriageways and bays; call once before the houses
         public static void Begin(List<ModelJ> m, List<double[]> packageRects)
         {
-            models = m; rects = packageRects; gates.Clear(); green.Clear(); mly = null; gch = null; Drops.Clear();
+            models = m; rects = packageRects; gates.Clear(); FrontGates.Clear(); green.Clear(); mly = null; gch = null; Drops.Clear();
             nRuns = new int[7]; metres = new double[7]; nEvidOrtho = nEvidMly = nEvidGc = nNoGreen = 0;
             roads = StreetsBuilder.Carriageways(); roadGrid = new Dictionary<(int, int), List<int>>();
             for (int i = 0; i < roads.Count; i++)
@@ -472,6 +475,8 @@ namespace Magistrala.EditorTools
                 if (!BuildingsFromTiles.InProbe(d.p.x + W.OX, -d.p.z + W.OZ) && !BuildingsFromTiles.InShowArea(d.p.x + W.OX, -d.p.z + W.OZ)) continue;
                 sb.Append(nd++ > 0 ? "," : "").Append($"[{F(d.p.x)},{F(d.p.y)},{F(d.p.z)},{F(d.n.x)},{F(d.n.z)}]");
             }
+            sb.Append("],\"frontGates\":[");
+            for (int i = 0; i < FrontGates.Count; i++) sb.Append(i > 0 ? "," : "").Append($"[{F(FrontGates[i].x)},{F(FrontGates[i].y)},{F(FrontGates[i].z)}]");
             Directory.CreateDirectory(Path.GetDirectoryName(SpotsPath));
             File.WriteAllText(SpotsPath, sb.Append("]}").ToString());
             Debug.Log($"[Magistrala] yards: {gates.Count} gates, {nd} front doors in the probe ({SpotsPath})");

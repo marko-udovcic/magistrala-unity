@@ -1,0 +1,1 @@
+{ "yaw": -90, "fit": "x", "size": 3.8, "sx": 3.8, "sy": 2.5, "sz": 2.0, "cull": 220, "smooth": 0.35, "metal": 0.3, "collider": "box", "colShrink": 0.9, "lod0": 8000, "lod1": 2000, "lod2": 500 }
