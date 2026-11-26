@@ -39,6 +39,10 @@ namespace Magistrala.EditorTools
         /// false: the old behaviour (Yards only) — "before" measurements
         public static bool On = true;
         const double STEP = .25, MAX_PAVE = 9, OWNER_R = 30, STOP_R = 10;
+        /// no sidewalk: the wall's distance from the asphalt's edge (a kerb is a step of >= KERB m up from the asphalt); a wall line
+        /// keeps one offset while it stays within LEVEL m of it, then steps square in a pier (Level)
+        const double VERGE = .8, LEVEL = .2; const float KERB = .08f;
+        public static int nVerge, nSteps;
         public const int TP = 0, TS = 1, TR = 2, TSH = 3, TPH = 4, TRH = 5, TH = 6;
         public static readonly string[] TypeNames = { "zid + kapa", "kamen", "zid + ograda", "kamen + zivica na njemu", "zid + zivica iza", "ograda + zivica iza", "zivica" };
 
@@ -145,6 +149,8 @@ namespace Magistrala.EditorTools
             public List<List<(double x, double z, double nx, double nz, float y)>> runs = new List<List<(double, double, double, double, float)>>();
             public List<(bool a, bool b)> piers = new List<(bool, bool)>();
             public List<(int run, bool drive, bool cypress)> gates = new List<(int, bool, bool)>();
+            /// piers where the wall steps to a new line (game x, z, along the road, base y)
+            public List<(double x, double z, double ux, double uz, float y)> steps = new List<(double, double, double, double, float)>();
         }
         static Dictionary<int, List<Plot>> byOwner = new Dictionary<int, List<Plot>>();
         public static int nPlots, nGates, nCypress; public static double[] metres = new double[7];
@@ -156,7 +162,7 @@ namespace Magistrala.EditorTools
         public static void Prepare(List<ModelJ> m, List<House> houses)
         {
             models = m; H = houses; byOwner.Clear(); fGrid.Clear(); segs.Clear(); sGrid.Clear(); skip.Clear(); oldGrid = null;
-            nPlots = nGates = nCypress = 0; metres = new double[7];
+            nPlots = nGates = nCypress = nVerge = nSteps = 0; metres = new double[7];
             hGrid = new Dictionary<(int, int), List<int>>();
             for (int i = 0; i < H.Count; i++)
             {
@@ -195,7 +201,7 @@ namespace Magistrala.EditorTools
                 for (int side = -1; side <= 1; side += 2) Side(keep, hw, side, road, stops);
                 road++;
             }
-            Debug.Log($"[zivice] frontage: {lines.Count} lines, {nSt} stations, {nPlots} plots, {nGates} gates ({nCypress} with cypresses); skipped samples: " + string.Join(", ", skip.Select(kv => $"{kv.Key} {kv.Value}")));
+            Debug.Log($"[zivice] frontage: {lines.Count} lines, {nSt} stations, {nPlots} plots, {nGates} gates ({nCypress} with cypresses), {nSteps} square steps, {nVerge} samples set {VERGE} m off a kerbless edge; skipped samples: " + string.Join(", ", skip.Select(kv => $"{kv.Key} {kv.Value}")));
         }
 
         static void Side(List<(double x, double z, double ux, double uz)> S, double hw, int side, int road, List<GStop> stops)
@@ -207,14 +213,17 @@ namespace Magistrala.EditorTools
                 var s = S[i]; if (double.IsNaN(s.x)) continue;
                 double nx = -s.uz * side, nz = s.ux * side;          // inward: away from the road on this side
                 // the property line: the first 0.75 m of soft ground past the paving
-                double t = Math.Max(1, hw - .5), edge = double.NaN; int soft = 0; float topY = float.NaN;
+                double t = Math.Max(1, hw - .5), edge = double.NaN; int soft = 0; float topY = float.NaN, roadY = float.NaN, hiY = float.NaN;
                 for (; t <= hw + MAX_PAVE; t += STEP)
                 {
-                    if (Paved(s.x + nx * t, s.z + nz * t, out var py)) { soft = 0; if (!float.IsNaN(py)) topY = py; }
+                    if (Paved(s.x + nx * t, s.z + nz * t, out var py)) { soft = 0; if (!float.IsNaN(py)) { topY = py; if (float.IsNaN(roadY)) roadY = py; hiY = float.IsNaN(hiY) ? py : Math.Max(hiY, py); } }
                     else if (++soft == 3) { edge = t - 2 * STEP; break; }
                 }
                 if (double.IsNaN(edge)) { Skip("paving > 9 m"); continue; }
-                double o = edge + .2, x = s.x + nx * o, z = s.z + nz * o;
+                // no kerb on the way out (the asphalt runs straight into the soil: no sidewalk): the wall stands VERGE m off its
+                // edge, on a strip of soil, not on the asphalt's ragged rim (26. 11., Štafilić)
+                bool verge = !float.IsNaN(roadY) && hiY - roadY < KERB;
+                double o = edge + (verge ? VERGE : .2), x = s.x + nx * o, z = s.z + nz * o;
                 // (no FootDist test here: the tiles' 2 m grid counts the whole sidewalk cell as an object; the paving scan above has them)
                 bool nearStop = false; var u = W.U(x, 0, z);
                 foreach (var st in stops) { var d = st.pos - u; d.y = 0; if (d.sqrMagnitude < STOP_R * STOP_R) { nearStop = true; break; } var db = st.bay - u; db.y = 0; if (st.bayHl > 0 && db.sqrMagnitude < (st.bayHl + 4) * (st.bayHl + 4)) { nearStop = true; break; } }
@@ -226,7 +235,7 @@ namespace Magistrala.EditorTools
                 float y = (float)gy; if (!float.IsNaN(topY) && topY > y && topY - y < .6f) y = topY;
                 if (Math.Abs(gy - H[ow].baseY) > 3) { Skip("slope"); continue; }
                 if (NearWall(x, z, 1.0)) { Skip("other road's wall"); continue; }
-                off[i] = o; own[i] = ow; ys[i] = y; ok[i] = true;
+                off[i] = o; own[i] = ow; ys[i] = y; ok[i] = true; if (verge) nVerge++;
             }
             // smoothing: the median offset over ±3 m
             var off2 = (double[])off.Clone();
@@ -244,6 +253,7 @@ namespace Magistrala.EditorTools
                 int b = a; while (b + 1 < N && ok[b + 1] && Math.Abs(off2[b + 1] - off2[b]) < .6) b++;
                 if (b - a + 1 >= 3)
                 {
+                    Level(off2, a, b);
                     var cuts = new List<(int s, int e, int owner)>();
                     int c = a;
                     while (c <= b)
@@ -261,15 +271,51 @@ namespace Magistrala.EditorTools
             }
         }
 
+        /// one line per stretch: within a run the wall keeps one offset (parallel to the road) while the property line stays within
+        /// ±LEVEL of it, then steps square to the next one (a jog in a pier, MakePlot) – a line that drifts by more than ~0.6 m over
+        /// a few metres was a chain of short skewed pieces (26. 11., zivica_closeup_3m.jpg); pieces under 3 m join the neighbour
+        /// whose line is nearer, steps under 8 cm are no step
+        static void Level(double[] off, int a, int b)
+        {
+            var seg = new List<(int s, int e, double v)>();
+            for (int s0 = a; s0 <= b;)
+            {
+                int e = s0; double lo = off[s0], hi = off[s0];
+                while (e + 1 <= b && Math.Max(hi, off[e + 1]) - Math.Min(lo, off[e + 1]) <= 2 * LEVEL) { e++; lo = Math.Min(lo, off[e]); hi = Math.Max(hi, off[e]); }
+                var w = new List<double>(); for (int i = s0; i <= e; i++) w.Add(off[i]); w.Sort();
+                seg.Add((s0, e, w[w.Count / 2])); s0 = e + 1;
+            }
+            for (bool again = true; again && seg.Count > 1;)
+            {
+                again = false;
+                for (int k = 0; k < seg.Count; k++)
+                {
+                    bool shortK = seg[k].e - seg[k].s + 1 < 3;
+                    int j = k == 0 ? 1 : k == seg.Count - 1 ? k - 1 : Math.Abs(seg[k - 1].v - seg[k].v) <= Math.Abs(seg[k + 1].v - seg[k].v) ? k - 1 : k + 1;
+                    if (!shortK && Math.Abs(seg[j].v - seg[k].v) >= .08) continue;
+                    int lo = Math.Min(j, k), hi = Math.Max(j, k);
+                    double v = seg[j].e - seg[j].s >= seg[k].e - seg[k].s ? seg[j].v : seg[k].v;
+                    seg[lo] = (seg[lo].s, seg[hi].e, v); seg.RemoveAt(hi); again = true; break;
+                }
+            }
+            foreach (var g in seg) for (int i = g.s; i <= g.e; i++) off[i] = g.v;
+        }
+
         static void MakePlot(List<(double x, double z, double ux, double uz)> S, double[] off, float[] ys, int side, int road, int i0, int i1, int owner, bool joinA, bool joinB)
         {
             var hs = H[owner]; int seed = (int)(Math.Abs(hs.cx * 7.31 + hs.cz * 3.17 + road * 101 + side * 13) % 100000);
             var r = new System.Random(seed * 17 + 3);
             var pts = new List<(double x, double z, double nx, double nz, float y)>();
-            for (int i = i0; i <= i1; i++) { var s = S[i]; double nx = -s.uz * side, nz = s.ux * side; pts.Add((s.x + nx * off[i], s.z + nz * off[i], nx, nz, ys[i])); }
+            var jogs = new List<(int k, double ux, double uz)>();   // pts[k] → pts[k + 1]: a square step to the next line (Level)
+            for (int i = i0; i <= i1; i++)
+            {
+                var s = S[i]; double nx = -s.uz * side, nz = s.ux * side;
+                if (i > i0 && Math.Abs(off[i] - off[i - 1]) > 1e-6) { jogs.Add((pts.Count, s.ux, s.uz)); pts.Add((s.x + nx * off[i - 1], s.z + nz * off[i - 1], nx, nz, ys[i])); }
+                pts.Add((s.x + nx * off[i], s.z + nz * off[i], nx, nz, ys[i]));
+            }
             // plots that touch meet half way (one pier there: the plot before has it)
             if (joinB && i1 + 1 < S.Count) { var p0 = pts[pts.Count - 1]; var s1 = S[i1 + 1]; double nx = -s1.uz * side, nz = s1.ux * side; pts.Add(((p0.x + s1.x + nx * off[i1 + 1]) / 2, (p0.z + s1.z + nz * off[i1 + 1]) / 2, p0.nx, p0.nz, (p0.y + ys[i1 + 1]) / 2)); }
-            if (joinA && i0 > 0) { var p0 = pts[0]; var s1 = S[i0 - 1]; double nx = -s1.uz * side, nz = s1.ux * side; pts.Insert(0, ((p0.x + s1.x + nx * off[i0 - 1]) / 2, (p0.z + s1.z + nz * off[i0 - 1]) / 2, p0.nx, p0.nz, (p0.y + ys[i0 - 1]) / 2)); }
+            if (joinA && i0 > 0) { var p0 = pts[0]; var s1 = S[i0 - 1]; double nx = -s1.uz * side, nz = s1.ux * side; pts.Insert(0, ((p0.x + s1.x + nx * off[i0 - 1]) / 2, (p0.z + s1.z + nz * off[i0 - 1]) / 2, p0.nx, p0.nz, (p0.y + ys[i0 - 1]) / 2)); for (int q = 0; q < jogs.Count; q++) jogs[q] = (jogs[q].k + 1, jogs[q].ux, jogs[q].uz); }
             // evidence of a hedge along the plot
             int nMly = 0, nGc = 0, nGreen = 0;
             foreach (var p in pts)
@@ -304,7 +350,10 @@ namespace Magistrala.EditorTools
                 double best = 1e9; int bi = N / 2;
                 for (int i = 0; i < N; i++) { double d = (pts[i].x - hs.cx) * (pts[i].x - hs.cx) + (pts[i].z - hs.cz) * (pts[i].z - hs.cz); if (d < best) { best = d; bi = i; } }
                 gs = Math.Max(2, Math.Min(N - 3 - take, bi + r.Next(-2, 3) - take / 2));
-                if (gs + take > N - 3) gs = -1; else for (int k = 1; k <= take; k++) cut[gs + k] = true;
+                // not in a step: the runs at the gate end along the road (the pedestrian gate's runs reach on along their last metre)
+                bool InJog(int g0) => jogs.Any(j => j.k + 1 >= g0 - 1 && j.k <= g0 + take + 2);
+                if (gs >= 0 && InJog(gs)) { int alt = -1; for (int dd = 1; dd <= 4 && alt < 0; dd++) foreach (int c in new[] { gs - dd, gs + dd }) if (alt < 0 && c >= 2 && c + take <= N - 3 && !InJog(c)) alt = c; gs = alt; }
+                if (gs < 0 || gs + take > N - 3) gs = -1; else for (int k = 1; k <= take; k++) cut[gs + k] = true;
             }
             var cur = new List<(double x, double z, double nx, double nz, float y)>();
             for (int i = 0; i < N; i++)
@@ -327,6 +376,15 @@ namespace Magistrala.EditorTools
                 bool cy = drive && r.NextDouble() < (pl.type >= TSH ? .3 : .12); pl.gates.Add((0, drive, cy)); nGates++; if (cy) nCypress++;
             }
             for (int k = 0; k < pl.runs.Count; k++) pl.piers.Add((k > 0 || !joinA, true));
+            // a pier in every step: one over a short step, one on each corner of a longer one
+            foreach (var (k, ux, uz) in jogs)
+            {
+                if (cut[k] || cut[k + 1]) continue;
+                var c1 = pts[k]; var c2 = pts[k + 1]; double d = Math.Sqrt((c2.x - c1.x) * (c2.x - c1.x) + (c2.z - c1.z) * (c2.z - c1.z));
+                if (d <= .5) pl.steps.Add(((c1.x + c2.x) / 2, (c1.z + c2.z) / 2, ux, uz, Math.Min(c1.y, c2.y)));
+                else { pl.steps.Add((c1.x, c1.z, ux, uz, c1.y)); pl.steps.Add((c2.x, c2.z, ux, uz, c2.y)); }
+                nSteps++;
+            }
             if (!byOwner.TryGetValue(owner, out var l)) byOwner[owner] = l = new List<Plot>();
             l.Add(pl); nPlots++;
             foreach (var run in pl.runs) foreach (var p in run) AddWallPoint(p.x, p.z);
@@ -398,6 +456,14 @@ namespace Magistrala.EditorTools
                                 break;
                         }
                     }
+                    // the piers in the steps of the line
+                    if (pl.type != TH)
+                        foreach (var st in pl.steps)
+                        {
+                            int kind = pl.type == TS || pl.type == TSH ? 0 : pl.type == TR || pl.type == TRH ? 2 : 1;
+                            float pier = pl.type == TR || pl.type == TRH ? 1.59f : pl.type == TSH ? pl.wallH + .2f : 0;
+                            HouseBuilder.YardPier(g, W.U(st.x, st.y, st.z), Inward(st.ux, st.uz), pl.wallH, kind, pier);
+                        }
                     // gates (closed, iron) between the runs, and the cypresses inside a driveway
                     foreach (var (run, drive, cy) in pl.gates)
                     {

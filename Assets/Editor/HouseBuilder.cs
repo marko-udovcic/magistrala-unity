@@ -300,6 +300,21 @@ namespace Magistrala.EditorTools
             gY = sg; tY = st;
         }
 
+        /// a YardWall pier standing alone, centred on c (Unity world, y = the ground), its faces along e (horizontal unit): where a
+        /// frontage wall steps square to a new line (Frontage: the step sits in the pier)
+        public static void YardPier(HouseGeo g, Vector3 c, Vector3 e, float h, int kind, float pier = 0)
+        {
+            if (Lod >= 2) return;
+            e.y = 0; if (e.sqrMagnitude < 1e-6f) return; e.Normalize();
+            Vector3 sd = new Vector3(-e.z, 0, e.x), dn = Vector3.down * .35f;
+            float sg = gY, st = tY; gY = c.y; tY = c.y + 100;
+            Slot body = kind == 0 ? Slot.Yard : Slot.Wall;
+            float wh = kind == 2 ? .75f : h, ph = Mathf.Max(wh, pier > 0 ? pier : h) + .25f;
+            Box(g, body, c - e * .22f - sd * .22f + dn, e, sd, .44f, ph + .35f, .44f, false);
+            Box(g, Slot.Balcony, c - e * .25f - sd * .25f + Vector3.up * ph, e, sd, .5f, .08f, .5f);
+            gY = sg; tY = st;
+        }
+
         // ---- the railing atlas (Tools/zbuke/ograda.py; House_Rail repeats u 8x per UV unit, so u = metres / 8 is 1 m per repeat):
         // v bands: railing bars below BarV, post patches, green chain-link, galvanised chain-link (1.2 m of wire each)
         const float BarV = .12f, FenceBand = 1.2f;
