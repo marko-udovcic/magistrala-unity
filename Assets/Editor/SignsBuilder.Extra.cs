@@ -137,7 +137,7 @@ namespace Magistrala.EditorTools
                     if (!ok) log.Add($"{j.key} {a.name}: nema tla na stop-crti");
                     // the pole: on the right kerb, half a metre past the stop line (towards the zebra, as in the photos)
                     var b0 = p + right * (a.w / 2 + .75f) + t * .5f;
-                    var bq = Clear(b0, right, .3f) ?? b0; var b = bq; b.y = Surface(b, p.y, out _);
+                    var bq = Clear(b0, right, .3f) ?? OffAsphalt(b0, 6f) ?? b0; var b = bq; b.y = Surface(b, p.y, out _);
                     float reachLane = Vector3.Dot(b - p, right); // lateral pole → lane centre
                     bool zebra = a.signs.Contains("pjesacki");
                     if (a.mount == "konzola")
@@ -204,7 +204,7 @@ namespace Magistrala.EditorTools
                     foreach (int s in new[] { -1, 1 })
                     {
                         var e0 = zc + zr * s * (zw / 2 + .7f) + zt * 1.6f;
-                        var e = Clear(e0, zr * s, .3f) ?? e0; e.y = Surface(e, zc.y, out _);
+                        var e = Clear(e0, zr * s, .3f) ?? OffAsphalt(e0, 6f) ?? e0; e.y = Surface(e, zc.y, out _);
                         Pole(e, 2.75f, .06f);
                         PedHead(e + Vector3.up * 2.35f - zr * s * .12f, zr * s, j.key, "P1");
                     }
