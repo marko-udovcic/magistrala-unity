@@ -1077,7 +1077,7 @@ namespace Magistrala.EditorTools
                     var outA = new Vector3((float)(A.rx * side), 0, (float)(-A.rz * side));
                     if (ok == null)
                     {
-                        if (verge) Quad(MAT_VERGE, Pos(A, side * wA, wA, -.01), Pos(B, side * wB, wB, -.01), Pos(B, side * (wB + 1.6), wB, -.4), Pos(A, side * (wA + 1.6), wA, -.4), Vector3.up, own, false);
+                        if (verge) GravelStrip(Pos(A,side*wA,wA,0),Pos(B,side*wB,wB,0),A.rx*side,A.rz*side,B.rx*side,B.rz*side,own);
                         continue;
                     }
                     // pieces between the 2 m samples, each corner on the straight asphalt edge A → B (lerped, as the ribbon's quad)
@@ -1113,7 +1113,7 @@ namespace Magistrala.EditorTools
                             drew = true;
                         }
                         else if (verge)
-                            Quad(MAT_VERGE, S(fa, 0, -.01), S(fb, 0, -.01), S(fb, 1.6, -.4), S(fa, 1.6, -.4), Vector3.up, own, false);
+                            GravelStrip(S(fa,0,0),S(fb,0,0),A.rx*side,A.rz*side,B.rx*side,B.rz*side,own);
                     }
                     if (drew) sidewalkSegs++;
                 }
@@ -1545,6 +1545,7 @@ namespace Magistrala.EditorTools
             CesteCrossings.Load(WorldData.Models());
             log.Add(LoadFeet()); walkOurs = new Dictionary<string, double>();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
+            gravelCover.Clear();
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
             tris = dropped = segsDrawn = sidewalkSegs = discs = nCourts = 0; kmDrawn = 0;
             if (!AssetDatabase.IsValidFolder(OUT)) AssetDatabase.CreateFolder(WorldBuilder.GEN, "Streets");
@@ -1768,7 +1769,7 @@ namespace Magistrala.EditorTools
         {
             var m = new byte[(MNX * MNZ + 7) / 8]; int n = 0;
             void Mark(double gx, double gz) { int i = (int)Math.Floor((gx - AX0) / MC), j = (int)Math.Floor((gz - AZ0) / MC); if (i < 0 || j < 0 || i >= MNX || j >= MNZ) return; int b = j * MNX + i; if ((m[b >> 3] & (1 << (b & 7))) == 0) { m[b >> 3] |= (byte)(1 << (b & 7)); n++; } }
-            foreach (var q in carve)
+            foreach (var q in carve.Concat(gravelCover))
             {
                 double reach = q[6] + .3, bx = q[3] - q[0], bz = q[4] - q[1], l2 = bx * bx + bz * bz;
                 for (double gz = Math.Floor((Math.Min(q[1], q[4]) - reach) / MC) * MC; gz <= Math.Max(q[1], q[4]) + reach; gz += MC)

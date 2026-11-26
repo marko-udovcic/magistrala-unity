@@ -215,9 +215,12 @@ namespace Magistrala.EditorTools
             }
         }
         static List<double[]> walkLow = new List<double[]>(), walkRaise = new List<double[]>();
+        static readonly List<double[]> gravelCover = new List<double[]>();
+        static double modelShoulderMetres;
         static int stripRuns; static double stripLen; static int stripSkipModel, stripSkipConflict, stripSkipRural, stripSkipWall, stripSkipGround;
         static string BuildModelWalks()
         {
+            modelShoulderMetres=0;
             walkModel = new Dictionary<string, double>(); walkLow.Clear(); walkRaise.Clear(); stripRuns = 0; stripLen = 0; stripSkipModel = stripSkipConflict = stripSkipRural = stripSkipWall = stripSkipGround = 0;
             var roadsT = GameObject.Find("World")?.transform.Find("Roads"); if (!roadsT) return "model sidewalks: no World/Roads";
             var meshes = new List<(MeshFilter mf, MeshRenderer mr, Bounds b)>();
@@ -238,7 +241,7 @@ namespace Magistrala.EditorTools
                     var mats = mr.sharedMaterials;
                     for (int s = 0; s < mesh.subMeshCount && s < mats.Length; s++)
                     {
-                        string nm = mats[s] ? mats[s].name : ""; byte cls = nm.StartsWith("Asphalt") || nm.StartsWith("Paint") ? (byte)1 : nm.StartsWith("Concrete") || nm.StartsWith("Paving") ? (byte)2 : (byte)0;
+                        string nm = mats[s] ? mats[s].name : ""; byte cls = nm.StartsWith("Asphalt") || nm.StartsWith("Paint") ? (byte)1 : nm.StartsWith("Concrete") || nm.StartsWith("Paving") || nm == "Ceste_rubnjak" || nm == "Ceste_otok" ? (byte)2 : (byte)0;
                         if (cls == 0) continue;
                         var t = mesh.GetTriangles(s);
                         for (int i = 0; i < t.Length; i += 3) R.Fill(wv[t[i]], wv[t[i + 1]], wv[t[i + 2]], cls);
@@ -255,9 +258,88 @@ namespace Magistrala.EditorTools
                         for (int i = 0; i + 2 < vl.Count; i += 3) R.Fill(vl[i], vl[i + 1], vl[i + 2], 3);
                     }
                 }
-                foreach (var road in j.roads) StripsAlong(m, R, road.p, road.w);
+                foreach (var road in j.roads)
+                {
+                    StripsAlong(m, R, road.p, road.w);
+                    if (road.lvl==0) ShouldersAlong(R,road.p,road.w);
+                }
             }
-            return $"model sidewalks: {stripRuns} runs, {stripLen / 1000:F2} km (samples skipped: {stripSkipModel} the model has one, {stripSkipConflict} paving / street in the way, {stripSkipRural} not built-up, {stripSkipWall} wall / guardrail at the asphalt, {stripSkipGround} ground off the kerb)";
+            return $"model gravel shoulders: {modelShoulderMetres:F0} m; model sidewalks: {stripRuns} runs, {stripLen / 1000:F2} km (samples skipped: {stripSkipModel} the model has one, {stripSkipConflict} paving / street in the way, {stripSkipRural} not built-up, {stripSkipWall} wall / guardrail at the asphalt, {stripSkipGround} ground off the kerb)";
+        }
+
+        // Same verge material/submesh as generated streets. Follow the real model asphalt, never json width alone.
+        static G GravelPoint(G edge,double rx,double rz,double u)
+        {
+            double x=edge.x+rx*u,z=edge.z+rz*u;
+            float ground=TerrainY(x,z);
+            double y=edge.y-.04*u;
+            if (!float.IsNaN(ground)) y=u>=1.6 ? ground+.02 : Math.Max(y,ground+.025);
+            if(u<=0) y=edge.y+.012;
+            return new G(x,y,z);
+        }
+        static void GravelStrip(G a,G b,double arx,double arz,double brx,double brz,Drop drop)
+        {
+            foreach(var range in new[] {(0.0,.8),(.8,1.6)})
+                Quad(MAT_VERGE,GravelPoint(a,arx,arz,range.Item1),GravelPoint(b,brx,brz,range.Item1),
+                    GravelPoint(b,brx,brz,range.Item2),GravelPoint(a,arx,arz,range.Item2),Vector3.up,drop,false);
+            // Bury the last 40 cm: terrain carving happens after mesh generation and can lower the outer edge.
+            G Skirt(G e,double rx,double rz)
+            {
+                var p=GravelPoint(e,rx,rz,2); float ground=TerrainY(p.x,p.z);
+                return new G(p.x,float.IsNaN(ground) ? e.y-.4 : ground-.4,p.z);
+            }
+            Quad(MAT_VERGE,GravelPoint(a,arx,arz,1.6),GravelPoint(b,brx,brz,1.6),
+                Skirt(b,brx,brz),Skirt(a,arx,arz),Vector3.up,drop,false);
+            // Only the footprint/vegetation mask uses this capsule; it must not change terrain heights.
+            gravelCover.Add(new[]{a.x+arx*.8,a.z+arz*.8,a.y,b.x+brx*.8,b.z+brz*.8,b.y,.8});
+        }
+        static void ShouldersAlong(MRaster raster,List<double[]> poly,double width)
+        {
+            foreach(int side in new[]{-1,1})
+            {
+                G? previous=null; double oldRx=0,oldRz=0;
+                for(int seg=0;seg+1<poly.Count;seg++)
+                {
+                    var a=poly[seg];var b=poly[seg+1];double dx=b[0]-a[0],dz=b[1]-a[1],length=Math.Sqrt(dx*dx+dz*dz);
+                    if(length<.01) continue;
+                    double rx=-dz/length*side,rz=dx/length*side;
+                    int count=Math.Max(1,(int)Math.Ceiling(length));
+                    for(int k=0;k<count;k++)
+                    {
+                        double f=(double)k/count,cx=a[0]+dx*f,cz=a[1]+dz*f;
+                        if(raster.At(cx,cz)!=1) {previous=null;continue;}
+                        double last=-1;int miss=0;
+                        for(double u=0;u<=width/2+3;u+=.1)
+                        {
+                            if(raster.At(cx+rx*u,cz+rz*u)==1) {last=u;miss=0;}
+                            else if(++miss>=3) break;
+                        }
+                        double edge=last+.05;
+                        if(last<0 || edge<width/2-1.5 || edge>width/2+1.2) {previous=null;continue;}
+                        double ex=cx+rx*edge,ez=cz+rz*edge;
+                        var hit=Nearest(cx,cz,8);
+                        bool d8=hit.ei>=0 && (IsD8(edges[hit.ei]) || Regex.IsMatch(edges[hit.ei].rf,@"^D\s?8$"));
+                        bool clear=d8 || !BuiltUp(ex,ez,rx,rz);
+                        for(double u=.25;u<=1.7 && clear;u+=.2)
+                            if(raster.At(ex+rx*u,ez+rz*u)!=0 || Obstacle(ex+rx*u,ez+rz*u)) clear=false;
+                        int id=raster.Idx(cx+rx*(edge-.2),cz+rz*(edge-.2));
+                        if(!clear || id<0 || raster.c[id]!=1) {previous=null;continue;}
+                        double y=raster.y[id];float ground=TerrainY(ex+rx,ez+rz);
+                        if(!float.IsNaN(ground) && Math.Abs(ground-y)>.65) {previous=null;continue;}
+                        var pt=new G(ex,y,ez);
+                        if(previous.HasValue)
+                        {
+                            var old=previous.Value;double distance=Math.Sqrt(Sq(pt.x-old.x)+Sq(pt.z-old.z));
+                            if(distance<2.5 && Math.Abs(pt.y-old.y)<.4)
+                            {
+                                GravelStrip(old,pt,oldRx,oldRz,rx,rz,Drop.None);
+                                modelShoulderMetres+=distance;
+                            }
+                        }
+                        previous=pt;oldRx=rx;oldRz=rz;
+                    }
+                }
+            }
         }
 
         static void StripsAlong(MX m, MRaster R, List<double[]> poly, double w)

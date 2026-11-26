@@ -201,6 +201,7 @@ namespace Magistrala.EditorTools
                         P[i] = new Vector3((float)x, (float)y + lift, (float)-z);
                         var n = gm.nrm != null ? gm.nrm[i] : Vector3.up; N[i] = new Vector3(n.x, n.y, -n.z);
                     }
+                    var kerbShape = gm.name == "sidewalk" || gm.name == "island" ? new CesteKerbs(P,gm.idx) : null;
                     int cbase = cv.Count;
                     if (coll) cv.AddRange(P);
                     // road frame of every asphalt vertex (ModelJunctions2 roadAsphalt: lateral u, arc s of the model road whose band holds it)
@@ -239,17 +240,26 @@ namespace Magistrala.EditorTools
                         }
                         var fn = Vector3.Cross(P[b] - P[a], P[c] - P[a]).normalized;
                         if (gm.name == "deck" && Mathf.Abs(fn.y) < .6f) k = 6; // deck sides / girders (asphalt-coloured in the GLB: the black footbridge)
+                        if (gm.name == "sidewalk" && Mathf.Abs(fn.y) < .6f) k = 3; // GLB uses light-concrete vertex colour for the kerb face
                         if (gm.name == "island") k = Mathf.Abs(fn.y) > .6f ? 7 : 3;
                         bool sameRoad = fr != null && fr[a].road >= 0 && fr[a].road == fr[b].road && fr[b].road == fr[c].road;
-                        foreach (int id in new[] { a, b, c })
+                        var pieces = kerbShape != null ? kerbShape.Triangles(P[a],P[b],P[c],Mathf.Abs(fn.y)<.6f)
+                            : new[] {new[] {P[a],P[b],P[c]}};
+                        foreach (var piece in pieces)
                         {
-                            var p = P[id]; v[k].Add(p); nr[k].Add(k == 6 ? Vector3.up : Vector3.Dot(N[id], fn) < 0 ? fn : N[id]); // (deck structure: wound inwards in the GLB → lit as from above; other inverted normals flipped)
-                            float gx = (float)(m.x - W.OX) + p.x, gz = -(float)(m.z - W.OZ) + p.z;
-                            if (k == 0) uv[k].Add(new Vector2(gx, gz)); // asphalt shader: world metres
-                            else if (k == 3 || k == 7) uv[k].Add(Mathf.Abs(fn.y) > .5f ? new Vector2(gx,gz) : new Vector2(gx * fn.z - gz * fn.x, p.y + (float)m.y));
-                            else uv[k].Add(Mathf.Abs(fn.y) > .5f ? new Vector2(gx, gz) * .2f : new Vector2((gx + gz) * .5f, p.y + (float)m.y) * .5f);
-                            if (sameRoad) { var f = fr[id]; uv1[k].Add(new Vector2(f.u, f.s)); uv2[k].Add(new Vector2(f.hw, f.lane)); }
-                            else { uv1[k].Add(Vector2.zero); uv2[k].Add(Vector2.zero); }
+                            var faceNormal=Vector3.Cross(piece[1]-piece[0],piece[2]-piece[0]).normalized;
+                            for (int corner=0;corner<3;corner++)
+                            {
+                                int id = corner==0 ? a : corner==1 ? b : c;
+                                var p=piece[corner]; v[k].Add(p);
+                                nr[k].Add(kerbShape != null ? faceNormal : k==6 ? Vector3.up : Vector3.Dot(N[id],fn)<0 ? fn : N[id]);
+                                float gx=(float)(m.x-W.OX)+p.x, gz=-(float)(m.z-W.OZ)+p.z;
+                                if(k==0) uv[k].Add(new Vector2(gx,gz));
+                                else if(k==3 || k==7) uv[k].Add(Mathf.Abs(faceNormal.y)>.5f ? new Vector2(gx,gz) : new Vector2(gx*faceNormal.z-gz*faceNormal.x,p.y+(float)m.y));
+                                else uv[k].Add(Mathf.Abs(faceNormal.y)>.5f ? new Vector2(gx,gz)*.2f : new Vector2((gx+gz)*.5f,p.y+(float)m.y)*.5f);
+                                if(sameRoad) {var f=fr[id];uv1[k].Add(new Vector2(f.u,f.s));uv2[k].Add(new Vector2(f.hw,f.lane));}
+                                else {uv1[k].Add(Vector2.zero);uv2[k].Add(Vector2.zero);}
+                            }
                         }
                         if (coll) { ci.Add(cbase + a); ci.Add(cbase + b); ci.Add(cbase + c); }
                         tris++;
