@@ -252,7 +252,7 @@ namespace Magistrala
             }
         }
 
-        // -campose gx,gz,h,yaw,pitch: the camera fixed there (game x / z, h m above the ground, Unity yaw, pitch down in degrees;
+        // -campose gx,gz,h,yaw,pitch[,spin]: the camera fixed there (game x / z, h m above the ground, Unity yaw, pitch down in degrees;
         // screenshots of facades / lamps from a chosen spot)
         float[] camPose; float camPoseY = float.NaN;
         void LateUpdate()
@@ -263,7 +263,9 @@ namespace Magistrala
                 var ch2 = Camera.main.GetComponent<TruckChaseCamera>(); if (ch2) ch2.enabled = false;
                 var u = new Vector3(camPose[0] + 4200, 0, -(camPose[1] + 5300));
                 if (float.IsNaN(camPoseY) && Physics.Raycast(u + Vector3.up * 300, Vector3.down, out var hit, 600, ~0, QueryTriggerInteraction.Ignore)) camPoseY = hit.point.y;
-                if (!float.IsNaN(camPoseY)) Camera.main.transform.SetPositionAndRotation(u + Vector3.up * (camPoseY + camPose[2]), Quaternion.Euler(camPose[4], camPose[3], 0));
+                // (6th value: the yaw turns this many degrees a second — traffic tests: looking round must not uncover cars being born)
+                float yawNow = camPose[3] + (camPose.Length >= 6 ? camPose[5] * Time.time : 0);
+                if (!float.IsNaN(camPoseY)) Camera.main.transform.SetPositionAndRotation(u + Vector3.up * (camPoseY + camPose[2]), Quaternion.Euler(camPose[4], yawNow, 0));
                 return;
             }
             if (camHigh <= 0 || !Camera.main) return;
@@ -286,7 +288,9 @@ namespace Magistrala
                 }
                 return;
             }
-            if (shot == null || shotDone || Time.realtimeSinceStartup <= shotAt) return;
+            // (with -capfps the frames are game time apart: -shotat is game time then, so a burst can be aimed at a moment a
+            // previous run logged, e.g. a traffic car's first appearance)
+            if (shot == null || shotDone || (Time.captureFramerate > 0 ? Time.time : Time.realtimeSinceStartup) <= shotAt) return;
             if (burst <= 1) { shotDone = true; ScreenCapture.CaptureScreenshot(shot); Debug.Log("[gpu] shot " + shot); return; }
             ScreenCapture.CaptureScreenshot(shot.Replace(".png", $"_{burstI:D2}.png"));
             if (++burstI >= burst) { shotDone = true; Debug.Log($"[gpu] burst {burst} " + shot); }

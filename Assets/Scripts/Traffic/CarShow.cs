@@ -128,6 +128,7 @@ namespace Magistrala.Traffic
                 {
                     var mat = pt.paint ? c.kd.paints[c.paint] : pt.mat;
                     if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? ts.headlights : pt.lamp == 5 ? bA : pt.lamp == 6 ? bB : false)) mat = pt.matOn;
+                    if (!pt.paint && TrafficSystem.PaintLamp(pt.mat) && c.kd.paints.Length > 0) mat = TrafficSystem.PaintVar(mat, c.kd.paints[c.paint]); // (golf2 tailgate: the car's paint)
                     if (!mat || !pt.mesh) continue;
                     var rp = new RenderParams(mat) { shadowCastingMode = ShadowCastingMode.On, receiveShadows = true, layer = ts.gameObject.layer, worldBounds = new Bounds(c.pos, Vector3.one * 20) };
                     Graphics.RenderMesh(rp, pt.mesh, pt.sub, M * pt.local);
