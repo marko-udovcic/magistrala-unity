@@ -10,6 +10,10 @@ Shader "Magistrala/CesteStone"
         _VerticalScale("Vertical mesh UV to metres", Float) = 1
         _BumpScale("Normal strength", Range(0,2)) = .65
         _Slabs("Slab joints / tint", Float) = 1
+        _AlbedoLift("Concrete diffuse lift (linear)", Range(0,.3)) = 0
+        _Saturation("Stone saturation", Range(0,1)) = 1
+        _SlabVariation("Per slab variation", Range(0,.2)) = .06
+        _JointStrength("Additional procedural joints", Range(0,1)) = 1
         _CellSize("Slab width, length (m)", Vector) = (.6,.9,0,0)
         _Waterline("Waterline algae", Float) = 0
         _AlgaeAvailable("Algae texture available", Float) = 0
@@ -30,6 +34,7 @@ Shader "Magistrala/CesteStone"
         // Shared by every pass, including ShadowCaster and depth passes.
         CBUFFER_START(UnityPerMaterial)
             float4 _BaseColor, _CellSize;
+            float _AlbedoLift, _Saturation, _SlabVariation, _JointStrength;
             float _Tiling, _VerticalScale, _BumpScale, _Slabs, _Waterline, _AlgaeAvailable, _AlgaeTiling;
         CBUFFER_END
         TEXTURE2D(_BaseMap); SAMPLER(sampler_BaseMap);
@@ -75,8 +80,9 @@ Shader "Magistrala/CesteStone"
             output.normalWS = n.normalWS;
             output.tangentWS = float4(n.tangentWS, input.tangentOS.w * GetOddNegativeScale());
             if (abs(n.normalWS.y) > .6) output.tangentWS = float4(1,0,0,-sign(n.normalWS.y));
+            else output.tangentWS = float4(normalize(float3(n.normalWS.z,0,-n.normalWS.x)),1);
             output.uv = abs(n.normalWS.y) > .6 ? p.positionWS.xz : input.groundMetres * _VerticalScale; // metre UVs for vertical faces
-            output.roadUS = input.roadUS;
+            output.roadUS = float2(input.groundMetres.y * _VerticalScale, 0); // coping distance from sea edge
             output.roadWidths = input.roadWidths;
             output.lightmapUV = input.lightmapUV * unity_LightmapST.xy + unity_LightmapST.zw;
             output.fogAndLight.x = ComputeFogFactor(p.positionCS.z);
@@ -122,6 +128,7 @@ Shader "Magistrala/CesteStone"
             UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
             float2 uv = input.uv / max(_Tiling,.01);
             float3 albedo = SAMPLE_TEXTURE2D(_BaseMap,sampler_BaseMap,uv).rgb * _BaseColor.rgb;
+            albedo = lerp(dot(albedo,float3(.2126,.7152,.0722)).xxx,albedo,_Saturation) + _AlbedoLift;
             float roughness = SAMPLE_TEXTURE2D(_RoughMap,sampler_RoughMap,uv).r;
             float3 nTS = UnpackNormalScale(SAMPLE_TEXTURE2D(_BumpMap,sampler_BumpMap,uv),_BumpScale);
             float2 grid = input.uv / max(_CellSize.xy,float2(.1,.1));
@@ -131,12 +138,14 @@ Shader "Magistrala/CesteStone"
             float d = min(dist.x,dist.y), aa = max(fwidth(d),.0008);
             float joint = 1-smoothstep(.003-aa,.007+aa,d);
             float rim = 1-smoothstep(.008,.025,d);
-            albedo *= lerp(1,(.88 + Hash21(cell)*.24) * (1-joint*.36) * (1+rim*.08),_Slabs);
+            albedo *= lerp(1,(1 + (Hash21(cell)*2-1)*_SlabVariation) * (1-joint*.36*_JointStrength) * (1+rim*.08*_JointStrength),_Slabs);
             float smoothness = (1-roughness)*.35 + .08;
             // Sea is y=0; irregular damp band follows the physical waterline, never the top UV.
             float wet = _Waterline * (1-smoothstep(.12,.8,input.positionWS.y + (ValueNoise(input.positionWS.xz*2)-.5)*.15));
+            float coping = _Waterline * step(.6,abs(input.normalWS.y)) * (1-smoothstep(.2,.35,input.roadUS.x));
+            wet = max(wet,coping);
             albedo *= 1-wet*.35;
-            UNITY_BRANCH if (_AlgaeAvailable > .5 && wet > .01)
+            UNITY_BRANCH if (_AlgaeAvailable > .5 && wet > .01 && abs(input.normalWS.y) < .6)
                 albedo = lerp(albedo,SAMPLE_TEXTURE2D(_AlgaeMap,sampler_BaseMap,input.uv/max(_AlgaeTiling,.1)).rgb,wet*.65);
             smoothness = lerp(smoothness,.65,wet);
 

@@ -76,15 +76,15 @@ namespace Magistrala.EditorTools
 
         public static void Asphalt(Material m)
         {
-            bool hasBase = Bind(m, "_BaseMap", "asfalt_d");
-            m.SetFloat("_CesteBase", hasBase ? 1 : 0);
-            if (hasBase) { Bind(m,"_BumpMap","asfalt_n",true); Bind(m,"_RoughMap","asfalt_r",false,true); m.SetFloat("_Tiling",Size("asfalt",2.2f).x); }
+            // GraphicsPass's original asphalt_track maps and measured mean keep the BEFORE colour/grain.
             m.SetVector("_CesteMaps", new Vector4(Bind(m,"_PatchMap","asfalt_zakrpa_d") ? 1 : 0,
-                Bind(m,"_TarMap","pukotine_d") ? 1 : 0, Bind(m,"_OilMap","ulje_d") ? 1 : 0, Bind(m,"_DustMap","prasina_d") ? 1 : 0));
+                1, Bind(m,"_OilMap","ulje_d") ? 1 : 0, Bind(m,"_DustMap","prasina_d") ? 1 : 0));
             m.SetVector("_CesteCovers",new Vector4(Bind(m,"_CoverMap","sahta_d") ? 1 : 0,Bind(m,"_DrainMap","resetka_d") ? 1 : 0,0,0));
-            m.SetVector("_DetailSize",new Vector4(Size("asfalt_zakrpa",2).x,Size("pukotine",6).x,0,0));
+            m.SetVector("_DetailSize",new Vector4(Size("asfalt_zakrpa",2).x,0,0,0));
             m.SetVector("_OverlaySize",new Vector4(Size("ulje",1.5f).x,Size("prasina",4).x,Size("sahta",.8f).x,Size("resetka",.5f).x));
-            m.SetFloat("_TrackDarken",.10f); m.SetFloat("_TrackSmooth",.12f);
+            m.SetFloat("_TrackDarken",.03f); m.SetFloat("_TrackSmooth",.06f);
+            m.SetFloat("_PatchAmount",.9f); m.SetFloat("_PatchFeather",.3f);
+            m.SetFloat("_SealWidth",.015f); m.SetFloat("_SealOpacity",.5f);
             EditorUtility.SetDirty(m);
         }
 
@@ -102,7 +102,20 @@ namespace Magistrala.EditorTools
             if (name != "otok") Bind(m,"_RoughMap",name+"_r",false,true);
             m.SetFloat("_Tiling",Size(name,name == "rubnjak" ? 1 : 2).x);
             m.SetFloat("_VerticalScale",name == "riva_rub" ? 2.5f : 1);
+            m.SetFloat("_Saturation",name == "otok" ? .65f : name == "rubnjak" ? .15f : 1);
+            m.SetFloat("_AlbedoLift",name == "rubnjak" ? .12f : 0);
+            m.SetFloat("_SlabVariation",.06f); m.SetFloat("_JointStrength",1);
             m.SetFloat("_Slabs",joints ? 1 : 0); m.SetVector("_CellSize",name == "rubnjak" ? new Vector4(1,.3f,0,0) : new Vector4(.6f,.9f,0,0));
+            if (name == "riva_ploce")
+            {
+                // The approved limestone already has large slabs and dark joints: keep both maps.
+                var oldD = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/PolyHaven/riva_ploce_d.jpg");
+                var oldN = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Textures/PolyHaven/riva_ploce_n.jpg");
+                if (oldD) { m.SetTexture("_BaseMap",oldD); m.SetTexture("_BumpMap",oldN); }
+                m.SetColor("_BaseColor",new Color(1,1,.98f));
+                m.SetFloat("_Tiling",3); m.SetVector("_CellSize",new Vector4(1,1,0,0));
+                m.SetFloat("_JointStrength",0); // joints are in the restored map, no second tile grid
+            }
             m.SetFloat("_AlgaeTiling",waterline ? Size("alge",3).x : 3);
             m.SetFloat("_Waterline",waterline ? 1 : 0);
             m.SetFloat("_AlgaeAvailable",waterline && Bind(m,"_AlgaeMap","alge_d") ? 1 : 0);
@@ -117,7 +130,7 @@ namespace Magistrala.EditorTools
             var flat = AssetDatabase.LoadAssetAtPath<Material>(WorldBuilder.GEN + "/Materials/AsphaltFlat.mat");
             if (src && flat) { flat.CopyPropertiesFromMaterial(src); flat.SetShaderPassEnabled("ShadowCaster",false); EditorUtility.SetDirty(flat); }
             AssetDatabase.SaveAssets();
-            Debug.Log("[Ceste] Asfalt osvježen. Za kamen i geometriju pokrenuti Build roads pa Build streets pa Build signals.");
+            Debug.Log("[Ceste] Asfalt osvježen. Za kamen i geometriju pokrenuti Build roads pa Build streets.");
         }
     }
 }
