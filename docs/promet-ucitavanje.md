@@ -86,7 +86,10 @@ između kuća), to je prirodno.
 
 Veći prsten (isti build, D8 150 s): paket25 prsten 480–850 / 46 auta: ~92 poziva crtanja, ~110 instanci, 0,65 ms;
 novi 700–1200 / 64 auta: ~72 poziva, ~100 instanci, 0,30 ms (broj poziva ovisi o broju različitih vrsta i boja u kadru, ne o
-broju auta: daleki auto je 3 instancirana crtanja po vrsti, a iza ruba fadea se ne crta; razlika je šum vožnje). FPS A/B: FPSAB.
+broju auta: daleki auto je 3 instancirana crtanja po vrsti, a iza ruba fadea se ne crta; razlika je šum vožnje). FPS A/B prema `~/Desktop/Magistrala.app` (D8, autopilot 80 km/h, 1600×900 srednje,
+prosjek 30–150 s, A/B/A/B s 60 s pauze): 26,5 / 37,8 / 46,0 / 47,1 fps. Prvi par je pao u vrijeme kad je Mac bio vruć od
+buildova (A1 je pri kraju stao na 5 fps); drugi par je jednak unutar šuma. Desktop build je i stariji od maina (živice i dr.),
+pa je čišća usporedba u istom buildu gore: isti pozivi i ≤ 1 ms prometa.
 
 Je li veća udaljenost pomogla: da, ali uglavnom zato što je rub crtanja (850–1050 m) sada dalje od onoga što oko na 1600×900
 razlikuje (auto ~4–5 px), a rađanje "izvan pogleda" je sad ≥ 600 m zračnom linijom. Sam po sebi veći prsten ne bi riješio
