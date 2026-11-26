@@ -63,8 +63,8 @@ namespace Magistrala.Game.Phone
     {
         /// a phone contact: as Mate saved it (family without a description, "Vesna" with a heart), the grey line under the name
         public struct Contact { public string id, name, role; public Color color; public bool heart; }
-        /// the game's people (calls, messages) and the scenario's family / friends (references/magistrala: Lucija, šogor Ante,
-        /// šjor Duje – no calls yet: "Ne javlja se.")
+        /// the game's people (calls, messages) and šjor Duje (no calls yet: "Ne javlja se."); Lucija and šogor Ante left out
+        /// (Marko, 26. 11. 2026)
         public static readonly Contact[] Contacts =
         {
             new Contact { id = "zdravko", name = "Šef Zdravko", role = "Dispečer · firma", color = new Color(0.95f, 0.62f, 0.15f) },
@@ -72,8 +72,6 @@ namespace Magistrala.Game.Phone
             new Contact { id = "zare", name = "Žare", role = "Ćaćin stari kolega", color = new Color(0.35f, 0.62f, 0.9f) },
             new Contact { id = "marija", name = "Marija", role = "Pumpa Kaštela", color = new Color(0.4f, 0.75f, 0.45f) },
             new Contact { id = "punica", name = "Punica", role = "", color = new Color(0.62f, 0.5f, 0.85f) },
-            new Contact { id = "lucija", name = "Lucija", role = "", color = new Color(0.95f, 0.45f, 0.62f) },
-            new Contact { id = "ante", name = "Ante šogor", role = "", color = new Color(0.55f, 0.6f, 0.3f) },
             new Contact { id = "duje", name = "Šjor Duje", role = "Taksist", color = new Color(0.9f, 0.75f, 0.2f) },
         };
         static readonly List<Contact> extra = new List<Contact>();

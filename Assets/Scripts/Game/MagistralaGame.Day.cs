@@ -263,9 +263,9 @@ namespace Magistrala.Game
             SetupBlicaj();
         }
 
-        /// the loan Mate guarantees (scenario + faza1-odgovori: 18.000 € on ćaća's obrt, the first instalment 300 €): shown in the
+        /// the loan Mate guarantees (scenario + faza1-odgovori: 20.000 € (Marko, 26. 11.) on ćaća's obrt, the first instalment 300 €): shown in the
         /// Banka app; nothing is paid off yet – the debt system (instalments, the bank's letter) comes with the story
-        public const float LoanTotal = 18000, LoanRate = 300;
+        public const float LoanTotal = 20000, LoanRate = 300;
         public float LoanLeft => LoanTotal;
 
         /// 6:00 (MatePhone.tsx ZdravkoCall + the approved Q3 choices)
