@@ -360,15 +360,19 @@ namespace Magistrala.EditorTools
                     if (j1 - j0 < 15) continue;
                     // lowered kerb at a run end inside the road (the polyline's own ends continue into the next tile / street)
                     bool rampA = j0 > 0, rampB = j1 < N - 1;
-                    double Kh(int k) { double d = Math.Min(rampA ? k - j0 : 1e9, rampB ? j1 - k : 1e9); return .02 + .13 * Smooth(d / 1.5); }
+                    double Kh(int k) { double d = Math.Min(rampA ? k - j0 : 1e9, rampB ? j1 - k : 1e9); return CesteCrossings.KerbHeight(P[k][0],P[k][1],.02 + .13 * Smooth(d / 1.5)); }
                     G Pt(int k, double du, double dy) { double rx = -tz[k] * side, rz = tx[k] * side, u = E2[k] - .15 + du; return new G(P[k][0] + rx * u, Y2[k] + dy, P[k][1] + rz * u); }
                     for (int k = j0; k < j1; k++)
                     {
                         int q = k + 1; double ka = Kh(k), kb = Kh(q), wa = W2a[k] + .15, wb = W2a[q] + .15;
                         var outA = new Vector3((float)(-tz[k] * side), 0, (float)(-tx[k] * side));
                         double ga = Math.Max(-2, Math.Min(-.4, Gy[k] - Y2[k] - .05)), gb = Math.Max(-2, Math.Min(-.4, Gy[q] - Y2[q] - .05));
-                        Quad(MAT_KERB, Pt(k, 0, -.25), Pt(q, 0, -.25), Pt(q, 0, kb), Pt(k, 0, ka), -outA, Drop.None, false);
-                        Quad(MAT_KERB, Pt(k, 0, ka), Pt(q, 0, kb), Pt(q, .18, kb), Pt(k, .18, ka), Vector3.up, Drop.None, false);
+                        double ba = Math.Min(.02,ka*.25), bb = Math.Min(.02,kb*.25);
+                        Quad(MAT_KERB, Pt(k, 0, -.25), Pt(q, 0, -.25), Pt(q, 0, kb-bb), Pt(k, 0, ka-ba), -outA, Drop.None, false);
+                        const double arc = .2928932188;
+                        Quad(MAT_KERB, Pt(k, 0, ka-ba), Pt(q, 0, kb-bb), Pt(q, bb*arc, kb-bb*arc), Pt(k, ba*arc, ka-ba*arc), (Vector3.up-outA*2.4142f).normalized, Drop.None, false);
+                        Quad(MAT_KERB, Pt(k, ba*arc, ka-ba*arc), Pt(q, bb*arc, kb-bb*arc), Pt(q, bb, kb), Pt(k, ba, ka), (Vector3.up*2.4142f-outA).normalized, Drop.None, false);
+                        Quad(MAT_KERB, Pt(k, ba, ka), Pt(q, bb, kb), Pt(q, .18, kb), Pt(k, .18, ka), Vector3.up, Drop.None, false);
                         Quad(MAT_WALK, Pt(k, .18, ka), Pt(q, .18, kb), Pt(q, wb, kb), Pt(k, wa, ka), Vector3.up, Drop.None, false);
                         Quad(MAT_KERB, Pt(k, wa, ka), Pt(q, wb, kb), Pt(q, wb, gb), Pt(k, wa, ga), outA, Drop.None, false);
                         Quad(-1, Pt(k, 0, ka), Pt(q, 0, kb), Pt(q, wb, kb), Pt(k, wa, ka), Vector3.up, Drop.None, true);

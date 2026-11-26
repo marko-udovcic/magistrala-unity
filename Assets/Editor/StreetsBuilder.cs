@@ -744,6 +744,8 @@ namespace Magistrala.EditorTools
                 {
                     ch.v[mat].Add(P);
                     ch.u0[mat].Add(mat == MAT_ASPHALT || mat == MAT_COURT && courtAsphalt ? new Vector2(P.x, P.z) : top ? new Vector2(P.x, P.z) * (mat == MAT_PAINT || mat == MAT_BAY ? .2f : mat == MAT_COURT ? .12f : .25f) : new Vector2((P.x + P.z) * .5f, P.y) * .5f);
+                    if (mat == MAT_KERB || mat == MAT_VERGE)
+                        ch.u0[mat][ch.u0[mat].Count-1] = top ? new Vector2(P.x,P.z) : new Vector2(P.x*n.normalized.z - P.z*n.normalized.x,P.y);
                     ch.u1[mat].Add(g.f1); ch.u2[mat].Add(g.f2);
                 }
                 tris++;
@@ -1027,7 +1029,7 @@ namespace Magistrala.EditorTools
                         // a run end at a stop (junction corner, driveway, field, wall, dead end): lowered kerb; at a neutral sample or an
                         // edge end that runs on into the next edge: full height (+ an end cap where nothing continues)
                         bool rampA = k0 == 0 ? !openA : stop[k0 - 1], rampB = k1 == NS - 1 ? !openB : stop[k1 + 1];
-                        for (int q = k0; q <= k1; q++) { double d = Math.Min(rampA ? (q - k0) * DS : 1e9, rampB ? (k1 - q) * DS : 1e9); kh[q] = .02 + .13 * Smooth(d / 1.5); }
+                        for (int q = k0; q <= k1; q++) { double d = Math.Min(rampA ? (q - k0) * DS : 1e9, rampB ? (k1 - q) * DS : 1e9); var pt = PointAt(ei,q*DS); kh[q] = CesteCrossings.KerbHeight(pt.x,pt.z,.02 + .13 * Smooth(d / 1.5)); }
                         cap[k0] = !(k0 == 0 && openA); cap[k1] = !(k1 == NS - 1 && openB);
                     }
                     swOk[si] = ok; swW[si] = w2; swK[si] = kh; swCap[si] = cap;
@@ -1095,8 +1097,12 @@ namespace Magistrala.EditorTools
                             double ta = Math.Max(0, Math.Min(1, (sa - k0 * DS) / DS)), tb = Math.Max(0, Math.Min(1, (sb - k0 * DS) / DS));
                             var sw = swW[si]; var kh = swK[si];
                             double Wa = sw[k0] + (sw[k1] - sw[k0]) * ta, Wb = sw[k0] + (sw[k1] - sw[k0]) * tb, Ka = kh[k0] + (kh[k1] - kh[k0]) * ta, Kb = kh[k0] + (kh[k1] - kh[k0]) * tb;
-                            Quad(MAT_KERB, S(fa, 0, 0), S(fb, 0, 0), S(fb, 0, Kb), S(fa, 0, Ka), -outA, Drop.OnModel, false);
-                            Quad(MAT_KERB, S(fa, 0, Ka), S(fb, 0, Kb), S(fb, KW, Kb), S(fa, KW, Ka), Vector3.up, Drop.OnModel, false);
+                            double ba = Math.Min(.02, Ka * .25), bb = Math.Min(.02, Kb * .25);
+                            Quad(MAT_KERB, S(fa, 0, 0), S(fb, 0, 0), S(fb, 0, Kb-bb), S(fa, 0, Ka-ba), -outA, Drop.OnModel, false);
+                            const double arc = .2928932188; // quarter-circle, two facets (r = 2 cm)
+                            Quad(MAT_KERB, S(fa, 0, Ka-ba), S(fb, 0, Kb-bb), S(fb, bb*arc, Kb-bb*arc), S(fa, ba*arc, Ka-ba*arc), (Vector3.up-outA*2.4142f).normalized, Drop.OnModel, false);
+                            Quad(MAT_KERB, S(fa, ba*arc, Ka-ba*arc), S(fb, bb*arc, Kb-bb*arc), S(fb, bb, Kb), S(fa, ba, Ka), (Vector3.up*2.4142f-outA).normalized, Drop.OnModel, false);
+                            Quad(MAT_KERB, S(fa, ba, Ka), S(fb, bb, Kb), S(fb, KW, Kb), S(fa, KW, Ka), Vector3.up, Drop.OnModel, false);
                             Quad(MAT_WALK, S(fa, KW, Ka), S(fb, KW, Kb), S(fb, Wb, Kb), S(fa, Wa, Ka), Vector3.up, Drop.OnModel, false);
                             Quad(MAT_KERB, S(fa, Wa, Ka), S(fb, Wb, Kb), S(fb, Wb, -.4), S(fa, Wa, -.4), outA, Drop.OnModel, false);
                             Quad(-1, S(fa, 0, Ka), S(fb, 0, Kb), S(fb, Wb, Kb), S(fa, Wa, Ka), Vector3.up, Drop.OnModel, true);
@@ -1492,6 +1498,8 @@ namespace Magistrala.EditorTools
             var court = WorldBuilder.Lit("StreetCourt", new Color(.82f, .81f, .79f), .12f, 0, grey, "concrete_n.jpg", .6f);
             var bay = WorldBuilder.Lit("PaintBay", new Color(.86f, .8f, .55f), .3f, 0, null);
             if (paint.GetTexture("_BaseMap")) bay.SetTexture("_BaseMap", paint.GetTexture("_BaseMap"));
+            verge = CesteMaterials.Stone(verge, "bankina", false);
+            kerb = CesteMaterials.Stone(kerb, "rubnjak");
             return new[] { asph, paint, verge, kerb, walk, court, bay };
         }
         static void Save(UnityEngine.Object o, string path) { if (AssetDatabase.LoadMainAssetAtPath(path) != null) AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(o, path); }
@@ -1534,6 +1542,7 @@ namespace Magistrala.EditorTools
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var log = new List<string>();
             log.Add(LoadGraph()); LoadModels(); log.Add(ApplyOutside()); ModelCuts(); log.Add($"{endSnaps} street ends snapped onto the model road they start at"); approaches = 0; approachSkipped = 0; log.Add($"{endHeights} street ends brought to the model paving they leave (max {endHeightMax:F2} m)");
+            CesteCrossings.Load(WorldData.Models());
             log.Add(LoadFeet()); walkOurs = new Dictionary<string, double>();
             modelNodes = new HashSet<long>(models.SelectMany(m => m.nodes));
             chunks = new Dictionary<(int, int), Chunk>(); carve = new List<double[]>(); courts = new List<(double, double, double, double, double, double, double)>();
