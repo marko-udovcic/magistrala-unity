@@ -1,5 +1,6 @@
-// Facade colours measured from Mapillary street-level photos (CC BY-SA 4.0, Mapillary contributors) along the old road and the D8
-// through Kaštela: BalkanDriver tools/world/mapillary/s3_facades.py -> fasade.json, copied here as fasade-mapillary.json (facts
+// Facade colours measured from Mapillary street-level photos (CC BY-SA 4.0, Mapillary contributors) along the old road, the D8 and
+// (26. 11.) all the other streets of Kaštela: BalkanDriver tools/world/mapillary/s3_facades.py -> fasade-all.json (a superset of
+// fasade.json: same ids, conf never lower), copied here as fasade-mapillary.json by Tools/mapillary/spoji.py (facts
 // only: colour, class, type, shutters; docs/mapillary-izvlacenje.md in the BalkanDriver repo). Key 'tx_tz:i' = tile + index in its
 // BUILDINGS section, as OrthoRoofs.Get; the centroid must agree within 1.5 m. A record with conf >= MinConf sets the wall's colour
 // (rgb: linear albedo), `type` stone -> the stone house family, concrete -> a grey render variant, the shutters' colour; below it

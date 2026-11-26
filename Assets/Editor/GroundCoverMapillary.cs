@@ -1,5 +1,6 @@
 // Mapillary car parks (docs/mapillary-izvlacenje.md, "Parking"): Assets/Editor/parking-mapillary.json is the lots part of
-// BalkanDriver tools/world/mapillary/parking.json (s5_parking.py; Mapillary contributors, CC BY-SA 4.0): off-road clusters of
+// BalkanDriver tools/world/mapillary/parking.json, then the new lots of parking-all.json (all streets, 26. 11.; Tools/mapillary/spoji.py
+// keeps the old ones first in their order, so the ids of mapillary-lots.json stay) (s5_parking.py; Mapillary contributors, CC BY-SA 4.0): off-road clusters of
 // parked cars seen in the street photos (convex hull of the cars + 2 m, positions good to ~2–3 m).
 //   * a lot that overlaps an OSM car park of the ground build (≥ 20 % of its area) is that car park: nothing new
 //   * the outline: the hull 0.5 m in, its corners rounded (2 m)
@@ -13,7 +14,8 @@
 //     connector to the nearest of our streets (not the D8) when the gap is under 15 m
 //   * the kept lots and connectors go to Assets/Generated/Tlo/mapillary-lots.json: Hard() covers them (no grass detail, no
 //     tree there)
-// The kerbside segments of the file are empty (the old road has almost no segmented imagery, the D8 has no kerbside parking).
+// The kerbside segments are not used: none on the old road (almost no segmented imagery) and the D8 (no kerbside parking); the
+// all-streets run found 9 short ones (1–14 cars / 100 m) on side streets, too few to be worth a kerbside spawner.
 using System;
 using System.Collections.Generic;
 using System.IO;
