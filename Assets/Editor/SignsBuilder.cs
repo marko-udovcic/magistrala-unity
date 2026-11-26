@@ -291,7 +291,9 @@ namespace Magistrala.EditorTools
             }
             foreach (var l in stacks.Values)
             {
-                var p0 = l[0]; var b = W.U(p0.x, 0, p0.z); b.y = Y(p0, b); var t = TravelU(p0.yaw);
+                var p0 = l[0]; var b = W.U(p0.x, 0, p0.z); var t = TravelU(p0.yaw);
+                if (OnAsphalt(b)) { var nb = OffAsphalt(b, 6f); if (nb != null) { log.Add($"{p0.id}: stup s asfalta pomaknut {Vector3.Distance(b, nb.Value):F2} m"); b = nb.Value; nOffAsphalt++; Count("stup rekvizita maknut s asfalta"); } }
+                b.y = Y(p0, b);
                 float top = 0;
                 foreach (var p in l)
                 {
@@ -327,7 +329,35 @@ namespace Magistrala.EditorTools
                     case "gantry":
                         {
                             float span = p.span > 0 ? p.span : 12;
-                            var L = o - right * span / 2; var R = o + right * span / 2; L.y = Y(p, L); R.y = Y(p, R);
+                            var L = o - right * span / 2; var R = o + right * span / 2;
+                            // a leg on the asphalt goes out along the truss (the heads stay over their lanes)
+                            float sL = OnAsphalt(L) ? OutAlong(L, -right, 6f) : 0, sR = OnAsphalt(R) ? OutAlong(R, right, 6f) : 0;
+                            if (sL < 0 || sR < 0)
+                            {
+                                // no room straight out (a leg in the middle of a junction mouth): the whole gantry a little along the
+                                // road (≤ 4 m, heads and boards with it), where both legs find ground
+                                bool done = false;
+                                for (float sh = .25f; sh <= 4.01f && !done; sh += .25f)
+                                    foreach (float sg in new[] { 1f, -1f })
+                                    {
+                                        var o3 = o + t * sh * sg; var L3 = o3 - right * span / 2; var R3 = o3 + right * span / 2;
+                                        float l3 = OnAsphalt(L3) ? OutAlong(L3, -right, 6f) : 0, r3 = OnAsphalt(R3) ? OutAlong(R3, right, 6f) : 0;
+                                        if (l3 < 0 || r3 < 0) continue;
+                                        o = o3; L = L3; R = R3; sL = l3; sR = r3; done = true; nOffAsphalt++; Count("portal pomaknut uz cestu (noga s asfalta)");
+                                        log.Add($"{p.id}: portal {sh * sg:+0.00;-0.00} m uz cestu"); break;
+                                    }
+                                if (!done)
+                                {
+                                    // last: the leg alone to the nearest ground within 5 m (the truss a little askew between the legs)
+                                    if (sL < 0 && OffAsphalt(L, 5f) is Vector3 l4) { L = l4; sL = 0; nOffAsphalt++; Count("noga portala maknuta s asfalta"); log.Add($"{p.id}: lijeva noga portala na najbliže tlo"); }
+                                    if (sR < 0 && OffAsphalt(R, 5f) is Vector3 r4) { R = r4; sR = 0; nOffAsphalt++; Count("noga portala maknuta s asfalta"); log.Add($"{p.id}: desna noga portala na najbliže tlo"); }
+                                    if (sL < 0 || sR < 0) log.Add($"{p.id}: noga portala na asfaltu (nema mjesta)");
+                                }
+                            }
+                            if (sL > 0) { L -= right * sL; nOffAsphalt++; Count("noga portala maknuta s asfalta"); log.Add($"{p.id}: lijeva noga portala +{sL:F2} m"); }
+                            if (sR > 0) { R += right * sR; nOffAsphalt++; Count("noga portala maknuta s asfalta"); log.Add($"{p.id}: desna noga portala +{sR:F2} m"); }
+                            span += Mathf.Max(0, sL) + Mathf.Max(0, sR);
+                            L.y = Y(p, L); R.y = Y(p, R);
                             float baseY = Mathf.Min(L.y, R.y), H = 7.35f;
                             var q = Quaternion.LookRotation(t, Vector3.up);
                             foreach (var b0 in new[] { L, R })
@@ -338,12 +368,13 @@ namespace Magistrala.EditorTools
                             }
                             // truss: two chords and the posts' ties
                             var mid = (L + R) / 2; mid.y = baseY;
-                            foreach (float cy in new[] { 6.45f, 7.2f }) Box(mid + Vector3.up * cy, q, new Vector3(span + .35f, .16f, .16f), rSteel);
-                            for (int i = 0; i <= Mathf.Max(2, Mathf.RoundToInt(span / 1.6f)); i++)
+                            var lr = R - L; lr.y = 0; float trussL = lr.magnitude; var qT = Quaternion.LookRotation(Vector3.Cross(lr / Mathf.Max(1e-3f, trussL), Vector3.up), Vector3.up);
+                            foreach (float cy in new[] { 6.45f, 7.2f }) Box(mid + Vector3.up * cy, qT, new Vector3(trussL + .35f, .16f, .16f), rSteel);
+                            for (int i = 0; i <= Mathf.Max(2, Mathf.RoundToInt(trussL / 1.6f)); i++)
                             {
-                                float f = i / (float)Mathf.Max(2, Mathf.RoundToInt(span / 1.6f));
+                                float f = i / (float)Mathf.Max(2, Mathf.RoundToInt(trussL / 1.6f));
                                 var pp = Vector3.Lerp(L, R, f); pp.y = baseY + 6.825f;
-                                Box(pp, q * Quaternion.Euler(0, 0, i % 2 == 0 ? 35 : -35), new Vector3(.06f, .9f, .06f), rSteel);
+                                Box(pp, qT * Quaternion.Euler(0, 0, i % 2 == 0 ? 35 : -35), new Vector3(.06f, .9f, .06f), rSteel);
                             }
                             bool noHeads = p.flags.Contains("no_heads");
                             string g = GroupOf(p, false);
@@ -377,30 +408,41 @@ namespace Magistrala.EditorTools
                     case "signal_cantilever_right":
                     case "signal_cantilever_left":
                         {
-                            var b = o; b.y = Y(p, b);
-                            var q = Quaternion.LookRotation(t, Vector3.up);
-                            Cyl(b, 6.1f, .13f, rSteel, false, 10); cols.Add((b + Vector3.up * 3.05f, q, new Vector3(.3f, 6.1f, .3f)));
-                            Box(b + Vector3.up * .05f, q, new Vector3(.5f, .1f, .5f), rSteel);
+                            float sgn = p.kind.EndsWith("right") ? -1 : 1;
                             float reach = 1.5f;
                             foreach (var u in p.lanes) reach = Mathf.Max(reach, Mathf.Abs(u) + .9f);
                             foreach (var bd in p.boards) if (bd.text.Trim().Length > 0) reach = Mathf.Max(reach, Mathf.Abs(bd.u) + 1.5f);
-                            float sgn = p.kind.EndsWith("right") ? -1 : 1;
-                            var armC = b + right * sgn * reach / 2 + Vector3.up * 5.86f;
-                            Box(armC, q, new Vector3(reach, .16f, .16f), rSteel);
+                            // a mast on the asphalt goes back behind its arm (≤ 6 m), else to the nearest spot off it (≤ 6 m); the arm
+                            // runs from the mast to where it ended before, so the heads stay over their lanes
+                            var b = o;
+                            if (OnAsphalt(o))
+                            {
+                                float back = OutAlong(o, -right * sgn, 6f);
+                                Vector3? nb = back > 0 ? o - right * sgn * back : OffAsphalt(o, 6f);
+                                if (nb != null) { b = nb.Value; nOffAsphalt++; Count("stup konzole maknut s asfalta"); log.Add($"{p.id}: stup konzole maknut {Vector3.Distance(o, b):F2} m"); }
+                                else log.Add($"{p.id}: stup konzole na asfaltu (nema mjesta u 6 m)");
+                            }
+                            b.y = Y(p, b); var o2 = o; o2.y = b.y;
+                            var armEnd = o2 + right * sgn * reach; var ad = armEnd - b; ad.y = 0; float armL = ad.magnitude; ad /= Mathf.Max(1e-3f, armL);
+                            var q = Quaternion.LookRotation(t, Vector3.up); var qa = Quaternion.LookRotation(Vector3.Cross(ad, Vector3.up), Vector3.up);
+                            Cyl(b, 6.1f, .13f, rSteel, false, 10); cols.Add((b + Vector3.up * 3.05f, q, new Vector3(.3f, 6.1f, .3f)));
+                            Box(b + Vector3.up * .05f, q, new Vector3(.5f, .1f, .5f), rSteel);
+                            var armC = b + ad * armL / 2 + Vector3.up * 5.86f;
+                            Box(armC, qa, new Vector3(armL, .16f, .16f), rSteel);
                             // brace
-                            var b1 = b + Vector3.up * 4.85f; var b2 = b + right * sgn * Mathf.Min(2.4f, reach) + Vector3.up * 5.8f;
+                            var b1 = b + Vector3.up * 4.85f; var b2 = b + ad * Mathf.Min(2.4f, armL) + Vector3.up * 5.8f;
                             Box((b1 + b2) / 2, Quaternion.LookRotation(b2 - b1, t) * Quaternion.Euler(90, 0, 0), new Vector3(.07f, (b2 - b1).magnitude, .07f), rSteel);
                             string g = GroupOf(p, false);
                             for (int i = 0; i < p.lanes.Length; i++)
                             {
                                 bool left = i < p.laneMv.Length && p.laneMv[i] == "left";
                                 bool vert = p.flags.Contains("vertical_heads");
-                                Head(b + right * p.lanes[i] + Vector3.up * (vert ? 5.0f : 5.5f) - t * .1f, t, vert, vert ? .3f : .28f, p.model, left ? GroupOf(p, true) : g);
+                                Head(o2 + right * p.lanes[i] + Vector3.up * (vert ? 5.0f : 5.5f) - t * .1f, t, vert, vert ? .3f : .28f, p.model, left ? GroupOf(p, true) : g);
                             }
                             foreach (var bd in p.boards)
                             {
                                 if (bd.text.Trim().Length == 0) continue;
-                                Plate(b + right * bd.u + Vector3.up * 6.75f - t * .15f, t, A.Board(bd.text, bd.style, 2.4f, 1.4f), A.Back("rect"), 2.4f, 1.4f); Count("ploča na konzoli");
+                                Plate(o2 + right * bd.u + Vector3.up * 6.75f - t * .15f, t, A.Board(bd.text, bd.style, 2.4f, 1.4f), A.Back("rect"), 2.4f, 1.4f); Count("ploča na konzoli");
                             }
                             Count("konzola"); break;
                         }
@@ -513,7 +555,24 @@ namespace Magistrala.EditorTools
         static Vector3? Clear(Vector3 p, Vector3 outward, float margin = .5f)
         {
             outward.y = 0; outward.Normalize();
-            for (float s = 0; s <= 3.01f; s += .25f) { var q = p + outward * s; if (OnRoad(q, margin) <= 0) return q; }
+            bool roadOk = false; Vector3 q0 = p;   // (the graph's half widths alone would have stopped at q0: the drawn asphalt pushed it further)
+            for (float s = 0; s <= 4.01f; s += .25f)
+            {
+                var q = p + outward * s; if (OnRoad(q, margin) > 0) { if (s > 3.01f) break; continue; }
+                if (!OnAsphalt(q)) { if (roadOk) Count("stup dalje od nacrtanog asfalta"); return q; }
+                if (!roadOk) q0 = q; roadOk = true;
+            }
+            if (roadOk)
+            {
+                // a junction mouth: the nearest spot round q0 off the drawn asphalt and off every carriageway (≤ 3 m)
+                for (float d = .25f; d <= 3.01f; d += .25f)
+                    for (int k = 0; k < 16; k++)
+                    {
+                        float a = k * Mathf.PI / 8; var q = q0 + new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * d;
+                        if (OnRoad(q, margin) <= 0 && !OnAsphalt(q)) { Count("stup dalje od nacrtanog asfalta (u stranu)"); return q; }
+                    }
+                Count("preskočeno (na nacrtanom asfaltu)");
+            }
             return null;
         }
 
@@ -910,12 +969,12 @@ namespace Magistrala.EditorTools
             var gw = AssetDatabase.LoadAssetAtPath<GameWorld>("Assets/Generated/Game/Resources/" + GameWorld.ResourcePath + ".asset");
             if (!gw) { outHeads = new List<TrafficSignals.Head>(); return "no GameWorld: run Magistrala/Igra: podaci first"; }
             var root = WorldBuilder.Root("Signs"); // (the old signs and their colliders go before the ground is probed)
-            IndexRoads(gw, models);
+            IndexRoads(gw, models); IndexAsphalt();
 
             // pass 1 (dry): every face gets painted (A.uv filled by a provisional pack) — pass 2 builds the geometry with the real uv
             for (int pass = 0; pass < 2; pass++)
             {
-                chunks.Clear(); decals.Clear(); cols.Clear(); heads.Clear(); placed.Clear(); counts.Clear(); log.Clear(); where.Clear();
+                chunks.Clear(); decals.Clear(); cols.Clear(); heads.Clear(); placed.Clear(); counts.Clear(); log.Clear(); where.Clear(); nOffAsphalt = 0;
                 A.Solid("steel", SignAtlas.Steel); A.Solid("black", SignAtlas.Dark); A.Solid("white", SignAtlas.White); A.BollardStripes();
                 A.Solid("lens", SignAtlas.Hex("121212"));
                 rSteel = R("solid:steel"); rBlack = R("solid:black"); rWhite = R("solid:white"); rBollard = R("bollard"); rLens = R("solid:lens");
@@ -965,7 +1024,7 @@ namespace Magistrala.EditorTools
                 go.AddComponent<BoxCollider>().size = s;
             }
             outHeads = new List<TrafficSignals.Head>(heads);
-            var sb = new System.Text.StringBuilder($"[znakovi] {chunks.Count} komada mreže, {tris} trokuta, {cols.Count} sudarača, {heads.Count} glava semafora, atlas {A.uv.Count} lica\n");
+            var sb = new System.Text.StringBuilder($"[znakovi] {chunks.Count} komada mreže, {tris} trokuta, {cols.Count} sudarača, {heads.Count} glava semafora, atlas {A.uv.Count} lica, {nOffAsphalt} stupova maknuto s nacrtanog asfalta\n");
             foreach (var kv in counts.OrderBy(k => k.Key)) sb.Append($"  {kv.Key}: {kv.Value}\n");
             foreach (var l in log.Take(60)) sb.Append("  ! ").Append(l).Append('\n');
             File.WriteAllText("Logs/znakovi-izvjestaj.txt", sb.ToString());

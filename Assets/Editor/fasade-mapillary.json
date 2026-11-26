@@ -5,9 +5,30 @@
 "ids": "'tx_tz:i' = tile + index in its BUILDINGS section, cx / cz = footprint centroid (OrthoRoofs.Get key + check)",
 "rgb": "linear sRGB 0..1 facade albedo estimate: chromaticity measured (white balance from the road asphalt in the same photo), lightness = rank of the measured (sun-angle corrected) luminance mapped to L* 58..92; srgb = the same as sRGB hex",
 "conf": "0..1; below ~0.3 treat as a guess (one image, little wall visible, inconsistent views)",
-"n": 373
+"n": 496
 },
 "b": {
+"-10_-5:162": {
+"rgb": [
+0.4815,
+0.4105,
+0.346
+],
+"srgb": "b8ac9f",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.92,
+"date": "2024-05",
+"nImages": 5,
+"px": 35583,
+"spread": 5.9,
+"tex": 0.0078,
+"road": "streets",
+"cx": -9372.92,
+"cz": -4400.97
+},
 "-10_-5:261": {
 "rgb": [
 0.4427,
@@ -28,6 +49,27 @@
 "road": "stara",
 "cx": -9240.76,
 "cz": -4429.21
+},
+"-10_-5:319": {
+"rgb": [
+0.6069,
+0.645,
+0.6407
+],
+"srgb": "ccd2d1",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.26,
+"date": "2022-06",
+"nImages": 1,
+"px": 9428,
+"spread": 12.0,
+"tex": 0.0026,
+"road": "streets",
+"cx": -9332.4,
+"cz": -4364.93
 },
 "-10_-5:356": {
 "rgb": [
@@ -70,6 +112,69 @@
 "road": "stara",
 "cx": -9232.17,
 "cz": -4503.45
+},
+"-10_-5:397": {
+"rgb": [
+0.5638,
+0.2784,
+0.0174
+],
+"srgb": "c69024",
+"class": "ochre",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.03,
+"date": "2024-05",
+"nImages": 1,
+"px": 85,
+"spread": 12.0,
+"tex": 0.017,
+"road": "streets",
+"cx": -9339.96,
+"cz": -4458.05
+},
+"-10_-5:402": {
+"rgb": [
+0.4777,
+0.2676,
+0.2978
+],
+"srgb": "b88d94",
+"class": "salmon",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.75,
+"date": "2024-05",
+"nImages": 5,
+"px": 19158,
+"spread": 8.9,
+"tex": 0.0065,
+"road": "streets",
+"cx": -9381.49,
+"cz": -4433.01
+},
+"-10_-5:409": {
+"rgb": [
+0.4914,
+0.5789,
+0.6279
+],
+"srgb": "bac8d0",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.14,
+"date": "2024-05",
+"nImages": 1,
+"px": 1859,
+"spread": 12.0,
+"tex": 0.0131,
+"road": "streets",
+"cx": -9361.44,
+"cz": -4515.56
 },
 "-10_-5:411": {
 "rgb": [
@@ -133,6 +238,27 @@
 "road": "stara",
 "cx": -9344.3,
 "cz": -4442.9
+},
+"-10_-5:434": {
+"rgb": [
+0.4698,
+0.4572,
+0.5029
+],
+"srgb": "b6b4bc",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.56,
+"date": "2024-05",
+"nImages": 4,
+"px": 15950,
+"spread": 6.0,
+"tex": 0.0078,
+"road": "streets",
+"cx": -9367.23,
+"cz": -4490.57
 },
 "-10_-5:451": {
 "rgb": [
@@ -491,6 +617,27 @@
 "cx": -509.62,
 "cz": -4078.65
 },
+"-1_-5:100": {
+"rgb": [
+0.2921,
+0.2701,
+0.2945
+],
+"srgb": "938e94",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.05,
+"date": "2024-05",
+"nImages": 1,
+"px": 272,
+"spread": 12.0,
+"tex": 0.0065,
+"road": "streets",
+"cx": -670.92,
+"cz": -4780.06
+},
 "-1_-5:118": {
 "rgb": [
 0.5242,
@@ -577,22 +724,22 @@
 },
 "-1_-5:130": {
 "rgb": [
-0.5993,
-0.3967,
-0.3918
+0.9078,
+0.3104,
+0.3653
 ],
-"srgb": "cba9a8",
+"srgb": "f497a3",
 "class": "salmon",
 "type": "plaster",
-"shutters": null,
+"shutters": "none",
 "floors": null,
-"conf": 0.27,
+"conf": 0.29,
 "date": "2024-05",
-"nImages": 2,
-"px": 771,
-"spread": 8.2,
-"tex": 0.0209,
-"road": "d8",
+"nImages": 3,
+"px": 918,
+"spread": 13.9,
+"tex": 0.0052,
+"road": "streets",
 "cx": -921.38,
 "cz": -4722.05
 },
@@ -661,22 +808,22 @@
 },
 "-1_-5:161": {
 "rgb": [
-1.0,
-0.4138,
-0.3077
+0.9564,
+0.4136,
+0.3218
 ],
-"srgb": "ffac97",
+"srgb": "faac9a",
 "class": "salmon",
 "type": "plaster",
 "shutters": "brown",
 "floors": null,
-"conf": 0.25,
+"conf": 0.29,
 "date": "2024-05",
 "nImages": 2,
-"px": 2637,
-"spread": 9.9,
-"tex": 0.0092,
-"road": "d8",
+"px": 2850,
+"spread": 8.8,
+"tex": 0.0105,
+"road": "streets",
 "cx": -1006.96,
 "cz": -4783.19
 },
@@ -955,22 +1102,22 @@
 },
 "-1_-5:341": {
 "rgb": [
-0.5996,
-0.3436,
-0.3835
+0.3929,
+0.359,
+0.4006
 ],
-"srgb": "cb9ea6",
-"class": "salmon",
-"type": "plaster",
+"srgb": "a8a2aa",
+"class": "grey",
+"type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.39,
+"conf": 0.41,
 "date": "2024-05",
-"nImages": 5,
-"px": 11683,
-"spread": 13.2,
+"nImages": 8,
+"px": 17098,
+"spread": 13.4,
 "tex": 0.0078,
-"road": "d8",
+"road": "streets",
 "cx": -915.7,
 "cz": -4785.29
 },
@@ -1774,22 +1921,22 @@
 },
 "-3_-5:266": {
 "rgb": [
-0.7676,
-0.7725,
-0.758
+0.7602,
+0.7651,
+0.7507
 ],
-"srgb": "e3e4e2",
+"srgb": "e2e3e1",
 "class": "white",
 "type": "plaster",
 "shutters": null,
 "floors": null,
-"conf": 0.18,
+"conf": 0.36,
 "date": "2015-07",
-"nImages": 1,
-"px": 10623,
-"spread": 12.0,
+"nImages": 2,
+"px": 12024,
+"spread": 8.8,
 "tex": 0.0118,
-"road": "stara",
+"road": "streets",
 "cx": -2635.65,
 "cz": -4366.94
 },
@@ -1858,22 +2005,22 @@
 },
 "-3_-5:331": {
 "rgb": [
-0.6315,
-0.3896,
-0.2905
+0.2299,
+0.3022,
+0.3821
 ],
-"srgb": "d0a893",
-"class": "stone",
-"type": "stone",
-"shutters": null,
+"srgb": "8495a6",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
 "floors": null,
-"conf": 0.05,
+"conf": 0.25,
 "date": "2024-05",
-"nImages": 1,
-"px": 262,
-"spread": 12.0,
-"tex": 0.034,
-"road": "d8",
+"nImages": 2,
+"px": 1285,
+"spread": 12.2,
+"tex": 0.0092,
+"road": "streets",
 "cx": -2959.85,
 "cz": -5087.89
 },
@@ -2108,6 +2255,174 @@
 "cx": -2628.96,
 "cz": -4346.64
 },
+"-3_-6:15": {
+"rgb": [
+0.4047,
+0.5006,
+0.5085
+],
+"srgb": "abbcbd",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.1,
+"date": "2016-10",
+"nImages": 1,
+"px": 681,
+"spread": 12.0,
+"tex": 0.0026,
+"road": "streets",
+"cx": -2835.8,
+"cz": -5202.84
+},
+"-3_-6:155": {
+"rgb": [
+0.4692,
+0.5393,
+0.6003
+],
+"srgb": "b6c2cb",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2016-10",
+"nImages": 1,
+"px": 5942,
+"spread": 12.0,
+"tex": 0.0026,
+"road": "streets",
+"cx": -2891.81,
+"cz": -5197.37
+},
+"-3_-6:186": {
+"rgb": [
+0.3196,
+0.431,
+0.5229
+],
+"srgb": "99afbf",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.24,
+"date": "2016-10",
+"nImages": 2,
+"px": 42342,
+"spread": 14.5,
+"tex": 0.0026,
+"road": "streets",
+"cx": -2919.47,
+"cz": -5200.03
+},
+"-3_-6:30": {
+"rgb": [
+0.8261,
+0.4625,
+0.2508
+],
+"srgb": "eab589",
+"class": "ochre",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.11,
+"date": "2016-10",
+"nImages": 1,
+"px": 1436,
+"spread": 12.0,
+"tex": 0.0157,
+"road": "streets",
+"cx": -2834.11,
+"cz": -5461.37
+},
+"-3_-6:32": {
+"rgb": [
+0.9206,
+0.6738,
+0.3724
+],
+"srgb": "f6d6a4",
+"class": "ochre",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.38,
+"date": "2016-10",
+"nImages": 2,
+"px": 7062,
+"spread": 4.3,
+"tex": 0.0039,
+"road": "streets",
+"cx": -2831.22,
+"cz": -5434.78
+},
+"-3_-6:33": {
+"rgb": [
+1.0,
+0.5066,
+0.2048
+],
+"srgb": "ffbd7d",
+"class": "ochre",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.21,
+"date": "2016-10",
+"nImages": 3,
+"px": 51137,
+"spread": 17.3,
+"tex": 0.0105,
+"road": "streets",
+"cx": -2856.09,
+"cz": -5428.72
+},
+"-3_-6:51": {
+"rgb": [
+0.2703,
+0.4045,
+0.47
+],
+"srgb": "8eaab6",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.1,
+"date": "2016-10",
+"nImages": 1,
+"px": 503,
+"spread": 12.0,
+"tex": 0.0013,
+"road": "streets",
+"cx": -2847.89,
+"cz": -5546.98
+},
+"-3_-6:93": {
+"rgb": [
+0.2098,
+0.4071,
+0.5778
+],
+"srgb": "7eabc8",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.17,
+"date": "2016-10",
+"nImages": 1,
+"px": 17510,
+"spread": 12.0,
+"tex": 0.0052,
+"road": "streets",
+"cx": -2820.39,
+"cz": -5376.46
+},
 "-4_-5:139": {
 "rgb": [
 0.7119,
@@ -2129,6 +2444,27 @@
 "cx": -3699.26,
 "cz": -4538.93
 },
+"-4_-5:20": {
+"rgb": [
+0.2719,
+0.3109,
+0.3703
+],
+"srgb": "8e97a4",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2018-07",
+"nImages": 1,
+"px": 7737,
+"spread": 12.0,
+"tex": 0.0039,
+"road": "streets",
+"cx": -3171.13,
+"cz": -4639.74
+},
 "-4_-5:204": {
 "rgb": [
 0.9741,
@@ -2149,6 +2485,27 @@
 "road": "stara",
 "cx": -3508.9,
 "cz": -4506.63
+},
+"-4_-5:24": {
+"rgb": [
+0.3529,
+0.2998,
+0.2932
+],
+"srgb": "a09593",
+"class": "grey",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.12,
+"date": "2018-07",
+"nImages": 1,
+"px": 6248,
+"spread": 12.0,
+"tex": 0.0275,
+"road": "streets",
+"cx": -3214.09,
+"cz": -4669.77
 },
 "-4_-5:240": {
 "rgb": [
@@ -2234,22 +2591,43 @@
 "cx": -3095.49,
 "cz": -5070.82
 },
+"-4_-5:32": {
+"rgb": [
+0.5956,
+0.6017,
+0.6027
+],
+"srgb": "cbcccc",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.16,
+"date": "2018-07",
+"nImages": 2,
+"px": 9681,
+"spread": 15.8,
+"tex": 0.0288,
+"road": "streets",
+"cx": -3228.51,
+"cz": -4613.02
+},
 "-4_-5:321": {
 "rgb": [
-0.5054,
-0.5106,
-0.568
+0.4886,
+0.4935,
+0.549
 ],
-"srgb": "bcbdc7",
+"srgb": "babac4",
 "class": "white",
 "type": "mixed",
 "shutters": null,
 "floors": null,
-"conf": 0.61,
+"conf": 0.69,
 "date": "2024-05",
-"nImages": 4,
-"px": 12515,
-"spread": 8.4,
+"nImages": 6,
+"px": 21308,
+"spread": 7.5,
 "tex": 0.0327,
 "road": "d8",
 "cx": -3089.83,
@@ -2297,22 +2675,43 @@
 "cx": -3753.3,
 "cz": -4541.59
 },
+"-4_-5:404": {
+"rgb": [
+0.4025,
+0.4375,
+0.42
+],
+"srgb": "aab1ad",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.8,
+"date": "2024-05",
+"nImages": 4,
+"px": 13429,
+"spread": 7.1,
+"tex": 0.0026,
+"road": "streets",
+"cx": -3325.99,
+"cz": -5112.42
+},
 "-4_-5:428": {
 "rgb": [
-0.3385,
-0.335,
-0.335
+0.3286,
+0.3252,
+0.3252
 ],
-"srgb": "9d9d9d",
+"srgb": "9b9a9a",
 "class": "grey",
 "type": "concrete",
 "shutters": "green",
 "floors": null,
-"conf": 0.47,
+"conf": 0.58,
 "date": "2024-05",
-"nImages": 2,
-"px": 2579,
-"spread": 5.1,
+"nImages": 3,
+"px": 2711,
+"spread": 4.5,
 "tex": 0.0092,
 "road": "d8",
 "cx": -3099.41,
@@ -2359,6 +2758,27 @@
 "road": "stara",
 "cx": -3648.71,
 "cz": -4529.23
+},
+"-4_-5:594": {
+"rgb": [
+0.5115,
+0.3028,
+0.2755
+],
+"srgb": "bd968f",
+"class": "salmon",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.24,
+"date": "2024-05",
+"nImages": 1,
+"px": 1508,
+"spread": 12.0,
+"tex": 0.0026,
+"road": "streets",
+"cx": -3212.02,
+"cz": -5073.35
 },
 "-4_-5:595": {
 "rgb": [
@@ -2464,6 +2884,27 @@
 "road": "d8",
 "cx": -3177.57,
 "cz": -5103.29
+},
+"-4_-5:647": {
+"rgb": [
+0.5681,
+0.5639,
+0.6043
+],
+"srgb": "c7c6cc",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.41,
+"date": "2018-07",
+"nImages": 2,
+"px": 37835,
+"spread": 0.6,
+"tex": 0.0065,
+"road": "streets",
+"cx": -3213.18,
+"cz": -4559.55
 },
 "-4_-5:651": {
 "rgb": [
@@ -2717,6 +3158,27 @@
 "cx": -3373.22,
 "cz": -4502.8
 },
+"-4_-5:9": {
+"rgb": [
+0.6904,
+0.6432,
+0.6493
+],
+"srgb": "d9d2d3",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.44,
+"date": "2018-07",
+"nImages": 2,
+"px": 60887,
+"spread": 3.2,
+"tex": 0.0039,
+"road": "streets",
+"cx": -3204.9,
+"cz": -4596.41
+},
 "-4_-6:107": {
 "rgb": [
 0.4612,
@@ -2824,20 +3286,20 @@
 },
 "-4_-6:156": {
 "rgb": [
-0.8085,
-0.6279,
-0.4901
+0.7792,
+0.6052,
+0.4724
 ],
-"srgb": "e8d0ba",
+"srgb": "e4ccb7",
 "class": "cream",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.62,
+"conf": 0.77,
 "date": "2024-05",
-"nImages": 2,
-"px": 2170,
-"spread": 4.4,
+"nImages": 3,
+"px": 2846,
+"spread": 5.2,
 "tex": 0.0131,
 "road": "d8",
 "cx": -4004.36,
@@ -2863,6 +3325,27 @@
 "road": "d8",
 "cx": -3951.55,
 "cz": -5372.49
+},
+"-4_-6:160": {
+"rgb": [
+1.0,
+0.392,
+0.3236
+],
+"srgb": "ffa89a",
+"class": "salmon",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.13,
+"date": "2024-05",
+"nImages": 1,
+"px": 1623,
+"spread": 12.0,
+"tex": 0.0065,
+"road": "d8",
+"cx": -4031.0,
+"cz": -5387.65
 },
 "-4_-6:161": {
 "rgb": [
@@ -3055,22 +3538,22 @@
 },
 "-4_-6:72": {
 "rgb": [
-0.6288,
-0.6152,
-0.5475
+0.4801,
+0.4525,
+0.484
 ],
-"srgb": "d0cec3",
-"class": "white",
-"type": "plaster",
+"srgb": "b8b3b9",
+"class": "grey",
+"type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.23,
+"conf": 0.58,
 "date": "2024-05",
-"nImages": 2,
-"px": 1050,
-"spread": 9.7,
-"tex": 0.0026,
-"road": "d8",
+"nImages": 4,
+"px": 3921,
+"spread": 11.5,
+"tex": 0.0105,
+"road": "streets",
 "cx": -3306.9,
 "cz": -5120.68
 },
@@ -3515,6 +3998,90 @@
 "cx": -4648.96,
 "cz": -4686.37
 },
+"-5_-6:10": {
+"rgb": [
+0.3449,
+0.3325,
+0.3038
+],
+"srgb": "9f9c96",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.12,
+"date": "2018-10",
+"nImages": 1,
+"px": 3194,
+"spread": 12.0,
+"tex": 0.0275,
+"road": "streets",
+"cx": -4342.8,
+"cz": -5702.17
+},
+"-5_-6:125": {
+"rgb": [
+0.8713,
+0.7552,
+0.6575
+],
+"srgb": "f0e1d4",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.12,
+"date": "2018-10",
+"nImages": 2,
+"px": 5477,
+"spread": 19.6,
+"tex": 0.017,
+"road": "streets",
+"cx": -4334.36,
+"cz": -5734.83
+},
+"-5_-6:126": {
+"rgb": [
+0.6959,
+0.598,
+0.3896
+],
+"srgb": "d9cba8",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.34,
+"date": "2018-10",
+"nImages": 3,
+"px": 51330,
+"spread": 10.7,
+"tex": 0.0353,
+"road": "streets",
+"cx": -4304.99,
+"cz": -5731.79
+},
+"-5_-6:167": {
+"rgb": [
+0.3672,
+0.4179,
+0.4379
+],
+"srgb": "a3adb1",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.44,
+"date": "2018-10",
+"nImages": 3,
+"px": 37509,
+"spread": 4.6,
+"tex": 0.0078,
+"road": "streets",
+"cx": -4345.03,
+"cz": -5585.95
+},
 "-5_-6:169": {
 "rgb": [
 0.6278,
@@ -3620,6 +4187,27 @@
 "cx": -4220.12,
 "cz": -5411.51
 },
+"-5_-6:195": {
+"rgb": [
+0.5196,
+0.5659,
+0.6963
+],
+"srgb": "bfc6d9",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.37,
+"date": "2018-10",
+"nImages": 2,
+"px": 34137,
+"spread": 3.0,
+"tex": 0.0118,
+"road": "streets",
+"cx": -4291.9,
+"cz": -5544.68
+},
 "-5_-6:196": {
 "rgb": [
 0.4686,
@@ -3683,6 +4271,27 @@
 "cx": -4574.87,
 "cz": -5441.21
 },
+"-5_-6:204": {
+"rgb": [
+0.3089,
+0.2912,
+0.2963
+],
+"srgb": "979394",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.61,
+"date": "2018-10",
+"nImages": 4,
+"px": 55904,
+"spread": 1.5,
+"tex": 0.0052,
+"road": "streets",
+"cx": -4325.85,
+"cz": -5541.71
+},
 "-5_-6:205": {
 "rgb": [
 0.8591,
@@ -3725,6 +4334,48 @@
 "cx": -4558.97,
 "cz": -5439.66
 },
+"-5_-6:211": {
+"rgb": [
+0.3071,
+0.3013,
+0.3438
+],
+"srgb": "96959e",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.61,
+"date": "2018-10",
+"nImages": 4,
+"px": 42057,
+"spread": 1.7,
+"tex": 0.0065,
+"road": "streets",
+"cx": -4331.4,
+"cz": -5563.19
+},
+"-5_-6:213": {
+"rgb": [
+0.4713,
+0.4346,
+0.4078
+],
+"srgb": "b7b0ab",
+"class": "grey",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.13,
+"date": "2018-10",
+"nImages": 1,
+"px": 1349,
+"spread": 12.0,
+"tex": 0.0183,
+"road": "streets",
+"cx": -4297.98,
+"cz": -5549.82
+},
 "-5_-6:219": {
 "rgb": [
 0.6337,
@@ -3745,6 +4396,27 @@
 "road": "d8",
 "cx": -4277.37,
 "cz": -5419.66
+},
+"-5_-6:223": {
+"rgb": [
+0.4288,
+0.4321,
+0.4252
+],
+"srgb": "afb0ae",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.61,
+"date": "2018-10",
+"nImages": 4,
+"px": 32404,
+"spread": 4.6,
+"tex": 0.0052,
+"road": "streets",
+"cx": -4321.52,
+"cz": -5534.39
 },
 "-5_-6:227": {
 "rgb": [
@@ -3853,22 +4525,22 @@
 },
 "-5_-6:244": {
 "rgb": [
-0.4611,
-0.4236,
-0.3983
+0.4448,
+0.4086,
+0.3841
 ],
-"srgb": "b5aea9",
+"srgb": "b2aba7",
 "class": "grey",
 "type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.52,
+"conf": 0.54,
 "date": "2024-05",
-"nImages": 5,
-"px": 6677,
-"spread": 6.2,
+"nImages": 6,
+"px": 7684,
+"spread": 5.6,
 "tex": 0.0092,
-"road": "d8",
+"road": "streets",
 "cx": -4138.89,
 "cz": -5417.97
 },
@@ -3893,6 +4565,27 @@
 "cx": -4575.65,
 "cz": -5435.25
 },
+"-5_-6:247": {
+"rgb": [
+0.4778,
+0.4432,
+0.4067
+],
+"srgb": "b8b2ab",
+"class": "grey",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.41,
+"date": "2018-10",
+"nImages": 3,
+"px": 27870,
+"spread": 5.1,
+"tex": 0.0157,
+"road": "streets",
+"cx": -4349.36,
+"cz": -5606.0
+},
 "-5_-6:248": {
 "rgb": [
 0.3203,
@@ -3913,6 +4606,90 @@
 "road": "d8",
 "cx": -4125.57,
 "cz": -5383.32
+},
+"-5_-6:33": {
+"rgb": [
+0.7549,
+0.7247,
+0.642
+],
+"srgb": "e1ddd2",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.51,
+"date": "2018-10",
+"nImages": 3,
+"px": 57526,
+"spread": 1.6,
+"tex": 0.0157,
+"road": "streets",
+"cx": -4379.96,
+"cz": -5710.28
+},
+"-5_-6:34": {
+"rgb": [
+0.2386,
+0.3073,
+0.4339
+],
+"srgb": "8697b0",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.12,
+"date": "2018-10",
+"nImages": 1,
+"px": 11113,
+"spread": 12.0,
+"tex": 0.0039,
+"road": "streets",
+"cx": -4340.57,
+"cz": -5674.81
+},
+"-5_-6:47": {
+"rgb": [
+0.2706,
+0.3837,
+0.6155
+],
+"srgb": "8ea6ce",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.35,
+"date": "2018-10",
+"nImages": 2,
+"px": 14129,
+"spread": 6.6,
+"tex": 0.0026,
+"road": "streets",
+"cx": -4334.96,
+"cz": -5648.97
+},
+"-5_-6:52": {
+"rgb": [
+0.392,
+0.3316,
+0.4242
+],
+"srgb": "a89cae",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.64,
+"date": "2018-10",
+"nImages": 5,
+"px": 137751,
+"spread": 3.9,
+"tex": 0.0052,
+"road": "streets",
+"cx": -4335.91,
+"cz": -5624.38
 },
 "-6_-5:114": {
 "rgb": [
@@ -4252,22 +5029,22 @@
 },
 "-6_-6:108": {
 "rgb": [
-0.3026,
-0.3836,
-0.4759
+0.5831,
+0.6131,
+0.6389
 ],
-"srgb": "95a6b7",
-"class": "grey",
+"srgb": "c9cdd1",
+"class": "white",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.45,
+"conf": 0.53,
 "date": "2024-05",
-"nImages": 4,
-"px": 12419,
+"nImages": 6,
+"px": 16505,
 "spread": 13.7,
-"tex": 0.0183,
-"road": "d8",
+"tex": 0.0209,
+"road": "streets",
 "cx": -6057.85,
 "cz": -5632.96
 },
@@ -4882,20 +5659,20 @@
 },
 "-7_-6:211": {
 "rgb": [
-0.4024,
-0.3424,
-0.4732
+0.3914,
+0.333,
+0.4603
 ],
-"srgb": "aa9eb7",
+"srgb": "a89cb5",
 "class": "grey",
 "type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.48,
+"conf": 0.52,
 "date": "2024-05",
-"nImages": 3,
-"px": 3987,
-"spread": 9.6,
+"nImages": 4,
+"px": 4238,
+"spread": 10.0,
 "tex": 0.0105,
 "road": "d8",
 "cx": -7010.66,
@@ -4943,24 +5720,45 @@
 "cx": -6210.86,
 "cz": -5653.37
 },
-"-7_-6:259": {
+"-7_-6:243": {
 "rgb": [
-0.7068,
-0.5344,
-0.5105
+0.9934,
+0.5099,
+0.4007
 ],
-"srgb": "dbc1bd",
-"class": "white",
+"srgb": "febdaa",
+"class": "salmon",
 "type": "plaster",
 "shutters": null,
 "floors": null,
-"conf": 0.09,
+"conf": 0.06,
 "date": "2024-05",
 "nImages": 1,
-"px": 497,
+"px": 242,
 "spread": 12.0,
-"tex": 0.017,
-"road": "d8",
+"tex": 0.0196,
+"road": "streets",
+"cx": -6417.89,
+"cz": -5728.92
+},
+"-7_-6:259": {
+"rgb": [
+0.5228,
+0.2872,
+0.3029
+],
+"srgb": "bf9296",
+"class": "salmon",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.32,
+"date": "2024-05",
+"nImages": 2,
+"px": 1709,
+"spread": 8.8,
+"tex": 0.0144,
+"road": "streets",
 "cx": -6664.19,
 "cz": -5548.56
 },
@@ -5342,6 +6140,27 @@
 "cx": -6291.71,
 "cz": -5571.75
 },
+"-7_-6:591": {
+"rgb": [
+0.7502,
+0.6652,
+0.5977
+],
+"srgb": "e1d5cb",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.09,
+"date": "2024-05",
+"nImages": 1,
+"px": 473,
+"spread": 12.0,
+"tex": 0.0275,
+"road": "streets",
+"cx": -6444.39,
+"cz": -5690.92
+},
 "-7_-6:602": {
 "rgb": [
 0.5423,
@@ -5489,6 +6308,27 @@
 "cx": -7877.4,
 "cz": -4901.81
 },
+"-8_-5:10": {
+"rgb": [
+0.5467,
+0.4636,
+0.4255
+],
+"srgb": "c3b5ae",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.26,
+"date": "2022-05",
+"nImages": 3,
+"px": 528,
+"spread": 1.8,
+"tex": 0.0673,
+"road": "streets",
+"cx": -7985.6,
+"cz": -4582.81
+},
 "-8_-5:1032": {
 "rgb": [
 0.8325,
@@ -5615,6 +6455,27 @@
 "cx": -7724.53,
 "cz": -4988.31
 },
+"-8_-5:334": {
+"rgb": [
+0.7673,
+0.7607,
+0.7312
+],
+"srgb": "e3e2de",
+"class": "stone",
+"type": "stone",
+"shutters": "none",
+"floors": null,
+"conf": 0.59,
+"date": "2022-05",
+"nImages": 2,
+"px": 36844,
+"spread": 1.2,
+"tex": 0.0288,
+"road": "streets",
+"cx": -7973.73,
+"cz": -4586.69
+},
 "-8_-5:636": {
 "rgb": [
 0.7985,
@@ -5720,6 +6581,27 @@
 "cx": -7812.64,
 "cz": -4946.35
 },
+"-8_-5:9": {
+"rgb": [
+0.3398,
+0.3312,
+0.3483
+],
+"srgb": "9e9c9f",
+"class": "grey",
+"type": "mixed",
+"shutters": null,
+"floors": null,
+"conf": 0.03,
+"date": "2022-05",
+"nImages": 1,
+"px": 134,
+"spread": 12.0,
+"tex": 0.0301,
+"road": "streets",
+"cx": -8000.52,
+"cz": -4571.92
+},
 "-8_-6:159": {
 "rgb": [
 0.2556,
@@ -5804,6 +6686,27 @@
 "cx": -7409.38,
 "cz": -5533.38
 },
+"-8_-6:236": {
+"rgb": [
+0.2936,
+0.3215,
+0.3702
+],
+"srgb": "939aa4",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.38,
+"date": "2024-05",
+"nImages": 2,
+"px": 2935,
+"spread": 1.3,
+"tex": 0.0078,
+"road": "streets",
+"cx": -7429.7,
+"cz": -5649.44
+},
 "-8_-6:239": {
 "rgb": [
 0.6157,
@@ -5825,6 +6728,27 @@
 "cx": -7362.08,
 "cz": -5521.02
 },
+"-8_-6:243": {
+"rgb": [
+0.8764,
+0.7373,
+0.6734
+],
+"srgb": "f1dfd6",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.15,
+"date": "2024-05",
+"nImages": 1,
+"px": 6040,
+"spread": 12.0,
+"tex": 0.0196,
+"road": "streets",
+"cx": -7525.25,
+"cz": -5402.42
+},
 "-8_-6:250": {
 "rgb": [
 0.2085,
@@ -5845,6 +6769,48 @@
 "road": "d8",
 "cx": -8040.57,
 "cz": -5631.15
+},
+"-8_-6:251": {
+"rgb": [
+0.8724,
+0.7104,
+0.63
+],
+"srgb": "f0dbd0",
+"class": "cream",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.22,
+"date": "2024-05",
+"nImages": 2,
+"px": 539,
+"spread": 13.7,
+"tex": 0.0183,
+"road": "streets",
+"cx": -8178.92,
+"cz": -5702.29
+},
+"-8_-6:252": {
+"rgb": [
+0.7025,
+0.624,
+0.5407
+],
+"srgb": "dacfc2",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.77,
+"date": "2024-05",
+"nImages": 3,
+"px": 2667,
+"spread": 1.4,
+"tex": 0.0078,
+"road": "streets",
+"cx": -8168.37,
+"cz": -5700.91
 },
 "-8_-6:267": {
 "rgb": [
@@ -5911,22 +6877,22 @@
 },
 "-8_-6:291": {
 "rgb": [
-0.317,
-0.3675,
-0.3975
+0.3625,
+0.3633,
+0.3655
 ],
-"srgb": "99a3a9",
+"srgb": "a2a2a3",
 "class": "grey",
-"type": "concrete",
+"type": "plaster",
 "shutters": null,
 "floors": null,
-"conf": 0.08,
+"conf": 0.36,
 "date": "2024-05",
-"nImages": 1,
-"px": 511,
-"spread": 12.0,
-"tex": 0.0105,
-"road": "d8",
+"nImages": 4,
+"px": 4376,
+"spread": 9.5,
+"tex": 0.0131,
+"road": "streets",
 "cx": -8073.64,
 "cz": -5689.1
 },
@@ -5950,6 +6916,27 @@
 "road": "d8",
 "cx": -7216.39,
 "cz": -5511.47
+},
+"-8_-6:297": {
+"rgb": [
+0.5881,
+0.495,
+0.4667
+],
+"srgb": "cabbb6",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.58,
+"date": "2024-05",
+"nImages": 2,
+"px": 7525,
+"spread": 6.9,
+"tex": 0.0065,
+"road": "streets",
+"cx": -7224.24,
+"cz": -5448.92
 },
 "-8_-6:303": {
 "rgb": [
@@ -6035,24 +7022,66 @@
 "cx": -8133.27,
 "cz": -5688.51
 },
-"-8_-6:401": {
+"-8_-6:376": {
 "rgb": [
-0.6782,
-0.6006,
-0.508
+0.425,
+0.4073,
+0.4612
 ],
-"srgb": "d7ccbd",
+"srgb": "aeabb5",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.59,
+"date": "2024-05",
+"nImages": 4,
+"px": 9172,
+"spread": 1.3,
+"tex": 0.0065,
+"road": "streets",
+"cx": -7893.39,
+"cz": -5597.82
+},
+"-8_-6:378": {
+"rgb": [
+0.5461,
+0.5433,
+0.6024
+],
+"srgb": "c3c3cc",
 "class": "white",
 "type": "plaster",
-"shutters": null,
+"shutters": "none",
 "floors": null,
-"conf": 0.15,
+"conf": 0.6,
 "date": "2024-05",
-"nImages": 1,
-"px": 1238,
-"spread": 12.0,
+"nImages": 3,
+"px": 7507,
+"spread": 3.3,
+"tex": 0.0026,
+"road": "streets",
+"cx": -7520.71,
+"cz": -5535.57
+},
+"-8_-6:401": {
+"rgb": [
+0.6556,
+0.5806,
+0.4911
+],
+"srgb": "d4c8ba",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.32,
+"date": "2024-05",
+"nImages": 2,
+"px": 1423,
+"spread": 8.2,
 "tex": 0.0144,
-"road": "d8",
+"road": "streets",
 "cx": -7835.62,
 "cz": -5689.28
 },
@@ -6077,6 +7106,69 @@
 "cx": -8148.81,
 "cz": -5599.61
 },
+"-8_-6:488": {
+"rgb": [
+0.6212,
+0.5807,
+0.5361
+],
+"srgb": "cfc8c1",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.1,
+"date": "2024-05",
+"nImages": 1,
+"px": 690,
+"spread": 12.0,
+"tex": 0.0288,
+"road": "streets",
+"cx": -7852.33,
+"cz": -5693.19
+},
+"-8_-6:490": {
+"rgb": [
+0.5146,
+0.4009,
+0.3935
+],
+"srgb": "beaaa8",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.26,
+"date": "2024-05",
+"nImages": 1,
+"px": 6891,
+"spread": 12.0,
+"tex": 0.0078,
+"road": "streets",
+"cx": -7249.05,
+"cz": -5452.26
+},
+"-8_-6:544": {
+"rgb": [
+0.8438,
+0.675,
+0.6064
+],
+"srgb": "edd6cc",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.23,
+"date": "2024-05",
+"nImages": 1,
+"px": 1632,
+"spread": 12.0,
+"tex": 0.0248,
+"road": "streets",
+"cx": -7685.16,
+"cz": -5374.94
+},
 "-8_-6:547": {
 "rgb": [
 0.5437,
@@ -6097,6 +7189,48 @@
 "road": "d8",
 "cx": -8166.46,
 "cz": -5657.84
+},
+"-8_-6:552": {
+"rgb": [
+0.5201,
+0.4346,
+0.4255
+],
+"srgb": "bfb0ae",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.24,
+"date": "2024-05",
+"nImages": 1,
+"px": 7679,
+"spread": 12.0,
+"tex": 0.0078,
+"road": "streets",
+"cx": -7261.27,
+"cz": -5444.57
+},
+"-8_-6:560": {
+"rgb": [
+0.7107,
+0.6438,
+0.5675
+],
+"srgb": "dbd2c6",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.11,
+"date": "2024-05",
+"nImages": 1,
+"px": 573,
+"spread": 12.0,
+"tex": 0.0196,
+"road": "streets",
+"cx": -7262.54,
+"cz": -5452.07
 },
 "-8_-6:636": {
 "rgb": [
@@ -6139,6 +7273,27 @@
 "road": "d8",
 "cx": -7973.92,
 "cz": -5688.07
+},
+"-8_-6:646": {
+"rgb": [
+0.6255,
+0.5425,
+0.5118
+],
+"srgb": "cfc2bd",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.61,
+"date": "2024-05",
+"nImages": 2,
+"px": 5047,
+"spread": 4.3,
+"tex": 0.0065,
+"road": "streets",
+"cx": -7193.56,
+"cz": -5446.5
 },
 "-8_-6:673": {
 "rgb": [
@@ -6224,6 +7379,48 @@
 "cx": -7798.87,
 "cz": -5683.76
 },
+"-8_-6:730": {
+"rgb": [
+0.6594,
+0.5844,
+0.525
+],
+"srgb": "d4c9c0",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.09,
+"date": "2024-05",
+"nImages": 1,
+"px": 385,
+"spread": 12.0,
+"tex": 0.0065,
+"road": "streets",
+"cx": -7234.57,
+"cz": -5436.83
+},
+"-8_-6:780": {
+"rgb": [
+0.6725,
+0.6135,
+0.5638
+],
+"srgb": "d6cdc6",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.04,
+"date": "2024-05",
+"nImages": 1,
+"px": 156,
+"spread": 12.0,
+"tex": 0.0137,
+"road": "streets",
+"cx": -8091.56,
+"cz": -5300.07
+},
 "-8_-6:788": {
 "rgb": [
 0.3359,
@@ -6286,6 +7483,27 @@
 "road": "d8",
 "cx": -7235.61,
 "cz": -5504.07
+},
+"-8_-6:823": {
+"rgb": [
+0.4707,
+0.4508,
+0.4841
+],
+"srgb": "b7b3b9",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.14,
+"date": "2024-05",
+"nImages": 1,
+"px": 1318,
+"spread": 12.0,
+"tex": 0.0105,
+"road": "streets",
+"cx": -7901.31,
+"cz": -5594.54
 },
 "-8_-6:828": {
 "rgb": [
@@ -6350,6 +7568,48 @@
 "cx": -7316.0,
 "cz": -5528.87
 },
+"-9_-5:1047": {
+"rgb": [
+0.986,
+0.745,
+0.5393
+],
+"srgb": "fde0c2",
+"class": "pale yellow",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2024-05",
+"nImages": 1,
+"px": 718,
+"spread": 12.0,
+"tex": 0.0052,
+"road": "streets",
+"cx": -8510.07,
+"cz": -4823.99
+},
+"-9_-5:1055": {
+"rgb": [
+0.9131,
+0.6263,
+0.5348
+],
+"srgb": "f5cfc1",
+"class": "salmon",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.47,
+"date": "2024-05",
+"nImages": 4,
+"px": 12546,
+"spread": 7.3,
+"tex": 0.0131,
+"road": "streets",
+"cx": -9002.9,
+"cz": -4663.6
+},
 "-9_-5:1069": {
 "rgb": [
 0.4486,
@@ -6370,6 +7630,27 @@
 "road": "stara",
 "cx": -9154.45,
 "cz": -4587.34
+},
+"-9_-5:1086": {
+"rgb": [
+0.8271,
+0.7433,
+0.6912
+],
+"srgb": "ebe0d9",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.86,
+"date": "2024-05",
+"nImages": 5,
+"px": 17569,
+"spread": 6.9,
+"tex": 0.0144,
+"road": "streets",
+"cx": -8563.32,
+"cz": -4806.92
 },
 "-9_-5:1147": {
 "rgb": [
@@ -6394,22 +7675,22 @@
 },
 "-9_-5:1156": {
 "rgb": [
-0.8164,
-0.7071,
-0.6799
+0.7975,
+0.6906,
+0.6641
 ],
-"srgb": "e9dbd7",
+"srgb": "e7d9d5",
 "class": "white",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.2,
+"conf": 0.42,
 "date": "2024-05",
-"nImages": 6,
-"px": 8794,
-"spread": 19.9,
+"nImages": 4,
+"px": 7674,
+"spread": 8.4,
 "tex": 0.0209,
-"road": "stara",
+"road": "streets",
 "cx": -8789.49,
 "cz": -4704.03
 },
@@ -6455,6 +7736,27 @@
 "cx": -9027.34,
 "cz": -4638.11
 },
+"-9_-5:1256": {
+"rgb": [
+0.8995,
+0.6193,
+0.4642
+],
+"srgb": "f3ceb5",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.16,
+"date": "2024-05",
+"nImages": 1,
+"px": 2559,
+"spread": 12.0,
+"tex": 0.0235,
+"road": "streets",
+"cx": -8656.69,
+"cz": -4746.38
+},
 "-9_-5:1271": {
 "rgb": [
 0.8893,
@@ -6475,6 +7777,27 @@
 "road": "stara",
 "cx": -8481.09,
 "cz": -4789.46
+},
+"-9_-5:1307": {
+"rgb": [
+1.0,
+0.7176,
+0.5667
+],
+"srgb": "ffdcc6",
+"class": "cream",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.86,
+"date": "2024-05",
+"nImages": 4,
+"px": 43952,
+"spread": 3.0,
+"tex": 0.0052,
+"road": "streets",
+"cx": -8509.6,
+"cz": -4812.49
 },
 "-9_-5:1317": {
 "rgb": [
@@ -6581,26 +7904,173 @@
 "cx": -8444.65,
 "cz": -4744.29
 },
-"-9_-5:187": {
+"-9_-5:162": {
 "rgb": [
-0.2148,
-0.2987,
-0.4693
+0.5983,
+0.5671,
+0.5741
 ],
-"srgb": "8095b6",
-"class": "grey",
-"type": "concrete",
+"srgb": "cbc6c7",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.56,
+"date": "2024-05",
+"nImages": 2,
+"px": 1314,
+"spread": 1.8,
+"tex": 0.0137,
+"road": "streets",
+"cx": -8873.96,
+"cz": -4276.96
+},
+"-9_-5:167": {
+"rgb": [
+0.7281,
+0.6114,
+0.5286
+],
+"srgb": "decdc0",
+"class": "cream",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.66,
+"date": "2024-05",
+"nImages": 6,
+"px": 67353,
+"spread": 11.2,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8874.31,
+"cz": -4290.77
+},
+"-9_-5:168": {
+"rgb": [
+0.8244,
+0.4742,
+0.3782
+],
+"srgb": "eab7a5",
+"class": "salmon",
+"type": "plaster",
+"shutters": "brown",
+"floors": null,
+"conf": 0.34,
+"date": "2024-05",
+"nImages": 5,
+"px": 50511,
+"spread": 14.9,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8853.46,
+"cz": -4302.04
+},
+"-9_-5:169": {
+"rgb": [
+0.6477,
+0.6076,
+0.5271
+],
+"srgb": "d2cdc0",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.78,
+"date": "2024-05",
+"nImages": 3,
+"px": 30818,
+"spread": 4.1,
+"tex": 0.0131,
+"road": "streets",
+"cx": -8887.78,
+"cz": -4266.51
+},
+"-9_-5:173": {
+"rgb": [
+0.6359,
+0.6528,
+0.6528
+],
+"srgb": "d1d3d3",
+"class": "white",
+"type": "plaster",
 "shutters": "none",
 "floors": null,
 "conf": 0.77,
 "date": "2024-05",
-"nImages": 3,
-"px": 3496,
-"spread": 3.5,
+"nImages": 5,
+"px": 97778,
+"spread": 8.4,
+"tex": 0.0078,
+"road": "streets",
+"cx": -8811.03,
+"cz": -4295.42
+},
+"-9_-5:187": {
+"rgb": [
+0.191,
+0.3317,
+0.4871
+],
+"srgb": "799cb9",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.86,
+"date": "2024-05",
+"nImages": 4,
+"px": 4144,
+"spread": 5.0,
 "tex": 0.0026,
-"road": "stara",
+"road": "streets",
 "cx": -9197.35,
 "cz": -4567.3
+},
+"-9_-5:188": {
+"rgb": [
+0.8216,
+0.7172,
+0.648
+],
+"srgb": "eadcd3",
+"class": "stone",
+"type": "stone",
+"shutters": null,
+"floors": null,
+"conf": 0.05,
+"date": "2024-05",
+"nImages": 1,
+"px": 155,
+"spread": 12.0,
+"tex": 0.0314,
+"road": "streets",
+"cx": -9199.65,
+"cz": -4571.34
+},
+"-9_-5:189": {
+"rgb": [
+0.2159,
+0.2709,
+0.4652
+],
+"srgb": "808eb6",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.63,
+"date": "2024-05",
+"nImages": 2,
+"px": 2750,
+"spread": 0.5,
+"tex": 0.0013,
+"road": "streets",
+"cx": -9193.53,
+"cz": -4574.35
 },
 "-9_-5:195": {
 "rgb": [
@@ -6623,26 +8093,131 @@
 "cx": -8688.29,
 "cz": -4667.75
 },
-"-9_-5:259": {
+"-9_-5:21": {
 "rgb": [
-0.599,
-0.6521,
-0.7277
+0.302,
+0.3243,
+0.399
 ],
-"srgb": "cbd3de",
+"srgb": "959aa9",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2024-05",
+"nImages": 1,
+"px": 1927,
+"spread": 12.0,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8898.74,
+"cz": -4330.65
+},
+"-9_-5:217": {
+"rgb": [
+0.6301,
+0.7955,
+0.9304
+],
+"srgb": "d0e7f7",
 "class": "white",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.67,
+"conf": 0.18,
 "date": "2024-05",
-"nImages": 16,
-"px": 37374,
-"spread": 11.6,
+"nImages": 4,
+"px": 9855,
+"spread": 20.8,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8698.53,
+"cz": -4411.52
+},
+"-9_-5:22": {
+"rgb": [
+0.8332,
+0.4574,
+0.5038
+],
+"srgb": "ebb4bc",
+"class": "salmon",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.35,
+"date": "2024-05",
+"nImages": 2,
+"px": 7111,
+"spread": 6.3,
+"tex": 0.0288,
+"road": "streets",
+"cx": -8907.85,
+"cz": -4349.53
+},
+"-9_-5:24": {
+"rgb": [
+0.5847,
+0.2714,
+0.1873
+],
+"srgb": "c98e78",
+"class": "salmon",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.07,
+"date": "2024-05",
+"nImages": 1,
+"px": 317,
+"spread": 12.0,
+"tex": 0.0248,
+"road": "streets",
+"cx": -8910.28,
+"cz": -4405.24
+},
+"-9_-5:259": {
+"rgb": [
+0.604,
+0.6925,
+0.6953
+],
+"srgb": "ccd9d9",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.89,
+"date": "2024-05",
+"nImages": 6,
+"px": 12432,
+"spread": 6.0,
 "tex": 0.0039,
 "road": "stara",
 "cx": -8726.87,
 "cz": -4659.9
+},
+"-9_-5:26": {
+"rgb": [
+0.5311,
+0.6979,
+0.8876
+],
+"srgb": "c1daf2",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.63,
+"date": "2024-05",
+"nImages": 2,
+"px": 5204,
+"spread": 2.4,
+"tex": 0.0052,
+"road": "streets",
+"cx": -8909.79,
+"cz": -4381.73
 },
 "-9_-5:260": {
 "rgb": [
@@ -6667,24 +8242,108 @@
 },
 "-9_-5:264": {
 "rgb": [
-0.8321,
-0.5498,
-0.4978
+0.8108,
+0.5358,
+0.485
 ],
-"srgb": "ebc4bb",
+"srgb": "e8c1b9",
 "class": "salmon",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.19,
+"conf": 0.34,
 "date": "2024-05",
-"nImages": 10,
-"px": 37513,
-"spread": 21.3,
+"nImages": 7,
+"px": 36220,
+"spread": 13.4,
 "tex": 0.0235,
-"road": "stara",
+"road": "streets",
 "cx": -8889.98,
 "cz": -4667.84
+},
+"-9_-5:270": {
+"rgb": [
+0.5842,
+0.427,
+0.288
+],
+"srgb": "c9af92",
+"class": "pale yellow",
+"type": "plaster",
+"shutters": "green",
+"floors": null,
+"conf": 0.36,
+"date": "2024-05",
+"nImages": 2,
+"px": 5384,
+"spread": 5.9,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8466.23,
+"cz": -4597.89
+},
+"-9_-5:278": {
+"rgb": [
+0.4904,
+0.6744,
+0.7278
+],
+"srgb": "bad6de",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.39,
+"date": "2024-05",
+"nImages": 2,
+"px": 6617,
+"spread": 8.7,
+"tex": 0.0183,
+"road": "streets",
+"cx": -8845.56,
+"cz": -4343.7
+},
+"-9_-5:28": {
+"rgb": [
+0.7955,
+0.7467,
+0.7539
+],
+"srgb": "e7e0e1",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.12,
+"date": "2024-05",
+"nImages": 2,
+"px": 26906,
+"spread": 29.4,
+"tex": 0.0052,
+"road": "streets",
+"cx": -8938.19,
+"cz": -4355.07
+},
+"-9_-5:289": {
+"rgb": [
+1.0,
+0.6872,
+0.5452
+],
+"srgb": "ffd8c3",
+"class": "salmon",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.56,
+"date": "2024-05",
+"nImages": 7,
+"px": 87298,
+"spread": 13.6,
+"tex": 0.0026,
+"road": "streets",
+"cx": -8539.32,
+"cz": -4814.79
 },
 "-9_-5:295": {
 "rgb": [
@@ -6707,22 +8366,127 @@
 "cx": -8662.72,
 "cz": -4675.32
 },
-"-9_-5:347": {
+"-9_-5:30": {
 "rgb": [
-0.5263,
-0.6151,
-0.7128
+0.9378,
+0.7194,
+0.5572
 ],
-"srgb": "c0cedc",
+"srgb": "f8ddc5",
+"class": "cream",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2024-05",
+"nImages": 1,
+"px": 2269,
+"spread": 12.0,
+"tex": 0.017,
+"road": "streets",
+"cx": -8875.27,
+"cz": -4328.1
+},
+"-9_-5:31": {
+"rgb": [
+0.3215,
+0.3608,
+0.4957
+],
+"srgb": "9aa2bb",
+"class": "grey",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.15,
+"date": "2024-05",
+"nImages": 1,
+"px": 2263,
+"spread": 12.0,
+"tex": 0.0209,
+"road": "streets",
+"cx": -8927.32,
+"cz": -4483.19
+},
+"-9_-5:32": {
+"rgb": [
+0.59,
+0.5069,
+0.447
+],
+"srgb": "cabdb2",
 "class": "white",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.86,
+"conf": 0.5,
 "date": "2024-05",
-"nImages": 17,
-"px": 52544,
-"spread": 8.1,
+"nImages": 2,
+"px": 12693,
+"spread": 7.1,
+"tex": 0.0196,
+"road": "streets",
+"cx": -8744.41,
+"cz": -4383.98
+},
+"-9_-5:335": {
+"rgb": [
+0.8277,
+0.7955,
+0.8111
+],
+"srgb": "ebe7e9",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.55,
+"date": "2024-05",
+"nImages": 3,
+"px": 11574,
+"spread": 5.1,
+"tex": 0.0196,
+"road": "streets",
+"cx": -8815.65,
+"cz": -4354.64
+},
+"-9_-5:34": {
+"rgb": [
+0.6759,
+0.5024,
+0.427
+],
+"srgb": "d6bcaf",
+"class": "cream",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.26,
+"date": "2024-05",
+"nImages": 2,
+"px": 841,
+"spread": 7.4,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8435.41,
+"cz": -4616.37
+},
+"-9_-5:347": {
+"rgb": [
+0.509,
+0.5949,
+0.6894
+],
+"srgb": "bdcbd8",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.9,
+"date": "2024-05",
+"nImages": 8,
+"px": 33623,
+"spread": 7.2,
 "tex": 0.0065,
 "road": "stara",
 "cx": -8748.43,
@@ -6751,24 +8515,66 @@
 },
 "-9_-5:356": {
 "rgb": [
-0.394,
-0.3482,
-0.4602
+0.3169,
+0.274,
+0.3654
 ],
-"srgb": "a89fb5",
+"srgb": "998fa3",
 "class": "grey",
 "type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.56,
+"conf": 0.61,
 "date": "2024-05",
-"nImages": 3,
-"px": 1974,
-"spread": 2.6,
-"tex": 0.0065,
+"nImages": 2,
+"px": 2108,
+"spread": 4.6,
+"tex": 0.0039,
 "road": "stara",
 "cx": -9134.58,
 "cz": -4522.21
+},
+"-9_-5:379": {
+"rgb": [
+0.4746,
+0.4209,
+0.416
+],
+"srgb": "b7aead",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.27,
+"date": "2024-05",
+"nImages": 4,
+"px": 28616,
+"spread": 22.1,
+"tex": 0.0026,
+"road": "streets",
+"cx": -8778.25,
+"cz": -4339.88
+},
+"-9_-5:387": {
+"rgb": [
+0.8777,
+0.7151,
+0.7444
+],
+"srgb": "f1dce0",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.21,
+"date": "2024-05",
+"nImages": 1,
+"px": 9370,
+"spread": 12.0,
+"tex": 0.017,
+"road": "streets",
+"cx": -8630.64,
+"cz": -4430.52
 },
 "-9_-5:389": {
 "rgb": [
@@ -6811,6 +8617,48 @@
 "road": "stara",
 "cx": -9135.91,
 "cz": -4532.89
+},
+"-9_-5:397": {
+"rgb": [
+0.7549,
+0.6828,
+0.6197
+],
+"srgb": "e1d7ce",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.32,
+"date": "2024-05",
+"nImages": 2,
+"px": 26822,
+"spread": 9.0,
+"tex": 0.0144,
+"road": "streets",
+"cx": -8645.1,
+"cz": -4427.18
+},
+"-9_-5:398": {
+"rgb": [
+0.8136,
+0.7139,
+0.6546
+],
+"srgb": "e9dcd3",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.41,
+"date": "2024-05",
+"nImages": 2,
+"px": 37714,
+"spread": 2.0,
+"tex": 0.0118,
+"road": "streets",
+"cx": -8642.19,
+"cz": -4432.57
 },
 "-9_-5:405": {
 "rgb": [
@@ -6877,24 +8725,45 @@
 },
 "-9_-5:418": {
 "rgb": [
-0.5974,
-0.5693,
-0.5653
+0.6846,
+0.6558,
+0.6599
 ],
-"srgb": "cbc7c6",
+"srgb": "d8d4d4",
 "class": "white",
 "type": "plaster",
 "shutters": "none",
 "floors": null,
-"conf": 0.6,
+"conf": 0.63,
 "date": "2024-05",
-"nImages": 4,
-"px": 8828,
-"spread": 11.2,
+"nImages": 2,
+"px": 8156,
+"spread": 3.0,
 "tex": 0.0039,
 "road": "stara",
 "cx": -9072.3,
 "cz": -4570.64
+},
+"-9_-5:442": {
+"rgb": [
+0.703,
+0.7272,
+0.8296
+],
+"srgb": "dadeeb",
+"class": "white",
+"type": "mixed",
+"shutters": null,
+"floors": null,
+"conf": 0.24,
+"date": "2024-05",
+"nImages": 1,
+"px": 1898,
+"spread": 12.0,
+"tex": 0.0353,
+"road": "streets",
+"cx": -8657.58,
+"cz": -4425.69
 },
 "-9_-5:447": {
 "rgb": [
@@ -7001,6 +8870,27 @@
 "cx": -8762.15,
 "cz": -4658.11
 },
+"-9_-5:481": {
+"rgb": [
+0.4323,
+0.3669,
+0.4057
+],
+"srgb": "b0a3ab",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.15,
+"date": "2024-05",
+"nImages": 1,
+"px": 1696,
+"spread": 12.0,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8474.65,
+"cz": -4663.35
+},
 "-9_-5:483": {
 "rgb": [
 0.2985,
@@ -7043,23 +8933,65 @@
 "cx": -8876.6,
 "cz": -4627.51
 },
+"-9_-5:496": {
+"rgb": [
+0.8372,
+0.7506,
+0.6477
+],
+"srgb": "ece1d2",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.17,
+"date": "2024-05",
+"nImages": 2,
+"px": 6979,
+"spread": 17.9,
+"tex": 0.0052,
+"road": "streets",
+"cx": -8480.3,
+"cz": -4697.03
+},
+"-9_-5:501": {
+"rgb": [
+0.6572,
+0.7458,
+0.8568
+],
+"srgb": "d4e0ee",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.26,
+"date": "2024-05",
+"nImages": 3,
+"px": 31008,
+"spread": 14.0,
+"tex": 0.0144,
+"road": "streets",
+"cx": -8724.91,
+"cz": -4390.03
+},
 "-9_-5:506": {
 "rgb": [
-0.4236,
-0.4045,
-0.4698
+0.359,
+0.3909,
+0.4727
 ],
-"srgb": "aeaab6",
+"srgb": "a2a8b7",
 "class": "grey",
 "type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.46,
+"conf": 0.57,
 "date": "2024-05",
-"nImages": 7,
-"px": 7656,
-"spread": 14.2,
-"tex": 0.0078,
+"nImages": 3,
+"px": 4850,
+"spread": 9.1,
+"tex": 0.0052,
 "road": "stara",
 "cx": -8825.95,
 "cz": -4640.44
@@ -7085,6 +9017,48 @@
 "cx": -8827.23,
 "cz": -4647.09
 },
+"-9_-5:521": {
+"rgb": [
+0.3827,
+0.4092,
+0.5086
+],
+"srgb": "a6abbd",
+"class": "grey",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.2,
+"date": "2024-05",
+"nImages": 1,
+"px": 4801,
+"spread": 12.0,
+"tex": 0.0183,
+"road": "streets",
+"cx": -8976.75,
+"cz": -4560.15
+},
+"-9_-5:525": {
+"rgb": [
+0.2271,
+0.5594,
+0.6833
+],
+"srgb": "83c5d8",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.17,
+"date": "2024-05",
+"nImages": 1,
+"px": 1312,
+"spread": 12.0,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8494.1,
+"cz": -4609.83
+},
 "-9_-5:533": {
 "rgb": [
 0.3413,
@@ -7106,22 +9080,169 @@
 "cx": -8906.62,
 "cz": -4621.06
 },
-"-9_-5:635": {
+"-9_-5:547": {
 "rgb": [
-0.1986,
-0.2683,
-0.3529
+0.6528,
+0.5235,
+0.5199
 ],
-"srgb": "7b8da0",
-"class": "grey",
-"type": "concrete",
-"shutters": "none",
+"srgb": "d3bfbf",
+"class": "white",
+"type": "plaster",
+"shutters": "brown",
 "floors": null,
-"conf": 0.29,
+"conf": 0.33,
 "date": "2024-05",
 "nImages": 2,
-"px": 1206,
-"spread": 1.8,
+"px": 3267,
+"spread": 3.4,
+"tex": 0.0105,
+"road": "streets",
+"cx": -8675.33,
+"cz": -4424.46
+},
+"-9_-5:592": {
+"rgb": [
+0.5229,
+0.6802,
+0.7631
+],
+"srgb": "bfd7e2",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.72,
+"date": "2024-05",
+"nImages": 6,
+"px": 22363,
+"spread": 2.7,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8437.93,
+"cz": -4652.02
+},
+"-9_-5:594": {
+"rgb": [
+0.4678,
+0.5074,
+0.5789
+],
+"srgb": "b6bdc8",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.5,
+"date": "2024-05",
+"nImages": 3,
+"px": 23027,
+"spread": 12.2,
+"tex": 0.0105,
+"road": "streets",
+"cx": -8440.01,
+"cz": -4633.85
+},
+"-9_-5:596": {
+"rgb": [
+0.707,
+0.5655,
+0.4514
+],
+"srgb": "dbc6b3",
+"class": "cream",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.14,
+"date": "2024-05",
+"nImages": 1,
+"px": 802,
+"spread": 12.0,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8858.97,
+"cz": -4339.15
+},
+"-9_-5:598": {
+"rgb": [
+0.6781,
+0.5472,
+0.6275
+],
+"srgb": "d7c3d0",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.51,
+"date": "2024-05",
+"nImages": 4,
+"px": 15968,
+"spread": 5.6,
+"tex": 0.017,
+"road": "streets",
+"cx": -8685.18,
+"cz": -4411.61
+},
+"-9_-5:625": {
+"rgb": [
+0.4508,
+0.6707,
+0.7345
+],
+"srgb": "b3d6df",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.23,
+"date": "2024-05",
+"nImages": 2,
+"px": 6020,
+"spread": 13.2,
+"tex": 0.0078,
+"road": "streets",
+"cx": -8464.23,
+"cz": -4614.28
+},
+"-9_-5:630": {
+"rgb": [
+0.4793,
+0.4022,
+0.4698
+],
+"srgb": "b8aab6",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.25,
+"date": "2024-05",
+"nImages": 1,
+"px": 12696,
+"spread": 12.0,
+"tex": 0.0026,
+"road": "streets",
+"cx": -8827.42,
+"cz": -4288.52
+},
+"-9_-5:635": {
+"rgb": [
+0.1872,
+0.2808,
+0.3742
+],
+"srgb": "7890a5",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.3,
+"date": "2024-05",
+"nImages": 2,
+"px": 1108,
+"spread": 2.0,
 "tex": 0.0026,
 "road": "stara",
 "cx": -9181.42,
@@ -7148,6 +9269,48 @@
 "cx": -9183.93,
 "cz": -4495.66
 },
+"-9_-5:637": {
+"rgb": [
+0.5566,
+0.4662,
+0.608
+],
+"srgb": "c5b6cd",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.22,
+"date": "2024-05",
+"nImages": 1,
+"px": 1161,
+"spread": 12.0,
+"tex": 0.0013,
+"road": "streets",
+"cx": -8831.62,
+"cz": -4311.45
+},
+"-9_-5:65": {
+"rgb": [
+0.2815,
+0.2754,
+0.3175
+],
+"srgb": "918f99",
+"class": "grey",
+"type": "concrete",
+"shutters": "brown",
+"floors": null,
+"conf": 0.32,
+"date": "2024-05",
+"nImages": 4,
+"px": 51739,
+"spread": 17.8,
+"tex": 0.0078,
+"road": "streets",
+"cx": -8937.19,
+"cz": -4386.89
+},
 "-9_-5:654": {
 "rgb": [
 0.4123,
@@ -7169,6 +9332,69 @@
 "cx": -8934.27,
 "cz": -4612.06
 },
+"-9_-5:67": {
+"rgb": [
+0.5467,
+0.6857,
+0.7449
+],
+"srgb": "c3d8e0",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.78,
+"date": "2024-05",
+"nImages": 3,
+"px": 49191,
+"spread": 5.7,
+"tex": 0.0157,
+"road": "streets",
+"cx": -8950.15,
+"cz": -4441.33
+},
+"-9_-5:670": {
+"rgb": [
+0.3076,
+0.2542,
+0.2535
+],
+"srgb": "978a8a",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.12,
+"date": "2024-05",
+"nImages": 1,
+"px": 620,
+"spread": 12.0,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8715.15,
+"cz": -4404.76
+},
+"-9_-5:68": {
+"rgb": [
+0.4967,
+0.4695,
+0.4723
+],
+"srgb": "bbb6b7",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2024-05",
+"nImages": 1,
+"px": 42327,
+"spread": 12.0,
+"tex": 0.0092,
+"road": "streets",
+"cx": -8941.64,
+"cz": -4415.12
+},
 "-9_-5:691": {
 "rgb": [
 0.3089,
@@ -7189,6 +9415,132 @@
 "road": "stara",
 "cx": -9154.89,
 "cz": -4508.35
+},
+"-9_-5:708": {
+"rgb": [
+0.5813,
+0.7005,
+0.841
+],
+"srgb": "c9daec",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.52,
+"date": "2024-05",
+"nImages": 2,
+"px": 6011,
+"spread": 8.9,
+"tex": 0.0118,
+"road": "streets",
+"cx": -8680.69,
+"cz": -4434.47
+},
+"-9_-5:71": {
+"rgb": [
+0.3183,
+0.286,
+0.2257
+],
+"srgb": "999283",
+"class": "grey",
+"type": "concrete",
+"shutters": "none",
+"floors": null,
+"conf": 0.47,
+"date": "2024-05",
+"nImages": 2,
+"px": 3242,
+"spread": 1.7,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8965.43,
+"cz": -4437.09
+},
+"-9_-5:716": {
+"rgb": [
+0.518,
+0.5487,
+0.602
+],
+"srgb": "bfc3cc",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.37,
+"date": "2024-05",
+"nImages": 2,
+"px": 24900,
+"spread": 4.9,
+"tex": 0.0105,
+"road": "streets",
+"cx": -8993.62,
+"cz": -4570.19
+},
+"-9_-5:717": {
+"rgb": [
+0.5997,
+0.6357,
+0.4367
+],
+"srgb": "cbd1b0",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.35,
+"date": "2024-05",
+"nImages": 3,
+"px": 10470,
+"spread": 14.3,
+"tex": 0.0131,
+"road": "streets",
+"cx": -9004.8,
+"cz": -4577.43
+},
+"-9_-5:722": {
+"rgb": [
+0.5167,
+0.6929,
+0.8391
+],
+"srgb": "bed9ec",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.38,
+"date": "2024-05",
+"nImages": 2,
+"px": 6862,
+"spread": 7.0,
+"tex": 0.0131,
+"road": "streets",
+"cx": -8980.26,
+"cz": -4573.84
+},
+"-9_-5:728": {
+"rgb": [
+0.7963,
+0.647,
+0.5124
+],
+"srgb": "e7d2be",
+"class": "cream",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.37,
+"date": "2024-05",
+"nImages": 6,
+"px": 30215,
+"spread": 14.3,
+"tex": 0.0144,
+"road": "streets",
+"cx": -8465.49,
+"cz": -4647.75
 },
 "-9_-5:738": {
 "rgb": [
@@ -7274,6 +9626,48 @@
 "cx": -8447.65,
 "cz": -4765.81
 },
+"-9_-5:746": {
+"rgb": [
+0.7197,
+0.7284,
+0.8651
+],
+"srgb": "dddeef",
+"class": "white",
+"type": "mixed",
+"shutters": "none",
+"floors": null,
+"conf": 0.38,
+"date": "2024-05",
+"nImages": 2,
+"px": 4021,
+"spread": 10.3,
+"tex": 0.034,
+"road": "streets",
+"cx": -8437.32,
+"cz": -4676.98
+},
+"-9_-5:755": {
+"rgb": [
+0.7066,
+0.7201,
+0.7023
+],
+"srgb": "dbddda",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.69,
+"date": "2024-05",
+"nImages": 4,
+"px": 32586,
+"spread": 7.8,
+"tex": 0.0222,
+"road": "streets",
+"cx": -8763.14,
+"cz": -4372.52
+},
 "-9_-5:772": {
 "rgb": [
 0.6151,
@@ -7295,6 +9689,27 @@
 "cx": -8848.06,
 "cz": -4696.41
 },
+"-9_-5:778": {
+"rgb": [
+0.9806,
+0.7504,
+0.5211
+],
+"srgb": "fde1bf",
+"class": "pale yellow",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.2,
+"date": "2024-05",
+"nImages": 1,
+"px": 3497,
+"spread": 12.0,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8471.0,
+"cz": -4839.21
+},
 "-9_-5:78": {
 "rgb": [
 0.7432,
@@ -7315,6 +9730,48 @@
 "road": "stara",
 "cx": -9105.18,
 "cz": -4605.12
+},
+"-9_-5:780": {
+"rgb": [
+0.7952,
+0.8062,
+0.7713
+],
+"srgb": "e7e8e3",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.13,
+"date": "2024-05",
+"nImages": 1,
+"px": 455,
+"spread": 12.0,
+"tex": 0.0157,
+"road": "streets",
+"cx": -8474.53,
+"cz": -4859.53
+},
+"-9_-5:798": {
+"rgb": [
+0.4936,
+0.6723,
+0.8627
+],
+"srgb": "bad6ef",
+"class": "white",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.5,
+"date": "2024-05",
+"nImages": 6,
+"px": 47535,
+"spread": 15.0,
+"tex": 0.0013,
+"road": "streets",
+"cx": -8839.43,
+"cz": -4314.0
 },
 "-9_-5:813": {
 "rgb": [
@@ -7420,6 +9877,69 @@
 "road": "stara",
 "cx": -8253.97,
 "cz": -4807.16
+},
+"-9_-5:922": {
+"rgb": [
+0.4877,
+0.3776,
+0.3941
+],
+"srgb": "b9a5a8",
+"class": "grey",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.12,
+"date": "2024-05",
+"nImages": 1,
+"px": 1170,
+"spread": 12.0,
+"tex": 0.0131,
+"road": "streets",
+"cx": -9004.26,
+"cz": -4670.09
+},
+"-9_-5:939": {
+"rgb": [
+1.0,
+0.3022,
+0.2886
+],
+"srgb": "ff9592",
+"class": "salmon",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.36,
+"date": "2024-05",
+"nImages": 3,
+"px": 4087,
+"spread": 10.6,
+"tex": 0.0209,
+"road": "streets",
+"cx": -8755.87,
+"cz": -4724.34
+},
+"-9_-5:993": {
+"rgb": [
+0.9779,
+0.752,
+0.5332
+],
+"srgb": "fde1c1",
+"class": "pale yellow",
+"type": "plaster",
+"shutters": "none",
+"floors": null,
+"conf": 0.55,
+"date": "2024-05",
+"nImages": 2,
+"px": 14933,
+"spread": 0.5,
+"tex": 0.0039,
+"road": "streets",
+"cx": -8480.58,
+"cz": -4822.26
 },
 "-9_-6:135": {
 "rgb": [
@@ -7589,6 +10109,27 @@
 "cx": -9171.88,
 "cz": -5242.89
 },
+"-9_-6:305": {
+"rgb": [
+0.3389,
+0.3741,
+0.3888
+],
+"srgb": "9da5a7",
+"class": "grey",
+"type": "concrete",
+"shutters": null,
+"floors": null,
+"conf": 0.11,
+"date": "2024-05",
+"nImages": 1,
+"px": 836,
+"spread": 12.0,
+"tex": 0.0118,
+"road": "streets",
+"cx": -8806.94,
+"cz": -5387.6
+},
 "-9_-6:309": {
 "rgb": [
 0.7805,
@@ -7612,22 +10153,22 @@
 },
 "-9_-6:326": {
 "rgb": [
-0.2972,
-0.3401,
-0.3854
+0.2532,
+0.3378,
+0.3828
 ],
-"srgb": "949ea7",
+"srgb": "8a9da6",
 "class": "grey",
 "type": "concrete",
 "shutters": "none",
 "floors": null,
-"conf": 0.63,
+"conf": 0.78,
 "date": "2024-05",
-"nImages": 2,
-"px": 5135,
-"spread": 3.1,
-"tex": 0.0105,
-"road": "d8",
+"nImages": 3,
+"px": 9585,
+"spread": 6.0,
+"tex": 0.0078,
+"road": "streets",
 "cx": -9012.38,
 "cz": -5280.64
 },
@@ -7778,6 +10319,27 @@
 "cx": -8441.71,
 "cz": -5480.64
 },
+"-9_-6:423": {
+"rgb": [
+0.6458,
+0.5687,
+0.5086
+],
+"srgb": "d2c7bd",
+"class": "white",
+"type": "plaster",
+"shutters": null,
+"floors": null,
+"conf": 0.18,
+"date": "2024-05",
+"nImages": 1,
+"px": 821,
+"spread": 12.0,
+"tex": 0.0065,
+"road": "streets",
+"cx": -8197.71,
+"cz": -5703.73
+},
 "-9_-6:425": {
 "rgb": [
 0.4104,
@@ -7798,6 +10360,27 @@
 "road": "d8",
 "cx": -8509.17,
 "cz": -5456.8
+},
+"-9_-6:427": {
+"rgb": [
+0.7562,
+0.6864,
+0.5274
+],
+"srgb": "e1d8c0",
+"class": "stone",
+"type": "stone",
+"shutters": "none",
+"floors": null,
+"conf": 0.11,
+"date": "2024-05",
+"nImages": 2,
+"px": 197,
+"spread": 3.0,
+"tex": 0.0301,
+"road": "d8",
+"cx": -8273.08,
+"cz": -5643.17
 },
 "-9_-6:441": {
 "rgb": [

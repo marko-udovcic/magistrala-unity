@@ -9,7 +9,8 @@
 //                             every ~33 m
 //   village streets           single-arm 7 m lamps every ~36 m on one side, only where there are houses; a Mapillary utility pole
 //                             within 7 m on that side becomes a concrete pole with a bracket lamp
-// Every spot: on the ground (not a roof / the sea), off every carriageway and the models' asphalt (0.3 m), not at a junction mouth
+// Every spot: on the ground (not a roof / the sea), off every carriageway and the models' asphalt (0.3 m) and off the drawn asphalt
+// (SignsBuilder.DrawnAsphalt: the AsphaltFlat triangles of World/Roads and World/Streets, 0.4 m), not at a junction mouth
 // (12 m from a node of 3+ arms), not in a stop's bay, not on a zebra, 14 m from the next lamp (rule) / 6 m (Mapillary).
 // The lamps are drawn by Magistrala.StreetLights (instanced, two LODs, short shadows); a capsule collider per pole (one GameObject
 // per 128 m cell); the light on the ground at night is a draped additive mesh per cell (Magistrala/LightPool), baked here.
@@ -251,12 +252,13 @@ namespace Magistrala.EditorTools
             // ---- validate, dedupe, snap village rule lamps to utility poles
             var upGrid = new Dictionary<(int, int), List<int>>();
             for (int i = 0; i < upoles.Count; i++) { var k = ((int)Math.Floor(upoles[i].x / 16), (int)Math.Floor(upoles[i].z / 16)); if (!upGrid.TryGetValue(k, out var l)) upGrid[k] = l = new List<int>(); l.Add(i); }
-            var usedPole = new HashSet<int>();
+            var usedPole = new HashSet<int>(); int nDrawn = 0; SignsBuilder.IndexDrawnAsphalt();
             bool Valid(double gx, double gz, float r, out float y)
             {
                 y = float.NaN;
                 if (gx < StreetsBuilder.AX0 || gx > StreetsBuilder.AX1 || gz < StreetsBuilder.AZ0 || gz > StreetsBuilder.AZ1) return false;
                 if (Asph(gx, gz) || Asph(gx + r, gz) || Asph(gx - r, gz) || Asph(gx, gz + r) || Asph(gx, gz - r)) return false;
+                if (SignsBuilder.DrawnAsphalt(gx, gz, r + .1f)) { nDrawn++; return false; }   // the drawn asphalt (junction fillets of our streets, model mouths)
                 var u = W.U(gx, 0, gz);
                 y = GroundY(u.x, u.z, out bool bld); if (bld || float.IsNaN(y) || y < .3f) return false;
                 if (InBay(new Vector3(u.x, y, u.z), 1f)) return false;
@@ -393,7 +395,7 @@ namespace Magistrala.EditorTools
             var byType = new int[4]; int nMly = 0; foreach (var c in acc) { byType[c.type]++; if (c.mly) nMly++; }
             return $"[rasvjeta] {acc.Count} lamps: D8 double-arm {byType[0]}, single 9 m {byType[1]}, single 7 m {byType[2]}, concrete pole {byType[3]} (on a Mapillary utility pole {nPole}); " +
                 $"Mapillary {nMly} / rule {acc.Count - nMly}; Mapillary lights {lights.Count}: median {nMlyMedian}, beside a street {nMlyEdge}, unmatched {nMlyNone}; " +
-                $"candidates median {nMedMly} + {nMedRule} rule, edges {nEdgeMly} + {nEdgeRule} rule, rejected / merged {nRejected}; median {cols.Count} columns in {runs.Count} runs; " +
+                $"candidates median {nMedMly} + {nMedRule} rule, edges {nEdgeMly} + {nEdgeRule} rule, rejected / merged {nRejected} ({nDrawn} spot tests on the drawn asphalt); median {cols.Count} columns in {runs.Count} runs; " +
                 $"{hw.Count} heads, {pr.Count} pool meshes; {sw.ElapsedMilliseconds / 1000.0:F1} s";
         }
 

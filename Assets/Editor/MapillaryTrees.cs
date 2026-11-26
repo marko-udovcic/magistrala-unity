@@ -1,9 +1,11 @@
 // Mapillary street trees (docs/mapillary-izvlacenje.md, "Trees"): Assets/Editor/stabla-mapillary.json is BalkanDriver
-// tools/world/mapillary/stabla.json (s4_trees.py; Street-level imagery: Mapillary contributors, CC BY-SA 4.0): crowns found in the
-// DGU LiDAR orthophoto 1–25 m beyond the old road (6137) and the D8, typed and measured (top height) from the street photos.
+// tools/world/mapillary/stabla.json + stabla-all.json (s4_trees.py; Street-level imagery: Mapillary contributors, CC BY-SA 4.0),
+// merged by Tools/mapillary/spoji.py: crowns found in the DGU LiDAR orthophoto 1–25 m beyond the old road (6137), the D8 and
+// (26. 11.) all the other streets, typed and measured (top height) from the street photos. road: s old road, d D8, u the others.
 // Only the crowns the game lacks are added, to the TreeRenderer's trees.bytes (no new prototype, no new draw call kind):
-//   * taken      conf ≥ MIN_CONF (seen in ≥ 1 segmented street photo); on the old road (village streets, little segmented imagery)
-//                also the orthophoto-only crowns (conf 0.15–0.25) of 3–12 m that are not hedges; never a `patch` (scrub / grove
+//   * taken      conf ≥ MIN_CONF (seen in ≥ 1 segmented street photo); on the old road and the other streets (village streets,
+//                little segmented imagery; OrthoStreets) also the orthophoto-only crowns (conf 0.15–0.25) of 3–12 m that are not
+//                hedges; never a `patch` (scrub / grove
 //                along the D8, not one crown); no palms (no palm prototype; the classifier also takes lamps for palms)
 //   * species    other broadleaf → crnika (dark evergreen broadleaf), olive → olive, pine → the package's Aleppo-shaped pines,
 //                cypress → cypress, oleander → oleander-roza, hedge → 1–5 dark bushes (grm-tamni) over the crown; scaled to the
@@ -11,7 +13,9 @@
 //   * skipped    a tree of ours (≥ 2.5 m tall) within crown radius + 2 m; on / near a street, footway or model asphalt (more off
 //                it the wider the crown), within 1 m of a building (2 m of a model one), car parks / pitches (GroundCover.Hard),
 //                the riva paving (RivaBuilder.NoTree), 0–8 m from the D8 edge (VegetationMask D8CLEAR, docs/vegetacija-d8.md),
-//                within 1.5 m of a parked car's box or of a prop / sign / signal
+//                within 1.5 m of a parked car's box or of a prop / sign / signal; the trunk (0.5 m) or the lower crown touching a
+//                building's / wall's collider (World/Buildings: houses, yard and frontage walls – so after Build tile buildings);
+//                the trunk at least 0.8 m off a street / footway edge
 // Build trees calls Apply at its end; menu Magistrala/Stabla: Mapillary re-applies it to the current trees.bytes (the records it
 // added before are listed in Generated/Nature/stabla-mapillary-added.bytes and taken out first).
 using System;
@@ -30,6 +34,8 @@ namespace Magistrala.EditorTools
         const string ADDED = WorldBuilder.GEN + "/Nature/stabla-mapillary-added.bytes";
         public const float MIN_CONF = .35f;
         public static bool On = true;
+        /// false: the orthophoto-only crowns of the other streets (road u) are not taken (only the seen ones, conf ≥ MIN_CONF)
+        public static bool OrthoStreets = true;
         const int REC = 24;
 
         [MenuItem("Magistrala/Stabla: Mapillary")]
@@ -66,7 +72,7 @@ namespace Magistrala.EditorTools
         {
             if (t.patch || t.type == "palm") return false;
             if (t.conf >= MIN_CONF) return true;
-            return t.road == "s" && t.type != "hedge" && t.d >= 3 && t.d <= 12;
+            return (t.road == "s" || (t.road == "u" && OrthoStreets)) && t.type != "hedge" && t.d >= 3 && t.d <= 12;
         }
 
         /// prototype indices of the scene's TreeRenderer (ours 0–7 by TreeProtos.IDS, the NaturePass / MedianHedge extras by mesh /
@@ -137,6 +143,21 @@ namespace Magistrala.EditorTools
                         boxes.Add((Math.Min(a.x, c.x), Math.Min(a.y, c.y), Math.Max(a.x, c.x), Math.Max(a.y, c.y)));
                     }
                 }
+            // houses, yard / frontage walls (their hull-level colliders)
+            var built = new HashSet<Collider>(); var bRoot = world ? world.transform.Find("Buildings") : null;
+            if (bRoot) foreach (var c in bRoot.GetComponentsInChildren<Collider>()) built.Add(c);
+            Physics.SyncTransforms(); var ov = new Collider[32];
+            bool InBuilt(double x, double y, double z, double crownR, double top)
+            {
+                if (built.Count == 0) return false;
+                var u = W.U(x, y, z);
+                int n = Physics.OverlapCapsuleNonAlloc(u + Vector3.up * .2f, u + Vector3.up * 2.5f, .5f, ov, ~0, QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++) if (built.Contains(ov[i])) return true;
+                if (crownR <= 0) return false;
+                n = Physics.OverlapSphereNonAlloc(u + Vector3.up * (float)Math.Max(2.5, .6 * top), (float)(.4 * crownR), ov, ~0, QueryTriggerInteraction.Ignore);
+                for (int i = 0; i < n; i++) if (built.Contains(ov[i])) return true;
+                return false;
+            }
             bool NearObstacle(double x, double z)
             {
                 foreach (var c in cars)
@@ -157,15 +178,16 @@ namespace Magistrala.EditorTools
                 foreach (var v in new[] { u.x, u.y, u.z, yaw, s, proto }) one.AddRange(BitConverter.GetBytes(v));
                 rec.AddRange(one); add.AddRange(one); kinds.TryGetValue(kind, out int n); kinds[kind] = n + 1;
             }
-            int trees = 0, cand = 0;
-            foreach (var t in Load())
+            int trees = 0, cand = 0; var byRoad = new Dictionary<string, int>();
+            var all = Load();
+            foreach (var t in all)
             {
                 if (!Taken(t)) { No("conf / patch / palm"); continue; }
                 cand++;
                 double x = t.gx, z = t.gz, R = Math.Max(1, t.d / 2);
                 if (!NaturePass.In(x, z)) { No("outside"); continue; }
                 if (Nearest(x, z, R + 2) < R + 2) { No("ours there"); continue; }
-                double clear = Math.Max(0, .4 * R - 1);   // a wide crown stands further off the street (no low branches over a truck)
+                double clear = Math.Max(.8, .4 * R - 1);   // a wide crown stands further off the street (no low branches over a truck); a trunk ≥ 0.8 m off its edge
                 if (StreetsBuilder.Covered(x, z, clear) || WorldData.SurfDist(models, x, z) < 2 + clear) { No("street"); continue; }
                 if ((VegetationMask.At(x, z) & VegetationMask.D8CLEAR) != 0) { No("D8 edge 0-8 m"); continue; }
                 if (VegetationMask.NearBuilding(x, z) || WorldData.FootDist(models, x, z) < 2) { No("building"); continue; }
@@ -175,6 +197,8 @@ namespace Magistrala.EditorTools
                 float h = (float)Tiles.Height(x, z);
                 var q = WorldData.ModelTerrain(models, x, z, 2, h); if (q.HasValue) h = (float)q.Value;
                 if (h < .4f) { No("sea"); continue; }
+                double topH = t.h > 0 ? t.h : t.type == "hedge" ? 1.6 : .8 * t.d + 1;
+                if (InBuilt(x, h, z, t.type == "hedge" ? 0 : R, topH)) { No("building / wall"); continue; }
                 float r = NaturePass.R01(x, z, 91), yaw = r * 360;
                 double top = t.h > 0 ? t.h : 0;
                 float Sc(int proto, double want) { float H = proto >= 0 && proto < P.height.Length ? P.height[proto] : 0; return H > 0 ? (float)(want / H) : 1; }
@@ -193,7 +217,7 @@ namespace Magistrala.EditorTools
                                 if (StreetsBuilder.Covered(bx, bz, 0) || VegetationMask.NearBuilding(bx, bz) || NearObstacle(bx, bz)) continue;
                                 Put(bx, Tiles.Height(bx, bz) - .05, bz, yaw + i * 77, Sc(P.tamni, hh * (.9 + .2 * NaturePass.R01(bx, bz, 92))), P.tamni, "hedge bushes"); put++;
                             }
-                            if (put > 0) { trees++; kinds.TryGetValue("hedge", out int nh); kinds["hedge"] = nh + 1; } else No("street");
+                            if (put > 0) { trees++; kinds.TryGetValue("hedge", out int nh); kinds["hedge"] = nh + 1; byRoad.TryGetValue(t.road, out int nh2); byRoad[t.road] = nh2 + 1; } else No("street");
                             continue;
                         }
                     case "oleander":
@@ -211,12 +235,12 @@ namespace Magistrala.EditorTools
                     default:   // other broadleaf
                         Put(x, h - .08, z, yaw, Sc(P.crnika, Math.Max(2.8, Math.Min(11, top > 0 ? top : .8 * t.d + 1))), P.crnika, "broadleaf (crnika)"); break;
                 }
-                trees++;
+                trees++; byRoad.TryGetValue(t.road, out int nr); byRoad[t.road] = nr + 1;
             }
             File.WriteAllBytes(path, rec.ToArray()); AssetDatabase.ImportAsset(path);
             Directory.CreateDirectory(Path.GetDirectoryName(ADDED)); File.WriteAllBytes(ADDED, add.ToArray());
             tr.data = AssetDatabase.LoadAssetAtPath<TextAsset>(path); EditorUtility.SetDirty(tr);
-            return $"[stabla] Mapillary trees: {trees} of {cand} candidates added ({add.Count / REC} plants; " + string.Join(", ", kinds.Select(k => $"{k.Key} {k.Value}")) +
+            return $"[stabla] Mapillary trees: {trees} of {cand} candidates added (of {all.Count} records; by road " + string.Join(", ", byRoad.Select(k => $"{k.Key} {k.Value}")) + $"; {add.Count / REC} plants; " + string.Join(", ", kinds.Select(k => $"{k.Key} {k.Value}")) +
                    $"; {removed} old records replaced); skipped: " + string.Join(", ", why.OrderByDescending(w => w.Value).Select(w => $"{w.Key} {w.Value}"));
         }
     }
