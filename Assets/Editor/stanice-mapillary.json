@@ -1,0 +1,1543 @@
+{
+ "meta": {
+  "v": 1,
+  "source": "OpenStreetMap contributors (ODbL) + Mapillary street-level imagery / map features (CC BY-SA 4.0); tools/world/mapillary/s8_stanice.py",
+  "coords": "x / z = game gx (east) / gz (south), 1:1 AEQD centred 43.5083 N 16.44 E (mly.ll2g)",
+  "heading": "compass bearing of the bus travelling past the stop (stop on its right); the shelter opens toward the road = heading - 90",
+  "side": "'R' / 'L' = the stop on the right / left of the nearest graph.json edge's point order",
+  "kerb": "road edge point (game) on the stop side",
+  "driveways": "Mapillary construction--flat--driveway map features within 30 m (game x / z, a few m accuracy): keep the shelter off them"
+ },
+ "stops": [
+  {
+   "id": "st01",
+   "name": "Kaštel Štafilić - Nehaj 1",
+   "lat": 43.5489529,
+   "lon": 16.3263034,
+   "x": -9188.0,
+   "z": -4522.9,
+   "heading": 229.8,
+   "side": "R",
+   "shelter": false,
+   "source": "both",
+   "confidence": 0.85,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Štafilić",
+   "kerb": [
+    -9186.1,
+    -4520.8
+   ],
+   "roadDist": 6.3,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {
+    "front": 8,
+    "trash-can": 1,
+    "bench": 1
+   },
+   "look": null,
+   "driveways": [
+    [
+     -9167.2,
+     -4530.4
+    ],
+    [
+     -9188.1,
+     -4534.1
+    ]
+   ],
+   "osm": [
+    "way/244619904",
+    "node/2515983078"
+   ]
+  },
+  {
+   "id": "st02",
+   "name": "Kaštel Novi 1",
+   "lat": 43.5560904,
+   "lon": 16.3270194,
+   "x": -9129.0,
+   "z": -5315.9,
+   "heading": 257.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.85,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Štafilić",
+   "kerb": [
+    -9129.1,
+    -5316.1
+   ],
+   "roadDist": 6.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (D8: gotovo sve stanice imaju nadstrešnicu)",
+   "mapillary": {
+    "bus-marking": 1
+   },
+   "look": null,
+   "driveways": [
+    [
+     -9145.7,
+     -5328.1
+    ],
+    [
+     -9141.4,
+     -5315.5
+    ]
+   ],
+   "osm": [
+    "node/9960403761"
+   ]
+  },
+  {
+   "id": "st03",
+   "name": "K. Štafilić 1",
+   "lat": 43.5496606,
+   "lon": 16.3280163,
+   "x": -9049.4,
+   "z": -4601.4,
+   "heading": 67.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Štafilić",
+   "kerb": [
+    -9050.2,
+    -4603.2
+   ],
+   "roadDist": 5.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {
+    "front": 1
+   },
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244626094",
+    "node/278675223"
+   ]
+  },
+  {
+   "id": "st04",
+   "name": "Kaštel Novi 2",
+   "lat": 43.556439,
+   "lon": 16.3312524,
+   "x": -8786.9,
+   "z": -5354.1,
+   "heading": 349.2,
+   "side": "L",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "ostalo",
+   "street": "Ulica don Petra Zaneta",
+   "kastel": "Štafilić",
+   "kerb": [
+    -8792.0,
+    -5353.2
+   ],
+   "roadDist": 8.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {
+    "front": 2
+   },
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/10127163334"
+   ]
+  },
+  {
+   "id": "st05",
+   "name": "Kaštel Štafilić 2",
+   "lat": 43.5512577,
+   "lon": 16.3356905,
+   "x": -8429.1,
+   "z": -4778.0,
+   "heading": 71.4,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Novi",
+   "kerb": [
+    -8429.6,
+    -4779.6
+   ],
+   "roadDist": 5.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244626092",
+    "node/2515983077"
+   ]
+  },
+  {
+   "id": "st06",
+   "name": "Kaštel Štafilić 1",
+   "lat": 43.5513809,
+   "lon": 16.3357151,
+   "x": -8427.1,
+   "z": -4791.7,
+   "heading": 251.2,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Novi",
+   "kerb": [
+    -8425.9,
+    -4788.2
+   ],
+   "roadDist": 7.2,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244619644"
+   ]
+  },
+  {
+   "id": "st07",
+   "name": "Kaštel Novi 2",
+   "lat": 43.5517392,
+   "lon": 16.3391529,
+   "x": -8149.2,
+   "z": -4831.2,
+   "heading": 84.5,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Novi",
+   "kerb": [
+    -8149.5,
+    -4834.0
+   ],
+   "roadDist": 6.3,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244626093",
+    "node/2516572241"
+   ]
+  },
+  {
+   "id": "st08",
+   "name": "K. Novi 1",
+   "lat": 43.5519479,
+   "lon": 16.3402535,
+   "x": -8060.2,
+   "z": -4854.2,
+   "heading": 259.5,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Novi",
+   "kerb": [
+    -8059.7,
+    -4851.1
+   ],
+   "roadDist": 6.7,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244619646",
+    "node/2515967069"
+   ]
+  },
+  {
+   "id": "st09",
+   "name": "Kaštel Stari 2",
+   "lat": 43.5591382,
+   "lon": 16.3412186,
+   "x": -7981.3,
+   "z": -5653.0,
+   "heading": 87.7,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Stari",
+   "kerb": [
+    -7981.4,
+    -5654.4
+   ],
+   "roadDist": 5.2,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {
+    "bus-marking": 1
+   },
+   "look": null,
+   "driveways": [
+    [
+     -7968.7,
+     -5671.3
+    ]
+   ],
+   "osm": [
+    "node/6185783245"
+   ]
+  },
+  {
+   "id": "st10",
+   "name": "Kaštel Stari - Centar 2",
+   "lat": 43.5525455,
+   "lon": 16.3427362,
+   "x": -7859.5,
+   "z": -4920.4,
+   "heading": 57.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Stari",
+   "kerb": [
+    -7859.7,
+    -4920.7
+   ],
+   "roadDist": 3.9,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244626091"
+   ]
+  },
+  {
+   "id": "st11",
+   "name": "Kaštel Stari - Centar 1",
+   "lat": 43.5526582,
+   "lon": 16.3427494,
+   "x": -7858.5,
+   "z": -4932.9,
+   "heading": 240.3,
+   "side": "R",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.65,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Stari",
+   "kerb": [
+    -7857.1,
+    -4930.6
+   ],
+   "roadDist": 6.2,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244619645",
+    "node/536445810"
+   ]
+  },
+  {
+   "id": "st12",
+   "name": "Kaštel Stari 1",
+   "lat": 43.5590156,
+   "lon": 16.3449654,
+   "x": -7678.6,
+   "z": -5639.0,
+   "heading": 285.4,
+   "side": "R",
+   "shelter": false,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Stari",
+   "kerb": [
+    -7679.0,
+    -5637.5
+   ],
+   "roadDist": 5.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=no",
+   "mapillary": {
+    "bus-marking": 1
+   },
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/6185783243"
+   ]
+  },
+  {
+   "id": "st13",
+   "name": "Kaštel Stari - Škola 2",
+   "lat": 43.5537849,
+   "lon": 16.3460056,
+   "x": -7595.2,
+   "z": -5057.8,
+   "heading": 76.4,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Stari",
+   "kerb": [
+    -7595.6,
+    -5059.3
+   ],
+   "roadDist": 5.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244626095",
+    "node/2516572253"
+   ]
+  },
+  {
+   "id": "st14",
+   "name": "Kaštel Stari - Škola 1",
+   "lat": 43.5539378,
+   "lon": 16.34736,
+   "x": -7485.7,
+   "z": -5074.7,
+   "heading": 273.6,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Stari",
+   "kerb": [
+    -7485.8,
+    -5073.6
+   ],
+   "roadDist": 4.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244619643",
+    "node/2515967057"
+   ]
+  },
+  {
+   "id": "st15",
+   "name": "Kaštel Stari - Palace 1",
+   "lat": 43.5536414,
+   "lon": 16.3538637,
+   "x": -6960.2,
+   "z": -5041.2,
+   "heading": 267.5,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Stari",
+   "kerb": [
+    -6960.3,
+    -5041.6
+   ],
+   "roadDist": 3.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244349689",
+    "node/1255233273"
+   ]
+  },
+  {
+   "id": "st16",
+   "name": "Kaštel Lukšić 2",
+   "lat": 43.5582115,
+   "lon": 16.3545417,
+   "x": -6904.9,
+   "z": -5548.9,
+   "heading": 83.9,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.65,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Lukšić",
+   "kerb": [
+    -6905.2,
+    -5551.5
+   ],
+   "roadDist": 6.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (D8: gotovo sve stanice imaju nadstrešnicu)",
+   "mapillary": {
+    "front": 3
+   },
+   "look": null,
+   "driveways": [
+    [
+     -6880.6,
+     -5554.2
+    ]
+   ],
+   "osm": [
+    "node/10127163333"
+   ]
+  },
+  {
+   "id": "st17",
+   "name": "Kaštel Stari - Palace 2",
+   "lat": 43.5536079,
+   "lon": 16.355206,
+   "x": -6851.8,
+   "z": -5037.3,
+   "heading": 85.1,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Lukšić",
+   "kerb": [
+    -6852.1,
+    -5041.5
+   ],
+   "roadDist": 7.7,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244349691",
+    "node/2422278919"
+   ]
+  },
+  {
+   "id": "st18",
+   "name": "Kaštel Lukšić 1",
+   "lat": 43.5586783,
+   "lon": 16.3577896,
+   "x": -6642.5,
+   "z": -5600.5,
+   "heading": 263.5,
+   "side": "R",
+   "shelter": false,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Lukšić",
+   "kerb": [
+    -6642.5,
+    -5600.8
+   ],
+   "roadDist": 6.4,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=no",
+   "mapillary": {
+    "bench": 1,
+    "front": 1
+   },
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/9960403705"
+   ]
+  },
+  {
+   "id": "st19",
+   "name": "K. Lukšić 2",
+   "lat": 43.5535943,
+   "lon": 16.3634019,
+   "x": -6189.5,
+   "z": -5035.2,
+   "heading": 93.4,
+   "side": "R",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.65,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Lukšić",
+   "kerb": [
+    -6189.4,
+    -5036.7
+   ],
+   "roadDist": 5.0,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244343886",
+    "node/5123968675"
+   ]
+  },
+  {
+   "id": "st20",
+   "name": "",
+   "lat": 43.55859,
+   "lon": 16.3637985,
+   "x": -6157.0,
+   "z": -5590.2,
+   "heading": 93.6,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Lukšić",
+   "kerb": [
+    -6156.9,
+    -5591.8
+   ],
+   "roadDist": 5.4,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {
+    "front": 3,
+    "trash-can": 1
+   },
+   "look": null,
+   "driveways": [
+    [
+     -6150.7,
+     -5590.6
+    ],
+    [
+     -6127.1,
+     -5592.7
+    ],
+    [
+     -6161.1,
+     -5616.9
+    ]
+   ],
+   "osm": [
+    "node/9960403682"
+   ]
+  },
+  {
+   "id": "st21",
+   "name": "K. Lukšić 1",
+   "lat": 43.5536598,
+   "lon": 16.3644582,
+   "x": -6104.2,
+   "z": -5042.4,
+   "heading": 268.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Lukšić",
+   "kerb": [
+    -6104.2,
+    -5042.6
+   ],
+   "roadDist": 3.2,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244343888",
+    "node/2422278917"
+   ]
+  },
+  {
+   "id": "st22",
+   "name": "",
+   "lat": 43.5585952,
+   "lon": 16.3666001,
+   "x": -5930.6,
+   "z": -5590.6,
+   "heading": 279.1,
+   "side": "R",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Lukšić",
+   "kerb": [
+    -5930.9,
+    -5588.5
+   ],
+   "roadDist": 6.0,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=no",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/9960518789"
+   ]
+  },
+  {
+   "id": "st23",
+   "name": "Kaštel Kambelovac - Sibovica 1",
+   "lat": 43.5529894,
+   "lon": 16.3716232,
+   "x": -5525.2,
+   "z": -4967.4,
+   "heading": 285.6,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Lukšić",
+   "kerb": [
+    -5526.2,
+    -4964.0
+   ],
+   "roadDist": 7.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244349690",
+    "node/2422278916"
+   ]
+  },
+  {
+   "id": "st24",
+   "name": "Kaštel Kambelovac - Sibovica 2",
+   "lat": 43.5525127,
+   "lon": 16.3733222,
+   "x": -5388.0,
+   "z": -4914.3,
+   "heading": 107.2,
+   "side": "L",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.5,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Lukšić",
+   "kerb": [
+    -5387.6,
+    -4915.8
+   ],
+   "roadDist": 1.9,
+   "sideFrom": "broj u imenu (1 zapad / 2 istok)",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/2516761684",
+    "node/2516572222"
+   ]
+  },
+  {
+   "id": "st25",
+   "name": "Kaštel Kambelovac - Baletna 1",
+   "lat": 43.5519693,
+   "lon": 16.3763024,
+   "x": -5147.2,
+   "z": -4853.8,
+   "heading": 286.3,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -5148.2,
+    -4850.5
+   ],
+   "roadDist": 6.9,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244349168",
+    "node/2422278915"
+   ]
+  },
+  {
+   "id": "st26",
+   "name": "Kaštel Kambelovac - Baletna 2",
+   "lat": 43.5516887,
+   "lon": 16.3770403,
+   "x": -5087.6,
+   "z": -4822.5,
+   "heading": 108.2,
+   "side": "L",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.5,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -5087.2,
+    -4824.0
+   ],
+   "roadDist": 1.9,
+   "sideFrom": "broj u imenu (1 zapad / 2 istok)",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/2516757933",
+    "node/2516595436"
+   ]
+  },
+  {
+   "id": "st27",
+   "name": "Kaštel Kambelovac 2",
+   "lat": 43.5501387,
+   "lon": 16.3842131,
+   "x": -4508.1,
+   "z": -4649.9,
+   "heading": 105.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -4507.8,
+    -4651.0
+   ],
+   "roadDist": 4.6,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244348814",
+    "node/2516595476"
+   ]
+  },
+  {
+   "id": "st28",
+   "name": "Kaštel Kambelovac 1",
+   "lat": 43.5500757,
+   "lon": 16.3849468,
+   "x": -4448.8,
+   "z": -4642.9,
+   "heading": 285.7,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -4449.1,
+    -4641.8
+   ],
+   "roadDist": 4.6,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244348813",
+    "node/2515959843"
+   ]
+  },
+  {
+   "id": "st29",
+   "name": "Kaštel Kambelovac 2",
+   "lat": 43.557343,
+   "lon": 16.3864214,
+   "x": -4329.2,
+   "z": -5450.2,
+   "heading": 94.7,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -4329.3,
+    -5448.8
+   ],
+   "roadDist": 5.4,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {
+    "front": 7
+   },
+   "look": "nadstresnica",
+   "driveways": [
+    [
+     -4313.4,
+     -5460.8
+    ]
+   ],
+   "osm": [
+    "node/9960518493"
+   ]
+  },
+  {
+   "id": "st30",
+   "name": "Kaštel Kambelovac 1",
+   "lat": 43.5571583,
+   "lon": 16.3899356,
+   "x": -4045.2,
+   "z": -5429.5,
+   "heading": 282.3,
+   "side": "R",
+   "shelter": false,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -4045.5,
+    -5428.3
+   ],
+   "roadDist": 5.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {
+    "front": 2
+   },
+   "look": "stup",
+   "driveways": [
+    [
+     -4024.2,
+     -5429.7
+    ]
+   ],
+   "osm": [
+    "node/9960518714"
+   ]
+  },
+  {
+   "id": "st31",
+   "name": "Kaštel Gomilica - Škola 2",
+   "lat": 43.5495712,
+   "lon": 16.3907239,
+   "x": -3982.0,
+   "z": -4586.5,
+   "heading": 99.4,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Kambelovac",
+   "kerb": [
+    -3981.5,
+    -4589.5
+   ],
+   "roadDist": 6.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244627360",
+    "node/538061797"
+   ]
+  },
+  {
+   "id": "st32",
+   "name": "Kaštel Gomilica - Škola 1",
+   "lat": 43.5495826,
+   "lon": 16.3917973,
+   "x": -3895.3,
+   "z": -4587.8,
+   "heading": 277.5,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Gomilica",
+   "kerb": [
+    -3895.8,
+    -4583.8
+   ],
+   "roadDist": 7.4,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244618457",
+    "node/2515959845"
+   ]
+  },
+  {
+   "id": "st33",
+   "name": "Kaštel Gomilica 2",
+   "lat": 43.548981,
+   "lon": 16.3959703,
+   "x": -3558.1,
+   "z": -4520.7,
+   "heading": 100.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Gomilica",
+   "kerb": [
+    -3558.0,
+    -4521.4
+   ],
+   "roadDist": 4.2,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244627359",
+    "node/2516595456"
+   ]
+  },
+  {
+   "id": "st34",
+   "name": "Kaštel Gomilica 1",
+   "lat": 43.5488584,
+   "lon": 16.3971525,
+   "x": -3462.6,
+   "z": -4507.1,
+   "heading": 285.5,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Gomilica",
+   "kerb": [
+    -3462.5,
+    -4507.3
+   ],
+   "roadDist": 3.2,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244618456",
+    "node/2515959840"
+   ]
+  },
+  {
+   "id": "st35",
+   "name": "Kaštel Sućurac - Marina 1",
+   "lat": 43.5481054,
+   "lon": 16.4010296,
+   "x": -3149.3,
+   "z": -4423.2,
+   "heading": 284.9,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Gomilica",
+   "kerb": [
+    -3149.9,
+    -4421.1
+   ],
+   "roadDist": 5.7,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244617245",
+    "node/2515959844"
+   ]
+  },
+  {
+   "id": "st36",
+   "name": "Kaštel Gomilica 2",
+   "lat": 43.5541235,
+   "lon": 16.4013457,
+   "x": -3123.4,
+   "z": -5091.9,
+   "heading": 109.5,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Gomilica",
+   "kerb": [
+    -3122.8,
+    -5093.6
+   ],
+   "roadDist": 5.7,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [
+    [
+     -3139.7,
+     -5083.4
+    ]
+   ],
+   "osm": [
+    "node/9960518595"
+   ]
+  },
+  {
+   "id": "st37",
+   "name": "Kaštel Gomilica - Marina 2",
+   "lat": 43.5476462,
+   "lon": 16.4027955,
+   "x": -3006.6,
+   "z": -4372.2,
+   "heading": 105.1,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Gomilica",
+   "kerb": [
+    -3005.8,
+    -4375.2
+   ],
+   "roadDist": 6.7,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [
+    [
+     -3021.8,
+     -4389.2
+    ]
+   ],
+   "osm": [
+    "way/244627356",
+    "node/2516606274"
+   ]
+  },
+  {
+   "id": "st38",
+   "name": "Kaštel Gomilica 1",
+   "lat": 43.5537624,
+   "lon": 16.4036331,
+   "x": -2938.6,
+   "z": -5051.7,
+   "heading": 290.6,
+   "side": "L",
+   "shelter": false,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Gomilica",
+   "kerb": [
+    -2938.2,
+    -5052.9
+   ],
+   "roadDist": 5.4,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=no",
+   "mapillary": {
+    "front": 5,
+    "bus-marking": 2
+   },
+   "look": null,
+   "driveways": [
+    [
+     -2948.3,
+     -5063.3
+    ],
+    [
+     -2961.7,
+     -5068.1
+    ]
+   ],
+   "osm": [
+    "node/9960518666"
+   ]
+  },
+  {
+   "id": "st39",
+   "name": "Kaštel Sućurac - Put Kozjaka 1",
+   "lat": 43.5472721,
+   "lon": 16.4085212,
+   "x": -2543.9,
+   "z": -4330.4,
+   "heading": 269.9,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Gomilica",
+   "kerb": [
+    -2543.9,
+    -4327.8
+   ],
+   "roadDist": 6.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244617257",
+    "node/2515959842"
+   ]
+  },
+  {
+   "id": "st40",
+   "name": "Kaštel Sućurac - Put Kozjaka 2",
+   "lat": 43.5472414,
+   "lon": 16.4116753,
+   "x": -2289.0,
+   "z": -4326.9,
+   "heading": 87.7,
+   "side": "L",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.95,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Sućurac",
+   "kerb": [
+    -2289.2,
+    -4331.3
+   ],
+   "roadDist": 7.9,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {},
+   "look": "nadstresnica",
+   "driveways": [],
+   "osm": [
+    "way/244627361",
+    "node/2516606273"
+   ]
+  },
+  {
+   "id": "st41",
+   "name": "Strinje",
+   "lat": 43.5512859,
+   "lon": 16.4211761,
+   "x": -1521.1,
+   "z": -4776.0,
+   "heading": 267.4,
+   "side": "L",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.65,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Sućurac",
+   "kerb": [
+    -1519.9,
+    -4748.8
+   ],
+   "roadDist": 34.0,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (D8: gotovo sve stanice imaju nadstrešnicu)",
+   "mapillary": {
+    "front": 1
+   },
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/246032660",
+    "node/1651668804"
+   ]
+  },
+  {
+   "id": "st42",
+   "name": "Kaštel Sućurac - Gradska Uprava",
+   "lat": 43.5475141,
+   "lon": 16.4227012,
+   "x": -1398.0,
+   "z": -4357.0,
+   "heading": 88.3,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Sućurac",
+   "kerb": [
+    -1398.1,
+    -4359.9
+   ],
+   "roadDist": 6.5,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244627357",
+    "node/2516628017"
+   ]
+  },
+  {
+   "id": "st43",
+   "name": "Kaštel Sućurac Centar 1",
+   "lat": 43.5472577,
+   "lon": 16.4263032,
+   "x": -1106.9,
+   "z": -4328.4,
+   "heading": 285.4,
+   "side": "L",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Sućurac",
+   "kerb": [
+    -1107.6,
+    -4325.7
+   ],
+   "roadDist": 6.3,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244617251",
+    "node/2515953698"
+   ]
+  },
+  {
+   "id": "st44",
+   "name": "Kaštel Sućurac Centar 2",
+   "lat": 43.5467675,
+   "lon": 16.4278294,
+   "x": -983.6,
+   "z": -4273.9,
+   "heading": 111.4,
+   "side": "R",
+   "shelter": true,
+   "source": "osm",
+   "confidence": 0.75,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Sućurac",
+   "kerb": [
+    -982.3,
+    -4277.1
+   ],
+   "roadDist": 6.9,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "OSM shelter=yes",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "way/244627358",
+    "node/2516628068"
+   ]
+  },
+  {
+   "id": "st45",
+   "name": "Kaštel Sućurac - Vatrogasni Dom 1",
+   "lat": 43.5510334,
+   "lon": 16.430442,
+   "x": -772.4,
+   "z": -4747.9,
+   "heading": 277.5,
+   "side": "R",
+   "shelter": true,
+   "source": "both",
+   "confidence": 0.85,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Sućurac",
+   "kerb": [
+    -772.3,
+    -4748.6
+   ],
+   "roadDist": 6.0,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (D8: gotovo sve stanice imaju nadstrešnicu)",
+   "mapillary": {
+    "front": 4,
+    "bus-marking": 1
+   },
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/6450549509"
+   ]
+  },
+  {
+   "id": "st46",
+   "name": "Kaštel Sućurac - Vatrogasni Dom 2",
+   "lat": 43.5507991,
+   "lon": 16.4305607,
+   "x": -762.8,
+   "z": -4721.8,
+   "heading": 96.8,
+   "side": "R",
+   "shelter": false,
+   "source": "both",
+   "confidence": 0.8,
+   "road": "d8",
+   "street": "Cesta pape Ivana Pavla II.",
+   "kastel": "Sućurac",
+   "kerb": [
+    -762.6,
+    -4723.3
+   ],
+   "roadDist": 6.4,
+   "sideFrom": "broj u imenu (1 zapad / 2 istok)",
+   "shelterFrom": "Mapillary slika",
+   "mapillary": {
+    "front": 4
+   },
+   "look": "stup",
+   "driveways": [],
+   "osm": [
+    "node/3435770232"
+   ]
+  },
+  {
+   "id": "st47",
+   "name": "Kaštel Sućurac Luvica 2",
+   "lat": 43.5446954,
+   "lon": 16.4356973,
+   "x": -347.7,
+   "z": -4043.6,
+   "heading": 107.5,
+   "side": "L",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.65,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Sućurac",
+   "kerb": [
+    -347.5,
+    -4044.3
+   ],
+   "roadDist": 4.1,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/2531246782",
+    "node/2531246776"
+   ]
+  },
+  {
+   "id": "st48",
+   "name": "Kaštel Sućurac Luvica 1",
+   "lat": 43.5446944,
+   "lon": 16.4360088,
+   "x": -322.6,
+   "z": -4043.5,
+   "heading": 287.5,
+   "side": "R",
+   "shelter": false,
+   "source": "osm",
+   "confidence": 0.65,
+   "road": "stara",
+   "street": "Cesta dr. Franje Tuđmana",
+   "kastel": "Sućurac",
+   "kerb": [
+    -322.5,
+    -4043.7
+   ],
+   "roadDist": 3.3,
+   "sideFrom": "položaj perona",
+   "shelterFrom": "pretpostavka (bez podatka: samo stup)",
+   "mapillary": {},
+   "look": null,
+   "driveways": [],
+   "osm": [
+    "node/2529974558",
+    "node/2515953697"
+   ]
+  }
+ ]
+}
