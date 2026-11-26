@@ -5,8 +5,11 @@
 //    the player's truck (its collider footprint projected onto the corridor: it blocks every lane it straddles), red / amber lights
 //    at the D8 stop lines of the models' signal plans; a hard clamp keeps a car from ever moving into its obstacle;
 //  - lane changes: merge before a lane drop, pass a slow leader on the left, keep right (gap acceptance), ~2.6 s per change;
-//  - spawn ring 480–850 m from the player outside the camera view (warm start fills 40–850 m once), despawn beyond 920 m
-//    (paket25: was 320–600 / 680 with the fade at 400–470 m — Marko saw cars pop in close while waiting at a side street);
+//  - spawn ring 700–1200 m from the player (26. 11.; paket25 480–850, before 320–600), never in the view widened by 25° unless
+//    beyond the draw distance or well behind cover (a crest, a building; not a post by the camera), out of view not nearer than
+//    0.85 × the ring in a straight line; corridors that start at the edge of the network get their cars at the start; warm start
+//    fills 40 m–the ring once; despawn beyond 1300 m, a car leaving at an open end drives on out of sight (docs/promet-ucitavanje.md);
+//  - night: far cars' lamps as small emissive dots out to the ring's edge;
 //  - drawing: Graphics.RenderMeshInstanced per (kind, part, paint colour); beyond 70 m the merged far mesh (palette, paint, tail:
 //    3 draws per kind); brake lights / indicators as lit material variants;
 //  - physics: one kinematic Rigidbody + BoxCollider per car (pooled), moved with MovePosition, so the truck collides with them.
@@ -21,13 +24,18 @@ namespace Magistrala.Traffic
     {
         public TrafficData data;
         [Range(0, 80)] public int targetCars = VIEW_CARS;
-        public float spawnMin = 480, spawnMax = 850, despawnDist = 920;
+        public float spawnMin = VIEW_SPAWN_MIN, spawnMax = VIEW_SPAWN_MAX, despawnDist = VIEW_DESPAWN;
         /// the view-range defaults (TrafficBuilder writes them onto the scene's component; `-trafold` = the pre-paket25 values
         /// 34 / 320 / 600 / 680 / 400 / 470 / 300 and the one-ray hidden test, for A/B)
-        /// 1 = the scene's values were written by TrafficBuilder with the paket25 view range; 0 (a scene saved before, whose serialized
-        /// 34 / 320 / 600 / 680 would fight the new 650–750 m fade) = the VIEW_* defaults are applied at runtime
+        /// VIEW_VERSION = the scene's values were written by TrafficBuilder with the current view range; lower (a scene saved before,
+        /// whose serialized ring would fight the current fade) = the VIEW_* defaults are applied at runtime
         public int viewVersion;
-        public const int VIEW_CARS = 46; public const float VIEW_SPAWN_MIN = 480, VIEW_SPAWN_MAX = 850, VIEW_DESPAWN = 920, VIEW_FADE0 = 650, VIEW_FADE1 = 750, VIEW_REACH = 450;
+        /// 26. 11. (v2, Marko: cars loaded farther away, entering more smoothly): ring 700–1200 m, fade 850–1050 m, despawn 1300 m,
+        /// 64 cars (the same cars per km of road as 46 on the paket25 ring 480–850 / 650–750 / 920), the old road within 600 m.
+        /// Beyond lod1Dist a car is the merged far mesh (3 instanced draws per kind whatever the count): measured the same draw
+        /// calls and fps as the paket25 ring (docs/promet-ucitavanje.md). -trafpk25 = the paket25 ring and spawning, -trafring = any
+        public const int VIEW_VERSION = 2;
+        public const int VIEW_CARS = 64; public const float VIEW_SPAWN_MIN = 700, VIEW_SPAWN_MAX = 1200, VIEW_DESPAWN = 1300, VIEW_FADE0 = 850, VIEW_FADE1 = 1050, VIEW_REACH = 600;
         public bool signals = true;
         /// headlight lenses lit (follows LightPreset: sunset)
         [System.NonSerialized] public bool headlights;
@@ -35,7 +43,7 @@ namespace Magistrala.Traffic
         public float lod1Dist = 70, shadowDist = 120;
         /// far cars dissolve (Magistrala/FarFade dither) between these distances and are not drawn beyond: a car spawned in view
         /// (only ever beyond farFadeEnd) or despawned far away never pops — it fades in as it comes closer
-        public float farFadeStart = 650, farFadeEnd = 750;
+        public float farFadeStart = VIEW_FADE0, farFadeEnd = VIEW_FADE1;
         public Transform player;
         public int seed = 7;
 
@@ -46,6 +54,10 @@ namespace Magistrala.Traffic
         public float AvgSimMs { get; private set; }
         public float AvgDrawMs { get; private set; }
         public int Spawned { get; private set; }
+        /// RenderMeshInstanced calls / instances of the last frame (the far ring's cost), smoothed calls
+        public int DrawCalls { get; private set; }
+        public int Instances { get; private set; }
+        public float AvgCalls { get; private set; }
         public int Despawned { get; private set; }
         /// spawn attempts refused: 0 off the stretch, 1 in view, 2 spacing, 3 truck, 4 red light ahead
         public readonly int[] SpawnFails = new int[5];
@@ -63,6 +75,9 @@ namespace Magistrala.Traffic
             public bool beacon; public float beaconPh; // emergency lights flashing, phase offset
             public Vector3 pos; public Quaternion rot;
             public Rigidbody rb;
+            // -spawnlog diagnostics: when / how / how far from the eye it was born, first frame it was visible to the eye
+            public float born, bornD; public byte how; public bool seen; public float nextSee;
+            public bool wasHid, wasFar; // before it was first seen: in the frustum but hidden / beyond the draw distance
         }
 
         readonly List<Car> cars = new List<Car>();
@@ -83,7 +98,7 @@ namespace Magistrala.Traffic
         float[] pS0 = new float[2], pS1 = new float[2], pL0 = new float[2], pL1 = new float[2], pSc = new float[2], pFar = new float[2];
         bool[] pOn = new bool[2];
         /// a corridor farther than this from the player (the old road while driving the D8, 500 m south) gets no new cars
-        public float corridorReach = 450;
+        public float corridorReach = VIEW_REACH;
         float playerSpeed;
 
         // drawing
@@ -91,6 +106,21 @@ namespace Magistrala.Traffic
         Vector3[] bLo, bHi;  // per draw bucket: the instances' positions this frame (tight bounds: per-cascade / view culling)
         readonly List<(Mesh mesh, int sub, Material mat, int lod)> buckets = new List<(Mesh, int, Material, int)>();
         int[][][] kindParts; // [kind][lod][part] -> bucket, paint parts: bucket of paint 0, + paint index
+        bool[][][] paintLamp; // [kind][lod][part] a lamp part cut from the paint material: off / on bucket pairs per paint, + 2 · paint
+        public static bool PaintLamp(Material m) => m && m.name.Contains("_paint_") && m.HasProperty(ID_PaintColor);
+        static readonly Dictionary<(Material, Material), Material> paintVars = new Dictionary<(Material, Material), Material>();
+        /// lamp material `src` (cut from the paint material) with the paint colour / coat of paint material `paint` (also CarShow)
+        public static Material PaintVar(Material src, Material paint)
+        {
+            if (!paintVars.TryGetValue((src, paint), out var m) || !m)
+            {
+                m = new Material(src) { name = src.name + " " + paint.name, enableInstancing = true };
+                m.SetColor(ID_PaintColor, paint.GetColor(ID_PaintColor));
+                foreach (var id in new[] { ID_Flake, ID_PaintSmooth, ID_CoatSmooth }) if (m.HasProperty(id) && paint.HasProperty(id)) m.SetFloat(id, paint.GetFloat(id));
+                paintVars[(src, paint)] = m;
+            }
+            return m;
+        }
         int[] farB;          // [kind] -> first bucket of the merged far mesh (palette, paints…, tail, tail lit), -1 none
         /// [kind] the far mesh's tail submesh is lamp-sized (0 < height ≤ 0.45 m): only then is it lit. Taller ones carry body
         /// panels from a mixed lod1 tail submesh (golf2 / yugo45 tailgate, sprinter, mazda, coach) — the far mesh has no paint
@@ -104,9 +134,25 @@ namespace Magistrala.Traffic
                 var a = System.Environment.GetCommandLineArgs();
                 spawnLog = System.Array.IndexOf(a, "-spawnlog") >= 0;
                 oldView = System.Array.IndexOf(a, "-trafold") >= 0;
-                if (viewVersion < 1 && !oldView) { targetCars = VIEW_CARS; spawnMin = VIEW_SPAWN_MIN; spawnMax = VIEW_SPAWN_MAX; despawnDist = VIEW_DESPAWN; farFadeStart = VIEW_FADE0; farFadeEnd = VIEW_FADE1; corridorReach = VIEW_REACH; }
+                // -trafpk25: the paket25 spawning (frustum only, any near-eye post hides, no entries / soft exits / night lamp dots) for
+                // A/B in one build; -trafold implies it
+                pre26 = oldView || System.Array.IndexOf(a, "-trafpk25") >= 0;
+                if (pre26 && !oldView) { targetCars = 46; spawnMin = 480; spawnMax = 850; despawnDist = 920; farFadeStart = 650; farFadeEnd = 750; corridorReach = 450; }
+                else if (viewVersion < VIEW_VERSION && !oldView) { targetCars = VIEW_CARS; spawnMin = VIEW_SPAWN_MIN; spawnMax = VIEW_SPAWN_MAX; despawnDist = VIEW_DESPAWN; farFadeStart = VIEW_FADE0; farFadeEnd = VIEW_FADE1; corridorReach = VIEW_REACH; }
                 if (oldView) { targetCars = 34; spawnMin = 320; spawnMax = 600; despawnDist = 680; farFadeStart = 400; farFadeEnd = 470; corridorReach = 300; }
-                if (spawnLog || oldView) Debug.Log($"[traffic] view {(oldView ? "old" : "new")}: cars {targetCars}, spawn {spawnMin}–{spawnMax} m, despawn {despawnDist} m, fade {farFadeStart}–{farFadeEnd} m, reach {corridorReach} m");
+                // -trafring min,max,fade0,fade1,despawn,cars,reach: another view ring for A/B (26. 11.: Marko asked for cars loaded
+                // farther away, e.g. 700,1200,850,1050,1300,64,600)
+                for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-trafring")
+                {
+                    var v = System.Array.ConvertAll(a[i + 1].Split(','), q => float.Parse(q, System.Globalization.CultureInfo.InvariantCulture));
+                    if (v.Length >= 5) { spawnMin = v[0]; spawnMax = v[1]; farFadeStart = v[2]; farFadeEnd = v[3]; despawnDist = v[4]; }
+                    if (v.Length >= 6) targetCars = (int)v[5];
+                    if (v.Length >= 7) corridorReach = v[6];
+                }
+                // night lamp dots: gone just past the ring's far edge; at night a car is born in view only that far out (sub-pixel dots)
+                dotFar = spawnMax + 10; nightViewMin = spawnMax - 30;
+                nearOut = spawnMin * .85f;
+                if (spawnLog || oldView) Debug.Log($"[traffic] view {(oldView ? "old" : pre26 ? "paket25" : "26-11")}: cars {targetCars}, spawn {spawnMin}–{spawnMax} m, despawn {despawnDist} m, fade {farFadeStart}–{farFadeEnd} m, reach {corridorReach} m");
             }
             if (data == null) { enabled = false; Debug.LogWarning("[traffic] no TrafficData (run Magistrala/Build traffic)"); return; }
             int nc = data.corridors?.Length ?? 0;
@@ -117,6 +163,7 @@ namespace Magistrala.Traffic
                 pS0 = new float[nc]; pS1 = new float[nc]; pL0 = new float[nc]; pL1 = new float[nc]; pSc = new float[nc]; pFar = new float[nc]; pOn = new bool[nc];
             }
             BuildBuckets();
+            BuildDots();
         }
 
         // paint look (25. 11., "auti-izgled"): the builders gave every colour one plain coat (paint .62, coat .9, flake .08). Greys,
@@ -156,19 +203,30 @@ namespace Magistrala.Traffic
                 if (!index.TryGetValue((m, s, mt), out int i)) { i = buckets.Count; index[(m, s, mt)] = i; buckets.Add((m, s, mt, lod)); }
                 return i;
             }
-            kindParts = new int[data.kinds.Length][][];
+            kindParts = new int[data.kinds.Length][][]; paintLamp = new bool[data.kinds.Length][][];
             for (int k = 0; k < data.kinds.Length; k++)
             {
                 var kd = data.kinds[k];
-                kindParts[k] = new int[3][];
+                kindParts[k] = new int[3][]; paintLamp[k] = new bool[3][];
                 for (int lod = 0; lod < 3; lod++)
                 {
                     var parts = Level(kd, lod);
-                    kindParts[k][lod] = new int[parts.Length];
+                    kindParts[k][lod] = new int[parts.Length]; paintLamp[k][lod] = new bool[parts.Length];
                     for (int p = 0; p < parts.Length; p++)
                     {
                         var pt = parts[p];
                         if (pt.paint) { int first = -1; for (int c = 0; c < kd.paints.Length; c++) { int b = B(pt.mesh, pt.sub, kd.paints[c], lod); if (c == 0) first = b; } kindParts[k][lod][p] = first; }
+                        else if (pt.lamp > 0 && pt.matOn && PaintLamp(pt.mat) && kd.paints != null && kd.paints.Length > 0)
+                        {
+                            // a lamp submesh cut from the paint material (golf2: the whole tailgate, the indicators): one off / on pair per
+                            // paint colour, so its paint texels take the car's colour (they had the source's red: a red tailgate, 26. 11.)
+                            paintLamp[k][lod][p] = true;
+                            for (int c = 0; c < kd.paints.Length; c++)
+                            {
+                                int b0 = B(pt.mesh, pt.sub, PaintVar(pt.mat, kd.paints[c]), lod); B(pt.mesh, pt.sub, PaintVar(pt.matOn, kd.paints[c]), lod);
+                                if (c == 0) kindParts[k][lod][p] = b0;
+                            }
+                        }
                         else if (pt.lamp > 0 && pt.matOn) { kindParts[k][lod][p] = B(pt.mesh, pt.sub, pt.mat, lod); B(pt.mesh, pt.sub, pt.matOn, lod); }
                         else kindParts[k][lod][p] = B(pt.mesh, pt.sub, pt.mat, lod);
                     }
@@ -239,6 +297,13 @@ namespace Magistrala.Traffic
         /// world point at (s, lateral) on the surface between the lane centres
         static Vector3 Point(TrafficCorridor c, float s, float lat)
         {
+            // past an open end (26. 11.): straight on along the last direction — a car seen leaving the modelled network drives on out of
+            // sight instead of vanishing at the end (TrafficSystem.exitRun)
+            if (s > c.Length && c.axis.Length > 3)
+            {
+                int n = c.axis.Length; var tg = c.axis[n - 1] - c.axis[n - 4]; tg.y = 0; tg.Normalize();
+                return Point(c, c.Length, lat) + tg * (s - c.Length);
+            }
             float f = Mathf.Clamp(s / c.step, 0, c.axis.Length - 1.001f); int i = (int)f; float t = f - i;
             var ax = Vector3.LerpUnclamped(c.axis[i], c.axis[i + 1], t);
             var r = Vector3.LerpUnclamped(c.right[i], c.right[i + 1], t);
@@ -609,6 +674,22 @@ namespace Magistrala.Traffic
             return GeometryUtility.TestPlanesAABB(planes, b);
         }
 
+        /// spawning only (26. 11.): the view widened by guardDeg on every side — the chase camera swinging round a bend or the
+        /// player looking round must not uncover a car born a moment ago just outside the frustum's edge
+        public float guardDeg = 25;
+        bool InGuardView(Vector3 p)
+        {
+            if (!cam) return false;
+            var l = cam.transform.InverseTransformPoint(p + Vector3.up);
+            float hv = cam.fieldOfView * .5f, hh = Mathf.Atan(Mathf.Tan(hv * Mathf.Deg2Rad) * cam.aspect) * Mathf.Rad2Deg;
+            float ah = hh + guardDeg, av = hv + guardDeg;
+            // horizontal: angle from the view axis in the xz plane (a half space and beyond when the widened view passes 90°)
+            float ang = Mathf.Atan2(Mathf.Abs(l.x), l.z) * Mathf.Rad2Deg;
+            if (ang > ah) return false;
+            float vert = Mathf.Atan2(Mathf.Abs(l.y), Mathf.Max(.01f, new Vector2(l.x, l.z).magnitude)) * Mathf.Rad2Deg;
+            return vert <= av;
+        }
+
         /// spawn weights per kind: the data's, or overridden from the command line for measuring (-kindw zastava=0,golub=40;
         /// -kindw only=zastava: nothing else)
         float[] kindW;
@@ -638,28 +719,74 @@ namespace Magistrala.Traffic
             return 0;
         }
 
-        bool spawnLog, oldView;
+        bool spawnLog, oldView, pre26;
         static readonly RaycastHit[] occHits = new RaycastHit[8];
-        /// the segment eye → p is blocked by something solid that is not a car, not within 6 m of p (paket25)
-        static bool Blocked(Vector3 eye, Vector3 p)
+        /// the segment eye → p is blocked by something solid that is not a car, not within 6 m of p (paket25), and (26. 11.) not
+        /// within nearEyeIgnore of the eye: at 700 m the four HiddenFrom rays run within centimetres of each other near the eye, so
+        /// one sign post, lamp post or parked car's box by the camera "hid" the car from all of them — it was born in plain view at
+        /// 650–760 m, 70–100 % opaque (-spawnlog: first seen 0.2 s after a "hidden" birth). Only far occluders count: a crest, a
+        /// building, a wall along the road
+        const float nearEyeIgnore = 25;
+        static bool Blocked(Vector3 eye, Vector3 p, bool old)
         {
             var d = p - eye; float L = d.magnitude; if (L < 7) return false;
             int n = Physics.RaycastNonAlloc(eye, d / L, occHits, L - 6, ~0, QueryTriggerInteraction.Ignore);
-            for (int i = 0; i < n; i++) if (!occHits[i].rigidbody) return true;
+            for (int i = 0; i < n; i++) if (!occHits[i].rigidbody && (old || occHits[i].distance > nearEyeIgnore)) return true;
             return false;
         }
         /// a car at `pos` (body half width hw, height h) is hidden from the eye: the old test was one linecast to 1.2 m above the road,
         /// which grazes a crest, a guardrail, a kerb or a sign post from a low camera — the car then popped in fully drawn at 320 m.
         /// Now every ray must be blocked: 1.2 m up, and 0.5 m over the roof at the middle and both sides of the body (only terrain
         /// or a building covers all of them)
-        bool HiddenFrom(Vector3 eye, Vector3 pos, float hw, float h)
+        bool HiddenFrom(Vector3 eye, Vector3 pos, float hw, float h, bool measure = false)
         {
-            if (oldView)
+            if (oldView && !measure)
                 return Physics.Linecast(eye, pos + Vector3.up * 1.2f, out var hit, ~0, QueryTriggerInteraction.Ignore) && (hit.point - pos - Vector3.up * 1.2f).magnitude > 6 && !hit.rigidbody;
             var side = Vector3.Cross(Vector3.up, pos - eye); side.y = 0; side = side.sqrMagnitude > 1e-6f ? side.normalized * (hw + .3f) : Vector3.zero;
             var roof = pos + Vector3.up * (h + .5f);
-            return Blocked(eye, pos + Vector3.up * 1.2f) && Blocked(eye, roof) && Blocked(eye, roof + side) && Blocked(eye, roof - side);
+            bool o = pre26 && !measure; // (-spawnlog measures every mode with the 26. 11. test: a post by the camera hides nothing)
+            return Blocked(eye, pos + Vector3.up * 1.2f, o) && Blocked(eye, roof, o) && Blocked(eye, roof + side, o) && Blocked(eye, roof - side, o);
         }
+
+        /// spawning behind cover (26. 11.): the cover must hide the car with room to spare — HiddenFrom with the roof rays 2 m higher
+        /// and 1 m wider, from the eye and from where the eye will be in 1.5 s (the player's velocity, 1 m up). The plain test let a
+        /// car be born just behind a crest / a building's edge that the next 0.2 s of driving uncovered: seen at 670–730 m with
+        /// 20–75 % of its body already drawn (-spawnlog, D8 drive)
+        bool HiddenSpawn(Vector3 eye, Vector3 pos, float hw, float h)
+        {
+            if (pre26) return HiddenFrom(eye, pos, hw, h);
+            var v = playerRb ? playerRb.linearVelocity : Vector3.zero;
+            var eye2 = eye + v * 1.5f + Vector3.up;
+            foreach (var e in new[] { eye, eye2 })
+            {
+                var side = Vector3.Cross(Vector3.up, pos - e); side.y = 0; side = side.sqrMagnitude > 1e-6f ? side.normalized * (hw + 1.3f) : Vector3.zero;
+                var roof = pos + Vector3.up * (h + 2f);
+                if (!(Blocked(e, pos + Vector3.up * 1.2f, false) && Blocked(e, roof, false) && Blocked(e, roof + side, false) && Blocked(e, roof - side, false))) return false;
+            }
+            return true;
+        }
+
+        /// out of the (widened) view: the nearest a ring car may be born from the eye, in a straight line (hidden: nearEntry); an entry
+        /// car at a corridor's start (out of view, it drives in from the road beyond): nearEntry
+        public float nearOut = 600, nearEntry = 160;
+        /// corridor ci starts at the edge of the modelled network, where the road goes on (Štafilić, Sućurac, the D8 to Split) — not
+        /// beside a closure (the other direction's deadEnd: the works barrier on the old road at s13, the D8 to Trogir), out of
+        /// which nobody drives
+        bool IsEntry(int ci)
+        {
+            if (entryOk == null)
+            {
+                entryOk = new bool[data.corridors.Length];
+                for (int a = 0; a < entryOk.Length; a++)
+                {
+                    entryOk[a] = true; var p = data.corridors[a].axis[0];
+                    foreach (var o in data.corridors)
+                        if (o.deadEnd && o != data.corridors[a]) { var e = o.axis[o.axis.Length - 1] - p; e.y = 0; if (e.magnitude < 250) entryOk[a] = false; }
+                }
+            }
+            return entryOk[ci];
+        }
+        bool[] entryOk;
 
         bool TrySpawn(bool warmStart)
         {
@@ -668,6 +795,7 @@ namespace Magistrala.Traffic
             // (warm start: a random corridor near the player; never one out of reach)
             for (int t = 0; t < 8 && pFar[ci] > corridorReach; t++) ci = rng.Next(data.corridors.Length);
             if (pFar[ci] > corridorReach) { SpawnFails[0]++; return false; }
+            bool entry = false;
             if (!warmStart)
             {
                 int best = int.MaxValue;
@@ -675,15 +803,21 @@ namespace Magistrala.Traffic
                 {
                     int qc = q >> 1, qs = (q & 1) == 0 ? 1 : -1, cnt = 0;
                     if (pFar[qc] > corridorReach) continue;
-                    float far = pSc[qc] + qs * spawnMax; if (far < 30 || far > data.corridors[qc].Length - 30) continue; // stretch ends
+                    float far = pSc[qc] + qs * spawnMax;
+                    // the stretch's ends: none ahead past the end; behind, a corridor that starts within the ring (the edge of the
+                    // modelled network: no corridor feeds it) gets its cars at its start instead — they drive in from the road beyond,
+                    // where nobody sees them born (26. 11.: before, that quarter got nothing and the road near its start ran empty)
+                    bool eq = false;
+                    if (far > data.corridors[qc].Length - 30) continue;
+                    if (far < 30) { if (pre26 || qs > 0 || !IsEntry(qc)) continue; eq = true; }
                     foreach (var o in byCorridor[qc]) if ((o.s - pSc[qc]) * qs > 0) cnt++;
-                    if (cnt < best || (cnt == best && rng.NextDouble() < .5)) { best = cnt; ci = qc; side = qs; }
+                    if (cnt < best || (cnt == best && rng.NextDouble() < .5)) { best = cnt; ci = qc; side = qs; entry = eq; }
                 }
             }
             var cor = data.corridors[ci];
             float sp = pSc[ci];
             float d = warmStart ? 40 + (float)rng.NextDouble() * (spawnMax - 40) : spawnMin + (float)rng.NextDouble() * (spawnMax - spawnMin);
-            float s = sp + side * d;
+            float s = entry ? 31 + (float)rng.NextDouble() * 25 : sp + side * d;
             if (s < 30 || s > cor.Length - (cor.deadEnd ? 300 : 30)) { SpawnFails[0]++; return false; }
             int n = LanesAt(cor, s);
             // prefer the right lane
@@ -695,16 +829,23 @@ namespace Magistrala.Traffic
             var pos = Point(cor, s, lat);
             // never pop in view: out of the frustum, hidden behind terrain / buildings, or beyond farFadeEnd (not drawn there:
             // it dissolves in between farFadeEnd and farFadeStart as it comes closer)
-            bool inView = !warmStart && InView(pos), hidden = false;
+            // (26. 11.) in view = in the view widened by guardDeg; out of it, a car is still born only far from the eye in a straight
+            // line (≥ nearOut: the ring is measured along the corridor, which can bend back towards the player) or hidden there
+            bool inView = !warmStart && cam && (pre26 ? InView(pos) : InGuardView(pos)), hidden = false;
             if (inView)
             {
                 var eye = cam.transform.position; float de = (pos - eye).magnitude;
                 // (paket25: a hidden car never closer than farFadeStart either — a wrong guess still dissolves in)
-                if (de < farFadeEnd + 10)
+                if (de < (night && !pre26 ? nightViewMin : farFadeEnd + 10))
                 {
-                    hidden = (oldView || de >= farFadeStart) && HiddenFrom(eye, pos, kd.halfW, kd.h);
+                    hidden = (oldView || de >= farFadeStart) && HiddenSpawn(eye, pos, kd.halfW, kd.h);
                     if (!hidden) { SpawnFails[1]++; return false; }
                 }
+            }
+            else if (!warmStart && cam && !pre26)
+            {
+                var eye = cam.transform.position; float de = (pos - eye).magnitude;
+                if (de < (entry ? nearEntry : nearOut) && !(de >= nearEntry && HiddenSpawn(eye, pos, kd.halfW, kd.h))) { SpawnFails[1]++; return false; }
             }
             // spacing
             foreach (var o in byCorridor[ci]) if (Mathf.Abs(o.s - s) < 30 + (o.len + kd.len) / 2 && Overlap(lat, kd.halfW, o.lat, o.hw, 1)) { SpawnFails[2]++; return false; }
@@ -727,6 +868,8 @@ namespace Magistrala.Traffic
             Pose(car);
             car.rb.position = car.pos; car.rb.rotation = car.rot; car.rb.transform.SetPositionAndRotation(car.pos, car.rot);
             cars.Add(car); byCorridor[ci].Add(car); Spawned++;
+            car.born = clock; car.bornD = (pos - (cam ? cam.transform.position : PlayerPos)).magnitude;
+            car.how = (byte)(warmStart ? 0 : entry ? 4 : !inView ? 1 : hidden ? 2 : 3);
             if (spawnLog && !warmStart) Debug.Log($"[spawn] {kd.name} c{ci} {(pos - (cam ? cam.transform.position : PlayerPos)).magnitude:F0} m {(inView ? hidden ? "view-hidden" : "view-far" : "out")} cars {cars.Count}");
             if (HitchDiag.On && !warmStart) HitchDiag.Note($"spawn {kd.name} {(pos - (cam ? cam.transform.position : PlayerPos)).magnitude:F0}m{(InView(pos) ? " view" : "")}");
             return true;
@@ -762,19 +905,34 @@ namespace Magistrala.Traffic
             {
                 var c = cars[i]; var cor = data.corridors[c.c];
                 float d = Mathf.Abs(c.s - pSc[c.c]); d = Mathf.Sqrt(d * d + pFar[c.c] * pFar[c.c]); // (a corridor away from the player: real distance)
-                bool gone = d > despawnDist || c.s < 2 || (!cor.deadEnd && c.s > cor.Length - 8);
+                bool gone = d > despawnDist || c.s < 2 || (!cor.deadEnd && c.s > cor.Length - 8 && (pre26 || c.s > cor.Length + exitRun || !Seen(c)));
                 // a closed end: recycled only where nobody sees it — at the barrier, or already on the last 150 m when unseen and
                 // not right by the player (the queue never grows in front of a camera that turns away)
                 if (!gone && cor.deadEnd && c.s > cor.Length - 150 && !InView(c.pos) && (c.pos - PlayerPos).magnitude > 60) gone = true;
-                if (!gone && cor.deadEnd && c.s > cor.Length - 8 && (!InView(c.pos) || (c.pos - (cam ? cam.transform.position : PlayerPos)).magnitude > 350)) gone = true;
+                if (!gone && cor.deadEnd && c.s > cor.Length - 8 && (!InView(c.pos) || (c.pos - (cam ? cam.transform.position : PlayerPos)).magnitude > (pre26 ? 350 : farFadeEnd))) gone = true;
                 // stuck far away (a jam that never clears behind a parked truck): recycle
                 if (!gone && c.stopT > 60 && (c.pos - PlayerPos).magnitude > 150 && !InView(c.pos)) gone = true;
                 // boxed in for good behind a standing truck (it blocks every lane it can go round by): recycle when unseen
                 if (!gone && c.stopT > 45 && !InView(c.pos) && (c.pos - PlayerPos).magnitude > 25) gone = true;
                 if (!gone) continue;
                 if (HitchDiag.On) HitchDiag.Note($"despawn {d:F0}m{(InView(c.pos) ? " view" : "")}");
+                if (spawnLog && cam && InView(c.pos))
+                {
+                    float de = (c.pos - cam.transform.position).magnitude;
+                    if (de < farFadeEnd && !HiddenFrom(cam.transform.position, c.pos, c.hw, c.h, true)) Debug.Log($"[vanish] {data.kinds[c.kind].name} c{c.c} {de:F0} m s {c.s:F0}/{cor.Length:F0} stop {c.stopT:F0} s");
+                }
                 Release(c); cars.RemoveAt(i); byCorridor[c.c].Remove(c); Despawned++;
             }
+        }
+
+        /// an open end's cars run on straight this far past it while the eye sees them, then go (out of sight at once)
+        public float exitRun = 150;
+        /// the eye sees car c: in the frustum, within the draw distance, not hidden (HiddenFrom: every ray blocked)
+        bool Seen(Car c)
+        {
+            if (!cam || !InView(c.pos)) return false;
+            var eye = cam.transform.position;
+            return (c.pos - eye).magnitude < farFadeEnd && !HiddenFrom(eye, c.pos, c.hw, c.h);
         }
 
         // ------------------------------------------------------------------ pose + drawing
@@ -813,10 +971,12 @@ namespace Magistrala.Traffic
             Shader.SetGlobalVector(ID_FarFade, new Vector4(farFadeStart, farFadeEnd, 0, 0));
             Shader.SetGlobalVector(ID_FarFadeEye, cp);
             bool blink = (clock * 1.5f) % 1f < .5f;
+            dotN = 0; bool dots = night && dotMesh && !pre26;
             foreach (var car in cars)
             {
                 var kd = data.kinds[car.kind];
                 float dist = (car.pos - cp).magnitude;
+                if (dots && dist > lod1Dist) Dots(car, kd, dist);
                 if (dist > farFadeEnd) continue; // dissolved (FarFade): not drawn
                 if (dist > 30 && !GeometryUtility.TestPlanesAABB(planes, new Bounds(car.pos + Vector3.up * car.h * .5f, new Vector3(car.len, car.h, car.len))) && dist > shadowDist) continue;
                 int lod = dist > lod1Dist ? 1 : 0;
@@ -834,11 +994,11 @@ namespace Magistrala.Traffic
                 // beacons: A and B alternate, a double flash each (~1.3 Hz)
                 float bph = (clock * 1.3f + car.beaconPh) % 1f;
                 bool bA = car.beacon && (bph < .1f || (bph > .18f && bph < .28f)), bB = car.beacon && ((bph > .5f && bph < .6f) || (bph > .68f && bph < .78f));
-                var ids = kindParts[car.kind][lod];
+                var ids = kindParts[car.kind][lod]; var pl = paintLamp[car.kind][lod];
                 for (int p = 0; p < parts.Length; p++)
                 {
                     var pt = parts[p];
-                    int b = ids[p] + (pt.paint ? car.paint : 0);
+                    int b = ids[p] + (pt.paint ? car.paint : 0) + (pl[p] ? car.paint * 2 : 0);
                     // tail lamps (1) burn with the headlights at dusk / night as well as when braking (one lit variant)
                     if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? headlights : pt.lamp == 1 ? car.braking || headlights : pt.lamp == 5 ? bA : pt.lamp == 6 ? bB
                         : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
@@ -865,6 +1025,95 @@ namespace Magistrala.Traffic
                 };
                 Graphics.RenderMeshInstanced(rp, bk.mesh, bk.sub, mats[b], matN[b]);
             }
+            int calls = 0, inst = 0; for (int b = 0; b < buckets.Count; b++) if (matN[b] > 0) { calls++; inst += matN[b]; }
+            if (dotN > 0) calls += 2;
+            DrawCalls = calls; Instances = inst;
+            AvgCalls = AvgCalls <= 0 ? calls : AvgCalls * .98f + calls * .02f;
+            if (dotN > 0)
+                for (int t = 0; t < 2; t++)
+                {
+                    var rp = new RenderParams(t == 0 ? dotHead : dotTail) { shadowCastingMode = ShadowCastingMode.Off, receiveShadows = false, worldBounds = new Bounds(cp, Vector3.one * (despawnDist * 2 + 50)), layer = gameObject.layer };
+                    Graphics.RenderMeshInstanced(rp, dotMesh, 0, t == 0 ? dotH : dotT, dotN);
+                }
+        }
+
+        // ---- night (26. 11.): a far car's lamps are seen long before its body. Beyond lod1Dist (the far mesh has no lit head lamps)
+        // every car gets two small emissive quads at its head lamps and two at its tail lamps, sized ~2 px by distance so bloom
+        // makes a point of light of them, shrinking to nothing between farFadeStart and dotFar (spawns in view at night: ≥ nightViewMin,
+        // where the dots are sub-pixel). Two instanced draws, no shadows.
+        public float dotFar = 860, nightViewMin = 820;
+        bool night;
+        Mesh dotMesh; Material dotHead, dotTail;
+        Matrix4x4[] dotH = new Matrix4x4[64], dotT = new Matrix4x4[64]; int dotN;
+        void BuildDots()
+        {
+            var src = data.kinds.Length > 0 ? data.kinds[0].farTailOn : null;
+            if (!src) return;
+            dotMesh = new Mesh { name = "traffic lamp dot" };
+            dotMesh.SetVertices(new[] { new Vector3(-.5f, -.5f, 0), new Vector3(.5f, -.5f, 0), new Vector3(.5f, .5f, 0), new Vector3(-.5f, .5f, 0) });
+            dotMesh.SetNormals(new[] { Vector3.forward, Vector3.forward, Vector3.forward, Vector3.forward });
+            dotMesh.SetUVs(0, new[] { Vector2.zero, Vector2.right, Vector2.one, Vector2.up });
+            dotMesh.SetTriangles(new[] { 0, 1, 2, 0, 2, 3 }, 0); // faces +z (the way the lamp shines)
+            dotMesh.bounds = new Bounds(Vector3.zero, Vector3.one);
+            Material M(Color e)
+            {
+                var m = new Material(src) { name = "traffic lamp dot", enableInstancing = true };
+                m.SetColor("_BaseColor", Color.black); m.SetFloat("_Smoothness", 0); m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", e);
+                return m;
+            }
+            dotHead = M(new Color(7f, 6.6f, 5.6f)); dotTail = M(new Color(5f, .2f, .1f));
+        }
+        void Dots(Car car, TrafficKind kd, float dist)
+        {
+            float q = Mathf.Max(.16f, dist * .0023f) * Mathf.Clamp01((dotFar - dist) / (dotFar - farFadeStart));
+            if (q < .03f || !GeometryUtility.TestPlanesAABB(planes, new Bounds(car.pos + Vector3.up * car.h * .5f, new Vector3(car.len, car.h, car.len)))) return;
+            if (dotN + 2 > dotH.Length) { System.Array.Resize(ref dotH, dotH.Length * 2); System.Array.Resize(ref dotT, dotT.Length * 2); }
+            var S = Vector3.one * q; float x = Mathf.Max(.3f, car.hw - .22f), z = car.len * .5f + .06f;
+            var back = car.rot * Quaternion.Euler(0, 180, 0);
+            for (int sx = -1; sx <= 1; sx += 2)
+            {
+                dotH[dotN] = Matrix4x4.TRS(car.pos + car.rot * new Vector3(sx * x, .62f, z), car.rot, S);
+                dotT[dotN] = Matrix4x4.TRS(car.pos + car.rot * new Vector3(sx * x, Mathf.Min(.85f, car.h * .6f), -z), back, S);
+                dotN++;
+            }
+        }
+
+        // ---- -spawnlog: the first frame each car is visible to the eye (in the frustum, within farFadeEnd, one of the HiddenFrom rays
+        // clear), how far it was and how old — a car first seen close and young popped in; one first seen at 650–750 m dissolved in.
+        // A car that drove out from behind a building after a long while is not a pop (age). Also cars removed in view ([vanish]).
+        static readonly string[] HOW = { "warm", "out", "view-hidden", "view-far", "entry" };
+        int seenN, popN, pop400N; float seenMin = 1e9f, freshMin = 1e9f, popMin = 1e9f, statT;
+        const float FRESH = 8; // s: a car first seen within this long after its birth was "made" in front of the player
+        void SeeCheck()
+        {
+            if (!cam) return;
+            var eye = cam.transform.position;
+            foreach (var c in cars)
+            {
+                if (c.seen || clock < c.nextSee) continue;
+                c.nextSee = clock + .2f;
+                float d = (c.pos - eye).magnitude;
+                bool inF = GeometryUtility.TestPlanesAABB(planes, new Bounds(c.pos + Vector3.up * c.h * .5f, new Vector3(c.len, c.h, c.len)));
+                if (d > farFadeEnd) { if (inF) c.wasFar = true; continue; }
+                if (!inF) continue;
+                if (HiddenFrom(eye, c.pos, c.hw, c.h, true)) { c.wasHid = true; continue; }
+                c.seen = true; seenN++;
+                float age = clock - c.born, k = Mathf.Clamp01((farFadeEnd - d) / Mathf.Max(1, farFadeEnd - farFadeStart));
+                if (c.how != 0) { seenMin = Mathf.Min(seenMin, d); if (age < FRESH) freshMin = Mathf.Min(freshMin, d); }
+                // a pop: seen at once after its birth with a visible part of its body drawn, or (young) uncovered by a camera turn
+                // without ever having been behind cover or beyond the draw distance first. Driving out from behind cover (a crest, a
+                // building: "emerged") and dissolving in at the draw distance ("faded") are how real cars come into view
+                string kindOf = c.how == 0 ? "" : age < 1 && k > .15f ? "POP-born" : age < FRESH && !c.wasHid && !c.wasFar ? "POP-turn" : c.wasHid ? "emerged" : c.wasFar ? "faded" : "old";
+                bool pop = kindOf.StartsWith("POP");
+                if (pop) { popN++; if (d < 400) pop400N++; popMin = Mathf.Min(popMin, d); }
+                Debug.Log($"[firstview] t={clock:F1} gt={Time.time:F2} {data.kinds[c.kind].name} c{c.c} {d:F0} m age {age:F1} s {HOW[c.how]} born {c.bornD:F0} m fade {k:F2} {kindOf} at x={c.pos.x - 4200:F0} z={-c.pos.z - 5300:F0} eye x={eye.x - 4200:F0} z={-eye.z - 5300:F0}");
+            }
+            if (clock - statT > 30)
+            {
+                statT = clock;
+                Debug.Log($"[trafcost] t={clock:F0}s cars {cars.Count} calls {DrawCalls} (avg {AvgCalls:F0}) instances {Instances} update {AvgUpdateMs:F2} ms (sim {AvgSimMs:F2} draw {AvgDrawMs:F2})");
+                Debug.Log($"[popstat] t={clock:F0}s spawned {Spawned} seen {seenN} pops {popN} (<400 m {pop400N}, nearest {(popMin < 1e8f ? popMin.ToString("F0") : "-")} m) min first-seen {(seenMin < 1e8f ? seenMin.ToString("F0") : "-")} m, fresh {(freshMin < 1e8f ? freshMin.ToString("F0") : "-")} m, fails {string.Join("/", SpawnFails)}");
+            }
         }
 
         void Update()
@@ -875,6 +1124,7 @@ namespace Magistrala.Traffic
             clock += Time.deltaTime;
             if (!preset) preset = FindFirstObjectByType<LightPreset>();
             headlights = (preset && preset.Golden) || WeatherSystem.Raining; // low-beam lenses lit at sunset (G) and in rain (V)
+            night = preset && preset.Night;
             if (!cam) cam = Camera.main;
             if (cam) GeometryUtility.CalculateFrustumPlanes(cam, planes);
             FindPlayer();
@@ -886,6 +1136,7 @@ namespace Magistrala.Traffic
             foreach (var c in cars) { Pose(c); c.rb.MovePosition(c.pos); c.rb.MoveRotation(c.rot); }
             var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw();
+            if (spawnLog) SeeCheck();
             var t2 = System.Diagnostics.Stopwatch.GetTimestamp();
             float simMs = (t1 - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency, drawMs = (t2 - t1) * 1000f / System.Diagnostics.Stopwatch.Frequency;
             AvgSimMs = AvgSimMs <= 0 ? simMs : AvgSimMs * .97f + simMs * .03f; AvgDrawMs = AvgDrawMs <= 0 ? drawMs : AvgDrawMs * .97f + drawMs * .03f;
