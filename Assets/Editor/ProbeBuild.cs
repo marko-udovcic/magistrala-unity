@@ -14,7 +14,7 @@ namespace Magistrala.EditorTools
         {
             MainScene.EnsureSaved();
             string[] scenes = { MainScene.PATH }; string bake = "";
-            if (Cells) { bake = CellMerge.Bake(); scenes = CellMerge.BuildScenes(); }
+            if (Cells) { bake = NoBake ? "(bake reused)" : CellMerge.Bake(); scenes = CellMerge.BuildScenes(); }
             // MeshColliders cooked at build time, not on the main thread while the scene / a cell loads
             PlayerSettings.bakeCollisionMeshes = Cells;
             PlayerSettings.companyName = "Magistrala"; PlayerSettings.productName = "Magistrala Unity proba";
@@ -31,6 +31,17 @@ namespace Magistrala.EditorTools
         /// phase 3: the cell scenes streamed by StreamingScheduler (-stream 1; -stream 0 loads every cell at the start)
         public static string MacStream() => Streamed(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac-stream/Magistrala.app"));
         public static string MacProfileStream() => Streamed(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/macprof-stream/Magistrala.app", true));
+        /// both phase-3 players from one bake (one editor session): Builds/mac-stream + Builds/macprof-stream
+        public static string MacStreamBoth()
+        {
+            string a = MacStream(); Debug.Log("[probebuild] " + a);
+            bool c = Cells; NoBake = true;
+            try { string b = MacProfileStream(); Debug.Log("[probebuild] " + b); return a + " || " + b; } finally { NoBake = false; Cells = c; }
+        }
+        /// scripts-only rebuild of Builds/mac-stream: the cell scenes / manifest of the last MacStream bake on disk are reused
+        public static string MacStreamNoBake() { NoBake = true; try { var r = MacStream(); Debug.Log("[probebuild] " + r); return r; } finally { NoBake = false; } }
+        /// the second build of MacStreamBoth: the bake of the first one is still on disk
+        static bool NoBake;
         public static string MacPlain() => Plain(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac-plain/Magistrala.app"));
         public static string MacProfilePlain() => Plain(() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/macprof-plain/Magistrala.app", true));
         [MenuItem("Magistrala/Build macOS")] public static string Mac() => Build(BuildTarget.StandaloneOSX, BuildTargetGroup.Standalone, "Builds/mac/Magistrala.app");
