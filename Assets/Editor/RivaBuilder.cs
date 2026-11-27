@@ -261,7 +261,7 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ meshes
-        class Chunk { public List<Vector3> v = new List<Vector3>(); public List<Vector2> u = new List<Vector2>(); public List<int>[] t = { new List<int>(), new List<int>(), new List<int>(), new List<int>() }; }
+        class Chunk { public List<Vector3> v = new List<Vector3>(); public List<Vector2> u = new List<Vector2>(); public List<int>[] t = { new List<int>(), new List<int>(), new List<int>(), new List<int>(), new List<int>() }; }
         static Dictionary<(int, int), Chunk> chunks;
         const float CH = 128;
         static Chunk At(Vector3 p) { var k = ((int)Math.Floor(p.x / CH), (int)Math.Floor(p.z / CH)); if (!chunks.TryGetValue(k, out var c)) chunks[k] = c = new Chunk(); return c; }
@@ -310,10 +310,51 @@ namespace Magistrala.EditorTools
                     Vector2 Uv(float t, float y) => new Vector2((along + t) / s, y / s);
                     Tri((int)mat, ua, ub, lb, Uv(0, ua.y), Uv(L, ub.y), Uv(L, lb.y), face);
                     Tri((int)mat, ua, lb, la, Uv(0, ua.y), Uv(L, lb.y), Uv(0, la.y), face);
+                    if (wall)
+                    {
+                        // 35 cm stone coping facing the sea, 14 mm above the paving.
+                        var inset = -face * .35f;
+                        var ca = ua + Vector3.up * .014f; var cb = ub + Vector3.up * .014f;
+                        Tri(1,ca,cb,cb+inset,Uv(0,0),Uv(L,0),Uv(L,.35f),Vector3.up);
+                        Tri(1,ca,cb+inset,ca+inset,Uv(0,0),Uv(L,.35f),Uv(0,.35f),Vector3.up);
+                        // Fixed arc-length spacing continues over short ring segments.
+                        for (float t = Mathf.Ceil((along + .01f) / 22f) * 22f - along; t < L; t += 22f)
+                        {
+                            if (along+t < 3) continue;
+                            var b0 = Vector3.Lerp(ua,ub,t/L) - face*.65f;
+                            b0.y = height(W.G(b0).x,W.G(b0).y) + .015f;
+                            MooringBollard(b0, (ub-ua).normalized);
+                        }
+                    }
                     along += L; if (wall) nw++; else nk++;
                 }
             }
             return (nw, nk);
+        }
+
+        // Low-poly cast iron bitva; combined with its chunk, including the collider mesh.
+        static void MooringBollard(Vector3 b, Vector3 along)
+        {
+            void Cylinder(Vector3 centre, Vector3 axis, float length, float radius)
+            {
+                axis.Normalize(); var u = Vector3.Cross(axis,Vector3.up);
+                if (u.sqrMagnitude < .01f) u = Vector3.right;
+                u.Normalize(); var v = Vector3.Cross(axis,u).normalized;
+                var lo = centre-axis*length*.5f; var hi = centre+axis*length*.5f;
+                for (int i=0;i<10;i++)
+                {
+                    float a=i*Mathf.PI*.2f, c=(i+1)*Mathf.PI*.2f;
+                    var n0=(u*Mathf.Cos(a)+v*Mathf.Sin(a)); var n1=(u*Mathf.Cos(c)+v*Mathf.Sin(c));
+                    var p0=lo+n0*radius; var p1=lo+n1*radius; var p2=hi+n1*radius; var p3=hi+n0*radius;
+                    Tri(4,p0,p1,p2,Vector2.zero,Vector2.right,Vector2.one,(n0+n1).normalized);
+                    Tri(4,p0,p2,p3,Vector2.zero,Vector2.one,Vector2.up,(n0+n1).normalized);
+                    Tri(4,lo,p1,p0,Vector2.zero,Vector2.zero,Vector2.zero,-axis);
+                    Tri(4,hi,p3,p2,Vector2.zero,Vector2.zero,Vector2.zero,axis);
+                }
+            }
+            Cylinder(b+Vector3.up*.035f,Vector3.up,.07f,.21f);
+            Cylinder(b+Vector3.up*.24f,Vector3.up,.42f,.105f);
+            Cylinder(b+Vector3.up*.44f,along,.48f,.115f);
         }
 
         static Material Mat(string name, Color c, float smooth, string tex, string nrm, float nrmScale)
@@ -342,7 +383,10 @@ namespace Magistrala.EditorTools
             var asph = AssetDatabase.LoadAssetAtPath<Material>(WorldBuilder.GEN + "/Materials/AsphaltFlat.mat") ?? GraphicsPass.AsphaltMaterial();
             var soil = Mat("RivaZemlja", new Color(.42f, .36f, .3f), .05f, "soil_ochre_d.jpg", null, 1);
             var paint = WorldBuilder.Lit("RivaCrte", new Color(.93f, .93f, .9f), .3f);
-            var mats = new[] { paveMat, wallMat, asph, soil };
+            paveMat = CesteMaterials.Stone(paveMat, "riva_ploce");
+            wallMat = CesteMaterials.Stone(wallMat, "riva_rub", true, true);
+            var iron = WorldBuilder.Lit("RivaBitve", new Color(.12f,.13f,.13f), .28f, .7f);
+            var mats = new[] { paveMat, wallMat, asph, soil, iron };
 
             // the paving heights: computed once per vertex (cache by position: the rings share the mesh's boundary vertices)
             var cache = SmoothHeights(MiniJson.L(d["paving"]));
@@ -374,7 +418,7 @@ namespace Magistrala.EditorTools
                 // welded per material (identical position + uv)
                 var V = new List<Vector3>(); var U = new List<Vector2>(); var subs = new List<int[]>(); var sm = new List<Material>();
                 var col = new List<int>();
-                for (int k = 0; k < 4; k++)
+                for (int k = 0; k < 5; k++)
                 {
                     if (ch.t[k].Count == 0) continue;
                     var map = new Dictionary<(Vector3, Vector2), int>(); var ix = new int[ch.t[k].Count];

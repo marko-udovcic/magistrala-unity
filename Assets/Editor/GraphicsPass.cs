@@ -58,6 +58,7 @@ namespace Magistrala.EditorTools
             m.SetFloat("_WearTiling", 5f); m.SetFloat("_WearMean", .113f); m.SetFloat("_WearAmount", .5f); m.SetFloat("_WearScale", 38f);
             m.SetFloat("_BumpScale", .8f);
             m.SetColor("_BaseColor", new Color(.31f, .305f, .297f)); m.SetFloat("_SmoothMin", .1f); m.SetFloat("_SmoothMax", .3f); m.SetFloat("_SheenAmount", .3f); m.SetFloat("_TrackSmooth", .06f); m.SetFloat("_TrackDarken", .16f); m.SetFloat("_PatchAmount", .25f); m.SetFloat("_ColorVar", .12f);
+            CesteMaterials.Asphalt(m);
             EditorUtility.SetDirty(m);
             return m;
         }

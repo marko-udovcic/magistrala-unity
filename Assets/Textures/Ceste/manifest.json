@@ -1,0 +1,249 @@
+{
+  "_info": {
+    "date": "2026-11-26",
+    "normalConvention": "OpenGL (Y+)",
+    "suffixes": {
+      "_d": "albedo (PNG+alpha for decals)",
+      "_n": "normal",
+      "_r": "roughness"
+    },
+    "sizeMeters": "real-world size covered by one texture tile (for UV tiling)"
+  },
+  "asfalt": {
+    "source": "polyhaven",
+    "sourceId": "asphalt_04",
+    "url": "https://polyhaven.com/a/asphalt_04",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      4.04,
+      4.04
+    ],
+    "maps": [
+      "d",
+      "n",
+      "r"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "base worn road asphalt, grey with light aggregate"
+  },
+  "asfalt_zakrpa": {
+    "source": "polyhaven",
+    "sourceId": "clean_asphalt",
+    "url": "https://polyhaven.com/a/clean_asphalt",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      2.1,
+      2.1
+    ],
+    "maps": [
+      "d",
+      "n",
+      "r"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "darker newer patch asphalt"
+  },
+  "pukotine": {
+    "source": "generated",
+    "sourceId": "Tools/ceste/gen_decals.py",
+    "url": null,
+    "licence": "Own procedural texture (Python/numpy, gen_decals.py), CC0 / project-owned",
+    "sizeMeters": [
+      8.0,
+      8.0
+    ],
+    "maps": [
+      "d"
+    ],
+    "resolution": 2048,
+    "changed": "tileable; RGB = dark tar, alpha = crack-sealing line mask (FFT noise zero-crossings, masked for sparsity)",
+    "generated": true,
+    "use": "crack-sealing tar lines overlay"
+  },
+  "ulje": {
+    "source": "generated",
+    "sourceId": "Tools/ceste/gen_decals.py",
+    "url": null,
+    "licence": "Own procedural texture (Python/numpy, gen_decals.py), CC0 / project-owned",
+    "sizeMeters": [
+      1.5,
+      1.5
+    ],
+    "maps": [
+      "d"
+    ],
+    "resolution": 1024,
+    "changed": "single oil stain blob with drips; alpha max ~0.8",
+    "generated": true,
+    "use": "oil stain decal"
+  },
+  "sahta": {
+    "source": "generated",
+    "sourceId": "Tools/ceste/gen_decals.py",
+    "url": null,
+    "licence": "Own procedural texture (Python/numpy, gen_decals.py), CC0 / project-owned",
+    "sizeMeters": [
+      0.8,
+      0.8
+    ],
+    "maps": [
+      "d",
+      "n"
+    ],
+    "resolution": 1024,
+    "changed": "round cast-iron cover: frame 0.80 m, lid 0.62 m, diamond grid + 2 pick holes, NO text/logos; normal from own height map",
+    "generated": true,
+    "use": "manhole cover decal"
+  },
+  "resetka": {
+    "source": "generated",
+    "sourceId": "Tools/ceste/gen_decals.py",
+    "url": null,
+    "licence": "Own procedural texture (Python/numpy, gen_decals.py), CC0 / project-owned",
+    "sizeMeters": [
+      0.5,
+      0.5
+    ],
+    "maps": [
+      "d",
+      "n"
+    ],
+    "resolution": 1024,
+    "changed": "square road gully grate: frame 0.50 m, grate 0.40 m, slots, no lettering; normal from own height map. (ambientCG Grate002 rejected: cast lettering on frame)",
+    "generated": true,
+    "use": "drain grate decal"
+  },
+  "rubnjak": {
+    "source": "polyhaven",
+    "sourceId": "gravel_concrete_04",
+    "url": "https://polyhaven.com/a/gravel_concrete_04",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      2.0,
+      2.0
+    ],
+    "maps": [
+      "d",
+      "n",
+      "r"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "precast grey concrete kerb"
+  },
+  "otok": {
+    "source": "polyhaven",
+    "sourceId": "cobblestone_floor_08",
+    "url": "https://polyhaven.com/a/cobblestone_floor_08",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      2.0,
+      2.0
+    ],
+    "maps": [
+      "d",
+      "n"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "junction island fill, grey granite cobbles (kocke)"
+  },
+  "riva_ploce": {
+    "source": "polyhaven",
+    "sourceId": "sandstone_blocks_08",
+    "url": "https://polyhaven.com/a/sandstone_blocks_08",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      3.0,
+      3.0
+    ],
+    "maps": [
+      "d",
+      "n",
+      "r"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "riva paving: light large stone slabs"
+  },
+  "riva_rub": {
+    "source": "polyhaven",
+    "sourceId": "seaworn_stone_tiles",
+    "url": "https://polyhaven.com/a/seaworn_stone_tiles",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      2.0,
+      2.0
+    ],
+    "maps": [
+      "d",
+      "n",
+      "r"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "worn riva edge stone (krunište)"
+  },
+  "alge": {
+    "source": "polyhaven",
+    "sourceId": "mossy_rock",
+    "url": "https://polyhaven.com/a/mossy_rock",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      3.0,
+      3.0
+    ],
+    "maps": [
+      "d",
+      "n"
+    ],
+    "resolution": 2048,
+    "changed": "albedo multiplied by (0.55,0.62,0.50): darker, wet, green-brown algae look; normal unchanged",
+    "generated": false,
+    "use": "algae / wet stone at waterline"
+  },
+  "bankina": {
+    "source": "polyhaven",
+    "sourceId": "gravel_floor_02",
+    "url": "https://polyhaven.com/a/gravel_floor_02",
+    "licence": "Poly Haven (polyhaven.com), CC0 1.0",
+    "sizeMeters": [
+      2.0,
+      2.0
+    ],
+    "maps": [
+      "d",
+      "n",
+      "r"
+    ],
+    "resolution": 2048,
+    "changed": "renamed only; 2k JPG, normal already OpenGL (nor_gl)",
+    "generated": false,
+    "use": "light grey crushed-limestone gravel shoulder"
+  },
+  "prasina": {
+    "source": "generated",
+    "sourceId": "Tools/ceste/gen_decals.py",
+    "url": null,
+    "licence": "Own procedural texture (Python/numpy, gen_decals.py), CC0 / project-owned",
+    "sizeMeters": [
+      4.0,
+      4.0
+    ],
+    "maps": [
+      "d"
+    ],
+    "resolution": 2048,
+    "changed": "tileable sand-beige dust, alpha from fBm noise (max ~0.85)",
+    "generated": true,
+    "use": "dust/sand overlay near kerbs and shoulders"
+  }
+}
