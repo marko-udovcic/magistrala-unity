@@ -1,6 +1,6 @@
 // Parked cars (docs/audit-stari.md): static cars of the traffic kinds (TrafficData) in the car parks and along the village streets,
 // placed by Magistrala/Rekviziti: postavi (Assets/Editor/PropsParked.cs). Cars sit in 128 m cells, only the cells near the camera
-// are walked; nothing beyond drawDist. Colliders: static BoxColliders made by the builder (children of this object); in a player /
+// are walked; baked kinds continue as cached low-poly proxies beyond drawDist (ParkedCars.Far.cs). Colliders: static BoxColliders made by the builder (children of this object); in a player /
 // play mode with the cell bake (Assets/Scripts/Cells/CellData.cs) those are taken out and a pool of colliders follows the player
 // (CellColliders), and the cars come in pages per CellGrid cell from the blobs (ICellLayer) instead of the `cars` arrays.
 // Baked kinds (TrafficKind.parked, Assets/Editor/ParkedBake.cs): the kind merged into one mesh per level on one texture atlas
@@ -18,13 +18,14 @@ using UnityEngine.Rendering;
 namespace Magistrala.Traffic
 {
     [DefaultExecutionOrder(10001)]
-    public class ParkedCars : MonoBehaviour, ICellLayer
+    public partial class ParkedCars : MonoBehaviour, ICellLayer
     {
         public TrafficData data;
         /// per car: position (Unity), yaw (deg) in w; kind index into data.kinds; paint index into the kind's paints
         public Vector4[] cars;
         public int[] kind, paint;
-        public float drawDist = 260, shadowDist = 35;   // shadowDist: off-screen cars still drawn into the shadow map
+        [Tooltip("End of the existing car LODs; the proxy crossfades over the final transitionBand metres.")]
+        public float drawDist = 260, shadowDist = 35;   // shadowDist: all baked shadow casters, including off-screen cars
         /// baked kinds: lod1 mesh below lod0Dist, lod2 mesh below lod1Dist, the far mesh beyond (all one atlas material per kind)
         public float lod0Dist = 45, lod1Dist = 90;   // 45 = the traffic's lodMid (lod2 of some kinds has shards)
         /// measuring only: -parked 0 = not drawn, -parkedlegacy = the old far mesh path for every kind
@@ -41,7 +42,7 @@ namespace Magistrala.Traffic
         // instances per call: within every platform's instancing constant buffer (GLES / WebGL 16 KB, 2 matrices + 1 float4)
         const int BATCH = 125;
         /// one CellGrid cell's cars: matrices, tints (paint colour + plate row), kinds, paints; 128 m buckets as ranges
-        sealed class Page { public Matrix4x4[] M; public Vector4[] tint; public int[] kind, paint; public int n; public Vector3[] bc; public int[] bo, bn; public int nb; }
+        sealed class Page { public Matrix4x4[] M; public Vector4[] tint; public int[] kind, paint; public int n; public Vector3[] bc; public int[] bo, bn; public int nb; public FarBatch[] far; public Bounds bounds; }
         readonly List<Page> pages = new List<Page>();
         // legacy far mesh buckets (mesh, submesh, material)
         readonly List<(Mesh mesh, int sub, Material mat)> buckets = new List<(Mesh, int, Material)>();
@@ -66,6 +67,9 @@ namespace Magistrala.Traffic
             {
                 if (i + 1 < a.Length && a[i] == "-parked" && a[i + 1] == "0") Off = true;
                 if (a[i] == "-parkedlegacy") Legacy = true;
+                if (a[i] == "-parkedbaseline") baseline = true;
+                if (a[i] == "-parkedstats") logStats = true;
+                if (a[i] == "-parkedfardebug") farDebug = true;
             }
             if (!fromCells) Init();
         }
@@ -176,7 +180,7 @@ namespace Magistrala.Traffic
             for (int k = 0; k < n; k++) { int r = o + k * CellBlob.PARK_B; Put(pg, k, CellBlob.V4(s.b, r), CellBlob.I(s.b, r + 16), CellBlob.I(s.b, r + 20), CellBlob.V4(s.b, r + 24)); }
             Bucketize(pg); return pg;
         }
-        public void Attach(Vector2Int cell, object page) { var pg = (Page)page; pages.Add(pg); Count += pg.n; }
+        public void Attach(Vector2Int cell, object page) { var pg = (Page)page; if (pg.far == null) BuildFar(pg); pages.Add(pg); Count += pg.n; }
         public void Detach(Vector2Int cell, object page) { var pg = (Page)page; if (pages.Remove(pg)) Count -= pg.n; }
         // phase-3 scheduler (ICellDataSystem names): this system's part of a cell (CellData decodes the cell once for all systems)
         bool Mine => CellData.I && CellData.I.parked == this;
@@ -188,6 +192,7 @@ namespace Magistrala.Traffic
         {
             var pg = (Page)page;
             ArrayPool<Matrix4x4>.Return(pg.M); ArrayPool<Vector4>.Return(pg.tint); ArrayPool<int>.Return(pg.kind); ArrayPool<int>.Return(pg.paint);
+            pg.far = null;
             pg.M = null; pg.tint = null; pg.kind = null; pg.paint = null;
         }
 
@@ -211,28 +216,40 @@ namespace Magistrala.Traffic
         {
             if (!cam) cam = Camera.main;
             sw.Restart(); Draw(cam, null); sw.Stop(); CellStats.Add(CellStats.PARKED, (float)sw.Elapsed.TotalMilliseconds);
+            LogFarStats((float)sw.Elapsed.TotalMilliseconds);
         }
 
         /// collects and submits this frame's draws for camera c (target: only that camera, null = every camera)
         public void Draw(Camera c, Camera target)
         {
-            DrawnLastFrame = 0; CallsMain = 0; CallsShadow = 0; Materials = 0;
+            DrawnLastFrame = 0; CallsMain = 0; CallsShadow = 0; Materials = 0; CallsFar = FarInstances = 0;
+            sampleFarStats = logStats && statsTime + Time.unscaledDeltaTime >= 5;
+            if (sampleFarStats) { visibleProxyInstances = 0; nearestProxyDistance = float.PositiveInfinity; farthestProxyDistance = 0; }
             if (Off || !inited || pages.Count == 0 || !c) return;
+            usedMats.Clear();
             GeometryUtility.CalculateFrustumPlanes(c, planes);
             var cp = c.transform.position;
             for (int i = 0; i < matN.Length; i++) matN[i] = 0;
             for (int i = 0; i < pmN.Length; i++) pmN[i] = 0;
             for (int i = 0; i < psN.Length; i++) psN[i] = 0;
             float k = Mathf.Max(.3f, TreeRenderer.Distance), draw = drawDist * k, sh = shadowDist;
+            float farEnd = Mathf.Max(draw + 1, farDistance * k);
+            float fadeStart = Mathf.Max(lod1Dist, draw - transitionBand);
+            BeginFar(cp, fadeStart, draw, farEnd);
             float draw2 = draw * draw, sh2 = sh * sh, l02 = lod0Dist * lod0Dist, l12 = lod1Dist * lod1Dist;
             for (int pi = 0; pi < pages.Count; pi++)
             {
                 var pg = pages[pi];
+                DrawFar(pg, target ? target : c, cp, fadeStart, farEnd);
                 for (int b = 0; b < pg.nb; b++)
                 {
                     var cc = pg.bc[b];
                     float dx = cc.x - cp.x, dz = cc.z - cp.z;
-                    if (Mathf.Sqrt(dx * dx + dz * dz) - CELL * .71f > draw) continue;
+                    float radius = CELL * .71f;
+                    if (dx * dx + dz * dz > (draw + radius) * (draw + radius)) continue;
+                    // Reject whole offscreen buckets unless they can contain a nearby shadow caster.
+                    if (!baseline && dx * dx + dz * dz > (sh + radius) * (sh + radius) &&
+                        !GeometryUtility.TestPlanesAABB(planes, pg.bounds)) continue;
                     for (int i = pg.bo[b], end = pg.bo[b] + pg.bn[b]; i < end; i++)
                     {
                         ref var m = ref pg.M[i];
@@ -245,7 +262,7 @@ namespace Magistrala.Traffic
                         if (baked[ki])
                         {
                             if (vis) AddP(ki * 3 + (ForceLevel >= 0 ? ForceLevel : dd < l02 ? 0 : dd < l12 ? 1 : 2), m, pg.tint[i]);
-                            AddS(ki * 2 + (dd < l12 ? 0 : 1), m);
+                            if (baseline || dd < sh2) AddS(ki * 2 + (dd < l12 ? 0 : 1), m);
                             continue;
                         }
                         // far mesh path (one list per bucket, all casting: a second, shadow-less list doubled the draws / SetPass calls)
@@ -256,8 +273,8 @@ namespace Magistrala.Traffic
             }
             var wb = new Bounds(cp, Vector3.one * (draw * 2 + 50));
             Shader.SetGlobalVector(ID_FarFadeEye, cp);
-            var fadeBand = new Vector4(Mathf.Max(lod1Dist, draw - 45), draw, 0, 0);
-            usedMats.Clear(); int mi = 0;
+            var fadeBand = new Vector4(Mathf.Max(lod1Dist, draw - (baseline ? 45 : transitionBand)), draw, 0, 0);
+            int mi = 0;
             MaterialPropertyBlock Mpb() { if (mi == mpb.Count) mpb.Add(new MaterialPropertyBlock()); var b = mpb[mi++]; b.Clear(); return b; }
             for (int ki = 0; ki < data.kinds.Length; ki++)
             {
