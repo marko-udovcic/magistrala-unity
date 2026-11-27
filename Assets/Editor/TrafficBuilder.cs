@@ -619,6 +619,9 @@ namespace Magistrala.EditorTools
                 w.deadEnd = true; cors.Add(w);
             }
             else Debug.LogWarning("[traffic] Tuđmana east of Lukšić: no GameWorld (run Igra: podaci) — corridor skipped");
+            // Package lanes continue beyond GraphRoad's unnamed crossroads edge.
+            cors.RemoveAll(c => c.name.StartsWith("Tuđmana"));
+            cors.AddRange(TrafficSideBuilder.EasternMain());
             var (plans, stops) = Signals(models);
             // the real signalised junctions without a model: generic plans, their stop lines
             var extra = ExtraSignals.Load();
@@ -629,11 +632,13 @@ namespace Magistrala.EditorTools
             }
             foreach (var c in cors) PlaceStops(c, stops);
 
+            var sideRoutes = TrafficSideBuilder.Build(cors.ToArray(), plans.ToArray(), stops);
             string path = OUT + "/TrafficData.asset";
             var data = AssetDatabase.LoadAssetAtPath<TrafficData>(path);
             if (data == null) { data = ScriptableObject.CreateInstance<TrafficData>(); AssetDatabase.CreateAsset(data, path); }
             data.corridors = cors.ToArray();
             data.plans = plans.ToArray();
+            data.sideRoutes = sideRoutes;
             data.kinds = Kinds();
             data.farPalette = PaletteMat(pal);
             // parked cars: one mesh per level + one atlas material per parkable kind (ParkedBake)
