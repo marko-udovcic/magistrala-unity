@@ -419,7 +419,7 @@ namespace Magistrala.EditorTools
                 finally { HouseBuilder.Lod = 0; HouseBuilder.Shrink = 0; }
             }
             HouseBuilder.EdgeQuery = null; HouseBuilder.StreetQuery = null; HouseBuilder.RoadQuery = null; HouseBuilder.AcModel = false;
-            Debug.Log($"[Magistrala] paket details: {PaketDetalji.nFrames} window frames, {PaketDetalji.nBalconies} balconies, {PaketDetalji.nPipes} downpipes, {PaketDetalji.nAwnings} awnings (near / mid levels), {PaketDetalji.nSites} construction sites ({PaketDetalji.nBays} scaffolding bays)");
+            Debug.Log($"[Magistrala] paket details: {PaketDetalji.nFrames} window frames, {PaketDetalji.nBalconies} balconies, {PaketDetalji.nPipes} downpipes, {PaketDetalji.nAwnings} awnings (near / mid levels), {PaketDetalji.nSites} construction sites of {PaketDetalji.nSiteCand} candidates ({PaketDetalji.nBays} scaffolding bays) at " + string.Join(" ", PaketDetalji.SiteSpots.ConvertAll(q => $"({q.p.x:F0},{q.p.y:F0},{q.p.z:F0} n {q.n.x:F1},{q.n.z:F1})")));
 
             var hm = HouseBuilder.Materials();
             if (!AssetDatabase.IsValidFolder("Assets/Generated/TileBuildings")) AssetDatabase.CreateFolder("Assets/Generated", "TileBuildings");

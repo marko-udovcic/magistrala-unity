@@ -172,3 +172,11 @@ od dvojne licence), isaiah658 (ambient birds), Thimras (park ambiences), qubodup
 Rieder (zvona Schruns), Nostrifikator (zvono), Tvabutzku1234 (vjetar), earthcalling (more), DavidDelon (cvrčci), cori (kiša,
 grad), stephan (kafana), ezwa (jutro), Extemporalist (prolaz auta). Ostalo (žmigavac, pištalica, truba Galeba, dvotonac rezerva,
 roletna, rampa): vlastita sinteza, CC0.
+
+## Zgrade i detalji (modeli)
+
+- **UKRAINIAN CITY** (kupljeni paket, Asset Store licenca): hale, škola i detalji pročelja (okviri prozora, balkoni, oluci,
+  tende), žbuke Plaster_H / Plaster_J i kamen Brick_E — izmijenjeno (spojeni meshevi, LOD-ovi, teksture u nizu, bez natpisa).
+- "Industrial Building 49 PBR", **CGBuildings**, CGTrader (Royalty Free), izmijenjeno (hala Hala49, materijal iz paketa).
+- "Free Modern Low-Poly Apartment Building", **Pro-pixel**, CGTrader (Royalty Free), izmijenjeno (stambena zgrada, svjetlija fasada).
+- "Scaffolding", CGTrader free model (Royalty Free), izmijenjeno (skele gradilišta).

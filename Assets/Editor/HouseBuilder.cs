@@ -758,7 +758,7 @@ namespace Magistrala.EditorTools
                 else if (Lod == 0 && i == longest && hip) { detailTint = new Color(.47f, .48f, .49f); { againstWall = true; Box(g, Slot.Detail, f.P(.12f, ground, 0), f.along, f.outward, .08f, top - .12f - ground, .08f, false); againstWall = false; } } // downpipe
                 else if (Lod == 0 && road && f.length > 4 && top - ground > 3 && H01(f.P(f.length, top), 43) < .45f) PaketDetalji.Pipe(g, f.origin, f.along, f.outward, f.length - .15f, ground, top - .1f);
                 // "vječna gradnja" (rare: ~1 in 70 unfinished houses along a road): scaffolding on the longest facade and a site fence
-                if (Lod == 0 && road && look.unfinished && i == longest && f.length > 4 && H01(points[0], 53) < .015f)
+                if (Lod == 0 && road && (look.unfinished || look.bare != 0) && i == longest && f.length > 4 && top - ground > 4 && ++PaketDetalji.nSiteCand > 0 && H01(points[0], 53) < .05f)
                     PaketDetalji.Site(g, f.origin, f.along, f.outward, .3f, f.length - .3f, ground, top, Mathf.Min(3.5f, roadD[i] - .8f));
                 if (Lod == 0 && i == dishFacade && f.length > 2.5f && top - ground > 4) Dish(g, f.P(.8f + dishAt * (f.length - 1.6f), top - 1.0f, .02f), f.outward, f.along);
                 // the unfinished storey: concrete columns at the corners and ring beams, between them bare brick

@@ -31,14 +31,19 @@ namespace Magistrala.EditorTools
         public static readonly (string name, bool hall, int cap)[] Models =
         {
             ("Building_E", true, 15000), ("Building_F", true, 15000), ("Building_G", true, 15000), ("Building_5", true, 15000), ("Building_6", true, 15000),
+            // Marko's free CGTrader models (Royalty Free, modified; sources in Assets/Models/Paket/Izvor, not in git): "Industrial
+            // Building 49 PBR" by CGBuildings (a grey sheet-metal hall) and "Free Modern Low-Poly Apartment Building" by Pro-pixel
+            ("Hala49", true, 15000), ("Stambena", false, 35000),
             ("Building_2", false, 30000), ("Building_8", false, 30000), ("Building_10", false, 30000), ("Building_H", false, 30000), ("Building_9", false, 30000),
         };
+        /// the source of a model: the pack's prefab, or a model file of ours
+        public static string Source(string name) => name == "Hala49" ? OUT + "Izvor/hala49.fbx" : name == "Stambena" ? OUT + "Izvor/stambena.glb" : SRC + "Prefabs/Buildings/" + name + ".prefab";
         /// never baked: Cyrillic signage / ads / house numbers, projected decals, transparent bits, ground pieces under the building
         static readonly string[] StripWords = { "advert", "sign", "address", "poster", "banner", "number", "label", "graffiti", "decal", "plate", "boombarrier", "pavement", "curb", "dirt", "grass" };
 
         // ------------------------------------------------------------------ materials -> layers
         public sealed class Lay { public int layer; public Color tint; public bool tri, cut; public float scale; public Vector2 tiling; public float gloss; public string key; }
-        public sealed class LayerSrc { public string baseTex, normalTex, maskTex; public Vector2 smooth; public bool cut; public Color mean; public float gloss = .2f; }
+        public sealed class LayerSrc { public string baseTex, normalTex, maskTex; public Vector2 smooth; public bool cut; public Color mean; public float gloss = .2f; public bool lighten; }
 
         static readonly Dictionary<string, int> layerOf = new Dictionary<string, int>();
         internal static readonly List<LayerSrc> layers = new List<LayerSrc>();
@@ -51,7 +56,7 @@ namespace Magistrala.EditorTools
         {
             if (!m) return true;
             string s = m.shader.name.ToLowerInvariant(), n = m.name.ToLowerInvariant();
-            if (s.Contains("decal") || s.Contains("transparent")) return true;
+            if (s.Contains("decal") || s.Contains("lit_transparent")) return true;
             foreach (var w in StripWords) if (n.Contains(w)) return true;
             var bt = TexPath(m, "_BaseColor") ?? TexPath(m, "_Base_Color_MN") ?? TexPath(m, "_BaseMap");
             if (bt != null) { var b = Path.GetFileName(bt).ToLowerInvariant(); foreach (var w in StripWords) if (b.Contains(w)) return true; }
@@ -62,6 +67,12 @@ namespace Magistrala.EditorTools
         public static Lay LayOf(Material m)
         {
             if (lays.TryGetValue(m, out var l)) return l;
+            // Hala49 comes without its textures (the FBX only): the pack's corrugated sheet metal, triplanar, light grey
+            if (m.name == "IBuilding49")
+            {
+                var ms = AssetDatabase.LoadAssetAtPath<Material>(SRC + "Materials/Unique/MetalSheet_B.mat");
+                if (ms) { var b = LayOf(ms); return lays[m] = new Lay { layer = b.layer, tri = true, scale = b.tri ? b.scale : .5f, tiling = Vector2.one, tint = new Color(.6f, .62f, .62f).linear, gloss = 1, key = b.key }; }
+            }
             string sh = m.shader.name;
             bool blend = sh.Contains("TriplanarBlend"), urp = sh.StartsWith("Universal Render Pipeline");
             string bt, nt, mt; Color c; bool tri; float ws; Vector2 tiling, sm;
@@ -71,9 +82,22 @@ namespace Magistrala.EditorTools
                 c = m.GetColor("_Color_MN"); tri = m.GetFloat("_Triplanar_MN") > .5f; ws = m.GetFloat("_World_Scale_MN");
                 var t4 = m.GetVector("_Tiling_MN"); tiling = new Vector2(t4.x, t4.y); var s4 = m.GetVector("_Smoothness_Remap_MN"); sm = new Vector2(s4.x, s4.y);
             }
+            else if (Has(m, "baseColorTexture"))
+            {
+                // glTFast (glTF-pbrMetallicRoughness): base colour factor x texture, normal; roughness factor
+                bt = TexPath(m, "baseColorTexture"); nt = TexPath(m, "normalTexture"); mt = null;
+                c = Has(m, "baseColorFactor") ? m.GetColor("baseColorFactor") : Color.white; tri = false; ws = 1; tiling = Vector2.one;
+                float rgh = Has(m, "roughnessFactor") ? m.GetFloat("roughnessFactor") : .8f; sm = new Vector2(1 - rgh, 1 - rgh);
+                // glass (balcony railings, windows): opaque, dark blue-grey and glossy
+                if (m.renderQueue >= 3000 || c.a < .9f) { c = new Color(.36f, .42f, .46f); sm = new Vector2(.85f, .85f); }
+                // the apartment block's charcoal render / dark trims (untextured colours): a light render instead (Kaštela: white,
+                // light grey, warm beige by the variants); the ochre / wood accents stay
+                else if (.3f * c.r + .59f * c.g + .11f * c.b < .3f) c = Color.Lerp(c, new Color(.9f, .88f, .84f), .85f);
+            }
             else if (urp)
             {
-                bt = TexPath(m, "_BaseMap"); nt = TexPath(m, "_BumpMap"); mt = null; c = Has(m, "_BaseColor") ? m.GetColor("_BaseColor") : Color.white;
+                bt = TexPath(m, "_BaseMap") ?? TexPath(m, "_MainTex"); nt = TexPath(m, "_BumpMap"); mt = null;
+                c = Has(m, "_BaseColor") ? m.GetColor("_BaseColor") : Has(m, "_Color") ? m.GetColor("_Color") : Color.white;
                 tri = false; ws = 1; tiling = Vector2.one; sm = new Vector2(0, Has(m, "_Smoothness") ? m.GetFloat("_Smoothness") : .2f);
             }
             else
@@ -336,6 +360,14 @@ namespace Magistrala.EditorTools
                     o[i] = new Color32(n[i].r, n[i].g, cut, 255);
                 }
                 s.mean = new Color((float)(mr / a.Length), (float)(mg / a.Length), (float)(mb / a.Length));
+                // a dark facade (the apartment block's charcoal render) brought up to a light render: the variants tint it
+                float lum = .3f * s.mean.r + .59f * s.mean.g + .11f * s.mean.b;
+                if (s.lighten && lum < .3f)
+                {
+                    float kk = .5f / Mathf.Max(.02f, lum);
+                    for (int i = 0; i < a.Length; i++) { var lc = ((Color)a[i]).linear * kk; var gc = lc.gamma; a[i] = new Color32((byte)Mathf.Clamp(gc.r * 255, 0, 255), (byte)Mathf.Clamp(gc.g * 255, 0, 255), (byte)Mathf.Clamp(gc.b * 255, 0, 255), 255); }
+                    s.mean *= kk;
+                }
                 s.gloss = (float)(gs / a.Length);
                 alb.Add(a); nor.Add(o);
             }
@@ -425,11 +457,20 @@ namespace Magistrala.EditorTools
             var baked = new List<(string name, bool hall, List<Part> l0, List<Part> l1, Bounds bb)>();
             foreach (var (name, hall, cap) in Models)
             {
-                var pf = AssetDatabase.LoadAssetAtPath<GameObject>(SRC + "Prefabs/Buildings/" + name + ".prefab");
+                var pf = AssetDatabase.LoadAssetAtPath<GameObject>(Source(name));
                 if (!pf) { log.Append(name + " missing; "); continue; }
                 var inst = (GameObject)Object.Instantiate(pf); inst.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity); inst.transform.localScale = Vector3.one;
                 log.Append(name + ":");
                 var parts = Parts(inst, log); Object.DestroyImmediate(inst);
+                if (name == "Stambena")
+                {
+                    // its facade: the layer with the most wall area, lightened (white / light grey / beige by the variants)
+                    var wallA = new Dictionary<int, float>();
+                    foreach (var p in parts) { float va = 0; for (int t = 0; t < p.v.Length; t += 3) { var fn = Vector3.Cross(p.v[t + 1] - p.v[t], p.v[t + 2] - p.v[t]); if (Mathf.Abs(fn.normalized.y) < .3f) va += fn.magnitude * .5f; } wallA[p.lay.layer] = (wallA.TryGetValue(p.lay.layer, out var q) ? q : 0) + va; }
+                    float tot = wallA.Values.Sum();
+                    foreach (var kv in wallA) if (kv.Key != 0 && kv.Value > tot * .08f && layers[kv.Key].baseTex != null) layers[kv.Key].lighten = true;
+                }
+                if (parts.Count == 0) { log.Append(" nothing left\n"); continue; }
                 var l0 = Cap(parts, cap); var l1 = Cap(l0, Mathf.RoundToInt(l0.Sum(p => p.tri.Length / 3) * .25f));
                 var bb = l0[0].b; foreach (var p in l0) bb.Encapsulate(p.b);
                 baked.Add((name, hall, l0, l1, bb));
@@ -441,13 +482,14 @@ namespace Magistrala.EditorTools
             foreach (var bk in baked) if (usedModels.Count == 0 || usedModels.Contains(bk.name)) foreach (var p in bk.l0) if (!remap.ContainsKey(p.lay.layer)) { remap[p.lay.layer] = keep.Count; keep.Add(p.lay.layer); }
             foreach (var l in lays.Values) l.layer = remap.TryGetValue(l.layer, out var nl) ? nl : 0;
             var kept = keep.Select(i => layers[i]).ToList(); layers.Clear(); layers.AddRange(kept);
-            baked = baked.Where(bk => usedModels.Count == 0 || usedModels.Contains(bk.name)).ToList();
+            bool Used(string nm) => usedModels.Count == 0 || usedModels.Contains(nm);
             var (alb, nor) = LayerPixels(layers, TEX);
             var aA = Strip(alb, TEX, true, OUT + "paket_albedo.jpg", 90); var aN = Strip(nor, TEX, false, OUT + "paket_normal.jpg", 92);
             foreach (var f in new[] { "paket_albedo.asset", "paket_normal.asset" }) AssetDatabase.DeleteAsset(OUT + f);
             foreach (var (suf, tint) in Variants) { Mat("Paket" + suf, false, aA, aN, tint); Mat("PaketCut" + suf, true, aA, aN, tint); }
             foreach (var (name, hall, l0, l1, bb) in baked)
             {
+                bool used = Used(name);
                 var g0 = new Geo(); var g1 = new Geo();
                 float dirt = hall ? .45f : .3f;
                 foreach (var p in l0) Emit(g0, p, bb.min.y, dirt);
@@ -460,7 +502,7 @@ namespace Magistrala.EditorTools
                     int o = g.v.Count; g.v.AddRange(sk.v); g.n.AddRange(sk.n); g.uv.AddRange(sk.uv); g.d.AddRange(sk.d);
                     foreach (var k in sk.c) g.c.Add(new Color(.42f, .41f, .39f)); foreach (var t in sk.sub[0]) g.sub[0].Add(o + t);
                 }
-                Save(ToMesh(g0, name + "_lod0"), name + "_lod0"); Save(ToMesh(g1, name + "_lod1"), name + "_lod1"); Save(ToMesh(g2, name + "_lod2"), name + "_lod2");
+                if (used) { Save(ToMesh(g0, name + "_lod0"), name + "_lod0"); Save(ToMesh(g1, name + "_lod1"), name + "_lod1"); Save(ToMesh(g2, name + "_lod2"), name + "_lod2"); }
                 // footprint from the vertices up to 1.5 m; front = the long side with more glass / door area
                 var low = l0.Where(p => !p.lay.cut).SelectMany(p => p.v).Where(v => v.y < bb.min.y + 1.5f).Select(v => new Vector2(Mathf.Round(v.x * 20) / 20, Mathf.Round(v.z * 20) / 20));
                 var (c, ax, len, wid) = Obb(low);
@@ -476,7 +518,7 @@ namespace Magistrala.EditorTools
                 meta.models.Add(new ModelMeta { name = name, hall = hall, cx = c.x, cz = c.y, len = len, wid = wid, ax = ax.x, az = ax.y, height = bb.size.y, fill = fill, frontX = front.x, frontZ = front.y, tris0 = g0.Tris, tris1 = g1.Tris, tris2 = g2.Tris, layers = layers.Count });
                 log.Append($"{name}: {len:F1} x {wid:F1} x {bb.size.y:F1} m, fill {fill:F2}, front ({front.x:F2},{front.y:F2}), tris {g0.Tris}/{g1.Tris}/{g2.Tris}\n");
             }
-            foreach (var (name, _, _) in Models) if (!baked.Any(b => b.name == name)) foreach (var l in new[] { "_lod0", "_lod1", "_lod2" }) AssetDatabase.DeleteAsset(OUT + name + l + ".asset");
+            foreach (var (name, _, _) in Models) if (!Used(name) || !baked.Any(b => b.name == name)) foreach (var l in new[] { "_lod0", "_lod1", "_lod2" }) AssetDatabase.DeleteAsset(OUT + name + l + ".asset");
             foreach (var om in Meta()) if (!meta.models.Any(x => x.name == om.name)) meta.models.Add(om); // models not placed: measured earlier
             meta.layerKeys = layers.Select(l => (l.baseTex ?? "-") + (l.cut ? " (cut)" : "")).ToList();
             File.WriteAllText(META, JsonUtility.ToJson(meta, true)); AssetDatabase.ImportAsset(META);
@@ -501,7 +543,7 @@ namespace Magistrala.EditorTools
         // ------------------------------------------------------------------ matching
         [Serializable] public sealed class Placement
         {
-            public string id, osm, type, name, model; public int nAlong = 1, nAcross = 1, variant; public bool mirror;
+            public string id, osm, type, name, model; public int nAlong = 1, nAcross = 1, variant; public bool mirror; public float sy = 1;
             public double gx, gz; public float ux, uz, sx, sz, len, wid; // centre (game), long axis (unity xz), per-axis scale of one unit, target OBB
             public float fx, fz; // front direction (unity xz)
             public List<string> ids = new List<string>(); // the tile buildings it replaces
@@ -596,6 +638,44 @@ namespace Magistrala.EditorTools
                 res.placements.Add(best); useCount[best.model] = (useCount.TryGetValue(best.model, out var k) ? k : 0) + 1;
                 if (rect < .8) nRect++;
             }
+            // newer 3-5 storey apartment blocks (Stambena): the storey index (eaves 9-17 m), a near-square footprint the model fits
+            // (±15 %), in Kaštela, at most 8, at least 400 m apart, picked in a fixed pseudo-random order
+            var st = models.FirstOrDefault(m => m.name == "Stambena"); int nApt = 0;
+            const string KATOVI = "Assets/Generated/Game/Resources/katovi-index.json";
+            if (st != null && File.Exists(KATOVI))
+            {
+                var kat = MiniJson.O(MiniJson.Parse(File.ReadAllText(KATOVI)));
+                var cand = new List<(double key, Placement p)>();
+                foreach (var ro in MiniJson.L(kat["b"]))
+                {
+                    var r = MiniJson.L(ro); string id = (string)r[0]; double h = MiniJson.D(r[4]);
+                    if (h < 9 || h > 17 || res.placements.Any(p => p.ids.Contains(id))) continue;
+                    var xs = MiniJson.L(r[5]); var gp = new List<Vector2>(); double cx = 0, cz = 0;
+                    for (int i = 0; i + 1 < xs.Count; i += 2) { double x = MiniJson.D(xs[i]), z = MiniJson.D(xs[i + 1]); gp.Add(new Vector2((float)x, (float)z)); cx += x; cz += z; }
+                    if (gp.Count < 4) continue; cx /= gp.Count; cz /= gp.Count;
+                    if (cx < -10240 || cx > -400 || cz > -3800) continue;
+                    double area = 0; for (int i = 0; i < gp.Count; i++) { var a = gp[i]; var b = gp[(i + 1) % gp.Count]; area += a.x * b.y - b.x * a.y; } area = Math.Abs(area) / 2;
+                    var (oc, oax, len, wid) = Obb(gp.Select(q => { var u = W.U(q.x, 0, q.y); return new Vector2(u.x, u.z); }));
+                    if (area / (len * wid) < .85) continue;
+                    float sl = len / st.len, sw = wid / st.wid;
+                    if (sl < SMIN || sl > SMAX || sw < SMIN || sw > SMAX) continue;
+                    var gc = W.G(new Vector3(oc.x, 0, oc.y));
+                    var pl = new Placement { id = id, model = "Stambena", type = "stambena", sx = sl, sz = sw, len = len, wid = wid, gx = gc.x, gz = gc.y, ux = oax.x, uz = oax.y,
+                        sy = Mathf.Clamp((float)(h + 1.5) / st.height, SMIN, SMAX) };
+                    pl.ids.Add(id); cand.Add((Hash(cx * .37, cz * .91), pl));
+                }
+                foreach (var (_, pl) in cand.OrderBy(c => c.key))
+                {
+                    if (nApt >= 8) break;
+                    if (res.placements.Any(q => q.model == "Stambena" && (q.gx - pl.gx) * (q.gx - pl.gx) + (q.gz - pl.gz) * (q.gz - pl.gz) < 400 * 400)) continue;
+                    var A = new Vector2(pl.ux, pl.uz); var S = new Vector2(-A.y, A.x); var cu = W.U(pl.gx, 0, pl.gz);
+                    double Cl(Vector2 d) { var g = W.G(new Vector3(cu.x + d.x * (pl.wid / 2 + 3), 0, cu.z + d.y * (pl.wid / 2 + 3))); return Yards.Clear(g.x, g.y).clear; }
+                    var fr = Cl(S) <= Cl(-S) ? S : -S; pl.fx = fr.x; pl.fz = fr.y;
+                    pl.mirror = Hash(pl.gx, pl.gz) < .5; pl.variant = (int)(Hash(pl.gx + 7, pl.gz) * Variants.Length) % Variants.Length;
+                    res.placements.Add(pl); nApt++;
+                }
+                if (nApt > 0) useCount["Stambena"] = nApt;
+            }
             File.WriteAllText(PLACE_JSON, JsonUtility.ToJson(res, true)); AssetDatabase.ImportAsset(PLACE_JSON); replaced = null;
             log.Append($"placements {res.placements.Count} (protected {nProt}, no fit {nNoFit}): " + string.Join(", ", useCount.Select(kv => kv.Key + " " + kv.Value)));
             return log.ToString();
@@ -650,7 +730,7 @@ namespace Magistrala.EditorTools
                         float y = (float)(gmax - Math.Min(.6, (gmax - gmin) * .3));
                         unitGo.transform.localPosition = new Vector3(uc.x, y, uc.z);
                         unitGo.transform.localRotation = Quaternion.LookRotation(fr, Vector3.up);
-                        unitGo.transform.localScale = new Vector3(mir ? -p.sx : p.sx, 1, p.sz);
+                        unitGo.transform.localScale = new Vector3(mir ? -p.sx : p.sx, p.sy > 0 ? p.sy : 1, p.sz);
                         var Ri = Quaternion.Inverse(Quaternion.LookRotation(mF, Vector3.up));
                         var mg = new GameObject("m"); mg.isStatic = true; mg.transform.SetParent(unitGo.transform, false);
                         mg.transform.localRotation = Ri; mg.transform.localPosition = Ri * -mc;

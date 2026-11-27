@@ -72,7 +72,7 @@ namespace Magistrala.EditorTools
         // the plank: the flat, wide part of the bay
         static bool IsWood(PaketZgrade.Part p) => p.b.size.y < .15f || p.b.size.y < Mathf.Min(p.b.size.x, p.b.size.z) * .2f;
 
-        public static int nSites, nBays;
+        public static int nSites, nBays, nSiteCand; public static readonly List<(Vector3 p, Vector3 n)> SiteSpots = new List<(Vector3, Vector3)>();
         /// a construction site on the facade (x0..x1 along it): scaffolding bays stacked to the eaves, 0.25 m off the wall, and the
         /// site fence `fenceOut` m in front (on the yard side of the road)
         public static void Site(HouseGeo g, Vector3 origin, Vector3 along, Vector3 outward, float x0, float x1, float ground, float top, float fenceOut)
@@ -90,7 +90,7 @@ namespace Magistrala.EditorTools
                 float fw = (x1 - x0 + 2) / nf;
                 for (int i = 0; i < nf; i++) Put(g, "ograda", origin + along * (x0 - 1 + (i + .5f) * fw) + Vector3.up * ground, along, outward, fw / f.size.x, 1, 1, fenceOut, ground, Color.white);
             }
-            nSites++;
+            nSites++; SiteSpots.Add((origin + along * ((x0 + x1) / 2) + Vector3.up * ground, outward));
         }
 
         // ------------------------------------------------------------------ emission (HouseBuilder)
@@ -105,7 +105,7 @@ namespace Magistrala.EditorTools
         }
         public static bool Ready => Get("okvir_f") != null;
         public static int nFrames, nBalconies, nPipes, nAwnings;
-        public static void ResetCounts() { nFrames = nBalconies = nPipes = nAwnings = nSites = nBays = 0; cache.Clear(); }
+        public static void ResetCounts() { nFrames = nBalconies = nPipes = nAwnings = nSites = nBays = nSiteCand = 0; SiteSpots.Clear(); cache.Clear(); }
 
         /// one detail into the house mesh: canonical (x, y, z) -> origin + along * x * sx + up * y * sy + outward * (z0 + z * sz)
         static void Put(HouseGeo g, string key, Vector3 origin, Vector3 along, Vector3 outward, float sx, float sy, float sz, float z0, float ground, Color tint)

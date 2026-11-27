@@ -16,7 +16,7 @@
             "tris0": 8046,
             "tris1": 1434,
             "tris2": 516,
-            "layers": 36
+            "layers": 38
         },
         {
             "name": "Building_F",
@@ -34,7 +34,7 @@
             "tris0": 8712,
             "tris1": 5872,
             "tris2": 562,
-            "layers": 36
+            "layers": 38
         },
         {
             "name": "Building_G",
@@ -52,7 +52,7 @@
             "tris0": 14978,
             "tris1": 4560,
             "tris2": 556,
-            "layers": 36
+            "layers": 38
         },
         {
             "name": "Building_5",
@@ -70,7 +70,7 @@
             "tris0": 14116,
             "tris1": 3652,
             "tris2": 920,
-            "layers": 36
+            "layers": 38
         },
         {
             "name": "Building_6",
@@ -88,7 +88,43 @@
             "tris0": 14548,
             "tris1": 3606,
             "tris2": 646,
-            "layers": 36
+            "layers": 38
+        },
+        {
+            "name": "Hala49",
+            "hall": true,
+            "cx": 0.0,
+            "cz": 0.05000019073486328,
+            "len": 37.5,
+            "wid": 17.0,
+            "ax": 1.0,
+            "az": 0.0,
+            "height": 9.707708358764649,
+            "fill": 1.0254533290863038,
+            "frontX": 0.0,
+            "frontZ": 1.0,
+            "tris0": 15113,
+            "tris1": 5785,
+            "tris2": 1668,
+            "layers": 38
+        },
+        {
+            "name": "Stambena",
+            "hall": false,
+            "cx": 0.0,
+            "cz": 0.0,
+            "len": 20.600000381469728,
+            "wid": 20.600000381469728,
+            "ax": 1.0,
+            "az": 0.0,
+            "height": 16.045976638793947,
+            "fill": 1.040926218032837,
+            "frontX": 0.0,
+            "frontZ": 1.0,
+            "tris0": 34812,
+            "tris1": 8772,
+            "tris2": 1230,
+            "layers": 38
         },
         {
             "name": "Building_2",
@@ -106,7 +142,7 @@
             "tris0": 27844,
             "tris1": 7088,
             "tris2": 990,
-            "layers": 36
+            "layers": 38
         },
         {
             "name": "Building_8",
@@ -124,7 +160,7 @@
             "tris0": 28748,
             "tris1": 7340,
             "tris2": 1160,
-            "layers": 45
+            "layers": 38
         },
         {
             "name": "Building_10",
@@ -142,7 +178,7 @@
             "tris0": 29658,
             "tris1": 7344,
             "tris2": 616,
-            "layers": 45
+            "layers": 38
         },
         {
             "name": "Building_H",
@@ -160,7 +196,7 @@
             "tris0": 30178,
             "tris1": 7680,
             "tris2": 1240,
-            "layers": 45
+            "layers": 38
         },
         {
             "name": "Building_9",
@@ -178,7 +214,7 @@
             "tris0": 30076,
             "tris1": 7600,
             "tris2": 940,
-            "layers": 45
+            "layers": 38
         }
     ],
     "layerKeys": [
@@ -213,6 +249,8 @@
         "Assets/OdesaUkraine/Textures/Window_F/Window_F_BaseMap.png",
         "Assets/OdesaUkraine/Textures/RoofTiles_A/RoofTiles_A_BaseMap.png",
         "Assets/OdesaUkraine/Textures/Brick_C/Brick_C_BaseMap.png",
+        "Assets/Models/Paket/Izvor/stambena.glb",
+        "-",
         "-",
         "Assets/OdesaUkraine/Textures/Brick_F/Brick_F_BaseMap.png",
         "-",
