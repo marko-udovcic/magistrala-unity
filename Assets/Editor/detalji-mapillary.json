@@ -1,0 +1,7364 @@
+{
+ "meta": {
+  "v": 1,
+  "source": "Mapillary map features (CC BY-SA 4.0, Mapillary contributors) + OpenStreetMap contributors (ODbL); tools/world/mapillary/s9_detalji.py",
+  "coords": "x / z = game gx (east) / gz (south), 1:1 AEQD centred 43.5083 N 16.44 E (mly.ll2g); Mapillary positions ~2-4 m",
+  "roadBearing": "compass bearing (0..180) of the nearest graph.json edge: orient the item along the street; Unity snaps it off the asphalt",
+  "wires": "pairs of indices into poles: one overhead span (power bundle + telecom cable) between them"
+ },
+ "counts": {
+  "stup (struja / telefon)": {
+   "izvor": "Mapillary",
+   "klasa": "object--support--utility-pole",
+   "ukupno": 573,
+   "Štafilić": 163,
+   "Novi": 60,
+   "Stari": 16,
+   "Lukšić": 51,
+   "Kambelovac": 98,
+   "Gomilica": 79,
+   "Sućurac": 106
+  },
+  "javna rasvjeta": {
+   "izvor": "Mapillary",
+   "klasa": "object--street-light",
+   "ukupno": 2093,
+   "Štafilić": 297,
+   "Novi": 172,
+   "Stari": 224,
+   "Lukšić": 457,
+   "Kambelovac": 184,
+   "Gomilica": 364,
+   "Sućurac": 395
+  },
+  "ormarić (el. / telekom)": {
+   "izvor": "Mapillary",
+   "klasa": "object--junction-box",
+   "ukupno": 115,
+   "Štafilić": 14,
+   "Novi": 14,
+   "Stari": 14,
+   "Lukšić": 29,
+   "Kambelovac": 9,
+   "Gomilica": 11,
+   "Sućurac": 24
+  },
+  "kanta / kontejner za smeće": {
+   "izvor": "Mapillary",
+   "klasa": "object--trash-can",
+   "ukupno": 74,
+   "Štafilić": 20,
+   "Novi": 13,
+   "Stari": 9,
+   "Lukšić": 11,
+   "Kambelovac": 0,
+   "Gomilica": 12,
+   "Sućurac": 9
+  },
+  "kontejneri (OSM waste_disposal)": {
+   "izvor": "OSM",
+   "klasa": "amenity=waste_disposal",
+   "ukupno": 13,
+   "Štafilić": 6,
+   "Novi": 0,
+   "Stari": 1,
+   "Lukšić": 4,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 2
+  },
+  "reciklažni (OSM recycling)": {
+   "izvor": "OSM",
+   "klasa": "amenity=recycling",
+   "ukupno": 3,
+   "Štafilić": 0,
+   "Novi": 2,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 1,
+   "Sućurac": 0
+  },
+  "koš za smeće (OSM waste_basket)": {
+   "izvor": "OSM",
+   "klasa": "amenity=waste_basket",
+   "ukupno": 11,
+   "Štafilić": 0,
+   "Novi": 0,
+   "Stari": 1,
+   "Lukšić": 1,
+   "Kambelovac": 1,
+   "Gomilica": 0,
+   "Sućurac": 8
+  },
+  "klupa (Mapillary)": {
+   "izvor": "Mapillary",
+   "klasa": "object--bench",
+   "ukupno": 5,
+   "Štafilić": 3,
+   "Novi": 1,
+   "Stari": 0,
+   "Lukšić": 1,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 0
+  },
+  "klupa (OSM)": {
+   "izvor": "OSM",
+   "klasa": "amenity=bench",
+   "ukupno": 79,
+   "Štafilić": 9,
+   "Novi": 4,
+   "Stari": 2,
+   "Lukšić": 9,
+   "Kambelovac": 8,
+   "Gomilica": 1,
+   "Sućurac": 46
+  },
+  "hidrant (Mapillary)": {
+   "izvor": "Mapillary",
+   "klasa": "object--fire-hydrant",
+   "ukupno": 5,
+   "Štafilić": 2,
+   "Novi": 1,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 1,
+   "Sućurac": 1
+  },
+  "hidrant (OSM)": {
+   "izvor": "OSM",
+   "klasa": "emergency=fire_hydrant",
+   "ukupno": 2,
+   "Štafilić": 2,
+   "Novi": 0,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 0
+  },
+  "poštanski sandučić": {
+   "izvor": "Mapillary",
+   "klasa": "object--mailbox",
+   "ukupno": 1,
+   "Štafilić": 1,
+   "Novi": 0,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 0
+  },
+  "šaht (poklopac)": {
+   "izvor": "Mapillary",
+   "klasa": "object--manhole",
+   "ukupno": 84,
+   "Štafilić": 56,
+   "Novi": 6,
+   "Stari": 2,
+   "Lukšić": 10,
+   "Kambelovac": 1,
+   "Gomilica": 5,
+   "Sućurac": 4
+  },
+  "slivnik": {
+   "izvor": "Mapillary",
+   "klasa": "object--catch-basin",
+   "ukupno": 46,
+   "Štafilić": 29,
+   "Novi": 8,
+   "Stari": 0,
+   "Lukšić": 1,
+   "Kambelovac": 1,
+   "Gomilica": 5,
+   "Sućurac": 2
+  },
+  "reklamni pano / natpis": {
+   "izvor": "Mapillary",
+   "klasa": "object--sign--advertisement",
+   "ukupno": 856,
+   "Štafilić": 154,
+   "Novi": 41,
+   "Stari": 85,
+   "Lukšić": 227,
+   "Kambelovac": 59,
+   "Gomilica": 129,
+   "Sućurac": 161
+  },
+  "natpis trgovine": {
+   "izvor": "Mapillary",
+   "klasa": "object--sign--store",
+   "ukupno": 170,
+   "Štafilić": 31,
+   "Novi": 16,
+   "Stari": 24,
+   "Lukšić": 62,
+   "Kambelovac": 5,
+   "Gomilica": 13,
+   "Sućurac": 19
+  },
+  "transparent / zastava": {
+   "izvor": "Mapillary",
+   "klasa": "object--banner",
+   "ukupno": 24,
+   "Štafilić": 5,
+   "Novi": 2,
+   "Stari": 1,
+   "Lukšić": 14,
+   "Kambelovac": 0,
+   "Gomilica": 1,
+   "Sućurac": 1
+  },
+  "privremena ograda / barijera": {
+   "izvor": "Mapillary",
+   "klasa": "construction--barrier--temporary",
+   "ukupno": 364,
+   "Štafilić": 1,
+   "Novi": 70,
+   "Stari": 28,
+   "Lukšić": 112,
+   "Kambelovac": 55,
+   "Gomilica": 83,
+   "Sućurac": 15
+  },
+  "kolni ulaz (spušteni rubnik)": {
+   "izvor": "Mapillary",
+   "klasa": "construction--flat--driveway",
+   "ukupno": 212,
+   "Štafilić": 82,
+   "Novi": 23,
+   "Stari": 15,
+   "Lukšić": 27,
+   "Kambelovac": 19,
+   "Gomilica": 24,
+   "Sućurac": 22
+  },
+  "čunj": {
+   "izvor": "Mapillary",
+   "klasa": "object--traffic-cone",
+   "ukupno": 6,
+   "Štafilić": 0,
+   "Novi": 3,
+   "Stari": 2,
+   "Lukšić": 1,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 0
+  },
+  "stup dalekovoda (OSM power=tower)": {
+   "izvor": "OSM",
+   "klasa": "power=tower",
+   "ukupno": 47,
+   "Štafilić": 0,
+   "Novi": 0,
+   "Stari": 0,
+   "Lukšić": 3,
+   "Kambelovac": 4,
+   "Gomilica": 14,
+   "Sućurac": 26
+  },
+  "stupić (OSM barrier=bollard)": {
+   "izvor": "OSM",
+   "klasa": "barrier=bollard",
+   "ukupno": 3,
+   "Štafilić": 0,
+   "Novi": 1,
+   "Stari": 0,
+   "Lukšić": 1,
+   "Kambelovac": 0,
+   "Gomilica": 1,
+   "Sućurac": 0
+  },
+  "česma / pitka voda (OSM)": {
+   "izvor": "OSM",
+   "klasa": "amenity=drinking_water",
+   "ukupno": 3,
+   "Štafilić": 0,
+   "Novi": 1,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 2
+  },
+  "dječje igralište (OSM)": {
+   "izvor": "OSM",
+   "klasa": "leisure=playground",
+   "ukupno": 11,
+   "Štafilić": 0,
+   "Novi": 2,
+   "Stari": 0,
+   "Lukšić": 2,
+   "Kambelovac": 2,
+   "Gomilica": 2,
+   "Sućurac": 3
+  },
+  "automat (OSM vending)": {
+   "izvor": "OSM",
+   "klasa": "amenity=vending_machine",
+   "ukupno": 4,
+   "Štafilić": 0,
+   "Novi": 2,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 2
+  },
+  "paketomat (OSM)": {
+   "izvor": "OSM",
+   "klasa": "amenity=parcel_locker",
+   "ukupno": 2,
+   "Štafilić": 0,
+   "Novi": 0,
+   "Stari": 0,
+   "Lukšić": 0,
+   "Kambelovac": 0,
+   "Gomilica": 0,
+   "Sućurac": 2
+  }
+ },
+ "poles": [
+  {
+   "id": "up0000",
+   "x": -8957.8,
+   "z": -4627.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 8.8,
+   "roadBearing": 76.9,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0001",
+   "x": -8927.9,
+   "z": -4635.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 7.6,
+   "roadBearing": 76.9,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0002",
+   "x": -8993.9,
+   "z": -4616.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 10.5,
+   "roadBearing": 73.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0003",
+   "x": -8947.3,
+   "z": -4626.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 11.9,
+   "roadBearing": 76.9,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0004",
+   "x": -8975.8,
+   "z": -4613.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 18.6,
+   "roadBearing": 73.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0005",
+   "x": -9031.1,
+   "z": -4625.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 10.0,
+   "roadBearing": 68.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0006",
+   "x": -8980.4,
+   "z": -4634.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.0,
+   "roadBearing": 73.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0007",
+   "x": -9190.1,
+   "z": -4521.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 6.2,
+   "roadBearing": 50.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0008",
+   "x": -9157.9,
+   "z": -4537.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.3,
+   "roadBearing": 51.3,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0009",
+   "x": -9129.7,
+   "z": -4556.3,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 3.0,
+   "roadBearing": 53.8,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0010",
+   "x": -9090.8,
+   "z": -4580.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 4.3,
+   "roadBearing": 60.3,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0011",
+   "x": -9070.9,
+   "z": -4589.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 6.2,
+   "roadBearing": 60.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0012",
+   "x": -9106.2,
+   "z": -4571.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.9,
+   "roadBearing": 57.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0013",
+   "x": -9135.7,
+   "z": -4567.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 9.5,
+   "roadBearing": 53.8,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0014",
+   "x": -9098.6,
+   "z": -4592.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 9.8,
+   "roadBearing": 60.3,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0015",
+   "x": -9109.8,
+   "z": -4555.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 15.2,
+   "roadBearing": 57.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0016",
+   "x": -9376.8,
+   "z": -4484.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.2,
+   "roadBearing": 161.9,
+   "street": "Škabrnjska",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0017",
+   "x": -9379.0,
+   "z": -4527.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 12.8,
+   "roadBearing": 161.9,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0018",
+   "x": -9393.3,
+   "z": -4517.8,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.8,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0019",
+   "x": -9380.1,
+   "z": -4490.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 0.3,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0020",
+   "x": -9360.5,
+   "z": -4465.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 11.1,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0021",
+   "x": -9366.0,
+   "z": -4437.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.6,
+   "roadBearing": 165.5,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0022",
+   "x": -9375.9,
+   "z": -4428.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 13.6,
+   "roadBearing": 165.3,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0023",
+   "x": -9389.2,
+   "z": -4478.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 12.2,
+   "roadBearing": 161.9,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0024",
+   "x": -9366.9,
+   "z": -4497.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 14.9,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0025",
+   "x": -9374.9,
+   "z": -4441.8,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 9.1,
+   "roadBearing": 165.4,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0026",
+   "x": -9386.9,
+   "z": -4467.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 13.6,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0027",
+   "x": -9374.1,
+   "z": -4474.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 0.9,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0028",
+   "x": -9371.8,
+   "z": -4458.9,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.8,
+   "roadBearing": 165.3,
+   "street": "Škabrnjska",
+   "kind": "beton"
+  },
+  {
+   "id": "up0029",
+   "x": -8901.7,
+   "z": -4641.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 6.7,
+   "roadBearing": 80.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0030",
+   "x": -8917.6,
+   "z": -4640.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 5.2,
+   "roadBearing": 80.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0031",
+   "x": -8925.1,
+   "z": -4652.8,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 8.7,
+   "roadBearing": 80.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0032",
+   "x": -9252.1,
+   "z": -5287.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 11.3,
+   "roadBearing": 71.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0033",
+   "x": -9185.0,
+   "z": -5297.9,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 1.1,
+   "roadBearing": 73.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0034",
+   "x": -9204.2,
+   "z": -5254.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 24.5,
+   "roadBearing": 73.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0035",
+   "x": -9186.0,
+   "z": -5272.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 11.9,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0036",
+   "x": -9178.4,
+   "z": -5318.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 19.8,
+   "roadBearing": 77.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0037",
+   "x": -9233.5,
+   "z": -5306.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 23.9,
+   "roadBearing": 71.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0038",
+   "x": -9171.9,
+   "z": -5268.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 19.3,
+   "roadBearing": 74.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0039",
+   "x": -9195.4,
+   "z": -5262.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 18.7,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0040",
+   "x": -9135.2,
+   "z": -5281.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 16.0,
+   "roadBearing": 78.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0041",
+   "x": -9112.3,
+   "z": -5279.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 22.5,
+   "roadBearing": 78.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0042",
+   "x": -9160.3,
+   "z": -5265.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 24.8,
+   "roadBearing": 74.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0043",
+   "x": -9299.6,
+   "z": -5247.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 0.8,
+   "roadBearing": 67.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0044",
+   "x": -9227.3,
+   "z": -5256.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 15.3,
+   "roadBearing": 71.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0045",
+   "x": -9236.7,
+   "z": -5297.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 15.8,
+   "roadBearing": 71.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0046",
+   "x": -9237.8,
+   "z": -5257.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 10.7,
+   "roadBearing": 71.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0047",
+   "x": -9276.7,
+   "z": -5249.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 5.4,
+   "roadBearing": 70.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0048",
+   "x": -9215.5,
+   "z": -5251.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 23.5,
+   "roadBearing": 71.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0049",
+   "x": -9204.4,
+   "z": -5269.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 10.1,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0050",
+   "x": -9321.4,
+   "z": -5269.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 18.3,
+   "roadBearing": 66.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0051",
+   "x": -9215.3,
+   "z": -5267.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 8.8,
+   "roadBearing": 71.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0052",
+   "x": -8447.2,
+   "z": -4630.2,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 2.5,
+   "roadBearing": 170.5,
+   "street": "Put sv. Lucije",
+   "kind": "beton"
+  },
+  {
+   "id": "up0053",
+   "x": -8657.0,
+   "z": -4417.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 7.2,
+   "roadBearing": 61.7,
+   "street": "Drinovićeva",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0054",
+   "x": -8875.5,
+   "z": -4646.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 5.0,
+   "roadBearing": 81.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0055",
+   "x": -8881.2,
+   "z": -4645.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 5.7,
+   "roadBearing": 81.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0056",
+   "x": -8858.7,
+   "z": -4651.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.6,
+   "roadBearing": 79.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0057",
+   "x": -8878.7,
+   "z": -4658.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 7.0,
+   "roadBearing": 81.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0058",
+   "x": -8769.6,
+   "z": -5327.8,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 20.2,
+   "roadBearing": 169.2,
+   "street": "Ulica don Petra Zaneta",
+   "kind": "beton"
+  },
+  {
+   "id": "up0059",
+   "x": -8769.6,
+   "z": -5340.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 22.5,
+   "roadBearing": 169.2,
+   "street": "Ulica don Petra Zaneta",
+   "kind": "beton"
+  },
+  {
+   "id": "up0060",
+   "x": -8526.7,
+   "z": -4794.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 11.9,
+   "roadBearing": 159.5,
+   "street": "Put sv. Josipa",
+   "kind": "beton"
+  },
+  {
+   "id": "up0061",
+   "x": -8623.4,
+   "z": -4739.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 24.6,
+   "roadBearing": 168.3,
+   "street": "Vladimira Stude",
+   "kind": "beton"
+  },
+  {
+   "id": "up0062",
+   "x": -8515.5,
+   "z": -4799.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 0.5,
+   "roadBearing": 159.5,
+   "street": "Put sv. Josipa",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0063",
+   "x": -8607.5,
+   "z": -4737.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 19.2,
+   "roadBearing": 69.3,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0064",
+   "x": -8520.1,
+   "z": -4785.4,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 9.1,
+   "roadBearing": 153.0,
+   "street": "Put sv. Josipa",
+   "kind": "beton"
+  },
+  {
+   "id": "up0065",
+   "x": -8749.7,
+   "z": -5403.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 15.8,
+   "roadBearing": 72.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0066",
+   "x": -8763.1,
+   "z": -5385.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 2.0,
+   "roadBearing": 73.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0067",
+   "x": -8751.0,
+   "z": -5381.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 4.8,
+   "roadBearing": 72.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0068",
+   "x": -8543.6,
+   "z": -5456.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 5.8,
+   "roadBearing": 62.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0069",
+   "x": -8452.3,
+   "z": -5503.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 7.6,
+   "roadBearing": 62.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0070",
+   "x": -8302.2,
+   "z": -5570.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 12.9,
+   "roadBearing": 66.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0071",
+   "x": -8508.5,
+   "z": -5474.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 6.4,
+   "roadBearing": 62.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0072",
+   "x": -8330.4,
+   "z": -5562.0,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 9.7,
+   "roadBearing": 65.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0073",
+   "x": -8475.2,
+   "z": -5493.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 5.0,
+   "roadBearing": 61.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0074",
+   "x": -8523.9,
+   "z": -4747.6,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 1.1,
+   "roadBearing": 68.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0075",
+   "x": -8480.2,
+   "z": -4761.1,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 4.2,
+   "roadBearing": 70.5,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0076",
+   "x": -8473.6,
+   "z": -4768.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 0.4,
+   "roadBearing": 70.6,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0077",
+   "x": -8552.3,
+   "z": -4736.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 0.8,
+   "roadBearing": 68.3,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0078",
+   "x": -8561.3,
+   "z": -4744.8,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 10.0,
+   "roadBearing": 68.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0079",
+   "x": -8581.7,
+   "z": -4725.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.0,
+   "roadBearing": 70.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0080",
+   "x": -8453.1,
+   "z": -4712.0,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 8.1,
+   "roadBearing": 172.8,
+   "street": "Put sv. Lucije",
+   "kind": "beton"
+  },
+  {
+   "id": "up0081",
+   "x": -8465.7,
+   "z": -4704.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 5.4,
+   "roadBearing": 172.9,
+   "street": "Put sv. Lucije",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0082",
+   "x": -8873.6,
+   "z": -5327.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 16.8,
+   "roadBearing": 79.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0083",
+   "x": -8839.8,
+   "z": -5331.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 19.2,
+   "roadBearing": 78.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0084",
+   "x": -8786.1,
+   "z": -5358.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 6.0,
+   "roadBearing": 72.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0085",
+   "x": -8804.9,
+   "z": -5373.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 2.4,
+   "roadBearing": 75.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0086",
+   "x": -8733.5,
+   "z": -5404.4,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 11.5,
+   "roadBearing": 70.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0087",
+   "x": -8741.2,
+   "z": -5402.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 12.4,
+   "roadBearing": 72.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0088",
+   "x": -8756.0,
+   "z": -5380.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 4.5,
+   "roadBearing": 73.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0089",
+   "x": -8436.4,
+   "z": -5510.5,
+   "n": 2,
+   "kastel": "Novi",
+   "roadDist": 8.6,
+   "roadBearing": 62.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0090",
+   "x": -8788.2,
+   "z": -5385.9,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 9.9,
+   "roadBearing": 73.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0091",
+   "x": -8449.2,
+   "z": -4657.2,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 4.9,
+   "roadBearing": 170.6,
+   "street": "Put sv. Lucije",
+   "kind": "beton"
+  },
+  {
+   "id": "up0092",
+   "x": -8470.7,
+   "z": -4780.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 10.9,
+   "roadBearing": 69.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0093",
+   "x": -8458.7,
+   "z": -4721.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 3.7,
+   "roadBearing": 172.8,
+   "street": "Put sv. Lucije",
+   "kind": "beton"
+  },
+  {
+   "id": "up0094",
+   "x": -8552.8,
+   "z": -5456.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 1.4,
+   "roadBearing": 62.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0095",
+   "x": -8488.2,
+   "z": -5490.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 1.9,
+   "roadBearing": 61.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0096",
+   "x": -8183.5,
+   "z": -5613.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 12.6,
+   "roadBearing": 74.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0097",
+   "x": -8244.9,
+   "z": -5588.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 17.7,
+   "roadBearing": 68.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0098",
+   "x": -8203.1,
+   "z": -5612.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 8.0,
+   "roadBearing": 74.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0099",
+   "x": -8173.0,
+   "z": -5650.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 9.1,
+   "roadBearing": 77.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0100",
+   "x": -8142.3,
+   "z": -5621.2,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 15.9,
+   "roadBearing": 75.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0101",
+   "x": -8157.4,
+   "z": -5621.2,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 12.0,
+   "roadBearing": 75.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0102",
+   "x": -8174.7,
+   "z": -5617.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 11.3,
+   "roadBearing": 74.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0103",
+   "x": -8192.1,
+   "z": -5651.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 14.1,
+   "roadBearing": 77.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0104",
+   "x": -8242.9,
+   "z": -5600.4,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 7.4,
+   "roadBearing": 68.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0105",
+   "x": -8188.0,
+   "z": -5615.7,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 9.2,
+   "roadBearing": 74.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0106",
+   "x": -8160.4,
+   "z": -5617.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 15.0,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0107",
+   "x": -8253.4,
+   "z": -5625.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 8.0,
+   "roadBearing": 69.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0108",
+   "x": -8228.4,
+   "z": -5643.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 16.7,
+   "roadBearing": 72.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0109",
+   "x": -8424.8,
+   "z": -5513.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 11.1,
+   "roadBearing": 62.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0110",
+   "x": -8209.4,
+   "z": -5624.0,
+   "n": 2,
+   "kastel": "Novi",
+   "roadDist": 4.5,
+   "roadBearing": 74.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0111",
+   "x": -8171.7,
+   "z": -5627.9,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 1.9,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0112",
+   "x": -8152.9,
+   "z": -5614.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 19.6,
+   "roadBearing": 75.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0113",
+   "x": -8831.6,
+   "z": -4666.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 6.5,
+   "roadBearing": 79.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0114",
+   "x": -8825.6,
+   "z": -4667.1,
+   "n": 4,
+   "kastel": "Štafilić",
+   "roadDist": 6.0,
+   "roadBearing": 79.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0115",
+   "x": -8752.8,
+   "z": -4686.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 11.1,
+   "roadBearing": 79.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0116",
+   "x": -8741.9,
+   "z": -4695.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 18.3,
+   "roadBearing": 79.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0117",
+   "x": -8660.7,
+   "z": -4718.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 16.3,
+   "roadBearing": 168.2,
+   "street": "Vladimira Stude",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0118",
+   "x": -8717.8,
+   "z": -4706.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.7,
+   "roadBearing": 168.9,
+   "street": "Bažalovica II",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0119",
+   "x": -8734.2,
+   "z": -4700.0,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 19.0,
+   "roadBearing": 168.9,
+   "street": "Bažalovica II",
+   "kind": "beton"
+  },
+  {
+   "id": "up0120",
+   "x": -8844.2,
+   "z": -4663.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 5.6,
+   "roadBearing": 79.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0121",
+   "x": -8861.0,
+   "z": -4656.9,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 2.7,
+   "roadBearing": 79.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0122",
+   "x": -8752.8,
+   "z": -4678.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.3,
+   "roadBearing": 79.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0123",
+   "x": -8766.5,
+   "z": -4683.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 0.8,
+   "roadBearing": 169.8,
+   "street": "Vodovodna ulica",
+   "kind": "beton"
+  },
+  {
+   "id": "up0124",
+   "x": -8721.2,
+   "z": -4696.6,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 6.9,
+   "roadBearing": 168.9,
+   "street": "Bažalovica II",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0125",
+   "x": -8823.6,
+   "z": -4663.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 1.7,
+   "roadBearing": 79.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0126",
+   "x": -8809.7,
+   "z": -4664.5,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 0.4,
+   "roadBearing": 79.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0127",
+   "x": -8806.0,
+   "z": -4669.9,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 4.9,
+   "roadBearing": 79.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0128",
+   "x": -8817.9,
+   "z": -4664.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 2.0,
+   "roadBearing": 79.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0129",
+   "x": -8691.7,
+   "z": -4709.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 19.3,
+   "roadBearing": 74.6,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0130",
+   "x": -8781.6,
+   "z": -4673.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.6,
+   "roadBearing": 79.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0131",
+   "x": -8685.8,
+   "z": -4706.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 15.3,
+   "roadBearing": 74.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0132",
+   "x": -8776.7,
+   "z": -4677.2,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 6.6,
+   "roadBearing": 79.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0133",
+   "x": -8662.4,
+   "z": -4730.0,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 15.5,
+   "roadBearing": 168.3,
+   "street": "Vladimira Stude",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0134",
+   "x": -8678.9,
+   "z": -4695.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 2.4,
+   "roadBearing": 74.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0135",
+   "x": -8679.4,
+   "z": -4714.9,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 21.4,
+   "roadBearing": 72.8,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0136",
+   "x": -8671.4,
+   "z": -4720.7,
+   "n": 2,
+   "kastel": "Štafilić",
+   "roadDist": 24.6,
+   "roadBearing": 73.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0137",
+   "x": -8674.9,
+   "z": -4708.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 14.0,
+   "roadBearing": 72.8,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0138",
+   "x": -8205.0,
+   "z": -5644.0,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 10.2,
+   "roadBearing": 72.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0139",
+   "x": -8224.1,
+   "z": -5588.6,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 24.6,
+   "roadBearing": 71.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0140",
+   "x": -8141.1,
+   "z": -5632.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 5.4,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0141",
+   "x": -8147.3,
+   "z": -5613.1,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 22.4,
+   "roadBearing": 75.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0142",
+   "x": -8219.4,
+   "z": -5604.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 11.2,
+   "roadBearing": 71.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0143",
+   "x": -8120.0,
+   "z": -5632.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 10.1,
+   "roadBearing": 79.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0144",
+   "x": -8001.4,
+   "z": -4576.7,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 20.5,
+   "roadBearing": 51.6,
+   "street": "Obala kralja Tomislava",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0145",
+   "x": -8074.7,
+   "z": -5627.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 21.7,
+   "roadBearing": 81.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0146",
+   "x": -7929.8,
+   "z": -5692.0,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 22.7,
+   "roadBearing": 90.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0147",
+   "x": -7966.2,
+   "z": -5652.6,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 6.0,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0148",
+   "x": -7277.6,
+   "z": -5531.5,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 12.9,
+   "roadBearing": 93.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0149",
+   "x": -7668.1,
+   "z": -5651.5,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 20.3,
+   "roadBearing": 103.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0150",
+   "x": -7705.6,
+   "z": -5486.2,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 8.5,
+   "roadBearing": 3.4,
+   "street": "",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0151",
+   "x": -6486.5,
+   "z": -5628.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 20.0,
+   "roadBearing": 85.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0152",
+   "x": -6493.6,
+   "z": -5630.0,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 22.3,
+   "roadBearing": 85.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0153",
+   "x": -6665.1,
+   "z": -5675.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 24.7,
+   "roadBearing": 5.2,
+   "street": "Ulica Svih svetih",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0154",
+   "x": -6598.5,
+   "z": -5608.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 9.6,
+   "roadBearing": 85.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0155",
+   "x": -6478.5,
+   "z": -5621.8,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 12.9,
+   "roadBearing": 85.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0156",
+   "x": -6502.9,
+   "z": -5622.7,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 16.0,
+   "roadBearing": 85.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0157",
+   "x": -6583.8,
+   "z": -5613.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 13.5,
+   "roadBearing": 85.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0158",
+   "x": -6654.2,
+   "z": -5575.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 6.8,
+   "roadBearing": 83.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0159",
+   "x": -6632.6,
+   "z": -5567.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 16.9,
+   "roadBearing": 83.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0160",
+   "x": -6575.6,
+   "z": -5532.8,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 23.2,
+   "roadBearing": 4.3,
+   "street": "Sinokoše",
+   "kind": "beton"
+  },
+  {
+   "id": "up0161",
+   "x": -6468.1,
+   "z": -5627.8,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 18.0,
+   "roadBearing": 86.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0162",
+   "x": -6676.4,
+   "z": -5570.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 0.3,
+   "roadBearing": 175.5,
+   "street": "Bardejovska ulica",
+   "kind": "beton"
+  },
+  {
+   "id": "up0163",
+   "x": -6610.9,
+   "z": -5606.2,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 8.5,
+   "roadBearing": 83.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0164",
+   "x": -6629.5,
+   "z": -5577.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 7.5,
+   "roadBearing": 83.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0165",
+   "x": -6642.8,
+   "z": -5579.2,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 3.9,
+   "roadBearing": 83.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0166",
+   "x": -6622.4,
+   "z": -5594.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 1.4,
+   "roadBearing": 83.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0167",
+   "x": -6626.8,
+   "z": -5614.8,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 18.8,
+   "roadBearing": 83.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0168",
+   "x": -6540.4,
+   "z": -5602.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 1.1,
+   "roadBearing": 85.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0169",
+   "x": -6625.5,
+   "z": -5577.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 7.7,
+   "roadBearing": 83.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0170",
+   "x": -6616.7,
+   "z": -5575.7,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 10.2,
+   "roadBearing": 83.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0171",
+   "x": -6536.4,
+   "z": -5610.6,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 6.6,
+   "roadBearing": 85.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0172",
+   "x": -6823.4,
+   "z": -5591.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 15.0,
+   "roadBearing": 1.9,
+   "street": "Vežarovice",
+   "kind": "beton"
+  },
+  {
+   "id": "up0173",
+   "x": -6362.4,
+   "z": -5611.2,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 2.5,
+   "roadBearing": 90.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0174",
+   "x": -6319.2,
+   "z": -5592.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 10.3,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0175",
+   "x": -6375.0,
+   "z": -5593.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 8.9,
+   "roadBearing": 87.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0176",
+   "x": -6439.8,
+   "z": -5623.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 12.1,
+   "roadBearing": 87.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0177",
+   "x": -6361.0,
+   "z": -5591.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 1.8,
+   "roadBearing": 176.0,
+   "street": "Kafana Kaštela 2",
+   "kind": "beton"
+  },
+  {
+   "id": "up0178",
+   "x": -6292.5,
+   "z": -5631.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 18.4,
+   "roadBearing": 90.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0179",
+   "x": -6033.6,
+   "z": -5557.0,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 5.1,
+   "roadBearing": 2.0,
+   "street": "Put sv. Lovre od Ostroga",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0180",
+   "x": -6163.4,
+   "z": -5607.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 2.3,
+   "roadBearing": 93.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0181",
+   "x": -6173.1,
+   "z": -5607.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 2.9,
+   "roadBearing": 93.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0182",
+   "x": -5157.7,
+   "z": -5461.4,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 13.7,
+   "roadBearing": 93.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0183",
+   "x": -5207.6,
+   "z": -5465.2,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 13.4,
+   "roadBearing": 95.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0184",
+   "x": -5147.8,
+   "z": -5427.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 8.9,
+   "roadBearing": 92.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0185",
+   "x": -5419.3,
+   "z": -5464.6,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 5.5,
+   "roadBearing": 100.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0186",
+   "x": -5396.7,
+   "z": -5457.8,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 8.0,
+   "roadBearing": 99.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0187",
+   "x": -5156.9,
+   "z": -5438.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 2.1,
+   "roadBearing": 93.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0188",
+   "x": -5387.2,
+   "z": -5459.0,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 5.3,
+   "roadBearing": 99.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0189",
+   "x": -5218.7,
+   "z": -5439.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 2.6,
+   "roadBearing": 95.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0190",
+   "x": -5170.7,
+   "z": -5422.7,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 15.0,
+   "roadBearing": 93.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0191",
+   "x": -5242.0,
+   "z": -5472.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 16.8,
+   "roadBearing": 96.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0192",
+   "x": -5165.4,
+   "z": -5468.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 20.4,
+   "roadBearing": 94.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0193",
+   "x": -5249.8,
+   "z": -5467.8,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 11.7,
+   "roadBearing": 96.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0194",
+   "x": -5416.2,
+   "z": -5501.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 20.4,
+   "roadBearing": 100.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0195",
+   "x": -5412.3,
+   "z": -5499.6,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 19.3,
+   "roadBearing": 100.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0196",
+   "x": -5427.3,
+   "z": -5452.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 18.4,
+   "roadBearing": 100.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0197",
+   "x": -5216.1,
+   "z": -5428.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 13.3,
+   "roadBearing": 95.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0198",
+   "x": -5278.3,
+   "z": -5478.8,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 19.5,
+   "roadBearing": 96.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0199",
+   "x": -5275.1,
+   "z": -5466.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 7.2,
+   "roadBearing": 96.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0200",
+   "x": -5240.1,
+   "z": -5458.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 3.9,
+   "roadBearing": 96.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0201",
+   "x": -5233.2,
+   "z": -5430.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 12.0,
+   "roadBearing": 95.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0202",
+   "x": -5214.6,
+   "z": -5453.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 1.4,
+   "roadBearing": 95.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0203",
+   "x": -5190.5,
+   "z": -5448.3,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 1.9,
+   "roadBearing": 94.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0204",
+   "x": -5189.0,
+   "z": -5437.2,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 1.9,
+   "roadBearing": 93.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0205",
+   "x": -5134.8,
+   "z": -5457.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 11.5,
+   "roadBearing": 93.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0206",
+   "x": -5234.1,
+   "z": -5476.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 22.2,
+   "roadBearing": 95.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0207",
+   "x": -5201.1,
+   "z": -5427.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 12.4,
+   "roadBearing": 95.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0208",
+   "x": -5153.5,
+   "z": -5454.1,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 6.7,
+   "roadBearing": 93.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0209",
+   "x": -5193.4,
+   "z": -5460.1,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 9.6,
+   "roadBearing": 94.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0210",
+   "x": -5191.7,
+   "z": -5427.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 11.7,
+   "roadBearing": 94.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0211",
+   "x": -5232.4,
+   "z": -5463.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 9.3,
+   "roadBearing": 95.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0212",
+   "x": -5176.9,
+   "z": -5461.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 12.5,
+   "roadBearing": 94.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0213",
+   "x": -5218.9,
+   "z": -5463.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 10.6,
+   "roadBearing": 95.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0214",
+   "x": -4314.2,
+   "z": -5461.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 4.8,
+   "roadBearing": 94.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0215",
+   "x": -4304.1,
+   "z": -5437.4,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 16.1,
+   "roadBearing": 94.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0216",
+   "x": -4287.6,
+   "z": -5437.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 14.4,
+   "roadBearing": 96.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0217",
+   "x": -4277.7,
+   "z": -5469.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 7.6,
+   "roadBearing": 96.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0218",
+   "x": -4284.2,
+   "z": -5448.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 3.7,
+   "roadBearing": 96.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0219",
+   "x": -4161.0,
+   "z": -5464.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 17.8,
+   "roadBearing": 99.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0220",
+   "x": -4187.5,
+   "z": -5472.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 21.0,
+   "roadBearing": 97.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0221",
+   "x": -4128.6,
+   "z": -5453.0,
+   "n": 2,
+   "kastel": "Kambelovac",
+   "roadDist": 11.8,
+   "roadBearing": 99.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0222",
+   "x": -4140.2,
+   "z": -5416.4,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 15.3,
+   "roadBearing": 101.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0223",
+   "x": -4547.7,
+   "z": -5451.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 9.1,
+   "roadBearing": 88.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0224",
+   "x": -4556.0,
+   "z": -5471.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 0.3,
+   "roadBearing": 87.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0225",
+   "x": -4532.3,
+   "z": -5478.3,
+   "n": 2,
+   "kastel": "Kambelovac",
+   "roadDist": 6.0,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0226",
+   "x": -4464.2,
+   "z": -5491.1,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 18.3,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0227",
+   "x": -4342.6,
+   "z": -5448.8,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 7.9,
+   "roadBearing": 94.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0228",
+   "x": -4492.9,
+   "z": -5488.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 15.0,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0229",
+   "x": -4325.2,
+   "z": -5480.2,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 13.5,
+   "roadBearing": 94.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0230",
+   "x": -4386.0,
+   "z": -5491.4,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 20.7,
+   "roadBearing": 92.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0231",
+   "x": -4320.9,
+   "z": -5447.7,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 7.2,
+   "roadBearing": 94.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0232",
+   "x": -4511.4,
+   "z": -5478.7,
+   "n": 2,
+   "kastel": "Kambelovac",
+   "roadDist": 6.0,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0233",
+   "x": -4578.2,
+   "z": -5488.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 18.3,
+   "roadBearing": 87.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0234",
+   "x": -4305.4,
+   "z": -5474.8,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 9.6,
+   "roadBearing": 94.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0235",
+   "x": -4474.2,
+   "z": -5488.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 14.9,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0236",
+   "x": -4455.5,
+   "z": -5494.4,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 21.8,
+   "roadBearing": 91.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0237",
+   "x": -4435.3,
+   "z": -5490.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 18.3,
+   "roadBearing": 91.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0238",
+   "x": -4103.3,
+   "z": -5448.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 12.3,
+   "roadBearing": 101.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0239",
+   "x": -4249.2,
+   "z": -5423.2,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 24.4,
+   "roadBearing": 96.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0240",
+   "x": -4171.9,
+   "z": -5470.9,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 22.4,
+   "roadBearing": 99.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0241",
+   "x": -4144.1,
+   "z": -5463.7,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 19.7,
+   "roadBearing": 99.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0242",
+   "x": -4138.8,
+   "z": -5458.7,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 15.7,
+   "roadBearing": 99.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0243",
+   "x": -4091.7,
+   "z": -5452.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 18.3,
+   "roadBearing": 101.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0244",
+   "x": -4527.2,
+   "z": -5491.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 19.1,
+   "roadBearing": 88.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0245",
+   "x": -4491.7,
+   "z": -5497.3,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 24.3,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0246",
+   "x": -4606.2,
+   "z": -5462.3,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 4.1,
+   "roadBearing": 86.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0247",
+   "x": -4537.4,
+   "z": -5475.6,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 3.4,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0248",
+   "x": -4562.2,
+   "z": -5467.3,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 4.2,
+   "roadBearing": 87.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0249",
+   "x": -4444.5,
+   "z": -5486.3,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 13.9,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0250",
+   "x": -4521.0,
+   "z": -5483.8,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 11.3,
+   "roadBearing": 89.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0251",
+   "x": -3257.4,
+   "z": -5173.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 13.1,
+   "roadBearing": 109.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0252",
+   "x": -3913.0,
+   "z": -5364.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 13.3,
+   "roadBearing": 107.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0253",
+   "x": -4019.3,
+   "z": -5391.5,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 14.6,
+   "roadBearing": 104.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0254",
+   "x": -3921.1,
+   "z": -5371.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 8.5,
+   "roadBearing": 106.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0255",
+   "x": -3662.1,
+   "z": -5325.6,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 20.6,
+   "roadBearing": 109.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0256",
+   "x": -3341.0,
+   "z": -5159.7,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 15.8,
+   "roadBearing": 109.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0257",
+   "x": -3635.3,
+   "z": -5265.0,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 16.2,
+   "roadBearing": 109.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0258",
+   "x": -3637.5,
+   "z": -5308.6,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 12.9,
+   "roadBearing": 109.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0259",
+   "x": -2674.1,
+   "z": -4329.6,
+   "n": 2,
+   "kastel": "Gomilica",
+   "roadDist": 5.8,
+   "roadBearing": 89.1,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0260",
+   "x": -2702.5,
+   "z": -4322.8,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 2.5,
+   "roadBearing": 95.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0261",
+   "x": -2656.7,
+   "z": -4325.3,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 1.2,
+   "roadBearing": 89.0,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0262",
+   "x": -2877.4,
+   "z": -4352.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 7.4,
+   "roadBearing": 98.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0263",
+   "x": -2476.5,
+   "z": -4898.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 16.6,
+   "roadBearing": 108.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0264",
+   "x": -2518.8,
+   "z": -4857.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 24.3,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0265",
+   "x": -2505.8,
+   "z": -4863.4,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 14.8,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0266",
+   "x": -2477.9,
+   "z": -4885.7,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 4.3,
+   "roadBearing": 108.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0267",
+   "x": -2563.1,
+   "z": -4913.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 2.4,
+   "roadBearing": 109.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0268",
+   "x": -2938.3,
+   "z": -5054.4,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 8.1,
+   "roadBearing": 110.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0269",
+   "x": -3107.5,
+   "z": -5127.3,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 19.6,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0270",
+   "x": -3039.2,
+   "z": -5104.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 20.5,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0271",
+   "x": -3095.0,
+   "z": -5116.8,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 13.8,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0272",
+   "x": -2957.9,
+   "z": -5070.3,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 16.3,
+   "roadBearing": 110.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0273",
+   "x": -2946.5,
+   "z": -5065.4,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 15.6,
+   "roadBearing": 110.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0274",
+   "x": -2996.1,
+   "z": -5082.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 15.0,
+   "roadBearing": 110.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0275",
+   "x": -3057.9,
+   "z": -5113.0,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 22.7,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0276",
+   "x": -2999.3,
+   "z": -5092.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 13.9,
+   "roadBearing": 9.8,
+   "street": "Gaji",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0277",
+   "x": -3132.5,
+   "z": -5093.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 6.8,
+   "roadBearing": 109.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0278",
+   "x": -3066.8,
+   "z": -5102.6,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 9.8,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0279",
+   "x": -3012.0,
+   "z": -5119.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 1.2,
+   "roadBearing": 179.7,
+   "street": "Gaji",
+   "kind": "beton"
+  },
+  {
+   "id": "up0280",
+   "x": -3050.5,
+   "z": -5105.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 18.4,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0281",
+   "x": -3073.3,
+   "z": -5079.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 0.8,
+   "roadBearing": 109.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0282",
+   "x": -2999.9,
+   "z": -5084.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 15.1,
+   "roadBearing": 13.8,
+   "street": "Ulica Mila Gora",
+   "kind": "beton"
+  },
+  {
+   "id": "up0283",
+   "x": -3074.0,
+   "z": -5109.6,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 14.0,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0284",
+   "x": -3134.0,
+   "z": -5086.3,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 14.5,
+   "roadBearing": 109.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0285",
+   "x": -3121.5,
+   "z": -5078.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 18.0,
+   "roadBearing": 109.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0286",
+   "x": -3024.1,
+   "z": -5101.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 12.0,
+   "roadBearing": 7.1,
+   "street": "Gaji",
+   "kind": "beton"
+  },
+  {
+   "id": "up0287",
+   "x": -2981.9,
+   "z": -5079.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 16.4,
+   "roadBearing": 110.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0288",
+   "x": -3096.6,
+   "z": -5124.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 20.5,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0289",
+   "x": -3138.2,
+   "z": -5099.8,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 3.1,
+   "roadBearing": 109.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0290",
+   "x": -2976.7,
+   "z": -5084.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 23.2,
+   "roadBearing": 110.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0291",
+   "x": -3004.4,
+   "z": -5123.6,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 6.5,
+   "roadBearing": 176.7,
+   "street": "Gaji",
+   "kind": "beton"
+  },
+  {
+   "id": "up0292",
+   "x": -3016.7,
+   "z": -5154.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 4.4,
+   "roadBearing": 0.5,
+   "street": "Gaji",
+   "kind": "beton"
+  },
+  {
+   "id": "up0293",
+   "x": -3009.6,
+   "z": -5091.8,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 3.9,
+   "roadBearing": 14.0,
+   "street": "Ulica Mila Gora",
+   "kind": "beton"
+  },
+  {
+   "id": "up0294",
+   "x": -2974.1,
+   "z": -5076.5,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 16.6,
+   "roadBearing": 110.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0295",
+   "x": -2926.8,
+   "z": -5053.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 11.0,
+   "roadBearing": 110.5,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0296",
+   "x": -3126.1,
+   "z": -5132.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 18.6,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0297",
+   "x": -3083.2,
+   "z": -5110.3,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 11.7,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0298",
+   "x": -3118.9,
+   "z": -5121.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 10.6,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0299",
+   "x": -3025.6,
+   "z": -5085.9,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 7.9,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0300",
+   "x": -3203.9,
+   "z": -5110.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 15.7,
+   "roadBearing": 109.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0301",
+   "x": -1707.1,
+   "z": -4719.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 6.4,
+   "roadBearing": 89.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0302",
+   "x": -1675.1,
+   "z": -4713.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 12.5,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0303",
+   "x": -1998.2,
+   "z": -4735.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 12.6,
+   "roadBearing": 98.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0304",
+   "x": -2008.1,
+   "z": -4732.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 16.1,
+   "roadBearing": 98.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0305",
+   "x": -2109.3,
+   "z": -4780.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 3.5,
+   "roadBearing": 99.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0306",
+   "x": -2014.6,
+   "z": -4739.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.3,
+   "roadBearing": 98.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0307",
+   "x": -908.7,
+   "z": -4721.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 18.4,
+   "roadBearing": 16.4,
+   "street": "Putaljski put",
+   "kind": "beton"
+  },
+  {
+   "id": "up0308",
+   "x": -1033.2,
+   "z": -4750.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.4,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0309",
+   "x": -1028.3,
+   "z": -4750.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.1,
+   "roadBearing": 91.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0310",
+   "x": -1093.5,
+   "z": -4745.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 0.6,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0311",
+   "x": -1555.4,
+   "z": -4725.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.3,
+   "roadBearing": 87.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0312",
+   "x": -1118.4,
+   "z": -4741.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.7,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0313",
+   "x": -1063.9,
+   "z": -4726.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 19.0,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0314",
+   "x": -846.9,
+   "z": -4719.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 17.3,
+   "roadBearing": 95.2,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0315",
+   "x": -1135.3,
+   "z": -4750.9,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.2,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0316",
+   "x": -969.9,
+   "z": -4734.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 8.9,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0317",
+   "x": -835.6,
+   "z": -4714.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 21.1,
+   "roadBearing": 95.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0318",
+   "x": -934.6,
+   "z": -4733.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 8.6,
+   "roadBearing": 91.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0319",
+   "x": -956.0,
+   "z": -4749.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 6.4,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0320",
+   "x": -919.2,
+   "z": -4772.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 17.6,
+   "roadBearing": 92.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0321",
+   "x": -996.5,
+   "z": -4736.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 7.0,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0322",
+   "x": -905.3,
+   "z": -4773.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 19.0,
+   "roadBearing": 93.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0323",
+   "x": -1047.3,
+   "z": -4747.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 1.7,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0324",
+   "x": -1000.9,
+   "z": -4747.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 3.8,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0325",
+   "x": -1075.6,
+   "z": -4739.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 6.1,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0326",
+   "x": -1151.1,
+   "z": -4737.7,
+   "n": 3,
+   "kastel": "Sućurac",
+   "roadDist": 7.9,
+   "roadBearing": 89.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0327",
+   "x": -1069.7,
+   "z": -4739.6,
+   "n": 2,
+   "kastel": "Sućurac",
+   "roadDist": 6.2,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0328",
+   "x": -1136.1,
+   "z": -4741.4,
+   "n": 2,
+   "kastel": "Sućurac",
+   "roadDist": 4.2,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0329",
+   "x": -1087.9,
+   "z": -4736.9,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.1,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0330",
+   "x": -1105.5,
+   "z": -4741.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.8,
+   "roadBearing": 89.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0331",
+   "x": -1169.5,
+   "z": -4735.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.5,
+   "roadBearing": 88.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0332",
+   "x": -1110.5,
+   "z": -4739.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 6.4,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0333",
+   "x": -1087.0,
+   "z": -4741.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.9,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0334",
+   "x": -1070.9,
+   "z": -4744.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 1.6,
+   "roadBearing": 91.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0335",
+   "x": -1102.0,
+   "z": -4738.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 7.8,
+   "roadBearing": 89.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0336",
+   "x": -1039.4,
+   "z": -4745.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 0.2,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0337",
+   "x": -1143.3,
+   "z": -4740.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.4,
+   "roadBearing": 89.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0338",
+   "x": -1033.2,
+   "z": -4741.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 3.4,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0339",
+   "x": -1164.7,
+   "z": -4734.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.4,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0340",
+   "x": -1029.8,
+   "z": -4739.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.4,
+   "roadBearing": 91.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0341",
+   "x": -1129.9,
+   "z": -4738.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 7.1,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0342",
+   "x": -1176.4,
+   "z": -4740.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.6,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0343",
+   "x": -1157.0,
+   "z": -4747.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.1,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0344",
+   "x": -1236.4,
+   "z": -4730.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 1.7,
+   "roadBearing": 176.8,
+   "street": "Ulica Vukovarskih heroja",
+   "kind": "beton"
+  },
+  {
+   "id": "up0345",
+   "x": -1144.2,
+   "z": -4746.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 0.6,
+   "roadBearing": 89.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0346",
+   "x": -1183.2,
+   "z": -4739.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.8,
+   "roadBearing": 88.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0347",
+   "x": -1176.9,
+   "z": -4720.9,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 23.9,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0348",
+   "x": -1040.0,
+   "z": -4750.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.7,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0349",
+   "x": -1044.9,
+   "z": -4729.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 16.0,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0350",
+   "x": -1216.0,
+   "z": -4740.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 3.3,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0351",
+   "x": -1055.1,
+   "z": -4742.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.7,
+   "roadBearing": 91.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0352",
+   "x": -1022.5,
+   "z": -4742.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.4,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0353",
+   "x": -983.4,
+   "z": -4739.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 3.7,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0354",
+   "x": -1006.3,
+   "z": -4739.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.8,
+   "roadBearing": 91.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0355",
+   "x": -914.4,
+   "z": -4724.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 17.1,
+   "roadBearing": 91.9,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0356",
+   "x": -1164.0,
+   "z": -4724.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 20.7,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0357",
+   "x": -1192.5,
+   "z": -4743.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 1.2,
+   "roadBearing": 88.1,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0358",
+   "x": -1538.2,
+   "z": -4716.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 13.5,
+   "roadBearing": 87.8,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0359",
+   "x": -1522.3,
+   "z": -4754.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 12.3,
+   "roadBearing": 87.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0360",
+   "x": -1511.5,
+   "z": -4766.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 23.7,
+   "roadBearing": 87.4,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0361",
+   "x": -1457.8,
+   "z": -4713.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 20.0,
+   "roadBearing": 87.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0362",
+   "x": -1485.3,
+   "z": -4714.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 18.0,
+   "roadBearing": 87.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0363",
+   "x": -1464.0,
+   "z": -4727.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.3,
+   "roadBearing": 87.6,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0364",
+   "x": -1601.4,
+   "z": -4703.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 24.4,
+   "roadBearing": 87.7,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0365",
+   "x": -709.3,
+   "z": -4177.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 13.1,
+   "roadBearing": 112.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0366",
+   "x": -631.0,
+   "z": -4144.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.0,
+   "roadBearing": 108.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0367",
+   "x": -722.9,
+   "z": -4157.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.4,
+   "roadBearing": 111.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0368",
+   "x": -550.4,
+   "z": -4106.9,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 5.1,
+   "roadBearing": 106.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0369",
+   "x": -736.1,
+   "z": -4185.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.1,
+   "roadBearing": 111.2,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0370",
+   "x": -702.7,
+   "z": -4172.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.3,
+   "roadBearing": 112.4,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0371",
+   "x": -415.8,
+   "z": -4066.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.7,
+   "roadBearing": 107.5,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0372",
+   "x": -441.9,
+   "z": -4074.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.9,
+   "roadBearing": 107.6,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0373",
+   "x": -316.8,
+   "z": -4027.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.2,
+   "roadBearing": 107.5,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0374",
+   "x": -380.6,
+   "z": -4054.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.0,
+   "roadBearing": 107.7,
+   "street": "Cesta dr. Franje Tuđmana",
+   "kind": "beton"
+  },
+  {
+   "id": "up0375",
+   "x": -807.1,
+   "z": -4707.9,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 24.4,
+   "roadBearing": 96.0,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0376",
+   "x": -738.1,
+   "z": -4701.1,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 22.9,
+   "roadBearing": 97.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  },
+  {
+   "id": "up0377",
+   "x": -686.6,
+   "z": -4749.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 19.0,
+   "roadBearing": 98.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "drvo"
+  },
+  {
+   "id": "up0378",
+   "x": -701.4,
+   "z": -4756.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 24.4,
+   "roadBearing": 98.3,
+   "street": "Cesta pape Ivana Pavla II.",
+   "kind": "beton"
+  }
+ ],
+ "wires": [
+  [
+   155,
+   161
+  ],
+  [
+   117,
+   133
+  ],
+  [
+   309,
+   336
+  ],
+  [
+   89,
+   109
+  ],
+  [
+   158,
+   165
+  ],
+  [
+   34,
+   39
+  ],
+  [
+   238,
+   243
+  ],
+  [
+   314,
+   317
+  ],
+  [
+   58,
+   59
+  ],
+  [
+   272,
+   273
+  ],
+  [
+   100,
+   112
+  ],
+  [
+   225,
+   250
+  ],
+  [
+   154,
+   163
+  ],
+  [
+   325,
+   329
+  ],
+  [
+   219,
+   240
+  ],
+  [
+   310,
+   330
+  ],
+  [
+   343,
+   345
+  ],
+  [
+   164,
+   170
+  ],
+  [
+   339,
+   342
+  ],
+  [
+   312,
+   330
+  ],
+  [
+   113,
+   120
+  ],
+  [
+   127,
+   128
+  ],
+  [
+   347,
+   356
+  ],
+  [
+   102,
+   105
+  ],
+  [
+   73,
+   95
+  ],
+  [
+   321,
+   353
+  ],
+  [
+   164,
+   165
+  ],
+  [
+   271,
+   297
+  ],
+  [
+   337,
+   341
+  ],
+  [
+   211,
+   213
+  ],
+  [
+   129,
+   135
+  ],
+  [
+   22,
+   25
+  ],
+  [
+   113,
+   128
+  ],
+  [
+   326,
+   339
+  ],
+  [
+   320,
+   322
+  ],
+  [
+   125,
+   126
+  ],
+  [
+   329,
+   335
+  ],
+  [
+   102,
+   106
+  ],
+  [
+   331,
+   346
+  ],
+  [
+   308,
+   323
+  ],
+  [
+   316,
+   353
+  ],
+  [
+   274,
+   287
+  ],
+  [
+   327,
+   351
+  ],
+  [
+   284,
+   285
+  ],
+  [
+   197,
+   207
+  ],
+  [
+   103,
+   138
+  ],
+  [
+   183,
+   209
+  ],
+  [
+   98,
+   105
+  ],
+  [
+   326,
+   328
+  ],
+  [
+   154,
+   157
+  ],
+  [
+   220,
+   240
+  ],
+  [
+   27,
+   28
+  ],
+  [
+   336,
+   351
+  ],
+  [
+   29,
+   30
+  ],
+  [
+   44,
+   51
+  ],
+  [
+   65,
+   86
+  ],
+  [
+   269,
+   271
+  ],
+  [
+   342,
+   357
+  ],
+  [
+   333,
+   334
+  ],
+  [
+   352,
+   354
+  ],
+  [
+   215,
+   216
+  ],
+  [
+   209,
+   212
+  ],
+  [
+   377,
+   378
+  ],
+  [
+   219,
+   241
+  ],
+  [
+   303,
+   306
+  ],
+  [
+   19,
+   27
+  ],
+  [
+   151,
+   156
+  ],
+  [
+   197,
+   201
+  ],
+  [
+   272,
+   294
+  ],
+  [
+   25,
+   28
+  ],
+  [
+   54,
+   56
+  ],
+  [
+   69,
+   89
+  ],
+  [
+   312,
+   328
+  ],
+  [
+   57,
+   121
+  ],
+  [
+   10,
+   12
+  ],
+  [
+   259,
+   261
+  ],
+  [
+   193,
+   211
+  ],
+  [
+   120,
+   121
+  ],
+  [
+   278,
+   297
+  ],
+  [
+   2,
+   4
+  ],
+  [
+   98,
+   142
+  ],
+  [
+   32,
+   45
+  ],
+  [
+   81,
+   93
+  ],
+  [
+   35,
+   49
+  ],
+  [
+   228,
+   235
+  ],
+  [
+   221,
+   241
+  ],
+  [
+   224,
+   247
+  ],
+  [
+   205,
+   208
+  ],
+  [
+   99,
+   103
+  ],
+  [
+   313,
+   349
+  ],
+  [
+   182,
+   212
+  ],
+  [
+   311,
+   358
+  ],
+  [
+   332,
+   341
+  ],
+  [
+   269,
+   296
+  ],
+  [
+   348,
+   352
+  ],
+  [
+   215,
+   231
+  ],
+  [
+   101,
+   140
+  ],
+  [
+   235,
+   236
+  ],
+  [
+   131,
+   136
+  ],
+  [
+   226,
+   249
+  ],
+  [
+   229,
+   234
+  ],
+  [
+   236,
+   237
+  ],
+  [
+   228,
+   232
+  ],
+  [
+   270,
+   275
+  ],
+  [
+   85,
+   90
+  ],
+  [
+   97,
+   139
+  ],
+  [
+   29,
+   55
+  ],
+  [
+   140,
+   143
+  ],
+  [
+   1,
+   3
+  ],
+  [
+   190,
+   210
+  ],
+  [
+   227,
+   231
+  ],
+  [
+   10,
+   11
+  ],
+  [
+   318,
+   355
+  ],
+  [
+   288,
+   298
+  ],
+  [
+   40,
+   41
+  ],
+  [
+   0,
+   4
+  ],
+  [
+   43,
+   47
+  ],
+  [
+   273,
+   295
+  ],
+  [
+   184,
+   190
+  ],
+  [
+   108,
+   138
+  ],
+  [
+   332,
+   333
+  ],
+  [
+   185,
+   186
+  ],
+  [
+   350,
+   357
+  ],
+  [
+   323,
+   334
+  ],
+  [
+   280,
+   283
+  ],
+  [
+   104,
+   142
+  ],
+  [
+   122,
+   132
+  ],
+  [
+   38,
+   39
+  ],
+  [
+   310,
+   327
+  ],
+  [
+   16,
+   20
+  ],
+  [
+   127,
+   130
+  ],
+  [
+   202,
+   203
+  ],
+  [
+   69,
+   73
+  ],
+  [
+   66,
+   90
+  ],
+  [
+   193,
+   199
+  ],
+  [
+   221,
+   238
+  ],
+  [
+   71,
+   95
+  ],
+  [
+   200,
+   202
+  ],
+  [
+   232,
+   247
+  ],
+  [
+   35,
+   42
+  ],
+  [
+   331,
+   337
+  ],
+  [
+   283,
+   288
+  ],
+  [
+   52,
+   91
+  ],
+  [
+   96,
+   101
+  ],
+  [
+   371,
+   372
+  ],
+  [
+   309,
+   324
+  ],
+  [
+   279,
+   293
+  ],
+  [
+   361,
+   362
+  ],
+  [
+   365,
+   369
+  ],
+  [
+   9,
+   12
+  ],
+  [
+   217,
+   234
+  ],
+  [
+   66,
+   87
+  ],
+  [
+   226,
+   245
+  ],
+  [
+   78,
+   79
+  ],
+  [
+   20,
+   21
+  ],
+  [
+   161,
+   176
+  ],
+  [
+   183,
+   206
+  ],
+  [
+   317,
+   375
+  ],
+  [
+   259,
+   260
+  ],
+  [
+   189,
+   210
+  ],
+  [
+   70,
+   72
+  ],
+  [
+   274,
+   299
+  ],
+  [
+   40,
+   42
+  ],
+  [
+   255,
+   258
+  ],
+  [
+   18,
+   19
+  ],
+  [
+   74,
+   77
+  ],
+  [
+   107,
+   108
+  ],
+  [
+   115,
+   130
+  ],
+  [
+   276,
+   291
+  ],
+  [
+   225,
+   248
+  ],
+  [
+   280,
+   299
+  ],
+  [
+   187,
+   204
+  ],
+  [
+   245,
+   250
+  ],
+  [
+   17,
+   24
+  ],
+  [
+   301,
+   302
+  ],
+  [
+   214,
+   218
+  ],
+  [
+   291,
+   292
+  ],
+  [
+   321,
+   340
+  ],
+  [
+   34,
+   46
+  ],
+  [
+   8,
+   9
+  ],
+  [
+   3,
+   6
+  ],
+  [
+   82,
+   83
+  ],
+  [
+   316,
+   318
+  ],
+  [
+   126,
+   132
+  ],
+  [
+   156,
+   171
+  ],
+  [
+   315,
+   335
+  ],
+  [
+   7,
+   8
+  ],
+  [
+   56,
+   114
+  ],
+  [
+   191,
+   198
+  ],
+  [
+   84,
+   88
+  ],
+  [
+   325,
+   348
+  ],
+  [
+   371,
+   374
+  ],
+  [
+   203,
+   208
+  ],
+  [
+   110,
+   111
+  ],
+  [
+   68,
+   71
+  ],
+  [
+   46,
+   47
+  ],
+  [
+   188,
+   196
+  ],
+  [
+   216,
+   239
+  ],
+  [
+   0,
+   31
+  ],
+  [
+   33,
+   51
+  ],
+  [
+   246,
+   248
+  ],
+  [
+   13,
+   14
+  ],
+  [
+   157,
+   168
+  ],
+  [
+   319,
+   324
+  ],
+  [
+   143,
+   145
+  ],
+  [
+   74,
+   75
+  ],
+  [
+   31,
+   57
+  ],
+  [
+   173,
+   174
+  ],
+  [
+   96,
+   139
+  ]
+ ],
+ "bins": [
+  {
+   "x": -690.1,
+   "z": -5538.4,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360983512"
+   ],
+   "id": "sm000",
+   "kastel": "Sućurac",
+   "roadDist": 788.4,
+   "roadBearing": 165.5,
+   "street": "Gospin put"
+  },
+  {
+   "x": -860.7,
+   "z": -5569.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360983679"
+   ],
+   "id": "sm001",
+   "kastel": "Sućurac",
+   "roadDist": 795.6,
+   "roadBearing": 165.5,
+   "street": "Gospin put"
+  },
+  {
+   "x": -6285.0,
+   "z": -5051.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2503383480",
+    "node/2503383483",
+    "node/2503383485",
+    "node/2503383487"
+   ],
+   "id": "sm002",
+   "kastel": "Lukšić",
+   "roadDist": 3.4,
+   "roadBearing": 94.9,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -9177.4,
+   "z": -4535.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2519168856",
+    "node/2519168866",
+    "node/2519168876",
+    "node/2519168887",
+    "node/2519168900",
+    "node/2519168921"
+   ],
+   "id": "sm003",
+   "kastel": "Štafilić",
+   "roadDist": 9.7,
+   "roadBearing": 51.3,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -7194.7,
+   "z": -5030.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/4811998283"
+   ],
+   "id": "sm004",
+   "kastel": "Stari",
+   "roadDist": 8.0,
+   "roadBearing": 92.2,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -3185.9,
+   "z": -4274.1,
+   "kind": "kontejneri",
+   "n": 3,
+   "recikliranje": true,
+   "source": "osm",
+   "osm": [
+    "node/504321455"
+   ],
+   "id": "sm005",
+   "kastel": "Gomilica",
+   "roadDist": 147.8,
+   "roadBearing": 104.9,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8400.9,
+   "z": -4385.9,
+   "kind": "kontejneri",
+   "n": 3,
+   "recikliranje": true,
+   "source": "osm",
+   "osm": [
+    "node/13720266435"
+   ],
+   "id": "sm006",
+   "kastel": "Novi",
+   "roadDist": 83.5,
+   "roadBearing": 145.5,
+   "street": "Obala kralja Tomislava"
+  },
+  {
+   "x": -8305.1,
+   "z": -4404.5,
+   "kind": "kontejneri",
+   "n": 3,
+   "recikliranje": true,
+   "source": "osm",
+   "osm": [
+    "node/13720269174"
+   ],
+   "id": "sm007",
+   "kastel": "Novi",
+   "roadDist": 9.7,
+   "roadBearing": 138.2,
+   "street": "Obala kralja Tomislava"
+  },
+  {
+   "x": -8929.8,
+   "z": -4636.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm008",
+   "kastel": "Štafilić",
+   "roadDist": 6.5,
+   "roadBearing": 76.9,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -9131.0,
+   "z": -4598.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm009",
+   "kastel": "Štafilić",
+   "roadDist": 32.0,
+   "roadBearing": 57.3,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -9189.4,
+   "z": -4516.3,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm010",
+   "kastel": "Štafilić",
+   "roadDist": 2.2,
+   "roadBearing": 49.9,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -9266.1,
+   "z": -4446.1,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm011",
+   "kastel": "Štafilić",
+   "roadDist": 4.0,
+   "roadBearing": 50.6,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -9324.9,
+   "z": -4432.1,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm012",
+   "kastel": "Štafilić",
+   "roadDist": 22.5,
+   "roadBearing": 50.2,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -9379.9,
+   "z": -4451.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm013",
+   "kastel": "Štafilić",
+   "roadDist": 11.6,
+   "roadBearing": 165.3,
+   "street": "Škabrnjska"
+  },
+  {
+   "x": -9361.0,
+   "z": -4465.1,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm014",
+   "kastel": "Štafilić",
+   "roadDist": 10.4,
+   "roadBearing": 161.7,
+   "street": "Škabrnjska"
+  },
+  {
+   "x": -8938.1,
+   "z": -4426.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm015",
+   "kastel": "Štafilić",
+   "roadDist": 195.7,
+   "roadBearing": 165.4,
+   "street": "Drinovićeva"
+  },
+  {
+   "x": -8895.9,
+   "z": -4650.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm016",
+   "kastel": "Štafilić",
+   "roadDist": 1.9,
+   "roadBearing": 81.7,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8915.9,
+   "z": -4639.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm017",
+   "kastel": "Štafilić",
+   "roadDist": 6.2,
+   "roadBearing": 80.8,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8908.2,
+   "z": -4654.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm018",
+   "kastel": "Štafilić",
+   "roadDist": 8.0,
+   "roadBearing": 80.7,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8717.7,
+   "z": -4380.9,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm019",
+   "kastel": "Štafilić",
+   "roadDist": 5.7,
+   "roadBearing": 157.6,
+   "street": "Drinovićeva"
+  },
+  {
+   "x": -8849.9,
+   "z": -4318.8,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm020",
+   "kastel": "Štafilić",
+   "roadDist": 150.2,
+   "roadBearing": 165.3,
+   "street": "Drinovićeva"
+  },
+  {
+   "x": -8547.1,
+   "z": -4796.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm021",
+   "kastel": "Novi",
+   "roadDist": 30.2,
+   "roadBearing": 159.4,
+   "street": "Put sv. Josipa"
+  },
+  {
+   "x": -8540.3,
+   "z": -4772.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm022",
+   "kastel": "Novi",
+   "roadDist": 27.9,
+   "roadBearing": 68.5,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8575.6,
+   "z": -4724.0,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm023",
+   "kastel": "Štafilić",
+   "roadDist": 4.2,
+   "roadBearing": 70.0,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8529.9,
+   "z": -4750.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm024",
+   "kastel": "Novi",
+   "roadDist": 3.6,
+   "roadBearing": 68.3,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8513.8,
+   "z": -4753.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm025",
+   "kastel": "Novi",
+   "roadDist": 0.3,
+   "roadBearing": 68.3,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8461.0,
+   "z": -4676.8,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm026",
+   "kastel": "Novi",
+   "roadDist": 4.1,
+   "roadBearing": 172.8,
+   "street": "Put sv. Lucije"
+  },
+  {
+   "x": -8463.3,
+   "z": -4690.0,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm027",
+   "kastel": "Novi",
+   "roadDist": 4.8,
+   "roadBearing": 172.8,
+   "street": "Put sv. Lucije"
+  },
+  {
+   "x": -8301.0,
+   "z": -5685.8,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm028",
+   "kastel": "Novi",
+   "roadDist": 81.2,
+   "roadBearing": 68.8,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -8831.1,
+   "z": -4673.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm029",
+   "kastel": "Štafilić",
+   "roadDist": 13.0,
+   "roadBearing": 79.2,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8745.2,
+   "z": -4661.5,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm030",
+   "kastel": "Štafilić",
+   "roadDist": 14.4,
+   "roadBearing": 79.7,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8804.5,
+   "z": -4654.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm031",
+   "kastel": "Štafilić",
+   "roadDist": 10.6,
+   "roadBearing": 79.1,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -8705.0,
+   "z": -4696.4,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm032",
+   "kastel": "Štafilić",
+   "roadDist": 9.0,
+   "roadBearing": 168.9,
+   "street": "Bažalovica II"
+  },
+  {
+   "x": -8267.0,
+   "z": -5643.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm033",
+   "kastel": "Novi",
+   "roadDist": 29.3,
+   "roadBearing": 68.8,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -8305.3,
+   "z": -5639.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm034",
+   "kastel": "Novi",
+   "roadDist": 40.2,
+   "roadBearing": 66.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -8272.6,
+   "z": -5652.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm035",
+   "kastel": "Novi",
+   "roadDist": 39.6,
+   "roadBearing": 68.9,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -7973.9,
+   "z": -4574.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm036",
+   "kastel": "Stari",
+   "roadDist": 3.2,
+   "roadBearing": 58.0,
+   "street": "Obala kralja Tomislava"
+  },
+  {
+   "x": -8032.2,
+   "z": -5684.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm037",
+   "kastel": "Novi",
+   "roadDist": 17.7,
+   "roadBearing": 85.5,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -8024.5,
+   "z": -5689.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm038",
+   "kastel": "Stari",
+   "roadDist": 23.0,
+   "roadBearing": 87.3,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -7386.2,
+   "z": -5585.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm039",
+   "kastel": "Stari",
+   "roadDist": 16.1,
+   "roadBearing": 99.2,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -7627.9,
+   "z": -5591.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm040",
+   "kastel": "Stari",
+   "roadDist": 18.3,
+   "roadBearing": 104.2,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6464.6,
+   "z": -5622.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm041",
+   "kastel": "Lukšić",
+   "roadDist": 12.7,
+   "roadBearing": 87.6,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6868.2,
+   "z": -5550.8,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm042",
+   "kastel": "Lukšić",
+   "roadDist": 8.4,
+   "roadBearing": 83.9,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6775.3,
+   "z": -5546.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm043",
+   "kastel": "Lukšić",
+   "roadDist": 22.8,
+   "roadBearing": 84.1,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -7028.7,
+   "z": -5542.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm044",
+   "kastel": "Stari",
+   "roadDist": 0.3,
+   "roadBearing": 85.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -7216.9,
+   "z": -5564.1,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm045",
+   "kastel": "Stari",
+   "roadDist": 12.3,
+   "roadBearing": 93.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6815.0,
+   "z": -5610.8,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm046",
+   "kastel": "Lukšić",
+   "roadDist": 22.8,
+   "roadBearing": 2.0,
+   "street": "Vežarovice"
+  },
+  {
+   "x": -6454.8,
+   "z": -5655.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm047",
+   "kastel": "Lukšić",
+   "roadDist": 45.2,
+   "roadBearing": 87.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6455.9,
+   "z": -5625.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm048",
+   "kastel": "Lukšić",
+   "roadDist": 14.9,
+   "roadBearing": 87.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6443.0,
+   "z": -5619.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm049",
+   "kastel": "Lukšić",
+   "roadDist": 8.8,
+   "roadBearing": 87.6,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -5816.9,
+   "z": -5546.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm050",
+   "kastel": "Lukšić",
+   "roadDist": 5.1,
+   "roadBearing": 99.8,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6150.7,
+   "z": -5590.6,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm051",
+   "kastel": "Lukšić",
+   "roadDist": 4.6,
+   "roadBearing": 93.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -6423.9,
+   "z": -5596.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm052",
+   "kastel": "Lukšić",
+   "roadDist": 4.2,
+   "roadBearing": 87.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -3789.6,
+   "z": -5333.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm053",
+   "kastel": "Gomilica",
+   "roadDist": 3.5,
+   "roadBearing": 108.8,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -3929.4,
+   "z": -5391.0,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm054",
+   "kastel": "Gomilica",
+   "roadDist": 3.6,
+   "roadBearing": 105.8,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -3624.4,
+   "z": -5301.4,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm055",
+   "kastel": "Gomilica",
+   "roadDist": 10.5,
+   "roadBearing": 109.9,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -3029.5,
+   "z": -4389.5,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm056",
+   "kastel": "Gomilica",
+   "roadDist": 4.1,
+   "roadBearing": 105.1,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -3044.5,
+   "z": -5101.1,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm057",
+   "kastel": "Gomilica",
+   "roadDist": 16.0,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -2786.8,
+   "z": -5220.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm058",
+   "kastel": "Gomilica",
+   "roadDist": 216.6,
+   "roadBearing": 110.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -3037.3,
+   "z": -5089.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm059",
+   "kastel": "Gomilica",
+   "roadDist": 7.6,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -2669.8,
+   "z": -4916.0,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm060",
+   "kastel": "Gomilica",
+   "roadDist": 20.3,
+   "roadBearing": 109.6,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -2702.2,
+   "z": -4909.7,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm061",
+   "kastel": "Gomilica",
+   "roadDist": 37.0,
+   "roadBearing": 109.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -2851.0,
+   "z": -5000.2,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm062",
+   "kastel": "Gomilica",
+   "roadDist": 1.2,
+   "roadBearing": 109.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -2006.5,
+   "z": -4738.3,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm063",
+   "kastel": "Sućurac",
+   "roadDist": 10.5,
+   "roadBearing": 98.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -1112.5,
+   "z": -4741.5,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm064",
+   "kastel": "Sućurac",
+   "roadDist": 4.3,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -1041.3,
+   "z": -4738.6,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm065",
+   "kastel": "Sućurac",
+   "roadDist": 6.5,
+   "roadBearing": 91.3,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -1096.9,
+   "z": -4728.4,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm066",
+   "kastel": "Sućurac",
+   "roadDist": 17.5,
+   "roadBearing": 89.7,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -435.7,
+   "z": -4084.0,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 2,
+   "id": "sm067",
+   "kastel": "Sućurac",
+   "roadDist": 7.8,
+   "roadBearing": 107.6,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -294.1,
+   "z": -4041.9,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm068",
+   "kastel": "Sućurac",
+   "roadDist": 10.4,
+   "roadBearing": 107.7,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -557.9,
+   "z": -4678.6,
+   "kind": "kontejneri",
+   "n": 2,
+   "recikliranje": false,
+   "source": "mapillary",
+   "det": 1,
+   "id": "sm069",
+   "kastel": "Sućurac",
+   "roadDist": 16.0,
+   "roadBearing": 101.6,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -1280.2,
+   "z": -6181.9,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360533086"
+   ],
+   "id": "sm070",
+   "kastel": "Sućurac",
+   "roadDist": 1428.2,
+   "roadBearing": 87.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -1273.0,
+   "z": -6220.2,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360533090"
+   ],
+   "id": "sm071",
+   "kastel": "Sućurac",
+   "roadDist": 1466.1,
+   "roadBearing": 87.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -1289.9,
+   "z": -6589.6,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360540442"
+   ],
+   "id": "sm072",
+   "kastel": "Sućurac",
+   "roadDist": 1835.9,
+   "roadBearing": 87.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -944.1,
+   "z": -5218.8,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360983842"
+   ],
+   "id": "sm073",
+   "kastel": "Sućurac",
+   "roadDist": 447.9,
+   "roadBearing": 165.5,
+   "street": "Gospin put"
+  },
+  {
+   "x": -1551.1,
+   "z": -4767.3,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2360984311"
+   ],
+   "id": "sm074",
+   "kastel": "Sućurac",
+   "roadDist": 26.6,
+   "roadBearing": 88.4,
+   "street": "Cesta pape Ivana Pavla II."
+  },
+  {
+   "x": -728.6,
+   "z": -5525.7,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2362112669"
+   ],
+   "id": "sm075",
+   "kastel": "Sućurac",
+   "roadDist": 767.3,
+   "roadBearing": 165.5,
+   "street": "Gospin put"
+  },
+  {
+   "x": -758.6,
+   "z": -5458.4,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2362113836"
+   ],
+   "id": "sm076",
+   "kastel": "Sućurac",
+   "roadDist": 695.4,
+   "roadBearing": 165.5,
+   "street": "Gospin put"
+  },
+  {
+   "x": -5993.7,
+   "z": -5047.0,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/2537285299"
+   ],
+   "id": "sm077",
+   "kastel": "Lukšić",
+   "roadDist": 11.8,
+   "roadBearing": 95.2,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -2168.2,
+   "z": -4389.8,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/12969281000"
+   ],
+   "id": "sm078",
+   "kastel": "Sućurac",
+   "roadDist": 51.7,
+   "roadBearing": 88.7,
+   "street": "Cesta dr. Franje Tuđmana"
+  },
+  {
+   "x": -7742.8,
+   "z": -6566.5,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/12999007522"
+   ],
+   "id": "sm079",
+   "kastel": "Stari",
+   "roadDist": 100.3,
+   "roadBearing": 84.6,
+   "street": "Zagorski put"
+  },
+  {
+   "x": -4291.7,
+   "z": -4431.5,
+   "kind": "kanta",
+   "n": 1,
+   "recikliranje": false,
+   "source": "osm",
+   "osm": [
+    "node/13735361599"
+   ],
+   "id": "sm080",
+   "kastel": "Kambelovac",
+   "roadDist": 186.6,
+   "roadBearing": 95.6,
+   "street": "Cesta dr. Franje Tuđmana"
+  }
+ ],
+ "boxes": [
+  {
+   "id": "or000",
+   "x": -9189.2,
+   "z": -4516.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 2.4,
+   "roadBearing": 50.0
+  },
+  {
+   "id": "or001",
+   "x": -9299.9,
+   "z": -4446.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 17.4,
+   "roadBearing": 50.8
+  },
+  {
+   "id": "or002",
+   "x": -9397.1,
+   "z": -5188.7,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 9.8,
+   "roadBearing": 63.0
+  },
+  {
+   "id": "or003",
+   "x": -8659.9,
+   "z": -4415.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 7.1,
+   "roadBearing": 61.7
+  },
+  {
+   "id": "or004",
+   "x": -8884.1,
+   "z": -4653.6,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 3.1,
+   "roadBearing": 81.7
+  },
+  {
+   "id": "or005",
+   "x": -8749.3,
+   "z": -5405.3,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 17.3,
+   "roadBearing": 72.2
+  },
+  {
+   "id": "or006",
+   "x": -8573.9,
+   "z": -5480.1,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 18.7,
+   "roadBearing": 63.5
+  },
+  {
+   "id": "or007",
+   "x": -8590.3,
+   "z": -4732.9,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 9.2,
+   "roadBearing": 70.0
+  },
+  {
+   "id": "or008",
+   "x": -8471.5,
+   "z": -4765.0,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 2.9,
+   "roadBearing": 166.9
+  },
+  {
+   "id": "or009",
+   "x": -8488.7,
+   "z": -4768.8,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 5.9,
+   "roadBearing": 70.6
+  },
+  {
+   "id": "or010",
+   "x": -8881.1,
+   "z": -5330.5,
+   "n": 1,
+   "kastel": "Štafilić",
+   "roadDist": 12.0,
+   "roadBearing": 79.8
+  },
+  {
+   "id": "or011",
+   "x": -8511.5,
+   "z": -5470.2,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 8.8,
+   "roadBearing": 62.1
+  },
+  {
+   "id": "or012",
+   "x": -8305.4,
+   "z": -5609.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 12.3,
+   "roadBearing": 66.6
+  },
+  {
+   "id": "or013",
+   "x": -8248.8,
+   "z": -5630.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 10.8,
+   "roadBearing": 69.0
+  },
+  {
+   "id": "or014",
+   "x": -8130.4,
+   "z": -5656.3,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 5.1,
+   "roadBearing": 77.3
+  },
+  {
+   "id": "or015",
+   "x": -8142.8,
+   "z": -5655.1,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 6.6,
+   "roadBearing": 77.3
+  },
+  {
+   "id": "or016",
+   "x": -8119.7,
+   "z": -5660.5,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 7.2,
+   "roadBearing": 80.9
+  },
+  {
+   "id": "or017",
+   "x": -7937.7,
+   "z": -4586.4,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 19.9,
+   "roadBearing": 169.3
+  },
+  {
+   "id": "or018",
+   "x": -7943.7,
+   "z": -4585.5,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 13.9,
+   "roadBearing": 169.3
+  },
+  {
+   "id": "or019",
+   "x": -7997.4,
+   "z": -5676.6,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 8.5,
+   "roadBearing": 87.9
+  },
+  {
+   "id": "or020",
+   "x": -8063.1,
+   "z": -5645.2,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 6.1,
+   "roadBearing": 82.0
+  },
+  {
+   "id": "or021",
+   "x": -7952.9,
+   "z": -5681.0,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 11.6,
+   "roadBearing": 89.9
+  },
+  {
+   "id": "or022",
+   "x": -7716.1,
+   "z": -5661.8,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 19.0,
+   "roadBearing": 102.6
+  },
+  {
+   "id": "or023",
+   "x": -8044.9,
+   "z": -5671.9,
+   "n": 1,
+   "kastel": "Novi",
+   "roadDist": 7.2,
+   "roadBearing": 82.1
+  },
+  {
+   "id": "or024",
+   "x": -7846.6,
+   "z": -5678.6,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 14.1,
+   "roadBearing": 96.2
+  },
+  {
+   "id": "or025",
+   "x": -7442.8,
+   "z": -5553.7,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 14.6,
+   "roadBearing": 102.3
+  },
+  {
+   "id": "or026",
+   "x": -7680.9,
+   "z": -5655.1,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 15.6,
+   "roadBearing": 13.3
+  },
+  {
+   "id": "or027",
+   "x": -7478.7,
+   "z": -5560.4,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 15.7,
+   "roadBearing": 102.3
+  },
+  {
+   "id": "or028",
+   "x": -7476.3,
+   "z": -5570.8,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 5.1,
+   "roadBearing": 102.3
+  },
+  {
+   "id": "or029",
+   "x": -6581.3,
+   "z": -5610.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 10.7,
+   "roadBearing": 85.3
+  },
+  {
+   "id": "or030",
+   "x": -6568.7,
+   "z": -5609.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 8.2,
+   "roadBearing": 85.3
+  },
+  {
+   "id": "or031",
+   "x": -6468.1,
+   "z": -5623.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 13.7,
+   "roadBearing": 86.0
+  },
+  {
+   "id": "or032",
+   "x": -6480.4,
+   "z": -5619.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 10.7,
+   "roadBearing": 85.0
+  },
+  {
+   "id": "or033",
+   "x": -6863.9,
+   "z": -5551.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 8.3,
+   "roadBearing": 83.8
+  },
+  {
+   "id": "or034",
+   "x": -6470.4,
+   "z": -5591.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 7.2,
+   "roadBearing": 87.7
+  },
+  {
+   "id": "or035",
+   "x": -6950.2,
+   "z": -5574.0,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 11.7,
+   "roadBearing": 83.7
+  },
+  {
+   "id": "or036",
+   "x": -6998.3,
+   "z": -5531.0,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 14.9,
+   "roadBearing": 84.2
+  },
+  {
+   "id": "or037",
+   "x": -7042.3,
+   "z": -5550.0,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 3.9,
+   "roadBearing": 86.0
+  },
+  {
+   "id": "or038",
+   "x": -6973.5,
+   "z": -5567.7,
+   "n": 1,
+   "kastel": "Stari",
+   "roadDist": 7.8,
+   "roadBearing": 84.5
+  },
+  {
+   "id": "or039",
+   "x": -6051.2,
+   "z": -5611.2,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 5.9,
+   "roadBearing": 5.1
+  },
+  {
+   "id": "or040",
+   "x": -6073.6,
+   "z": -5614.6,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 11.9,
+   "roadBearing": 95.5
+  },
+  {
+   "id": "or041",
+   "x": -6348.6,
+   "z": -5585.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 13.8,
+   "roadBearing": 176.0
+  },
+  {
+   "id": "or042",
+   "x": -5798.9,
+   "z": -5542.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 6.2,
+   "roadBearing": 99.8
+  },
+  {
+   "id": "or043",
+   "x": -6360.7,
+   "z": -5595.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 2.4,
+   "roadBearing": 176.0
+  },
+  {
+   "id": "or044",
+   "x": -6377.4,
+   "z": -5592.6,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 9.6,
+   "roadBearing": 87.8
+  },
+  {
+   "id": "or045",
+   "x": -6441.3,
+   "z": -5587.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 12.7,
+   "roadBearing": 87.7
+  },
+  {
+   "id": "or046",
+   "x": -5794.7,
+   "z": -5572.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 13.4,
+   "roadBearing": 101.7
+  },
+  {
+   "id": "or047",
+   "x": -5803.0,
+   "z": -5569.5,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 8.4,
+   "roadBearing": 101.7
+  },
+  {
+   "id": "or048",
+   "x": -5922.5,
+   "z": -5595.9,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 12.5,
+   "roadBearing": 98.9
+  },
+  {
+   "id": "or049",
+   "x": -6062.8,
+   "z": -5619.3,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 17.7,
+   "roadBearing": 95.5
+  },
+  {
+   "id": "or050",
+   "x": -5334.0,
+   "z": -5442.4,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 13.1,
+   "roadBearing": 99.2
+  },
+  {
+   "id": "or051",
+   "x": -5326.0,
+   "z": -5450.1,
+   "n": 1,
+   "kastel": "Lukšić",
+   "roadDist": 4.4,
+   "roadBearing": 97.6
+  },
+  {
+   "id": "or052",
+   "x": -4183.0,
+   "z": -5460.2,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 10.0,
+   "roadBearing": 99.3
+  },
+  {
+   "id": "or053",
+   "x": -4400.7,
+   "z": -5448.0,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 12.2,
+   "roadBearing": 92.9
+  },
+  {
+   "id": "or054",
+   "x": -4413.3,
+   "z": -5452.7,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 7.9,
+   "roadBearing": 91.9
+  },
+  {
+   "id": "or055",
+   "x": -4203.5,
+   "z": -5462.4,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 9.4,
+   "roadBearing": 97.4
+  },
+  {
+   "id": "or056",
+   "x": -4691.8,
+   "z": -5446.8,
+   "n": 1,
+   "kastel": "Kambelovac",
+   "roadDist": 5.4,
+   "roadBearing": 85.1
+  },
+  {
+   "id": "or057",
+   "x": -3363.8,
+   "z": -5167.4,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 16.3,
+   "roadBearing": 109.9
+  },
+  {
+   "id": "or058",
+   "x": -3639.6,
+   "z": -5311.2,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 14.6,
+   "roadBearing": 109.7
+  },
+  {
+   "id": "or059",
+   "x": -3020.6,
+   "z": -4387.4,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 4.3,
+   "roadBearing": 105.1
+  },
+  {
+   "id": "or060",
+   "x": -2471.4,
+   "z": -4886.8,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 7.4,
+   "roadBearing": 108.8
+  },
+  {
+   "id": "or061",
+   "x": -3062.3,
+   "z": -5104.4,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 13.1,
+   "roadBearing": 109.6
+  },
+  {
+   "id": "or062",
+   "x": -2974.2,
+   "z": -5045.1,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 0.1,
+   "roadBearing": 109.4
+  },
+  {
+   "id": "or063",
+   "x": -3097.2,
+   "z": -5080.8,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 7.3,
+   "roadBearing": 109.5
+  },
+  {
+   "id": "or064",
+   "x": -3021.3,
+   "z": -5097.0,
+   "n": 1,
+   "kastel": "Gomilica",
+   "roadDist": 8.5,
+   "roadBearing": 9.8
+  },
+  {
+   "id": "or065",
+   "x": -1857.5,
+   "z": -4751.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 7.8,
+   "roadBearing": 94.2
+  },
+  {
+   "id": "or066",
+   "x": -2202.9,
+   "z": -4813.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 15.1,
+   "roadBearing": 103.7
+  },
+  {
+   "id": "or067",
+   "x": -1865.7,
+   "z": -4756.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 12.8,
+   "roadBearing": 94.2
+  },
+  {
+   "id": "or068",
+   "x": -1880.8,
+   "z": -4757.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 12.4,
+   "roadBearing": 95.5
+  },
+  {
+   "id": "or069",
+   "x": -876.5,
+   "z": -4763.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 8.3,
+   "roadBearing": 3.1
+  },
+  {
+   "id": "or070",
+   "x": -853.3,
+   "z": -4732.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 4.4,
+   "roadBearing": 95.2
+  },
+  {
+   "id": "or071",
+   "x": -864.5,
+   "z": -4736.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 1.6,
+   "roadBearing": 95.0
+  },
+  {
+   "id": "or072",
+   "x": -1274.6,
+   "z": -4762.0,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.3,
+   "roadBearing": 87.6
+  },
+  {
+   "id": "or073",
+   "x": -1140.2,
+   "z": -4742.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 3.3,
+   "roadBearing": 89.7
+  },
+  {
+   "id": "or074",
+   "x": -1304.2,
+   "z": -4765.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 13.9,
+   "roadBearing": 87.6
+  },
+  {
+   "id": "or075",
+   "x": -1472.1,
+   "z": -4754.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 10.4,
+   "roadBearing": 87.4
+  },
+  {
+   "id": "or076",
+   "x": -607.2,
+   "z": -4124.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 1.4,
+   "roadBearing": 106.4
+  },
+  {
+   "id": "or077",
+   "x": -593.8,
+   "z": -4119.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.8,
+   "roadBearing": 106.4
+  },
+  {
+   "id": "or078",
+   "x": -707.1,
+   "z": -4172.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.2,
+   "roadBearing": 112.4
+  },
+  {
+   "id": "or079",
+   "x": -344.8,
+   "z": -4062.5,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 14.7,
+   "roadBearing": 107.5
+  },
+  {
+   "id": "or080",
+   "x": -443.6,
+   "z": -4075.6,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 2.6,
+   "roadBearing": 107.7
+  },
+  {
+   "id": "or081",
+   "x": -419.0,
+   "z": -4080.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.3,
+   "roadBearing": 107.5
+  },
+  {
+   "id": "or082",
+   "x": -379.8,
+   "z": -4068.4,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.8,
+   "roadBearing": 107.5
+  },
+  {
+   "id": "or083",
+   "x": -651.0,
+   "z": -4735.2,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 11.2,
+   "roadBearing": 99.7
+  },
+  {
+   "id": "or084",
+   "x": -305.9,
+   "z": -4650.3,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.4,
+   "roadBearing": 107.7
+  },
+  {
+   "id": "or085",
+   "x": -476.5,
+   "z": -4697.8,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 9.4,
+   "roadBearing": 104.0
+  },
+  {
+   "id": "or086",
+   "x": -271.7,
+   "z": -4645.7,
+   "n": 1,
+   "kastel": "Sućurac",
+   "roadDist": 15.5,
+   "roadBearing": 108.8
+  }
+ ],
+ "hydrants": [
+  {
+   "id": "hi00",
+   "x": -8602.0,
+   "z": -4750.3,
+   "kastel": "Štafilić",
+   "roadDist": 29.5,
+   "roadBearing": 69.2,
+   "source": "mapillary"
+  },
+  {
+   "id": "hi01",
+   "x": -8467.5,
+   "z": -4762.8,
+   "kastel": "Novi",
+   "roadDist": 0.5,
+   "roadBearing": 167.1,
+   "source": "mapillary"
+  },
+  {
+   "id": "hi02",
+   "x": -8796.1,
+   "z": -4666.5,
+   "kastel": "Štafilić",
+   "roadDist": 0.2,
+   "roadBearing": 79.2,
+   "source": "mapillary"
+  },
+  {
+   "id": "hi03",
+   "x": -2987.0,
+   "z": -5081.4,
+   "kastel": "Gomilica",
+   "roadDist": 16.7,
+   "roadBearing": 110.0,
+   "source": "mapillary"
+  },
+  {
+   "id": "hi04",
+   "x": -1954.8,
+   "z": -4770.5,
+   "kastel": "Sućurac",
+   "roadDist": 17.4,
+   "roadBearing": 97.1,
+   "source": "mapillary"
+  },
+  {
+   "id": "hi05",
+   "x": -8971.2,
+   "z": -4625.5,
+   "kastel": "Štafilić",
+   "roadDist": 7.7,
+   "roadBearing": 76.9,
+   "source": "osm"
+  },
+  {
+   "id": "hi06",
+   "x": -8903.2,
+   "z": -4293.9,
+   "kastel": "Štafilić",
+   "roadDist": 207.9,
+   "roadBearing": 165.3,
+   "source": "osm"
+  }
+ ]
+}
