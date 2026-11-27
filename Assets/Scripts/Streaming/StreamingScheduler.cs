@@ -62,6 +62,10 @@ namespace Magistrala.Streaming
             public Scene scene;
             public AsyncOperation unload;
             public readonly List<GameObject> roots = new List<GameObject>(4);
+            /// sliced activation: the objects under root/<group>/ that were saved active, hidden while their root is switched on and
+            /// then shown a few per frame (units[0..shown) are active); never touched: objects saved inactive
+            public readonly List<GameObject> units = new List<GameObject>(64);
+            public int shown; public bool prepared;
             public bool wantActive, wantPreload, keep, ready;
             public float distance, priority;
         }
@@ -115,6 +119,23 @@ namespace Magistrala.Streaming
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i + 1 < args.Length; i++)
                 if (args[i] == "-stream") StreamingEnabled = args[i + 1] == "1";
+            Dbg = Array.IndexOf(args, "-streamdbg") >= 0;
+            // -streamold: the first phase-3 policy (one whole root per frame, start waits for the preload ring too), for A/B
+            if (Array.IndexOf(args, "-streamold") >= 0) { sliced = false; startOnActiveRing = false; }
+            // measuring: -streambudget MS (admission budget while driving), -streamupload MB,MS (QualitySettings async upload
+            // buffer / time slice)
+            for (int i = 0; i + 1 < args.Length; i++)
+            {
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                if (args[i] == "-streambudget" && float.TryParse(args[i + 1], System.Globalization.NumberStyles.Float, inv, out float ms)) frameBudgetMs = Mathf.Max(.1f, ms);
+                if (args[i] == "-streamupload")
+                {
+                    var p = args[i + 1].Split(',');
+                    if (p.Length > 0 && int.TryParse(p[0], out int mb)) QualitySettings.asyncUploadBufferSize = Mathf.Clamp(mb, 2, 2047);
+                    if (p.Length > 1 && int.TryParse(p[1], out int sl)) QualitySettings.asyncUploadTimeSlice = Mathf.Clamp(sl, 1, 33);
+                }
+            }
+            if (StreamingEnabled) Debug.Log($"[stream] policy sliced={sliced} startOnActiveRing={startOnActiveRing} budget={frameBudgetMs:F1}ms upload={QualitySettings.asyncUploadBufferSize}MB/{QualitySettings.asyncUploadTimeSlice}ms");
             if (!StreamingEnabled) { LoadEverything(); return; }
             if (!CellManifest.TryLoad(out var manifest, out var error)) { FailStartup(error); return; }
             Manifest = manifest;
@@ -219,6 +240,7 @@ namespace Magistrala.Streaming
         {
             if (!StreamingEnabled) return;
             frameStart = Time.realtimeSinceStartupAsDouble;
+            if (Dbg) DumpDt();
             if (!RefreshPlayer()) { log.Tick(this); return; }
             if (!started)
             {
@@ -268,6 +290,25 @@ namespace Magistrala.Streaming
         }
 
         Vector3 kinPrev, kinVel;
+        /// -streamdbg (measuring): every scheduler operation and every frame over 33 ms as a [sev] line with the frame number, so
+        /// hitches can be matched to what streaming did in that frame or the one before (release players too)
+        public static bool Dbg;
+        /// sliced activation (see Cell.units) and a start that waits only for the active ring (the preload ring follows while driving)
+        bool sliced = true, startOnActiveRing = true;
+        static void Ev(string s) { Debug.Log($"[sev] f={Time.frameCount} t={Time.realtimeSinceStartup:F2} {s}"); }
+        /// every frame's unscaled dt (ms, rounded) as one [sevdt] line per 10 s, first frame number in front: event-locked averages
+        /// offline without a log line per frame
+        static readonly System.Text.StringBuilder dtLine = new System.Text.StringBuilder(8192);
+        static int dtFirst = -1; static double dtFlushAt;
+        static void DumpDt()
+        {
+            if (Time.unscaledDeltaTime > .033f) Ev($"dt={Time.unscaledDeltaTime * 1000:F0}");
+            if (dtFirst < 0) { dtFirst = Time.frameCount; dtLine.Clear(); dtFlushAt = Time.realtimeSinceStartupAsDouble + 10; }
+            dtLine.Append(' ').Append(Mathf.RoundToInt(Time.unscaledDeltaTime * 1000));
+            if (Time.realtimeSinceStartupAsDouble < dtFlushAt) return;
+            Debug.Log($"[sevdt] f0={dtFirst}{dtLine}");
+            dtFirst = -1;
+        }
         void RefreshPath()
         {
             double now = Time.realtimeSinceStartupAsDouble;
@@ -347,7 +388,7 @@ namespace Magistrala.Streaming
             {
                 var c = cells[i];
                 if (c.state == Residency.Unloading && c.unload.isDone)
-                { c.unload = null; c.scene = default; c.roots.Clear(); c.state = Residency.Absent; }
+                { c.unload = null; c.scene = default; c.roots.Clear(); c.units.Clear(); c.shown = 0; c.prepared = false; c.state = Residency.Absent; if (Dbg) Ev("unloaded " + c.definition.key); }
             }
             if (load == null || !load.isDone) return;
             activationFrame = Time.frameCount; // Scene integration completed this frame; do not enable another root.
@@ -358,8 +399,9 @@ namespace Magistrala.Streaming
             { loaded.state = Residency.Failed; CellFailed("scene load failed: " + loaded.definition.sceneName); }
             else
             {
-                loaded.state = Residency.Resident;
+                loaded.state = Residency.Resident; loaded.units.Clear(); loaded.shown = 0; loaded.prepared = false;
                 if (HitchDiag.On) HitchDiag.Note($"scene+ {loaded.definition.key} {LastSceneActivationLatencyMs:F0}ms");
+                if (Dbg) Ev($"scene+ {loaded.definition.key} latency {LastSceneActivationLatencyMs:F0}ms");
                 loaded.roots.Capacity = Mathf.Max(loaded.roots.Capacity, loaded.scene.rootCount + 1);
                 loaded.scene.GetRootGameObjects(loaded.roots);
                 for (int i = 0; i < loaded.roots.Count; i++)
@@ -383,10 +425,12 @@ namespace Magistrala.Streaming
             gateReleased = true;
             load.allowSceneActivation = true;
             if (HitchDiag.On) HitchDiag.Note("gate " + cells[loadingIndex].definition.key);
+            if (Dbg) Ev("gate " + cells[loadingIndex].definition.key);
         }
 
         void StepRoots()
         {
+            if (sliced) { StepUnits(); return; }
             if (!CanActivate) return;
             for (int n = 0; n < cells.Length; n++)
             {
@@ -402,11 +446,78 @@ namespace Magistrala.Streaming
                     LastActivationMs = (Time.realtimeSinceStartupAsDouble - before) * 1000;
                     MaxActivationMs = Math.Max(MaxActivationMs, LastActivationMs);
                     if (HitchDiag.On) HitchDiag.Note($"root {c.definition.key} {(c.wantActive ? "on" : "off")} {LastActivationMs:F1}ms");
+                    if (Dbg) Ev($"root {c.definition.key} {(c.wantActive ? "on" : "off")} {LastActivationMs:F2}ms");
                     activationFrame = Time.frameCount;
                     rootCursor = (i + 1) % cells.Length;
                     return;
                 }
             }
+        }
+
+        /// sliced activation: the nearest cell that wants to be shown first; units are switched on (or off, for cells leaving the
+        /// active ring, only when nothing waits to be shown) one after another until the frame's budget is used. A unit is one
+        /// object under root/<group>/ (a merged 256 m block, a building's LOD group, a sign, a cell's collider mesh): its
+        /// SetActive (renderer / collider registration, OnEnable) is the indivisible step instead of the whole cell's.
+        void StepUnits()
+        {
+            if (activationFrame == Time.frameCount) return; // a scene integrated this frame
+            if (!InitialLoading && Time.unscaledDeltaTime * 1000 > slowFrameThresholdMs && slowDeferrals < 6) { slowDeferrals++; return; }
+            slowDeferrals = 0;
+            int steps = 0;
+            while (true)
+            {
+                int best = -1; float bp = float.PositiveInfinity; bool show = false;
+                for (int i = 0; i < cells.Length; i++)
+                {
+                    var c = cells[i];
+                    if (c.state != Residency.Resident || c.roots.Count == 0) continue;
+                    bool need = c.wantActive ? (!c.prepared || c.shown < c.units.Count) : c.shown > 0;
+                    if (!need) continue;
+                    // showing beats hiding; nearer first
+                    float p = c.wantActive ? c.priority - 1e7f : c.priority;
+                    if (p < bp) { bp = p; best = i; show = c.wantActive; }
+                }
+                if (best < 0) return;
+                double estimate = Math.Min(Math.Max(LastActivationMs, .02), frameBudgetMs * .75);
+                if (steps > 0 && !HasBudget(estimate)) return;
+                var cell = cells[best];
+                double before = Time.realtimeSinceStartupAsDouble;
+                string what;
+                if (show && !cell.prepared) { Prepare(cell); what = "prep"; }
+                else if (show) { cell.units[cell.shown++].SetActive(true); what = "on"; }
+                else { cell.units[--cell.shown].SetActive(false); what = "off"; }
+                LastActivationMs = (Time.realtimeSinceStartupAsDouble - before) * 1000;
+                MaxActivationMs = Math.Max(MaxActivationMs, LastActivationMs);
+                if (Dbg && LastActivationMs > .5) Ev($"unit {cell.definition.key} {what} {(what == "on" ? cell.units[cell.shown - 1].name : what == "off" ? cell.units[cell.shown].name : "")} {LastActivationMs:F2}ms");
+                steps++;
+                if (!InitialLoading && steps >= 64) return;
+            }
+        }
+
+        /// the root's children-of-groups that were saved active are hidden while the root is still inactive (no callbacks), then the
+        /// root goes on: nothing of the cell is drawn or collides until its units are shown
+        static void Prepare(Cell c)
+        {
+            c.units.Clear(); c.shown = 0;
+            for (int r = 0; r < c.roots.Count; r++)
+            {
+                var root = c.roots[r]; if (!root) continue;
+                var rt = root.transform;
+                if (root.activeSelf) root.SetActive(false);
+                for (int g = 0; g < rt.childCount; g++)
+                {
+                    var group = rt.GetChild(g);
+                    if (!group.gameObject.activeSelf) continue;
+                    for (int u = 0; u < group.childCount; u++)
+                    {
+                        var unit = group.GetChild(u).gameObject;
+                        if (!unit.activeSelf) continue;
+                        unit.SetActive(false); c.units.Add(unit);
+                    }
+                }
+            }
+            for (int r = 0; r < c.roots.Count; r++) if (c.roots[r]) c.roots[r].SetActive(true);
+            c.prepared = true;
         }
 
         void StepDataSystems()
@@ -462,8 +573,9 @@ namespace Magistrala.Streaming
             return true;
         }
 
-        static bool RootsVisible(Cell c)
+        bool RootsVisible(Cell c)
         {
+            if (sliced) return c.prepared && c.shown == c.units.Count;
             for (int i = 0; i < c.roots.Count; i++) if (c.roots[i] && !c.roots[i].activeSelf) return false;
             return true;
         }
@@ -475,10 +587,11 @@ namespace Magistrala.Streaming
             for (int i = 0; i < cells.Length; i++)
             {
                 var c = cells[i];
-                if (c.state != Residency.Resident || c.keep || !DataReleased(i)) continue;
+                if (c.state != Residency.Resident || c.keep || !DataReleased(i) || c.shown > 0) continue;
                 if (!c.scene.IsValid()) { c.state = Residency.Absent; return; } // data-only
                 c.unload = SceneManager.UnloadSceneAsync(c.scene);
                 if (HitchDiag.On) HitchDiag.Note("unload " + c.definition.key);
+                if (Dbg) Ev("unload " + c.definition.key);
                 if (c.unload == null) { c.state = Residency.Failed; CellFailed("unload rejected: " + c.definition.key); }
                 else c.state = Residency.Unloading;
                 return;
@@ -509,6 +622,7 @@ namespace Magistrala.Streaming
                 load.priority = cell.wantActive ? 100 : cell.priority < cell.distance ? 10 : 0;
                 loadingIndex = best; gateReleased = false;
                 cell.state = Residency.Loading; LoadsStarted++;
+                if (Dbg) Ev($"load {cell.definition.key} d={cell.distance:F0} prio={load.priority}");
             }
             catch (Exception e)
             { load = null; cell.state = Residency.Failed; CellFailed("load rejected: " + e.Message); }
@@ -539,7 +653,7 @@ namespace Magistrala.Streaming
             for (int i = 0; i < cells.Length; i++)
             {
                 var c = cells[i];
-                if (c.wantPreload && c.state != Residency.Resident) return false;
+                if (c.wantPreload && !startOnActiveRing && c.state != Residency.Resident) return false;
                 if (c.wantActive && !c.ready) return false;
             }
             return true;

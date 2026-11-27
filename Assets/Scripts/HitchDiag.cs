@@ -29,9 +29,14 @@ namespace Magistrala
         readonly FrameTiming[] ft = new FrameTiming[4];
         readonly long[] top = new long[12]; readonly int[] topI = new int[12];
 
+        /// -hitchms N: the frame time that gets a [hitchdbg] line (default 40 ms; lower to see e.g. a streamed cell's integration frame)
+        float threshold = .04f;
         void OnEnable()
         {
             On = true; t0 = Time.realtimeSinceStartup;
+            var args = System.Environment.GetCommandLineArgs();
+            int k = System.Array.IndexOf(args, "-hitchms");
+            if (k >= 0 && k + 1 < args.Length && float.TryParse(args[k + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float ms)) threshold = ms / 1000f;
             gcAlloc = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "GC Allocated In Frame");
             gcUsed = ProfilerRecorder.StartNew(ProfilerCategory.Memory, "GC Used Memory");
             gcLast = winGc0 = System.GC.CollectionCount(0);
@@ -73,7 +78,7 @@ namespace Magistrala
             long a = gcAlloc.Valid ? gcAlloc.LastValue : 0;
             int gc = System.GC.CollectionCount(0), dGc = gc - gcLast; gcLast = gc;
             if (now > 15) { winAlloc += a; winMax = System.Math.Max(winMax, a); winFrames++; }
-            if (dt > .04f && now > 15 && lines++ < 30)
+            if (dt > threshold && now > 15 && lines++ < 30)
             {
                 var sb = new System.Text.StringBuilder();
                 var tr = Magistrala.Game.MagistralaGame.DrivenTruck();
