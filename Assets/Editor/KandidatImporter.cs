@@ -15,6 +15,8 @@
 //      a different plate per paint colour.
 //   8. LODs with UnityMeshSimplifier per submesh; LOD0 = the model (interior decimated, transparent tinted glass), LOD1 / LOD2 no
 //      interior, opaque glass; far mesh ~600 triangles with per-triangle colours (TrafficBuilder's shared palette).
+//      Optional lod1Glb/lod2Glb: authored geometry, shared LOD0 normalisation/pivots/material slots; no further simplification.
+//      Optional namedWheels: wheel_FL/FR/RL/RR subtrees rotate together, independent of tyre topology.
 // TrafficBuilder.Kinds() adds them (TrafficKinds below). Output: Assets/Generated/Vehicles/Kandidati/<kind>/.
 // Also: before / after screenshots in the AutiParking scene (Shots), source textures dumped for finding badge rects (Builds/kandidati).
 using System;
@@ -85,6 +87,9 @@ namespace Magistrala.EditorTools
             public float[] probe;               // log the texture rects of the triangles in these boxes (6 floats per box)
             public string[] colors; public float[] colorWeights;
             public float weight = 5, vMul = .95f, a = 1.3f, b = 3f, T = 1.4f;
+            // Optional authored LODs in the same glTF frame/material/UV layout as glb. Empty = legacy simplifier.
+            public string lod1Glb, lod2Glb;
+            public bool namedWheels;            // wheel_FL/FR/RL/RR hierarchy is authoritative (including rims/hubs)
             public int lod1 = 13000, lod2 = 4000, far = 600; public float interiorLod0 = .4f;
             public float lodNear = 25, lodMid = 45;
             public int plateStyle = 1;          // atlas column: 0 EU strip, 1 older without
@@ -188,7 +193,7 @@ namespace Magistrala.EditorTools
 
         // ------------------------------------------------------------------ GLB (all nodes / meshes / primitives)
         class GMat { public string name; public int bc = -1, mr = -1, nrm = -1; public Color factor = Color.white; public bool blend; public bool sg; public float gloss = 1; }
-        class Prim { public string node, path; public int nodeIdx, primIdx; public int mat; public Vector3[] P, N; public Vector2[] UV; public int[] I; }
+        class Prim { public string node, path; public int nodeIdx, primIdx; public int wheelNode = -1; public Vector3 wheelOrigin; public int mat; public Vector3[] P, N; public Vector2[] UV; public int[] I; }
         class Glb { public List<Prim> prims = new List<Prim>(); public List<GMat> mats = new List<GMat>(); public List<byte[]> images = new List<byte[]>(); }
 
         static Glb ReadGlb(string path)
@@ -258,10 +263,12 @@ namespace Magistrala.EditorTools
                 if (MiniJson.G(n, "scale") is object ss) { var l = MiniJson.L(ss); s = new Vector3(F(l[0]), F(l[1]), F(l[2])); }
                 return Matrix4x4.TRS(t, q, s);
             }
-            void Walk(int ni, Matrix4x4 parent, string ppath)
+            void Walk(int ni, Matrix4x4 parent, string ppath, int wheel = -1, Vector3 wheelOrigin = default)
             {
                 var n = MiniJson.O(nodes[ni]); var M = parent * Local(n);
                 string name = MiniJson.G(n, "name") as string ?? "", path = ppath + "/" + name;
+                int namedWheel = name == "wheel_FL" ? 0 : name == "wheel_FR" ? 1 : name == "wheel_RL" ? 2 : name == "wheel_RR" ? 3 : -1;
+                if (namedWheel >= 0) { wheel = namedWheel; wheelOrigin = M.MultiplyPoint3x4(Vector3.zero); }
                 if (MiniJson.G(n, "mesh") is object meshI)
                 {
                     var nm = M.inverse.transpose; bool flip = M.determinant < 0;
@@ -273,7 +280,7 @@ namespace Magistrala.EditorTools
                         var pos = Floats(I(at["POSITION"]), 3);
                         var nor = MiniJson.G(at, "NORMAL") is object na ? Floats(I(na), 3) : null;
                         var uv = MiniJson.G(at, "TEXCOORD_0") is object ua ? Floats(I(ua), 2) : null;
-                        var pr = new Prim { node = name, path = path, nodeIdx = ni, primIdx = pIdx, mat = MiniJson.G(p, "material") is object mi ? I(mi) : -1, P = new Vector3[pos.Length], N = new Vector3[pos.Length], UV = new Vector2[pos.Length] };
+                        var pr = new Prim { wheelNode = wheel, wheelOrigin = new Vector3(-wheelOrigin.x, wheelOrigin.y, wheelOrigin.z), node = name, path = path, nodeIdx = ni, primIdx = pIdx, mat = MiniJson.G(p, "material") is object mi ? I(mi) : -1, P = new Vector3[pos.Length], N = new Vector3[pos.Length], UV = new Vector2[pos.Length] };
                         for (int i = 0; i < pos.Length; i++)
                         {
                             var w = M.MultiplyPoint3x4(new Vector3(pos[i][0], pos[i][1], pos[i][2]));
@@ -294,7 +301,7 @@ namespace Magistrala.EditorTools
                         g.prims.Add(pr);
                     }
                 }
-                if (MiniJson.G(n, "children") is object ch) foreach (var c in MiniJson.L(ch)) Walk(I(c), M, path);
+                if (MiniJson.G(n, "children") is object ch) foreach (var c in MiniJson.L(ch)) Walk(I(c), M, path, wheel, wheelOrigin);
             }
             var scene = MiniJson.O(MiniJson.L(j["scenes"])[MiniJson.G(j, "scene") is object sc ? I(sc) : 0]);
             foreach (var r in MiniJson.L(scene["nodes"])) Walk(I(r), Matrix4x4.identity, "");
@@ -330,7 +337,7 @@ namespace Magistrala.EditorTools
         {
             public KCar cfg; public Glb g; public Tex[] bc, mr, nrm; public KMat[] km;   // per glTF material
             public List<Tri> tris = new List<Tri>();
-            public float L, hw, H;
+            public float L, hw, H; public Matrix4x4 modelToCar;
             public Vector3[] wc = new Vector3[4]; public float[] wr = new float[4];
         }
         static Vector3 P(Car c, Tri t, int q) { var p = c.g.prims[t.prim]; return p.P[p.I[t.t + q]]; }
@@ -421,7 +428,8 @@ namespace Magistrala.EditorTools
             Upright(c, log);
             Wheels(c, log);
             Strip(c, log);
-            Covers(c, log);
+            // Prepared levels already contain the finished geometry, including lamp covers.
+            if (string.IsNullOrEmpty(cfg.lod1Glb) && string.IsNullOrEmpty(cfg.lod2Glb)) Covers(c, log);
             Probe(c);
             Lamps(c, log);
             PlateProfile(c);
@@ -526,6 +534,7 @@ namespace Magistrala.EditorTools
             // a pure rotation keeps the winding
             var b = B(); float s2 = c.cfg.length / b.size.z;
             foreach (var p in c.g.prims) for (int i = 0; i < p.P.Length; i++) p.P[i] = new Vector3((p.P[i].x - b.center.x) * s2, (p.P[i].y - b.min.y) * s2, (p.P[i].z - b.center.z) * s2);
+            c.modelToCar = Matrix4x4.Scale(Vector3.one * s2) * Matrix4x4.Translate(new Vector3(-b.center.x, -b.min.y, -b.center.z)) * Matrix4x4.Rotate(rot);
             b = B();
             if (c.cfg.height > 0 && b.size.y > c.cfg.height)
             {
@@ -556,6 +565,7 @@ namespace Magistrala.EditorTools
         // ------------------------------------------------------------------ wheels
         static void Wheels(Car c, System.Text.StringBuilder log)
         {
+            if (c.cfg.namedWheels) { NamedWheels(c, log); return; }
             // connected pieces of the wheel materials (welded at 1 mm)
             var wt = c.tris.Where(t => c.km[t.mat].role == "wheel").ToList();
             if (wt.Count == 0) { log.Append("; no wheel material"); return; }
@@ -590,6 +600,70 @@ namespace Magistrala.EditorTools
             }
             for (int k = 0; k < 4; k++) { c.wc[k] = box[k].center; c.wr[k] = box[k].size.y / 2; }
             log.Append($"; wheels r {c.wr.Average():F3} track {c.wc[1].x - c.wc[0].x:F2} base {c.wc[0].z - c.wc[2].z:F2}, {moved} tris spin, {stat} static ({comp.Count} pieces)");
+        }
+
+        // Authored wheel pivots survive even extremely sparse LOD tyres. Editor-only work.
+        static void NamedWheels(Car c, System.Text.StringBuilder log)
+        {
+            for (int w = 0; w < 4; w++)
+            {
+                var pr = c.g.prims.FirstOrDefault(p => p.wheelNode == w);
+                if (pr == null) throw new Exception($"{c.cfg.kind}: missing named wheel {w}");
+                c.wc[w] = c.modelToCar.MultiplyPoint3x4(pr.wheelOrigin);
+                var ts = c.tris.Where(t => c.g.prims[t.prim].wheelNode == w).ToList();
+                float r = 0;
+                foreach (var t in ts) for (int q = 0; q < 3; q++)
+                {
+                    var v = P(c, t, q) - c.wc[w];
+                    r = Mathf.Max(r, new Vector2(v.y, v.z).magnitude);
+                }
+                c.wr[w] = r;
+                foreach (var t in ts) t.wheel = w;
+            }
+            // Some inner rear tyres are still in the body mesh. Only wheel-role geometry near an axle joins it.
+            foreach (var t in c.tris.Where(t => t.wheel < 0 && c.km[t.mat].role == "wheel"))
+            {
+                var v = Ctr(c, t); int w = 0;
+                for (int k = 1; k < 4; k++) if ((v - c.wc[k]).sqrMagnitude < (v - c.wc[w]).sqrMagnitude) w = k;
+                var d = v - c.wc[w];
+                if (Mathf.Abs(d.x) < .6f && new Vector2(d.y, d.z).magnitude < c.wr[w] * 1.1f) t.wheel = w;
+            }
+            log.Append($"; named wheels: {c.tris.Count(t => t.wheel >= 0)} tris spin");
+        }
+
+        static Car AuthoredLod(Car source, string path, System.Text.StringBuilder log)
+        {
+            if (!source.cfg.namedWheels || source.cfg.height > 0 || source.cfg.extra?.Length > 0 ||
+                !string.IsNullOrEmpty(source.cfg.codex) || source.cfg.nodeMats?.Length > 0 || source.cfg.strip?.Length > 0)
+                throw new Exception("authored LODs require namedWheels and a shared, unpatched glTF frame/material layout");
+            var g = ReadGlb(GlbPath(path));
+            var map = g.mats.Select(m => source.g.mats.FindIndex(x => x.name == m.name)).ToArray();
+            if (map.Any(m => m < 0)) throw new Exception($"{path}: material absent from LOD0");
+            var c = new Car { cfg = source.cfg, g = g, km = source.km, bc = source.bc, mr = source.mr, nrm = source.nrm,
+                modelToCar = source.modelToCar, L = source.L, H = source.H, hw = source.hw };
+            foreach (var p in g.prims)
+            {
+                if (p.mat < 0) throw new Exception($"{path}: primitive without a material");
+                p.mat = map[p.mat];
+                for (int i = 0; i < p.P.Length; i++)
+                {
+                    p.P[i] = c.modelToCar.MultiplyPoint3x4(p.P[i]);
+                    p.N[i] = c.modelToCar.MultiplyVector(p.N[i]).normalized;
+                }
+            }
+            g.mats = source.g.mats; // remapped IDs and the same baked textures/material assets
+            for (int pi = 0; pi < g.prims.Count; pi++)
+            {
+                var p = g.prims[pi];
+                bool glass = c.km[p.mat].role == "glass" || System.Text.RegularExpressions.Regex.IsMatch(p.node, c.cfg.glassNode, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                for (int t = 0; t < p.I.Length; t += 3) c.tris.Add(new Tri { prim = pi, t = t, mat = p.mat, cls = glass ? C_GLASS : C_BASE });
+            }
+            Wheels(c, log);
+            // One pivot per runtime wheel for all levels; do not recenter a decimated tyre's bounds.
+            c.wc = source.wc; c.wr = source.wr;
+            Lamps(c, log);
+            log.Append($"; authored {path}: {c.tris.Count} tris");
+            return c;
         }
 
         // ------------------------------------------------------------------ brand removal
@@ -1055,6 +1129,10 @@ namespace Magistrala.EditorTools
         static void BuildMeshesAndMaterials(Car c, string dir, TexSet[] sets, Info info, System.Text.StringBuilder log)
         {
             string k = c.cfg.kind; var cfg = c.cfg;
+            bool authored = !string.IsNullOrEmpty(cfg.lod1Glb) || !string.IsNullOrEmpty(cfg.lod2Glb);
+            if (authored && (string.IsNullOrEmpty(cfg.lod1Glb) || string.IsNullOrEmpty(cfg.lod2Glb)))
+                throw new Exception("set both lod1Glb and lod2Glb");
+            var levels = authored ? new[] { c, AuthoredLod(c, cfg.lod1Glb, log), AuthoredLod(c, cfg.lod2Glb, log) } : null;
             var groups = c.tris.Where(t => t.wheel < 0 && c.km[t.mat].role != "hide").GroupBy(t => (t.cls == C_GLASS ? -1 : t.mat, t.cls))
                 .Select(g => new Group { mat = g.Key.Item1, cls = g.Key.cls, t = g.ToList(), role = g.Key.Item1 < 0 ? "glass" : c.km[g.Key.Item1].role })
                 .OrderBy(g => g.role == "body" && g.cls == C_BASE ? 0 : g.role == "glass" ? 3 : g.role == "interior" ? 2 : 1).ThenBy(g => g.mat).ThenBy(g => g.cls).ToList();
@@ -1114,7 +1192,7 @@ namespace Magistrala.EditorTools
             foreach (var g in groups)
             {
                 Material m, on = null; int lamp = 0;
-                if (g.role == "glass") { m = cfg.glassOpaque ? glassO : glassT; lodMat.Add(glassO); }
+                if (g.role == "glass") { m = cfg.glassOpaque ? glassO : glassT; lodMat.Add(authored ? m : glassO); }
                 else if (g.role == "display")
                 {
                     // destination display (TrafficPart lamp 7): URP Unlit with its own texture; "_on" = the other direction's
@@ -1158,7 +1236,7 @@ namespace Magistrala.EditorTools
                     }
                     lodMat.Add(null);
                 }
-                subMat.Add(m); subOn.Add(on); subLamp.Add(lamp); lod0Only.Add(g.role == "interior");
+                subMat.Add(m); subOn.Add(on); subLamp.Add(lamp); lod0Only.Add(!authored && g.role == "interior");
             }
 
             // LOD meshes: per group a mesh, simplified per level
@@ -1174,6 +1252,14 @@ namespace Magistrala.EditorTools
                 : Mathf.Clamp01((cfg.lod0 - Mathf.Min(wheelAll, cfg.lod0 * .16f)) / (float)Mathf.Max(1, nonInt));
             Mesh Level(int lod, int target)
             {
+                if (authored)
+                {
+                    var lc = levels[lod];
+                    var body = lc.tris.Where(t => t.wheel < 0 && lc.km[t.mat].role != "hide").ToList();
+                    int GroupIndex(Tri t) => groups.FindIndex(g => g.mat == (t.cls == C_GLASS ? -1 : t.mat) && g.cls == t.cls);
+                    if (body.Any(t => GroupIndex(t) < 0)) throw new Exception($"{k} LOD{lod}: unmatched material/lamp group");
+                    return Combine(groups.Select((g, i) => GroupMesh(lc, body.Where(t => GroupIndex(t) == i).ToList(), Vector3.zero)).ToList(), $"{k}_lod{lod}");
+                }
                 float q = Mathf.Clamp01(target / (float)Mathf.Max(1, nonInt));
                 var ms = new List<Mesh>();
                 for (int i = 0; i < groups.Count; i++)
@@ -1205,7 +1291,15 @@ namespace Magistrala.EditorTools
                 for (int lod = 0; lod < 3; lod++)
                 {
                     float q = lod == 0 ? (cfg.lod0 > 0 ? Mathf.Clamp01(cfg.lod0 * .04f / Mathf.Max(1, n)) : 1) : lod == 1 ? Mathf.Clamp01(cfg.lod1 * .045f / Mathf.Max(1, n)) : Mathf.Clamp01(cfg.lod2 * .04f / Mathf.Max(1, n));
-                    var m = Combine(parts.Select(p => Simplify(p, q)).ToList(), $"{k}_wheel{w}_lod{lod}");
+                    Mesh m;
+                    if (authored)
+                    {
+                        var lc = levels[lod];
+                        var keys = wt.Select(g => g.Key).ToArray();
+                        if (lc.tris.Any(t => t.wheel == w && !keys.Contains(t.mat))) throw new Exception($"{k} LOD{lod}: unmatched wheel material");
+                        m = Combine(keys.Select(mat => GroupMesh(lc, lc.tris.Where(t => t.wheel == w && t.mat == mat).ToList(), c.wc[w])).ToList(), $"{k}_wheel{w}_lod{lod}");
+                    }
+                    else m = Combine(parts.Select(p => Simplify(p, q)).ToList(), $"{k}_wheel{w}_lod{lod}");
                     SaveMesh(m, $"{dir}/{k}_wheel{w}_lod{lod}.asset");
                     if (lod == 0) wTris0 += Tris(m); else if (lod == 1) wTris1 += Tris(m); else wTris2 += Tris(m);
                 }

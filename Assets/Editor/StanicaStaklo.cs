@@ -3,7 +3,7 @@
 // (Codex, BalkanDriver assets-src/obrada-2711). Imported by glTFast; here one prefab like TripoPropImporter's "stanica":
 //   - the same normalisation as stanica.json (yaw, per-axis scale to 3.8 x 2.5 x 2.0 m, pivot bottom centre), worked out from the
 //     original GLB's bounds so the new one lands exactly where the old one stood (falls back to its own bounds if Codex rescaled it);
-//   - materials: "Glass" → URP Lit transparent (premultiplied: the reflection stays, light tint, no refraction, no shadow, two-sided),
+//   - materials: "Glass" → URP Lit transparent (premultiplied, dark tint, suppressed sky/specular reflections, no refraction, no shadow, two-sided),
 //     the rest URP Lit with their glTF textures / factors, GPU instancing;
 //   - LODGroup lod0 (shadows) / lod1 (no shadows), culled at 220 m; one box collider (footprint × 0.9).
 // PropsBuilder.Stanice uses it instead of the Tripo prefab when the GLB is there.
@@ -102,7 +102,7 @@ namespace Magistrala.EditorTools
                 if (glass)
                 {
                     nGlass++;
-                    // clear, slightly green-grey tint; premultiplied so the sky / reflection probe still shows on it
+                    // Dark green-grey transparent glass. Suppress the broad sky reflection that made it look milky.
                     c.SetFloat("_Surface", 1); c.SetFloat("_Blend", 0); c.SetFloat("_BlendModePreserveSpecular", 1);
                     c.SetFloat("_SrcBlend", (float)BlendMode.One); c.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
                     c.SetFloat("_SrcBlendAlpha", (float)BlendMode.One); c.SetFloat("_DstBlendAlpha", (float)BlendMode.OneMinusSrcAlpha);
@@ -110,11 +110,14 @@ namespace Magistrala.EditorTools
                     c.EnableKeyword("_SURFACE_TYPE_TRANSPARENT"); c.EnableKeyword("_ALPHAPREMULTIPLY_ON");
                     c.SetOverrideTag("RenderType", "Transparent"); c.renderQueue = (int)RenderQueue.Transparent;
                     c.SetShaderPassEnabled("ShadowCaster", false); c.SetShaderPassEnabled("DepthOnly", false);
+                    c.SetFloat("_EnvironmentReflections", 0); c.EnableKeyword("_ENVIRONMENTREFLECTIONS_OFF");
+                    c.SetFloat("_SpecularHighlights", 0); c.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
                     c.SetTexture("_BaseMap", null);
-                    c.SetColor("_BaseColor", new Color(.62f, .72f, .72f, .16f)); c.SetFloat("_Smoothness", .94f); c.SetFloat("_Metallic", 0);
+                    c.SetColor("_BaseColor", new Color(.12f, .17f, .17f, .16f)); c.SetFloat("_Smoothness", .35f); c.SetFloat("_Metallic", 0);
                 }
                 else
                 {
+                    c.SetFloat("_EnvironmentReflections", 1); c.SetFloat("_SpecularHighlights", 1);
                     c.SetFloat("_Surface", 0); c.SetFloat("_ZWrite", 1); c.SetFloat("_Cull", 2); c.renderQueue = -1; c.SetOverrideTag("RenderType", "");
                     c.SetShaderPassEnabled("ShadowCaster", true); c.SetShaderPassEnabled("DepthOnly", true);
                     c.SetTexture("_BaseMap", tex); c.SetColor("_BaseColor", new Color(col.r, col.g, col.b, 1));

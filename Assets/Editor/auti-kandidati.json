@@ -3659,7 +3659,10 @@
     },
     {
       "kind": "bus37",
-      "glb": "../BalkanDriver/assets-src/obrada-2711/autobus-37.glb",
+      "glb": "Assets/Models/Vehicles/Traffic/bus37/autobus-37.glb",
+      "lod1Glb": "Assets/Models/Vehicles/Traffic/bus37/autobus-37_lod1.glb",
+      "lod2Glb": "Assets/Models/Vehicles/Traffic/bus37/autobus-37_lod2.glb",
+      "namedWheels": true,
       "label": "Gradski autobus 37",
       "source": "Mercedes-Benz Citaro 2 Turen O530 HQ interior - niev - https://sketchfab.com/3d-models/51dceb73d719491c9f83ea896a885a80 - CC BY 4.0 (izmijenjen: bez marke, nasa livreja PROMEX)",
       "length": 12.0,
@@ -3727,8 +3730,8 @@
         {
           "name": "Display_37",
           "role": "display",
-          "tex": "../BalkanDriver/assets-src/obrada-2711/display-37-trogir.png",
-          "texAlt": "../BalkanDriver/assets-src/obrada-2711/display-37-split.png",
+          "tex": "Assets/Models/Vehicles/Traffic/bus37/display-37-trogir.png",
+          "texAlt": "Assets/Models/Vehicles/Traffic/bus37/display-37-split.png",
           "emit": 3.0
         },
         {
