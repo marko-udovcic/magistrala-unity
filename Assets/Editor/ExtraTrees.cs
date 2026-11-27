@@ -29,6 +29,9 @@ namespace Magistrala.EditorTools
             new Def { id = "lisnato_c", glb = "Assets/Models/Plants/lisnato_c.glb", draw = 1000, near = 55 },
         };
         public static bool On = true;
+        /// the palm prototype (27. 11.: the source is a young 2.3 m palm without a trunk — not a riva / street palm; off until a tall
+        /// palm model arrives: then its Def with trunk = 0, crown = 1 and Palms = true)
+        public static bool Palms = false;
         const string DIR = WorldBuilder.GEN + "/Plants";
 
         public static void Protos(List<NaturePass.Proto> extra)
@@ -36,6 +39,7 @@ namespace Magistrala.EditorTools
             if (!On) return;
             foreach (var d in DEFS)
             {
+                if (d.id == "palma" && !Palms) continue;
                 try { var p = Make(d); if (p != null) extra.Add(p); }
                 catch (System.Exception e) { Debug.LogWarning($"[stabla] {d.id}: {e.Message}"); }
             }

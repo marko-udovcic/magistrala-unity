@@ -3716,7 +3716,7 @@
         },
         {
           "name": "Interior_Dark",
-          "role": "trim",
+          "role": "interior",
           "size": 256
         },
         {
@@ -3777,12 +3777,14 @@
       "lod1": 15000,
       "lod2": 3000,
       "far": 800,
-      "lodNear": 30,
+      "lodNear": 25,
       "lodMid": 60,
       "plateFront": false,
       "plateRear": false,
-      "glassOpaque": true,
-      "grime": 0.3
+      "glassOpaque": false,
+      "grime": 0.3,
+      "glassAlpha": 0.8,
+      "interiorLod0": 0.6
     }
   ]
 }

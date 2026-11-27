@@ -63,6 +63,14 @@ namespace Magistrala.EditorTools
             // 27. 11. (ExtraTrees): the palm, the broadleaf street trees (by mesh name; −1 / empty: the old choices)
             int palm = Find(n => n.StartsWith("palma"));
             var lis = Enumerable.Range(0, np).Where(p => tr.meshes[p] && tr.meshes[p].name.StartsWith("lisnato_")).ToList();
+            int lisA = Find(n => n.StartsWith("lisnato_a")), lisB = Find(n => n.StartsWith("lisnato_b")), lisC = Find(n => n.StartsWith("lisnato_c"));
+            // a surveyed broadleaf: the rules of vrste/README.md (height < 6 m: the old choice; tall and narrow: a; wide: b; else c)
+            int Lis(float hh, float cr, int old)
+            {
+                if (hh < 6 || lis.Count == 0) return old;
+                int r = hh >= 9 && cr / hh < .55f ? lisA : cr >= 8 ? lisB : lisC;
+                return r >= 0 ? r : old;
+            }
             float H(int p) => tr.meshes[p] ? Mathf.Max(.3f, tr.meshes[p].bounds.size.y) : 3;
 
             Physics.SyncTransforms();
@@ -83,15 +91,15 @@ namespace Magistrala.EditorTools
                     string kind = (string)t["kind"]; float h = MiniJson.F(t["heightM"]), crown = MiniJson.F(t["crownM"]);
                     int p = kind switch
                     {
-                        "broadleaf" => lis.Count > 0 ? lis[(int)(NaturePass.R01(g.x, g.z, 935) * lis.Count) % lis.Count] : olive, "olive" => olive,
+                        "broadleaf" => Lis(h, crown, olive), "olive" => olive,
                         "palm" => palm, "small" => crn, "bush" => bush,
                         "pine" => pines[(int)(NaturePass.R01(g.x, g.z, 931) * pines.Count) % pines.Count],
                         "evergreen" => second ? (crown >= 4 ? pines[(int)(NaturePass.R01(g.x, g.z, 932) * pines.Count) % pines.Count] : cyp) : crn,
                         _ => -1,
                     };
                     if (p < 0) { if (kind == "palm") nPalm++; continue; }
-                    if (kind == "palm") h = Mathf.Clamp(h > 0 ? h : 6, 4, 12);
-                    else if (lis.Contains(p)) h = Mathf.Clamp(h > 0 ? h : 8, 5, 12);
+                    if (kind == "palm") h = Mathf.Clamp(h > 0 ? h : 6, 6, 12);
+                    else if (lis.Contains(p)) h = Mathf.Clamp(h, p == lisA ? 12 : p == lisB ? 8 : 10, p == lisA ? 18 : 12);   // vrste/modeli.json ranges
                     if (kind != "pine" && VegetationMask.NearBuilding(g.x, g.z)) { if (OutOfHouse(ref g)) nMoved++; }
                     add.Add((g, h, p, kind != "bush")); nT++;
                 }

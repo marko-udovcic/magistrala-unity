@@ -818,7 +818,7 @@ namespace Magistrala.EditorTools
                 var km = c.km[m]; if (km.role == "hide" || km.role == "glass") continue;
                 if (!c.tris.Any(t => t.mat == m)) continue;
                 var bc = c.bc[m]; var mr = c.mr[m]; var gm = c.g.mats[m];
-                int S = Mathf.Min(km.size, bc?.w ?? 64, 2048); if (bc == null) S = 16;
+                int S = Mathf.Min(km.size, Mathf.Max(bc?.w ?? 64, bc?.h ?? 64), 2048); if (bc == null) S = 16;   // (a narrow strip texture, 8 x 1024 livery bands: its long side)
                 var alb = new Color[S * S]; var mask = new Color[S * S];
                 bool body = km.role == "body" && !c.cfg.noPaint;
                 bool allPaint = body && (c.cfg.paintMode == "all" || bc == null);
