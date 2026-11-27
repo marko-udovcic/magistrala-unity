@@ -101,6 +101,61 @@ namespace Magistrala.EditorTools
                 }
             return null;
         }
+        // Exact disc/triangle overlap for the emergency signal placement search. The older
+        // eight-point OnAsphalt probe stays unchanged so existing clear placements remain identical.
+        static float AsphaltEdgeDistance2(Vector2 p, Vector2 a, Vector2 b)
+        {
+            var ab = b - a;
+            float u = Mathf.Clamp01(Vector2.Dot(p - a, ab) / Mathf.Max(1e-12f, ab.sqrMagnitude));
+            return (p - (a + ab * u)).sqrMagnitude;
+        }
+        static bool AsphaltDiscHitsTriangle(float[] triangles, int id, Vector2 p, float radius2)
+        {
+            int o = id * 6;
+            var a = new Vector2(triangles[o], triangles[o + 1]);
+            var b = new Vector2(triangles[o + 2], triangles[o + 3]);
+            var c = new Vector2(triangles[o + 4], triangles[o + 5]);
+            float area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+            if (Mathf.Abs(area) > 1e-8f && InTri(triangles, id, p.x, p.y)) return true;
+            return AsphaltEdgeDistance2(p, a, b) <= radius2 || AsphaltEdgeDistance2(p, b, c) <= radius2 ||
+                AsphaltEdgeDistance2(p, c, a) <= radius2;
+        }
+        static bool AsphaltDiscBlocked(Vector3 p, float clearance)
+        {
+            // All Roads/Streets asphalt submeshes, including narrow corners between the old probe rays.
+            if (asph == null) return true; // fail closed when no index was prepared
+            var q = new Vector2(p.x, p.z);
+            for (int i = 0; i < asph.Count; i++)
+            {
+                var (r, m) = asph[i]; var bounds = m != null ? m.b : r.bounds;
+                if (p.x + clearance < bounds.min.x || p.x - clearance > bounds.max.x ||
+                    p.z + clearance < bounds.min.z || p.z - clearance > bounds.max.z) continue;
+                if (m == null) { m = Load(r); asph[i] = (r, m); }
+                for (int x = Mathf.FloorToInt((p.x - clearance) / AG); x <= Mathf.FloorToInt((p.x + clearance) / AG); x++)
+                    for (int z = Mathf.FloorToInt((p.z - clearance) / AG); z <= Mathf.FloorToInt((p.z + clearance) / AG); z++)
+                        if (m.g.TryGetValue(new Vector2Int(x, z), out var ids))
+                            foreach (int id in ids)
+                                if (AsphaltDiscHitsTriangle(m.t, id, q, clearance * clearance)) return true;
+            }
+            return false;
+        }
+        // Only after the old Clear/OffAsphalt chain failed. Search outward up to 4 m past
+        // the nominal kerb and +/- 8 m along the road, on expanding quarter-metre rings.
+        static Vector3? SignalPoleFallback(Vector3 kerb, Vector3 right, Vector3 travel)
+        {
+            for (int ring = 0; ring <= 32; ring++)
+                for (int outward = 0; outward <= Mathf.Min(16, ring); outward++)
+                    for (int along = 0; along <= ring; along++)
+                    {
+                        if (Mathf.Max(outward, along) != ring) continue;
+                        var q = kerb + right * (outward * .25f) + travel * (along * .25f);
+                        if (!AsphaltDiscBlocked(q, .4f)) return q;
+                        if (along == 0) continue;
+                        q = kerb + right * (outward * .25f) - travel * (along * .25f);
+                        if (!AsphaltDiscBlocked(q, .4f)) return q;
+                    }
+            return null;
+        }
         /// how far p must go along dir (unit, horizontal) to be off the asphalt (≤ maxD); -1: not within maxD
         static float OutAlong(Vector3 p, Vector3 dir, float maxD = 4f, float r = .3f)
         {

@@ -1027,6 +1027,13 @@ namespace Magistrala.EditorTools
             var sb = new System.Text.StringBuilder($"[znakovi] {chunks.Count} komada mreže, {tris} trokuta, {cols.Count} sudarača, {heads.Count} glava semafora, atlas {A.uv.Count} lica, {nOffAsphalt} stupova maknuto s nacrtanog asfalta\n");
             foreach (var kv in counts.OrderBy(k => k.Key)) sb.Append($"  {kv.Key}: {kv.Value}\n");
             foreach (var l in log.Take(60)) sb.Append("  ! ").Append(l).Append('\n');
+            // Do not truncate pole diagnostics with the general report's Take(60), or emit
+            // duplicate warnings during the dry atlas pass.
+            foreach (var entry in signalPoleLog)
+            {
+                sb.AppendLine(entry.message);
+                if (entry.warning) Debug.LogWarning(entry.message); else Debug.Log(entry.message);
+            }
             File.WriteAllText("Logs/znakovi-izvjestaj.txt", sb.ToString());
             File.WriteAllText("Logs/znakovi-polozaji.tsv", "vrsta\tx\tz\tsmjer\n" + string.Join("\n", where));
             Debug.Log(sb.ToString());

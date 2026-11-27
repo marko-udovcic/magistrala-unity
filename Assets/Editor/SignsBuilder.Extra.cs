@@ -121,8 +121,34 @@ namespace Magistrala.EditorTools
             return false;
         }
 
+        static readonly List<(string message, bool warning)> signalPoleLog = new List<(string, bool)>();
+
+        static Vector3 ExtraPolePosition(string id, Vector3 kerb, Vector3 right, Vector3 travel)
+        {
+            // Preserve the old successful result bit-for-bit. Only the final "?? kerb"
+            // branch gets the wider search; do not perturb other junctions' furniture.
+            var candidate = Clear(kerb, right, .3f) ?? OffAsphalt(kerb, 6f);
+            bool fallback = !candidate.HasValue;
+            if (fallback) candidate = SignalPoleFallback(kerb, right, travel);
+            var original = W.G(kerb);
+            if (!candidate.HasValue)
+            {
+                signalPoleLog.Add(($"[signals] WARNING pole {id} at game ({original.x:F2}, {original.y:F2}): no asphalt-free position with 0.4 m clearance within right 0..4 m / travel +/-8 m; retained original position for inspection", true));
+                return kerb;
+            }
+            var result = candidate.Value;
+            if ((result - kerb).sqrMagnitude > 0)
+            {
+                var moved = W.G(result);
+                signalPoleLog.Add(($"[signals] pole {id} moved {Vector3.Distance(kerb, result):F2} m: game ({original.x:F2}, {original.y:F2}) -> ({moved.x:F2}, {moved.y:F2}); {(fallback ? "extended fallback" : "existing clearance rule")}", false));
+                if (fallback) { nOffAsphalt++; Count("stup semafora maknut s asfalta (proširena pretraga)"); }
+            }
+            return result;
+        }
+
         static void BuildExtraSignals()
         {
+            signalPoleLog.Clear(); // Build runs twice for atlas packing; publish only the final pass.
             extra = ExtraSignals.Load();
             var rPaint = R(A.Solid("paint", SignAtlas.PaintWhite)); var rRed = R(A.Solid("paintred", SignAtlas.PaintRed));
             var rConcrete = R(A.Solid("concrete", SignAtlas.Concrete));
@@ -137,7 +163,7 @@ namespace Magistrala.EditorTools
                     if (!ok) log.Add($"{j.key} {a.name}: nema tla na stop-crti");
                     // the pole: on the right kerb, half a metre past the stop line (towards the zebra, as in the photos)
                     var b0 = p + right * (a.w / 2 + .75f) + t * .5f;
-                    var bq = Clear(b0, right, .3f) ?? OffAsphalt(b0, 6f) ?? b0; var b = bq; b.y = Surface(b, p.y, out _);
+                    var bq = ExtraPolePosition($"{j.key}/{a.group}/{a.name}", b0, right, t); var b = bq; b.y = Surface(b, p.y, out _);
                     float reachLane = Vector3.Dot(b - p, right); // lateral pole → lane centre
                     bool zebra = a.signs.Contains("pjesacki");
                     if (a.mount == "konzola")
@@ -204,7 +230,7 @@ namespace Magistrala.EditorTools
                     foreach (int s in new[] { -1, 1 })
                     {
                         var e0 = zc + zr * s * (zw / 2 + .7f) + zt * 1.6f;
-                        var e = Clear(e0, zr * s, .3f) ?? OffAsphalt(e0, 6f) ?? e0; e.y = Surface(e, zc.y, out _);
+                        var e = ExtraPolePosition($"{j.key}/P1/zebra({zp.x:F2},{zp.y:F2})/side{s}", e0, zr * s, zt); e.y = Surface(e, zc.y, out _);
                         Pole(e, 2.75f, .06f);
                         PedHead(e + Vector3.up * 2.35f - zr * s * .12f, zr * s, j.key, "P1");
                     }

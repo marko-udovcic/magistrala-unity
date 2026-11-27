@@ -1,0 +1,184 @@
+Parking branch — implementation and validation handoff
+
+Cause
+-----
+ParkedCars.Draw multiplies drawDist (serialized as 260 in the scene) by TreeRenderer.Distance:
+quality brzo/srednje/oštro = .8/1/1.2. The baked far mesh uses _FARFADE over the last
+45 m. At srednje this is exactly 215–260 m; at brzo, 163–208 m. This is renderer
+culling/fading, not cell streaming. CellData defaults to LoadEverything=true;
+StreamingScheduler's serialized code default activeRadius is 700 m (distance to
+512 m cell bounds), and the optional CellData ring test loads to 1000 m.
+No streaming change is needed for the default far end. A custom scheduler radius
+below farDistance * quality scale must be raised to that distance plus travel /
+loading headroom; raising the renderer cutoff alone cannot recover unloaded cars.
+
+Method and expected cost
+------------------------
+The current geometry/materials/LOD switches at 45 and 90 m remain. The existing far
+LOD fades into one shared, vertex-lit, paint-coloured proxy: body, cabin, four wheels,
+72 triangles. Same Bayer pattern and complementary coverage at the inner transition;
+outer proxy dither fade too. Cabin glass is dark; no textures, clearcoat, lights,
+reflection probes, receiving or casting shadows in the proxy pass. This is a coarse
+silhouette: its match to each model requires screenshots, especially vans/SUVs.
+
+Like TreeRenderer's cached impostor ranges, immutable matrices/tints/MPBs and tight
+bounds are prepared on page attachment and reused until the page is released.
+128 m buckets combine every kind/paint, rather than adding one draw per model.
+Per frame: bucket distance/frustum rejection, then cached RenderMeshInstanced calls;
+no far per-car C# distance/frustum checks, gathering or tint-array copies. Near
+collection remains bounded by the original drawDist. The GPU performs the inner /
+outer distance rejection of instances in buckets straddling those boundaries.
+
+Static scene audit: 1797 parked cars, all baked; 279 occupied 128 m buckets, maximum
+48 cars/bucket. Each visible far bucket therefore costs ONE main-pass draw, ONE
+shared material, 72 * submitted-car-count triangles; no shadow draws. General cap:
+sum(ceil(cars-in-bucket / 125)) over surviving buckets. The extra instances beyond
+the exact band are conservative submissions, discarded by the shader. Additional
+CPU is expected to be small (budget: <=0.2 ms/frame for the far loop/submissions),
+not measured. Existing baked cars erroneously entered shadow-only lists whenever
+visible, even beyond shadowDist; now only cars within 35 m enter those lists.
+This removes CPU gathering/upload and GPU shadow work to help offset the far band.
+Near-page offscreen rejection also avoids per-car work on invisible pages.
+
+No claim of equal fps is verified: the M2 A/B is still required. -parkedstats reports
+5-second mean CPU time, main/shadow/far draws and submitted proxy instances. Existing
+[cells] logs also report parked CPU time. No per-frame garbage is added after setup.
+
+Tunables on ParkedCars (existing scenes acquire new defaults without scene edits)
+-------------------------------------------------------------------------------
+drawDist = 260: existing LOD end, scaled by quality (near proxy handoff end).
+transitionBand = 45: inner crossfade width in metres, matching today's fade.
+farDistance = 650: outer end, scaled by quality; 520 / 650 / 780 m by quality.
+farFadeBand = 80: outer fade width in metres.
+lod0Dist = 45, lod1Dist = 90: existing geometry switches, unchanged.
+shadowDist = 35: baked shadow range, unchanged setting, now applied to visible cars too.
+
+Only baked kinds get proxies. The current scene's full fleet qualifies. -parkedlegacy
+and ForceLevel comparisons deliberately disable proxies; they are diagnostic paths.
+-parkedbaseline disables proxies and restores old shadow submissions/fade width for
+same-player comparisons. It also disables the new offscreen near-page rejection.
+Use the supplied current-build A/B as the acceptance test; this flag is an additional
+way to isolate rendering changes without unrelated differences between players.
+
+Rebuild / checks (Unity was NOT run)
+-----------------------------------
+Cars: code only; no Rekviziti/Build traffic/cell rebake needed. Let the new shader
+and script import, then build normally. Resources/ParkedFar.mat references the shader with Enable Instancing enabled,
+so the player retains INSTANCING_ON. A runtime shader reference alone was insufficient.
+The shader-build guard rejects missing normal/debug instanced variants.
+Compare identical -autopilot routes with and without -parkedbaseline and add
+-parkedstats; use the same -kvaliteta 1, resolution, clock, save and camera.
+Cool 60 s and interleave baseline/new/baseline/new. Check [bench] and [parked] logs.
+
+Data-selected road poses (driver height, game X/Z, Unity yaw):
+  -campose "-2115.93,-4339.24,2.3,266.95,0"  35 clear-ray cars at 349–579 m
+  -campose "-3355.01,-4473.65,2.3,105.73,0"  26 clear-ray cars at 303–578 m
+  -campose "-5187.43,-4858.37,2.3,106.31,0"  23 clear-ray cars at 302–592 m
+Cesta dr. Franje Tuđmana; counts exclude building footprint intersections and terrain
+obstructions (bilinear source terrain sampled every metre). Add -parkedfardebug to
+see flat magenta proxies; debug removes fog/dither but preserves hard band limits.
+Actual pixels still require screenshots. Inspect transitions at 215–260 m and outer
+fade at 570–650 m (srednje); brzo bands are 163–208 and 440–520 m. Check 128 m bucket /
+512 m cell boundaries and the 35 m shadow limit. Existing 45/90 m LOD switches remain.
+
+Player invisibility fix (27 Nov)
+-------------------------------
+Confirmed cause: player instancing variants were stripped. The proxy material was
+created from Resources.Load<Shader> only at runtime. GraphicsSettings uses
+m_InstancingStripping: 0 (Strip Unused). There was no included proxy material marked
+Enable Instancing at build time. A shader being in Resources retains the shader,
+but does not by itself retain its INSTANCING_ON variants.
+
+Evidence from this clone's shader cache after the coordinator's player builds:
+Library/ShaderCache/shader/ParkedFar4a6e/ has seven cached Metal vertex programs;
+NONE has [[instance_id]] or unity_ObjectToWorldArray. Normal and magenta programs
+both use a SINGLE UnityPerDraw.unity_ObjectToWorld matrix. Example debug program:
+00/57edb980622c59acefd18cd052efcb13.bin. So successful CPU culling/submission did not
+mean the GPU was consuming the provided world-space instance matrices. Falling back
+to a non-instanced program explains absent cars with no shader compile error.
+The build log also reduced the debug shader's 16 variants to 4 during built-in
+stripping, before URP's scriptable stripping.
+
+Fix: add Resources/ParkedFar.mat with m_EnableInstancingVariants: 1, reference the
+shader there, and clone that material at runtime. No global GraphicsSettings edit.
+Add ParkedFarShaderVariants (IPreprocessShaders, last callback) to require both normal
+and _PARKEDFARDEBUG INSTANCING_ON variants for each compiled stage. A future stripped
+build fails explicitly instead of silently shipping invisible proxies. Look for
+[parked] shader build check ... instanced normal and debug variants retained.
+
+Other audited paths:
+* All 1797 cached transforms are world-space metre positions with unchanged xyz,
+  existing Unity Z flip already applied. All scales/determinants positive: widths
+  1.59–2.25 m, heights 1.31–1.93 m, lengths 3.49–4.90 m. World Y 0.80–94.12 m.
+* Batch bounds contain the car height and conservative rotated horizontal extents.
+  Far draws use the object's layer and selected camera, explicit Off shadows and
+  receiveShadows=false. Camera now explicitly defaults to the camera being culled,
+  rather than submitting that camera's lists to all cameras.
+* URP DrawObjectsPass accepts UniversalForwardOnly (including its forward-only
+  deferred path); the LightMode tag was valid and is unchanged. Ordinary instancing
+  uses multi_compile_instancing / UNITY_SETUP_INSTANCE_ID; procedural setup is not
+  required for RenderMeshInstanced. The bug was removal of this compiled variant.
+* Explicit opaque ZWrite On / ZTest LEqual / Cull Back document the existing defaults;
+  standard Unity depth handling supplies reversed-Z. Queue stays Geometry.
+* Near and far are submitted by the same Draw call in LateUpdate, and near cars do
+  render. No phase switch, beginCameraRendering callback or extra submission was added.
+* Normal and debug distance clips remain the same; debug never uses Bayer dither.
+  The compiled Metal code shows the correct clip math, fed by the wrong transform
+  source when INSTANCING_ON was absent. Stats now label their count CPU culling;
+  they do not claim that the GPU produced visible pixels or passed occlusion.
+
+Validation: runtime and editor C# compiled with the installed Unity Roslyn compiler
+and this clone's assembly response/reference files, redirected to /private/tmp.
+Unity Editor/Player was not started. Material GUID/instancing flag and commit-script
+paths/syntax checked. Shader import, retained Metal variants and final magenta pixels
+require the coordinator's rebuild/re-shot with the identical pose:
+  -campose "-3355.01,-4473.65,25,105.73,7" -parkedfardebug -parkedstats
+
+Signal pole — confirmed location and source fix
+-----------------------------------------------
+Confirmed pole: semafor-gomilica-t SG2 / Ulica kralja Krešimira, GAME
+(-4414.4,-4632.5), UNITY (-214.4,-667.5). The original numbers were game
+coordinates mislabelled as Unity.
+
+Source chain (local, not BalkanDriver package data):
+Tools/semafori/semafori_gen.py -> Assets/Editor/semafori-bez-modela.json ->
+ExtraSignals.Load -> SignsBuilder.BuildExtraSignals -> SignalsBuilder.Build.
+The approach is lane width 3 m, p=(-4412.15,-4633.05), t=(.0296,.9996);
+p + right*(w/2 + .75) + t*.5 gives game (-4414.38,-4632.48).
+The previous clearance chain exhausted Clear and OffAsphalt's 6 m search and could
+silently use that original kerb position even when it was still on asphalt.
+
+Changed the builder rule, with no coordinate-specific override or source-data edit:
+* Successful Clear / OffAsphalt results return unchanged, including their original
+  float coordinates. Only the final fallback can now relocate a pole differently.
+* The fallback searches a quarter-metre grid, on expanding rings, 0..4 m outward
+  along right and +/-8 m along travel. It takes the first candidate whose 0.4 m
+  disc does not intersect any World/Roads or World/Streets asphalt triangle.
+* This new check measures exact point-to-triangle-edge distance in XZ (including
+  vertices / degenerate triangles), rather than the old eight perimeter probes.
+  It queries every triangle grid cell touched by the clearance disc.
+* If the bounded search fails, retain the original pole for inspection and emit
+  Debug.LogWarning with [signals], full pole id and game position. Failure is now
+  explicit; there is no silent unsafe return.
+* All displacements from nominal kerb positions are logged with ids, old/new game
+  coordinates and distance, distinguishing existing rules from extended fallback.
+  Diagnostics are emitted once, after the final atlas pass, and included without
+  truncation in Logs/znakovi-izvjestaj.txt. Pedestrian poles use the same helper.
+
+Menu: Magistrala/Build signals. Check the above SG2 pole is now outside the kerb,
+its head still faces the approach, and the report has its movement or an explicit
+[signals] warning. Compare other poles against the previous build: successful
+legacy placements must be identical. If signs/colliders are baked into streamed
+cells, regenerate Magistrala/Ćelije: ispeci afterwards.
+No BalkanDriver file or junction-overrides-marko.json was edited.
+
+Delivery
+--------
+.git is read-only here. Run: sh Tools/parking/commit-code.sh
+The script checks branch/index and stages explicit code/report paths only.
+Commit order: 1) parked-car range/proxies (code only), 2) pole fallback/report
+(Magistrala/Build signals). Existing
+scene, ProjectSettings, Generated and unrelated untracked files are excluded.
+Untested: Unity shader compilation/import and rebuilt player, actual rendered transitions, GPU timing,
+fps parity and actual pole placement. Static geometry/search checks and shell syntax
+checks pass; Unity shader/build validation and the rebuilt scene remain for the coordinator.
