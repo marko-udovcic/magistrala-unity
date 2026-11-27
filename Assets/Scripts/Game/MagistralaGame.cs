@@ -81,8 +81,8 @@ namespace Magistrala.Game
         Vector3 centreLocal; float truckLen = 8.4f;
         GameObject pallets, marker;
 
-        static string Arg(string k) { var a = System.Environment.GetCommandLineArgs(); for (int i = 0; i < a.Length - 1; i++) if (a[i] == k) return a[i + 1]; return null; }
-        static bool Has(string k) => System.Array.IndexOf(System.Environment.GetCommandLineArgs(), k) >= 0;
+        static string Arg(string k) => Magistrala.CliArgs.Arg(k); // (editor play mode: also SessionState "Magistrala.args")
+        static bool Has(string k) => Magistrala.CliArgs.Has(k);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()

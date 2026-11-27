@@ -1,0 +1,183 @@
+{
+ "note": "Benzinske (Magistrala/Benzinske: postavi, Assets/Editor/Benzinske.cs). Game frame: x east, z south (Unity ux = x + 4200, uz = -(z + 5300)); canopy along (cos a, sin a), n islands 10 m apart; shop/totem/hut face the point (faceX, faceZ). OSM amenity=fuel (ODbL); package objects = model-buildings.json ids; tiles = tx_tz:i. Brands invented: jn Jadranska nafta, sunce Sunce gorivo, benzol Benzol.",
+ "sites": [
+  {
+   "id": "ks-sjever",
+   "name": "Benzinska Kaštel Stari-sjever",
+   "osm": "way/339235172",
+   "brand": "jn",
+   "note": "posao 'Pumpa Kaštela' (kastela_pumpa): mjesto točenja ostaje slobodno",
+   "canopy": {
+    "x": -6763.78,
+    "z": -5608.88,
+    "a": 1.4556617916328947,
+    "n": 3
+   },
+   "shop": {
+    "x": -6774.65,
+    "z": -5607.29,
+    "faceX": -6763.78,
+    "faceZ": -5608.88,
+    "size": "S"
+   },
+   "totem": {
+    "x": -6728.93,
+    "z": -5592.3,
+    "faceX": -6718.93,
+    "faceZ": -5592.3
+   },
+   "replacePackage": [
+    "d19:canopy:2",
+    "d19:bld:3",
+    "d19:sign:7"
+   ],
+   "replaceTiles": [
+    "-7_-6:169"
+   ]
+  },
+  {
+   "id": "ks-jug",
+   "name": "Benzinska Kaštel Stari-jug",
+   "osm": "way/339235169",
+   "brand": "jn",
+   "canopy": {
+    "x": -6758.44,
+    "z": -5545.74,
+    "a": 1.4516480608226348,
+    "n": 3
+   },
+   "shop": {
+    "x": -6748.26,
+    "z": -5546.9,
+    "faceX": -6758.44,
+    "faceZ": -5545.74,
+    "size": "S"
+   },
+   "totem": {
+    "x": -6784.92,
+    "z": -5561.49,
+    "faceX": -6774.92,
+    "faceZ": -5561.49
+   },
+   "replacePackage": [
+    "d19:canopy:15",
+    "d19:bld:16",
+    "d19:bld:18",
+    "d19:sign:20"
+   ],
+   "replaceTiles": [
+    "-7_-6:166"
+   ]
+  },
+  {
+   "id": "sucurac-d8",
+   "name": "Benzinska Kaštel Sućurac (D8)",
+   "osm": "node/13961419838",
+   "brand": "sunce",
+   "lpg": true,
+   "canopy": {
+    "x": -603.62,
+    "z": -4683.15,
+    "a": 0.19969240836916427,
+    "n": 2
+   },
+   "shop": {
+    "x": -607.01,
+    "z": -4666.52,
+    "faceX": -603.62,
+    "faceZ": -4683.15,
+    "size": "L"
+   },
+   "totem": {
+    "x": -629.66,
+    "z": -4700.62,
+    "faceX": -619.84,
+    "faceZ": -4698.7
+   },
+   "hut": {
+    "x": -590.5,
+    "z": -4664.5,
+    "faceX": -590.5,
+    "faceZ": -4683.0
+   },
+   "replacePackage": [
+    "d15:canopy:12",
+    "d15:bld:13",
+    "d15:sign:14"
+   ],
+   "replaceTiles": []
+  },
+  {
+   "id": "kastela-2",
+   "name": "Pumpa Kaštela 2",
+   "osm": "node/9353153631",
+   "brand": "benzol",
+   "note": "posao 'Pumpa Kaštela 2' (kastela_pumpa_2): plato ostaje slobodan za kamion",
+   "canopy": {
+    "x": -2439.5,
+    "z": -4367.0,
+    "a": 1.5707963,
+    "n": 2
+   },
+   "bayHw": 3.0,
+   "shop": {
+    "x": -2411.64,
+    "z": -4355.74,
+    "faceX": -2430.0,
+    "faceZ": -4355.74,
+    "size": "L"
+   },
+   "totem": {
+    "x": -2419.0,
+    "z": -4336.8,
+    "faceX": -2409.0,
+    "faceZ": -4336.8
+   },
+   "replacePackage": [],
+   "replaceTiles": [
+    "-3_-5:87"
+   ]
+  },
+  {
+   "id": "stafilic-d8",
+   "name": "Benzinska Kaštel Štafilić (D8)",
+   "osm": "way/736657773",
+   "brand": "sunce",
+   "lpg": true,
+   "note": "mala postaja s autoplinom uz D8",
+   "canopy": {
+    "x": -8552.0,
+    "z": -5441.0,
+    "a": -0.4887,
+    "n": 2
+   },
+   "pad": {
+    "x": -8547.0,
+    "z": -5441.0,
+    "a": -0.4887,
+    "l": 34.0,
+    "w": 22.0
+   },
+   "shop": {
+    "x": -8534.15,
+    "z": -5443.6,
+    "faceX": -8552.0,
+    "faceZ": -5441.0,
+    "size": "L"
+   },
+   "totem": {
+    "x": -8566.0,
+    "z": -5455.0,
+    "faceX": -8557.2,
+    "faceZ": -5459.7
+   },
+   "lpgTank": {
+    "x": -8522.0,
+    "z": -5432.0,
+    "a": -0.4887
+   },
+   "replacePackage": [],
+   "replaceTiles": []
+  }
+ ]
+}

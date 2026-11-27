@@ -330,6 +330,11 @@ namespace Magistrala.Game.Phone
             "creativecommons.org/licenses/by/4.0/\n" +
             "Izmijenjeno: uklonjene oznake i tablice, naša grafika GALEB TRANSPORT, naša unutrašnjost kabine." +
             AboutPage +
+            "Benzinske koriste „Gas station” i „Gas station Props” autora Elbolilloduro — CC BY 4.0\n" +
+            "sketchfab.com (Elbolilloduro)\n" +
+            "creativecommons.org/licenses/by/4.0/\n" +
+            "Izmijenjeno: dio rekvizita i tekstura preuzet, ostalo novo modelirano; marke Jadranska nafta, Sunce gorivo i Benzol su izmišljene." +
+            AboutPage +
             "Prometni auti — CC BY 4.0\n" +
             "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
             "\n" +
