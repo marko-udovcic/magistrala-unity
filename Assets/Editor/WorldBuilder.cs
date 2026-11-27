@@ -689,6 +689,7 @@ namespace Magistrala.EditorTools
             Debug.Log(MapillaryTrees.Apply(tr, models)); // Mapillary street trees the build lacks (MapillaryTrees.cs)
             Debug.Log(VegetationClean.Apply(tr, models)); // off roads / bays / embankments, onto the built ground (VegetationClean.cs)
             Debug.Log(Drvoredi.Apply(tr, models)); // Marko's surveyed street trees replace the rules in their bands (Drvoredi.cs)
+            Debug.Log(PalmRows.Apply(tr, models)); // palms / tamarisks on the riva promenades (PalmRows.cs, 28. 11.)
             Debug.Log(HedgeShell.Commit()); // the garden hedges' leaf modules of the last Build tile buildings (HedgeShell.cs)
             Debug.Log($"[Magistrala] trees: {total} (yard crowns kept {VegetationMask.YardKept}, dropped {VegetationMask.YardDropped})");
         }

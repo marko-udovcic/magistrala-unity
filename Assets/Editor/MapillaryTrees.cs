@@ -110,7 +110,8 @@ namespace Magistrala.EditorTools
                 for (int i = TreeProtos.IDS.Length; i < tr.meshes.Length; i++)
                 {
                     var m = tr.meshes[i]; if (!m) continue; var mat = tr.materials[tr.materialStart[i]];
-                    if (m.name.StartsWith("palma")) { palm = i; continue; }
+                    if (m.name.StartsWith("palma_3")) { if (palm < 0) palm = i; continue; }   // a Canary date palm (ExtraTrees, 28. 11.)
+                    if (m.name.StartsWith("palma") || m.name.StartsWith("tamaris")) continue;
                     if (m.name.StartsWith("lisnato_a")) { lisA = i; continue; }
                     if (m.name.StartsWith("lisnato_b")) { lisB = i; continue; }
                     if (m.name.StartsWith("lisnato_c")) { lisC = i; continue; }

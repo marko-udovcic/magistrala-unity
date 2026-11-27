@@ -62,6 +62,7 @@ namespace Magistrala.EditorTools
             if (crn < 0) crn = olive; if (bush < 0) bush = 4;
             // 27. 11. (ExtraTrees): the palm, the broadleaf street trees (by mesh name; −1 / empty: the old choices)
             int palm = Find(n => n.StartsWith("palma"));
+            var palmKinds = new PalmRows.Kinds(tr);   // 28. 11.: Canary / fan palm by place (fan palms below Plavi Jadran)
             var lis = Enumerable.Range(0, np).Where(p => tr.meshes[p] && tr.meshes[p].name.StartsWith("lisnato_")).ToList();
             int lisA = Find(n => n.StartsWith("lisnato_a")), lisB = Find(n => n.StartsWith("lisnato_b")), lisC = Find(n => n.StartsWith("lisnato_c"));
             // a surveyed broadleaf: the rules of vrste/README.md (height < 6 m: the old choice; tall and narrow: a; wide: b; else c)
@@ -92,13 +93,13 @@ namespace Magistrala.EditorTools
                     int p = kind switch
                     {
                         "broadleaf" => Lis(h, crown, olive), "olive" => olive,
-                        "palm" => palm, "small" => crn, "bush" => bush,
+                        "palm" => palmKinds.Any ? palmKinds.Palm(g.x, g.z) : palm, "small" => crn, "bush" => bush,
                         "pine" => pines[(int)(NaturePass.R01(g.x, g.z, 931) * pines.Count) % pines.Count],
                         "evergreen" => second ? (crown >= 4 ? pines[(int)(NaturePass.R01(g.x, g.z, 932) * pines.Count) % pines.Count] : cyp) : crn,
                         _ => -1,
                     };
                     if (p < 0) { if (kind == "palm") nPalm++; continue; }
-                    if (kind == "palm") h = Mathf.Clamp(h > 0 ? h : 6, 6, 12);
+                    if (kind == "palm") h = palmKinds.Any ? palmKinds.Scale(tr, p, g.x, g.z) * palmKinds.H[p] : Mathf.Clamp(h > 0 ? h : 6, 6, 12);
                     else if (lis.Contains(p)) h = Mathf.Clamp(h, p == lisA ? 12 : p == lisB ? 8 : 10, p == lisA ? 18 : 12);   // vrste/modeli.json ranges
                     if (kind != "pine" && VegetationMask.NearBuilding(g.x, g.z)) { if (OutOfHouse(ref g)) nMoved++; }
                     add.Add((g, h, p, kind != "bush")); nT++;
@@ -128,11 +129,12 @@ namespace Magistrala.EditorTools
             // the riva's kerb-row trees stay (RivaBuilder tree pits; the survey has only palms there, which we lack: without them
             // the pits stood empty)
             var riva = new HashSet<long>(RivaBuilder.Trees().Select(t => VegetationClean.Key(t.x, t.z)));
+            var palmRows = PalmRows.Added();   // the riva palms / tamarisks (PalmRows.cs) stay
             var b = File.ReadAllBytes(path); var outB = new List<byte>(b.Length); int removed = 0;
             for (int o = 0; o + 24 <= b.Length; o += 24)
             {
                 var g = W.G(new Vector3(BitConverter.ToSingle(b, o), 0, BitConverter.ToSingle(b, o + 8)));
-                if (!riva.Contains(VegetationClean.Key(g.x, g.y)) && bands.Any(bd => InBand(bd, g.x, g.y))) { removed++; continue; }
+                if (!riva.Contains(VegetationClean.Key(g.x, g.y)) && !palmRows.Contains(Convert.ToBase64String(b, o, 24)) && bands.Any(bd => InBand(bd, g.x, g.y))) { removed++; continue; }
                 for (int k = 0; k < 24; k++) outB.Add(b[o + k]);
             }
             int added = 0;

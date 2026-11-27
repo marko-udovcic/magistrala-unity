@@ -1,7 +1,8 @@
 // Extra tree prototypes from downloaded GLBs (Assets/Models/Plants, imported by glTFast), appended to the TreeRenderer by
 // NaturePass.Begin like the package pines (27. 11.):
-//   palma      Canary Island date palm (PlantCatalog, CC BY; reduced by Codex: assets-src/obrada-2711/palma-kanarska.glb) — the
-//              Mapillary trees classified palm (MapillaryTrees) and the surveyed palms (Drvoredi)
+//   palma_33 / 34 / 35, palma_lepeza_a / b, tamaris_a / b (28. 11.)   tall Canary date palms, Washingtonia fan palms, tamarisks
+//              (Assets/Models/Plants/Palme, see the DEFS) — the riva promenade rows (PalmRows), the surveyed palms (Drvoredi) and
+//              the palme.json palms (MapillaryTrees)
 //   lisnato_a  tall narrow maple (~18 m native), lisnato_b wide beech (umbrella, ~24 m wide), lisnato_c round maple (~12 m)
 //              (MegaTree, CC BY 4.0, Sketchfab) — the broadleaf street / avenue trees (Marko: like Poljička in Split), instead of
 //              the crnika / olive fallback for the Mapillary "other broadleaf" crowns and the surveyed "broadleaf" ones
@@ -22,16 +23,27 @@ namespace Magistrala.EditorTools
         public class Def { public string id, glb; public float draw, near; /** a trunk added under the crown (m; 0 none), crown scale */ public float trunk, crown = 1; }
         public static readonly Def[] DEFS =
         {
-            // (the source is a young palm without a trunk, 2.3 m: its crown × 1.8 on a 5 m trunk, ~9 m like the street palms)
-            new Def { id = "palma", glb = "Assets/Models/Plants/palma-kanarska.glb", draw = 1000, near = 70, trunk = 5, crown = 1.8f },
+            // the palms and tamarisks of the rivas (28. 11.: PlantCatalog "Realistic HD" Canary date palm 33/40, 34/40, 35/40, Mexican
+            // fan palm 8/10, French tamarisk 19/20, 12/20; andre.arq.89 "Washingtonia Robusta Palm_02"; all CC BY 4.0), reduced in
+            // Blender (BalkanDriver assets-src/palme-visoke/izvjestaj.md): fronds / fan leaves / branch clusters as alpha-cut cards
+            // with their own baked atlas, trunk a low cylinder with baked colour + normal; origin at the trunk's foot, real heights
+            // (7.9 / 12.1 / 15.2 / 13.7 / 7.3 / 3.6 / 2.2 m). Placed by PalmRows (riva promenades) and Drvoredi (the surveyed palms)
+            new Def { id = "palma_33", glb = PALME + "palma-33.glb", draw = 1000, near = 60 },
+            new Def { id = "palma_34", glb = PALME + "palma-34.glb", draw = 1000, near = 60 },
+            new Def { id = "palma_35", glb = PALME + "palma-35.glb", draw = 1000, near = 60 },
+            new Def { id = "palma_lepeza_a", glb = PALME + "palma-lepeza-a.glb", draw = 1000, near = 60 },
+            new Def { id = "palma_lepeza_b", glb = PALME + "palma-lepeza-b.glb", draw = 1000, near = 60 },
+            new Def { id = "tamaris_a", glb = PALME + "tamaris-a.glb", draw = 600, near = 45 },
+            new Def { id = "tamaris_b", glb = PALME + "tamaris-b.glb", draw = 600, near = 45 },
             new Def { id = "lisnato_a", glb = "Assets/Models/Plants/lisnato_a.glb", draw = 1000, near = 55 },
             new Def { id = "lisnato_b", glb = "Assets/Models/Plants/lisnato_b.glb", draw = 1000, near = 55 },
             new Def { id = "lisnato_c", glb = "Assets/Models/Plants/lisnato_c.glb", draw = 1000, near = 55 },
         };
+        const string PALME = "Assets/Models/Plants/Palme/";
         public static bool On = true;
-        /// the palm prototype (27. 11.: the source is a young 2.3 m palm without a trunk — not a riva / street palm; off until a tall
-        /// palm model arrives: then its Def with trunk = 0, crown = 1 and Palms = true)
-        public static bool Palms = false;
+        /// the palm / tamarisk prototypes (27. 11. off: the only palm was a young 2.3 m one without a trunk; 28. 11. on: the tall
+        /// Canary / fan palms and the tamarisks of Assets/Models/Plants/Palme)
+        public static bool Palms = true;
         const string DIR = WorldBuilder.GEN + "/Plants";
 
         public static void Protos(List<NaturePass.Proto> extra)
@@ -39,7 +51,7 @@ namespace Magistrala.EditorTools
             if (!On) return;
             foreach (var d in DEFS)
             {
-                if (d.id == "palma" && !Palms) continue;
+                if ((d.id.StartsWith("palma") || d.id.StartsWith("tamaris")) && !Palms) continue;
                 try { var p = Make(d); if (p != null) extra.Add(p); }
                 catch (System.Exception e) { Debug.LogWarning($"[stabla] {d.id}: {e.Message}"); }
             }

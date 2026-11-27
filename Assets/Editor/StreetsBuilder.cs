@@ -1794,6 +1794,8 @@ namespace Magistrala.EditorTools
         /// street / court within `r` m of game (x, z) (Assets/Generated/Streets/cover.bytes, false when no streets were built)
         /// (the model-road footways count only on their own footprint, not within `r`: the olives beside them stay)
         public static bool Covered(double gx, double gz, double r = 0) => CoveredMain(gx, gz, r) || WalkCovered(gx, gz);
+        /// streets / courts only (not the model-road footways: the riva promenades of the package models are footways; PalmRows)
+        public static bool CoveredStreet(double gx, double gz, double r = 0) => CoveredMain(gx, gz, r);
         static bool CoveredMain(double gx, double gz, double r)
         {
             if (cover == null) { if (!File.Exists(COVER)) return false; cover = File.ReadAllBytes(COVER); }
