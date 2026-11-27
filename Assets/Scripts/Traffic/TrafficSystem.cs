@@ -83,6 +83,9 @@ namespace Magistrala.Traffic
             // -spawnlog diagnostics: when / how / how far from the eye it was born, first frame it was visible to the eye
             public float born, bornD; public byte how; public bool seen; public float nextSee;
             public bool wasHid, wasFar; // before it was first seen: in the frustum but hidden / beyond the draw distance
+            // city bus (TrafficSystem.Buses.cs): next stop index, phase (0 driving, 1 approaching, 2 dwelling), dwell left, lateral
+            // pull towards the kerb, its own indicator, the display towards Trogir
+            public bool bus, displayAlt; public int busStop, busInd; public byte busPhase; public float dwell, pull, busLeaveT;
         }
 
         readonly List<Car> cars = new List<Car>();
@@ -170,6 +173,7 @@ namespace Magistrala.Traffic
             BuildBuckets();
             BuildDots();
             InitSides();
+            InitBuses();
         }
 
         // paint look (25. 11., "auti-izgled"): the builders gave every colour one plain coat (paint .62, coat .9, flake .08). Greys,
@@ -283,7 +287,7 @@ namespace Magistrala.Traffic
         void OnDisable()
         {
             foreach (var c in cars) Release(c);
-            cars.Clear(); sideCars.Clear(); foreach (var l in byCorridor) l.Clear();
+            cars.Clear(); sideCars.Clear(); foreach (var l in byCorridor) l.Clear(); busCount = 0;
         }
 
         // ------------------------------------------------------------------ corridor geometry
@@ -593,6 +597,7 @@ namespace Magistrala.Traffic
                         }
                     // a closure at the corridor's end: a standing obstacle 1 m before it (the cars queue at the barrier)
                     if (cor.deadEnd) { float d = cor.Length - 1 - (car.s + car.len / 2); if (d < gap) { gap = Mathf.Max(d, 0); lv = 0; } }
+                    if (car.bus) BusStep(car, cor, dt, ref gap, ref lv);
                     TurnApproach(car, ref v0, ref gap, ref lv);
                     float acc = gap > 500 ? car.a * (1 - Mathf.Pow(car.v / Mathf.Max(v0, .1f), 4)) : Idm(car, v0, gap, car.v - lv);
                     acc = Mathf.Clamp(acc, -9f, car.a);
@@ -615,8 +620,9 @@ namespace Magistrala.Traffic
                     car.v = nv; car.s += ds; car.wheelAng += ds;
                     car.stopT = car.v < .3f ? car.stopT + dt : 0;
                     // lane keeping / changing
-                    float target = LaneOffAt(cor, car.s, car.laneTo);
+                    float target = LaneOffAt(cor, car.s, car.laneTo) + car.pull;
                     car.indicator = car.turnRoute >= 0 ? data.sideRoutes[car.turnRoute].indicator : car.laneTo > car.lane ? -1 : car.laneTo < car.lane ? 1 : 0;
+                    if (car.bus && car.busInd != 0 && car.laneTo == car.lane) car.indicator = car.busInd;
                     if (car.laneTo != car.lane)
                     {
                         car.laneT += dt;
@@ -659,6 +665,12 @@ namespace Magistrala.Traffic
                 return;
             }
             if (car.lane >= nHere) { car.lane = car.laneTo = nHere - 1; return; }
+            // a bus: into the right lane for its stop; at / near a stop it stays put; it never passes on the left
+            if (car.bus)
+            {
+                if (car.busPhase == 2) return;
+                if (car.busPhase == 1) { if (car.lane > 0 && GapOk(car, list, idx, LaneOffAt(cor, car.s, car.lane - 1), 6)) car.laneTo = car.lane - 1; return; }
+            }
             // standing: only to get round a standing obstacle (the truck, a car that won't move) when the next lane is clearly emptier
             // — in a queue at a red light the next lane is queued too, so nobody hops
             if (car.v < 4)
@@ -674,7 +686,7 @@ namespace Magistrala.Traffic
                 return;
             }
             // pass a slow leader on the left
-            if (car.lane + 1 < nHere && car.lane + 1 < nAhead && gap < 45 && lv < v0 - 2.5f)
+            if (!car.bus && car.lane + 1 < nHere && car.lane + 1 < nAhead && gap < 45 && lv < v0 - 2.5f)
             {
                 float lat = LaneOffAt(cor, car.s, car.lane + 1);
                 Leader(car, list, idx, lat, car.hw, 160, out float ga, out _);
@@ -812,13 +824,14 @@ namespace Magistrala.Traffic
         }
         bool[] entryOk;
 
-        bool TrySpawn(bool warmStart)
+        bool TrySpawn(bool warmStart, int forceKind = -1)
         {
+            bool busy = forceKind >= 0;
             // the emptiest quarter (corridor × ahead / behind the player) gets the next car, so every direction stays populated
             int ci = rng.Next(data.corridors.Length); int side = rng.NextDouble() < .5 ? 1 : -1;
             // (warm start: a random corridor near the player; never one out of reach)
-            for (int t = 0; t < 8 && pFar[ci] > corridorReach; t++) ci = rng.Next(data.corridors.Length);
-            if (pFar[ci] > corridorReach) { SpawnFails[0]++; return false; }
+            for (int t = 0; t < 8 && (pFar[ci] > corridorReach || (busy && !BusCorridor(ci))); t++) ci = rng.Next(data.corridors.Length);
+            if (pFar[ci] > corridorReach || (busy && !BusCorridor(ci))) { SpawnFails[0]++; return false; }
             bool entry = false;
             if (!warmStart)
             {
@@ -826,7 +839,7 @@ namespace Magistrala.Traffic
                 for (int q = 0; q < data.corridors.Length * 2; q++)
                 {
                     int qc = q >> 1, qs = (q & 1) == 0 ? 1 : -1, cnt = 0;
-                    if (pFar[qc] > corridorReach) continue;
+                    if (pFar[qc] > corridorReach || (busy && !BusCorridor(qc))) continue;
                     float far = pSc[qc] + qs * spawnMax;
                     // the stretch's ends: none ahead past the end; behind, a corridor that starts within the ring (the edge of the
                     // modelled network: no corridor feeds it) gets its cars at its start instead — they drive in from the road beyond,
@@ -834,7 +847,7 @@ namespace Magistrala.Traffic
                     bool eq = false;
                     if (far > data.corridors[qc].Length - 30) continue;
                     if (far < 30) { if (pre26 || qs > 0 || !IsEntry(qc)) continue; eq = true; }
-                    foreach (var o in byCorridor[qc]) if ((o.s - pSc[qc]) * qs > 0) cnt++;
+                    foreach (var o in byCorridor[qc]) if ((o.s - pSc[qc]) * qs > 0 && (!busy || o.bus)) cnt++;
                     if (cnt < best || (cnt == best && rng.NextDouble() < .5)) { best = cnt; ci = qc; side = qs; entry = eq; }
                 }
             }
@@ -845,10 +858,10 @@ namespace Magistrala.Traffic
             if (s < 30 || s > cor.Length - (cor.deadEnd ? 300 : 30)) { SpawnFails[0]++; return false; }
             int n = LanesAt(cor, s);
             // prefer the right lane
-            int lane = n <= 1 ? 0 : rng.NextDouble() < .62 ? 0 : 1 + rng.Next(n - 1);
+            int lane = n <= 1 || busy ? 0 : rng.NextDouble() < .62 ? 0 : 1 + rng.Next(n - 1);
             // not in a lane that ends soon
             if (lane >= Mathf.Min(LanesAt(cor, s + 100), LanesAt(cor, s + 40))) lane = 0;
-            var kind = PickKind(); var kd = data.kinds[kind];
+            var kind = busy ? forceKind : PickKind(); var kd = data.kinds[kind];
             float lat = LaneOffAt(cor, s, lane);
             var pos = Point(cor, s, lat);
             // never pop in view: out of the frustum, hidden behind terrain / buildings, or beyond farFadeEnd (not drawn there:
@@ -892,6 +905,7 @@ namespace Magistrala.Traffic
             Pose(car);
             car.rb.position = car.pos; car.rb.rotation = car.rot; car.rb.transform.SetPositionAndRotation(car.pos, car.rot);
             cars.Add(car); byCorridor[ci].Add(car); Spawned++;
+            if (busy) BusBorn(car);
             car.born = clock; car.bornD = (pos - (cam ? cam.transform.position : PlayerPos)).magnitude;
             car.how = (byte)(warmStart ? 0 : entry ? 4 : !inView ? 1 : hidden ? 2 : 3);
             if (spawnLog && !warmStart) Debug.Log($"[spawn] {kd.name} c{ci} {(pos - (cam ? cam.transform.position : PlayerPos)).magnitude:F0} m {(inView ? hidden ? "view-hidden" : "view-far" : "out")} cars {cars.Count}");
@@ -951,7 +965,7 @@ namespace Magistrala.Traffic
                     float de = (c.pos - cam.transform.position).magnitude;
                     if (de < farFadeEnd && !HiddenFrom(cam.transform.position, c.pos, c.hw, c.h, true)) Debug.Log($"[vanish] {data.kinds[c.kind].name} c{c.c} {de:F0} m s {c.s:F0}/{cor.Length:F0} stop {c.stopT:F0} s");
                 }
-                Release(c); cars.RemoveAt(i); byCorridor[c.c].Remove(c); Despawned++;
+                BusGone(c); Release(c); cars.RemoveAt(i); byCorridor[c.c].Remove(c); Despawned++;
             }
         }
 
@@ -1031,7 +1045,7 @@ namespace Magistrala.Traffic
                     var pt = parts[p];
                     int b = ids[p] + (pt.paint ? car.paint : 0) + (pl[p] ? car.paint * 2 : 0);
                     // tail lamps (1) burn with the headlights at dusk / night as well as when braking (one lit variant)
-                    if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? headlights : pt.lamp == 1 ? car.braking || headlights : pt.lamp == 5 ? bA : pt.lamp == 6 ? bB
+                    if (pt.lamp > 0 && pt.matOn && (pt.lamp == 4 ? headlights : pt.lamp == 1 ? car.braking || headlights : pt.lamp == 5 ? bA : pt.lamp == 6 ? bB : pt.lamp == 7 ? car.displayAlt
                         : blink && pt.lamp == (car.indicator < 0 ? 2 : car.indicator > 0 ? 3 : 0))) b++;
                     if (pt.wheel)
                     {
@@ -1164,13 +1178,14 @@ namespace Magistrala.Traffic
             sideGroundBudget = 6; // at most one query per side car, normally 5 Hz (main traffic uses baked laneY)
             if (dt > 0) { Step(dt); StepSides(dt); }
             Despawn();
-            if (!warm && Time.frameCount > 3) { for (int k = 0; k < 400 && cars.Count < MainSpawnBudget; k++) TrySpawn(true); warm = true; }
-            else if (!TrySideSpawn()) for (int k = 0; k < 4 && cars.Count < MainSpawnBudget; k++) if (TrySpawn(false)) break;
+            if (!warm && Time.frameCount > 3) { SpawnBuses(true); for (int k = 0; k < 400 && cars.Count < MainSpawnBudget; k++) TrySpawn(true); warm = true; }
+            else { if (!TrySideSpawn()) for (int k = 0; k < 4 && cars.Count < MainSpawnBudget; k++) if (TrySpawn(false)) break; SpawnBuses(false); }
             foreach (var c in cars) { Pose(c); c.rb.MovePosition(c.pos); c.rb.MoveRotation(c.rot); }
             var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw();
             if (spawnLog) SeeCheck();
             SideStats();
+            BusDebug();
             var t2 = System.Diagnostics.Stopwatch.GetTimestamp();
             float simMs = (t1 - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency, drawMs = (t2 - t1) * 1000f / System.Diagnostics.Stopwatch.Frequency;
             AvgSimMs = AvgSimMs <= 0 ? simMs : AvgSimMs * .97f + simMs * .03f; AvgDrawMs = AvgDrawMs <= 0 ? drawMs : AvgDrawMs * .97f + drawMs * .03f;

@@ -7,7 +7,7 @@
 //   trees    on the existing prototypes, scaled to heightM, dropped onto the ground colliders (VegetationClean.Surface):
 //            broadleaf → olive mesh, evergreen → crnika on Bana Jelačića (checked from the street: dark evergreen broadleaves),
 //            pine (crown ≥ 4 m) or cypress on Grgura Ninskog, pine → the package's tall-trunk pines, small → crnika, bush →
-//            grm-tamni; palms are left out (no palm prototype yet; the riva's own kerb-row trees stay in their pits). A tree
+//            grm-tamni; palm → palma, broadleaf → the broadleaf street trees (ExtraTrees, 27. 11.; the riva's own kerb-row trees stay in their pits). A tree
 //            inside a building footprint (Grgura Ninskog could not be checked against them) moves out by the shortest way
 //   rows     a plant every spacingM along the line (small 3 m crnika, shrub 1.6 m grm-tamni, evergreen 5 m crnika)
 //   hedges   the yard hedge body (zivica-blok) every 0.8 m at heightM
@@ -60,6 +60,9 @@ namespace Magistrala.EditorTools
             var pines = Enumerable.Range(0, np).Where(p => tr.meshes[p] && tr.meshes[p].name.StartsWith("pine_0")).ToList();   // package Aleppo pines (pine_01_a …, tall trunks)
             if (pines.Count == 0) pines = Enumerable.Range(0, Math.Min(2, np)).ToList();
             if (crn < 0) crn = olive; if (bush < 0) bush = 4;
+            // 27. 11. (ExtraTrees): the palm, the broadleaf street trees (by mesh name; −1 / empty: the old choices)
+            int palm = Find(n => n.StartsWith("palma"));
+            var lis = Enumerable.Range(0, np).Where(p => tr.meshes[p] && tr.meshes[p].name.StartsWith("lisnato_")).ToList();
             float H(int p) => tr.meshes[p] ? Mathf.Max(.3f, tr.meshes[p].bounds.size.y) : 3;
 
             Physics.SyncTransforms();
@@ -80,12 +83,15 @@ namespace Magistrala.EditorTools
                     string kind = (string)t["kind"]; float h = MiniJson.F(t["heightM"]), crown = MiniJson.F(t["crownM"]);
                     int p = kind switch
                     {
-                        "broadleaf" => olive, "olive" => olive, "small" => crn, "bush" => bush,
+                        "broadleaf" => lis.Count > 0 ? lis[(int)(NaturePass.R01(g.x, g.z, 935) * lis.Count) % lis.Count] : olive, "olive" => olive,
+                        "palm" => palm, "small" => crn, "bush" => bush,
                         "pine" => pines[(int)(NaturePass.R01(g.x, g.z, 931) * pines.Count) % pines.Count],
                         "evergreen" => second ? (crown >= 4 ? pines[(int)(NaturePass.R01(g.x, g.z, 932) * pines.Count) % pines.Count] : cyp) : crn,
                         _ => -1,
                     };
-                    if (kind == "palm" || p < 0) { nPalm++; continue; }
+                    if (p < 0) { if (kind == "palm") nPalm++; continue; }
+                    if (kind == "palm") h = Mathf.Clamp(h > 0 ? h : 6, 4, 12);
+                    else if (lis.Contains(p)) h = Mathf.Clamp(h > 0 ? h : 8, 5, 12);
                     if (kind != "pine" && VegetationMask.NearBuilding(g.x, g.z)) { if (OutOfHouse(ref g)) nMoved++; }
                     add.Add((g, h, p, kind != "bush")); nT++;
                 }
@@ -107,7 +113,7 @@ namespace Magistrala.EditorTools
                     var a = MiniJson.O(ao); var poly = Line(a["outline"]); pts.AddRange(poly); nA += Fill((string)a["kind"], poly, add, olive, crn, bush, models);
                 }
                 bands.Add(MakeBand(name, pts));
-                report.Append($" {name}: trees {nT} (palms left out {nPalm}, moved out of houses {nMoved}), row plants {nR}, hedge plants {nH}, area plants {nA};");
+                report.Append($" {name}: trees {nT} (palms left out {nPalm}, palms {(palm >= 0 ? "on" : "off")}, moved out of houses {nMoved}), row plants {nR}, hedge plants {nH}, area plants {nA};");
             }
 
             // clear the bands, then add the survey

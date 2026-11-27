@@ -60,6 +60,16 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   `BalkanDriver/assets-src/auti-kandidati/`, README.md), natpisi s guma, stvarne / strane registracije; materijali pretvoreni u naš
   shader za aute (boja po primjerku, prljavština, zatamnjena stakla), dodane izmišljene tablice „ST …” s logom igre, razine detalja (LOD)
   i pojednostavljeni daleki model.
+- **"Mercedes- Benz Citaro 2 Turen (O530) HQ interior"** — Nieve5677 (https://sketchfab.com/iori308408) — https://sketchfab.com/3d-models/mercedes-benz-citaro-2-turen-o530-hq-interior-51dceb73d719491c9f83ea896a885a80 — CC BY 4.0.
+  U igri gradski autobus linije 37 „bus37”. **Izmijenjeno:** uklonjen interijer i sve oznake proizvođača (zvijezda, CITARO, stare
+  tablice), decimirano, naša izmišljena livreja „PROMEX”, izmišljene tablice, LED natpisi smjera (`BalkanDriver/assets-src/obrada-2711/`).
+- **"Realistic HD Canary Island date palm (1/40)"** — PlantCatalog (https://sketchfab.com/PlantCatalog) — https://sketchfab.com/3d-models/realistic-hd-canary-island-date-palm-140-97ad62ad820848d7b134de8e17bfed77 — CC BY 4.0.
+  U igri „palma”. **Izmijenjeno:** decimirano, krošnja povećana i postavljena na dodano deblo, daleki model (ukrižene plohe).
+- **"Real Tree Models"** — MegaTree — https://sketchfab.com/3d-models/real-tree-models-251236ab35764ac9bed017691bac17ea — CC BY 4.0. U igri stablo „lisnato_a”.
+- **"Realistic Tree Models for Games"** — MegaTree — https://sketchfab.com/3d-models/realistic-tree-models-for-games-b27168d5dbee4abe878d46aa045d1ddc — CC BY 4.0. U igri „lisnato_b”.
+- **"Mega Tree Models"** — MegaTree — https://sketchfab.com/3d-models/mega-tree-models-207ec1a0d4bd40daa513ffd300b6f3a8 — CC BY 4.0. U igri „lisnato_c”.
+  **Izmijenjeno (stabla):** uspravljeni, ishodište na dnu debla, listovi pretvoreni u naš shader za lišće (alpha clip), dodan
+  daleki model (4 ukrižene plohe, pečene iz modela), mjerilo po primjerku (ulična stabla 5–12 m).
 
 ## Iz igre Magistrala (BalkanDriver repo; vlastiti sadržaj i preneseni izvori)
 - Modeli križanja i dionica (`client/public/assets/models/krizanja/*.glb`, Markov paket), njihov raspored (`model-junctions.json`)

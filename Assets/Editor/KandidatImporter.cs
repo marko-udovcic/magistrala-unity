@@ -41,7 +41,9 @@ namespace Magistrala.EditorTools
         [Serializable] public class KMat
         {
             public string name;                 // glTF material name (prefix match)
-            public string role = "trim";        // body (paint) | trim | interior | wheel | glass | hide
+            public string role = "trim";        // body (paint) | trim | interior | wheel | glass | hide | display (city bus destination sign: lamp 7)
+            public string tex, texAlt;          // display: its texture (default: the GLB's own) and the other direction's (paths from the project root)
+            public float emit = 1.4f;           // display: emission strength
             public int size = 2048;             // texture size (<= 2048)
             public float smoothMax = 1, smoothMul = 1, desat = 0, bright = 1;   // look tweaks of the non-paint texels
             public float metalMul = 1;
@@ -1113,6 +1115,28 @@ namespace Magistrala.EditorTools
             {
                 Material m, on = null; int lamp = 0;
                 if (g.role == "glass") { m = cfg.glassOpaque ? glassO : glassT; lodMat.Add(glassO); }
+                else if (g.role == "display")
+                {
+                    // destination display (TrafficPart lamp 7): URP Lit, emissive with its own texture; "_on" = the other direction's
+                    var km = c.km[g.mat]; string mn = San(c.g.mats[g.mat].name);
+                    Texture2D T(string file, string nm)
+                    {
+                        byte[] bytes = !string.IsNullOrEmpty(file) && File.Exists(file) ? File.ReadAllBytes(file) : c.g.mats[g.mat].bc >= 0 ? c.g.images[c.g.mats[g.mat].bc] : null;
+                        if (bytes == null) return null;
+                        string tp = $"{dir}/{k}_{nm}.png"; var t2 = new Texture2D(2, 2); t2.LoadImage(bytes); File.WriteAllBytes(tp, t2.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(t2);
+                        AssetDatabase.ImportAsset(tp); var ti = (TextureImporter)AssetImporter.GetAtPath(tp);
+                        ti.sRGBTexture = true; ti.mipmapEnabled = true; ti.maxTextureSize = 1024; ti.anisoLevel = 4; ti.SaveAndReimport();
+                        return AssetDatabase.LoadAssetAtPath<Texture2D>(tp);
+                    }
+                    Material D(string nm, Texture2D t)
+                    {
+                        var dm = Mat(nm, lit); dm.SetTexture("_BaseMap", t); dm.SetColor("_BaseColor", Color.white); dm.SetFloat("_Smoothness", .85f); dm.SetFloat("_Metallic", 0);
+                        dm.EnableKeyword("_EMISSION"); dm.SetTexture("_EmissionMap", t); dm.SetColor("_EmissionColor", Color.white * km.emit);
+                        dm.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; EditorUtility.SetDirty(dm); return dm;
+                    }
+                    var t0 = T(km.tex, mn + "_display"); var t1 = T(string.IsNullOrEmpty(km.texAlt) ? km.tex : km.texAlt, mn + "_display_alt");
+                    m = D(mn + "_display", t0); on = D(mn + "_display_on", t1); lamp = 7; lodMat.Add(null);
+                }
                 else
                 {
                     var ts = sets[g.mat]; string mn = San(c.g.mats[g.mat].name);

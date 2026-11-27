@@ -6,8 +6,10 @@
 //   * taken      conf ≥ MIN_CONF (seen in ≥ 1 segmented street photo); on the old road and the other streets (village streets,
 //                little segmented imagery; OrthoStreets) also the orthophoto-only crowns (conf 0.15–0.25) of 3–12 m that are not
 //                hedges; never a `patch` (scrub / grove
-//                along the D8, not one crown); no palms (no palm prototype; the classifier also takes lamps for palms)
-//   * species    other broadleaf → crnika (dark evergreen broadleaf), olive → olive, pine → the package's Aleppo-shaped pines,
+//                along the D8, not one crown); palms (27. 11., ExtraTrees "palma") at conf ≥ PALM_CONF (all are 0.3: the classifier
+//                is unsure of them) unless within 2.5 m of a Mapillary street light / pole (it also takes lamps for palms)
+//   * species    other broadleaf → the three broadleaf street trees (ExtraTrees lisnato_a / b / c by crown shape, else crnika),
+//                palm → palma (uniform scale, 4–12 m), olive → olive, pine → the package's Aleppo-shaped pines,
 //                cypress → cypress, oleander → oleander-roza, hedge → 1–5 dark bushes (grm-tamni) over the crown; scaled to the
 //                measured top height (else from the crown Ø)
 //   * skipped    a tree of ours (≥ 2.5 m tall) within crown radius + 2 m; on / near a street, footway or model asphalt (more off
@@ -32,7 +34,7 @@ namespace Magistrala.EditorTools
     {
         public const string PATH = "Assets/Editor/stabla-mapillary.json";
         const string ADDED = WorldBuilder.GEN + "/Nature/stabla-mapillary-added.bytes";
-        public const float MIN_CONF = .35f;
+        public const float MIN_CONF = .35f, PALM_CONF = .3f;
         public static bool On = true;
         /// false: the orthophoto-only crowns of the other streets (road u) are not taken (only the seen ones, conf ≥ MIN_CONF)
         public static bool OrthoStreets = true;
@@ -70,7 +72,8 @@ namespace Magistrala.EditorTools
 
         static bool Taken(T t)
         {
-            if (t.patch || t.type == "palm") return false;
+            if (t.patch) return false;
+            if (t.type == "palm") return t.conf >= PALM_CONF;
             if (t.conf >= MIN_CONF) return true;
             return (t.road == "s" || (t.road == "u" && OrthoStreets)) && t.type != "hedge" && t.d >= 3 && t.d <= 12;
         }
@@ -79,7 +82,9 @@ namespace Magistrala.EditorTools
         /// material name)
         class Protos
         {
-            public int olive = 2, cypress = 3, crnika = -1, tamni = -1, oleander = -1; public List<int> pines = new List<int>();
+            public int olive = 2, cypress = 3, crnika = -1, tamni = -1, oleander = -1, palm = -1; public List<int> pines = new List<int>();
+            /// the broadleaf street trees (ExtraTrees): a tall narrow, b wide umbrella, c round; −1 none
+            public int lisA = -1, lisB = -1, lisC = -1;
             public float[] height;
             public Bounds[] bounds;   // (tr must be World/Vegetation, not the AC units' TreeRenderer)
             public Protos(Magistrala.TreeRenderer tr)
@@ -89,6 +94,10 @@ namespace Magistrala.EditorTools
                 for (int i = TreeProtos.IDS.Length; i < tr.meshes.Length; i++)
                 {
                     var m = tr.meshes[i]; if (!m) continue; var mat = tr.materials[tr.materialStart[i]];
+                    if (m.name.StartsWith("palma")) { palm = i; continue; }
+                    if (m.name.StartsWith("lisnato_a")) { lisA = i; continue; }
+                    if (m.name.StartsWith("lisnato_b")) { lisB = i; continue; }
+                    if (m.name.StartsWith("lisnato_c")) { lisC = i; continue; }
                     if (crnika < 0 && mat && mat.name.Contains("crnika")) crnika = i;
                     else if (m.name.StartsWith("pine_") && !m.name.Contains("medium") && !m.name.Contains("pinija")
                         && TreeProtos.StreetShape(m.bounds, .35f, 1.15f)) pines.Add(i);
@@ -106,6 +115,17 @@ namespace Magistrala.EditorTools
                     throw new InvalidDataException($"[stabla] unsuitable street prototype {proto}: check native bounds before placing trees");
                 return TreeProtos.StreetScale(bounds[proto], (float)want, minH, maxH, maxW);
             }
+        }
+
+        /// the broadleaf street tree for a crown of Ø d and top height h (r: 0..1 hash): narrow crowns the tall maple, wide ones the
+        /// beech, the rest mostly the round maple (a third of them one of the others, for variety); −1 none of them in the scene
+        static int Broadleaf(Protos P, double d, double h, float r)
+        {
+            var have = new[] { P.lisA, P.lisB, P.lisC }.Where(i => i >= 0).ToArray(); if (have.Length == 0) return -1;
+            double ratio = d / Math.Max(1, h);
+            int pick = ratio < .55 ? P.lisA : ratio > 1.0 ? P.lisB : P.lisC;
+            if (r < .33f || pick < 0) pick = have[(int)(r * 3 * have.Length) % have.Length];
+            return pick;
         }
 
         public static string Apply(Magistrala.TreeRenderer tr, List<ModelJ> models)
@@ -181,6 +201,17 @@ namespace Magistrala.EditorTools
                 return false;
             }
 
+            // Mapillary street lights / poles (palms: the classifier takes lamps for palms)
+            var lampPts = new Dictionary<long, List<Vector2>>();
+            if (File.Exists("Assets/Editor/rasvjeta-mapillary.json"))
+                foreach (var lo in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText("Assets/Editor/rasvjeta-mapillary.json")))["lights"]))
+                { var l = MiniJson.L(lo); long k = Key(MiniJson.D(l[0]), MiniJson.D(l[1])); if (!lampPts.TryGetValue(k, out var ll)) lampPts[k] = ll = new List<Vector2>(); ll.Add(new Vector2(MiniJson.F(l[0]), MiniJson.F(l[1]))); }
+            bool NearLamp(double x, double z, double R)
+            {
+                for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
+                        if (lampPts.TryGetValue(Key(x + i * 8, z + j * 8), out var l)) foreach (var q in l) if ((q.x - x) * (q.x - x) + (q.y - z) * (q.y - z) < R * R) return true;
+                return false;
+            }
             var add = new List<byte>(); var why = new Dictionary<string, int>(); var kinds = new Dictionary<string, int>();
             int unchanged = 0;
             void No(string w) { why.TryGetValue(w, out int n); why[w] = n + 1; }
@@ -217,6 +248,13 @@ namespace Magistrala.EditorTools
                 float Sc(int proto, double want) { float H = proto >= 0 && proto < P.height.Length ? P.height[proto] : 0; return H > 0 ? (float)(want / H) : 1; }
                 switch (t.type)
                 {
+                    case "palm":
+                        {
+                            if (P.palm < 0) { No("no palm prototype"); continue; }
+                            if (NearLamp(x, z, 2.5)) { No("palm = street light?"); continue; }
+                            // uniform scale to the measured top height, 4–12 m (no width cap: fronds spread ~ the height)
+                            Put(x, h - .08, z, yaw, P.StreetScale(P.palm, top > 0 ? top : Math.Max(5, t.d), 4, 12, 14, .3f, 2f), P.palm, "palm"); break;
+                        }
                     case "hedge":
                         {
                             if (P.tamni < 0) { No("no bush prototype"); continue; }
@@ -248,9 +286,18 @@ namespace Magistrala.EditorTools
                             Put(x, h - .1, z, yaw, P.StreetScale(p, top > 0 ? top : 1.1 * t.d,
                                 5, 12, 12, .35f, 1.15f), p, "pine"); break;
                         }
-                    default:   // other broadleaf
-                        Put(x, h - .08, z, yaw, P.StreetScale(P.crnika, top > 0 ? top : .8 * t.d + 1,
-                            2.8f, 9, 10, .65f, 1.6f), P.crnika, "broadleaf (crnika)"); break;
+                    default:   // other broadleaf: the broadleaf street trees (27. 11.), crnika where none fits
+                        {
+                            double want = top > 0 ? top : .8 * t.d + 1;
+                            int lp = Broadleaf(P, t.d, want, NaturePass.R01(x, z, 94));
+                            if (lp >= 0 && want >= 4)
+                            {
+                                var (mn, mx, mw) = lp == P.lisA ? (6f, 12f, 7f) : lp == P.lisB ? (5f, 10f, 12f) : (5f, 10f, 10f);
+                                Put(x, h - .08, z, yaw, P.StreetScale(lp, want, mn, mx, mw, .3f, 1.8f), lp, "broadleaf (street tree)"); break;
+                            }
+                            Put(x, h - .08, z, yaw, P.StreetScale(P.crnika, want,
+                                2.8f, 9, 10, .65f, 1.6f), P.crnika, "broadleaf (crnika)"); break;
+                        }
                 }
                 trees++; byRoad.TryGetValue(t.road, out int nr); byRoad[t.road] = nr + 1;
             }

@@ -216,6 +216,7 @@ namespace Magistrala.EditorTools
             // the scene's (leaf-clipped) olive materials (VegetationMask)
             var olive = Load<Mesh>(WorldBuilder.GEN + "/Plants/olive.mesh.asset");
             if (olive && VegetationMask.On) extra.Add(new Proto { id = "crnika", mesh = olive, mats = null, draw = 1000, near = 45 });
+            ExtraTrees.Protos(extra);   // palm, the three broadleaf street trees (27. 11.)
         }
         /// the height (m, at scale 1) of a prototype: ours by index or an extra one by id
         public static float Height(string id) { int i = Index(id); return i < 0 ? 0 : HeightOf(i); }
