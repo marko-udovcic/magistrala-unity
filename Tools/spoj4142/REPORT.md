@@ -4,7 +4,7 @@ The defect is in the package mesh, not Unity's road builder. `WorldBuilder.Roads
 
 The diagnosis is substantially correct. 42's last 5 m are nearly flat (one sampled track even falls slightly). Beyond the landing, 41 climbs about 7.3%. The qualification: 41's existing terminal slope varies across its triangles, approximately 2.1–5.7%, rather than a uniform 6.5–7.3% at the edge itself. Simply giving 42 a 3.5% grade would leave a slope mismatch there. Comparing actual common-edge positions confirms no metre-scale lateral displacement; the old 1.8 / 3.5 m figures should not be used to translate either model.
 
-Heights below are metres in game / Unity vertical coordinates, including the common +1.11 m package datum offset. Samples follow parallel D409 tracks at package-frame x = −22 and −16 at the seam in **41's** frame (southbound and northbound carriageways). Positive distance runs north toward the bridge; negative distance lies in 42. They use triangle interpolation and the higher of asphalt / deck, not the 2 m height grid. Distances are package metres; the affine fit changes these by less than 0.2%.
+The height table records the grade-fix pass, before the seam-overlap follow-up below. Heights are metres in game / Unity vertical coordinates, including the common +1.11 m package datum offset. Samples follow parallel D409 tracks at package-frame x = −22 and −16 at the seam in **41's** frame (southbound and northbound carriageways). Positive distance runs north toward the bridge; negative distance lies in 42. They use triangle interpolation and the higher of asphalt / deck, not the 2 m height grid. Distances are package metres; the affine fit changes these by less than 0.2%.
 
 | Distance (m) / model | Southbound before | Southbound after | Northbound before | Northbound after |
 |---|---:|---:|---:|---:|
@@ -79,3 +79,25 @@ BalkanDriver files changed (left **uncommitted** for your review):
 Unity repository files: `Tools/spoj4142/{REPORT.md,before-hashes.json,verify-unchanged.py,commit-code.sh}`. No Unity builder change was needed. Run `Tools/spoj4142/commit-code.sh` to commit these explicit paths on `spoj4142`; `.git` is read-only in this environment. The script checks the branch and an empty index and does not commit BalkanDriver or generated Unity assets.
 
 Untested: Unity compilation, the rebuild menus, visual lighting / normals after deformation, the screenshot pose, truck suspension / ride through the transition, and runtime AI / GPS behavior. No Unity process or player was run. The unavailable historical buildings-test input is the remaining test-environment issue.
+
+
+## Follow-up: close the visible hairline
+
+The supplied before/after crops confirm the grade improvement but show a brown line at the seam. The source has a real coverage gap: 41's three terminal asphalt vertices reach local z = 140, while 42's five terminal asphalt vertices end at local z = −70.00, −69.95, −69.90, −69.85 and −69.80. Both nominal edges map to package z = −540.1, so 42 was short by up to **20 cm** across the carriageways. The earlier slope checks sampled 30 cm either side and did not detect that empty strip.
+
+Chosen fix: extend 42's terminal asphalt ring and edge paint **15 cm past the nominal seam in z** (17.3 cm along D409) underneath 41. This fills the old shortfall and provides overlap despite float / placement rounding. The vertices move along D409 with y increased by exactly **0.035 × longitudinal distance**, retaining the existing grade and cross-road coordinate. Only the terminal ring moves; the grade profile and all of 41's GLB remain unchanged. Generation resets the affected positions from the immutable export so repeated runs cannot accumulate extension. This is an exception to the grade pass's original x/z-preservation statement above.
+
+No Unity terrain code change: there is a confirmed mesh gap to close, and `ModelTerrain` already requests terrain 25 cm below sampled model asphalt. The local package ground samples are also below the road. Changing global terrain rules would unnecessarily affect other junctions.
+
+Validation: **466/466** tests (463 junction tests, two grade checks and one new dense seam-coverage check); the new check samples actual asphalt triangles every 1 cm through the former gap and overlap across the carriageways. Repeat package generation yields identical 41/42 GLBs. `verify-unchanged.py` passes: the original baseline still has 88/92 files unchanged and 75/77 entries unchanged in each JSON. Relative to the grade-fix delivery, 41's GLB and the entire `junction-overrides-modeli.json` are byte-identical; only model 42's entry changes in `model-junctions.json`.
+
+Additional BalkanDriver changes for this follow-up, all left **uncommitted**:
+
+- `tools/world/krizanja/level-4142.ts`
+- `tools/world/krizanja/level-4142.test.ts`
+- `client/public/assets/models/krizanja/42-kastel-stafilic-C.glb` (regenerated)
+- `client/public/assets/world/split-kastela/model-junctions.json` (regenerated; 42 entry only since the grade pass)
+
+The earlier nine-file list remains the cumulative delivery. Unity changes for this follow-up are only `Tools/spoj4142/REPORT.md` and `Tools/spoj4142/commit-code.sh`; run the commit script for the follow-up documentation commit.
+
+Regenerate with the same package/import commands above. Reopen this Unity clone to clear the static model cache, then run **Magistrala → Build roads**, **Build terrain**, and **Build traffic**; save the scene locally. Reuse the same screenshot pose. Visual closure, the overlapping surface rendering and vehicle passage remain untested here because Unity was not run.
