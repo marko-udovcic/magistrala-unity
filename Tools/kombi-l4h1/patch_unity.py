@@ -54,3 +54,11 @@ for tag in ('L', 'R'):
     e = empty('wiper_' + tag, SP[tag], B_); parent_keep(o, e); WIP.append(e)
     log('wiper', tag, 'faces', len(o.data.polygons))
 bpy.data.objects.remove(wp)
+
+# Cab readability: keep the existing gauge plane/needle pivots; adjust the seat eye and steering column only.
+# Blender +Y = rearwards, +Z = up. finish_glb.py repeats the absolute anchor values after export.
+EYE.z = 1.84
+EYE.y = -1.21
+st.location.z = 1.418520851135254
+st.rotation_euler = (Matrix.Rotation(math.radians(10), 3, 'X') @ st.rotation_euler.to_matrix()).to_euler()
+# The rear threshold is added by finish_glb.py after k3_export.py, avoiding LOD decimation of this safety-critical closure.

@@ -29,6 +29,7 @@ namespace Magistrala.Audio
         static readonly string[] GroupNames = { "Motor", "Okolina", "Promet", "UI" };
         /// 0 = master, 1..4 = the groups (Bus + 1): the mixer's exposed parameters and the PlayerPrefs keys "zvuk.<name>"
         public static readonly string[] VolParams = { "VolMaster", "VolMotor", "VolOkolina", "VolPromet", "VolUI" };
+        static readonly string[] VolKeys = { "zvuk.VolMaster", "zvuk.VolMotor", "zvuk.VolOkolina", "zvuk.VolPromet", "zvuk.VolUI" };
         public static readonly string[] VolLabels = { "Glasnoća", "Motor", "Okolina", "Promet", "Mobitel" };
         static readonly float[] VolDefault = { 0.8f, 1f, 0.9f, 0.9f, 0.8f };
 
@@ -177,13 +178,13 @@ namespace Magistrala.Audio
         // ------------------------------------------------------------------ volumes (0..1, remembered like karta.tamna)
         public static float Volume(int i)
         {
-            try { return PlayerPrefs.GetFloat("zvuk." + VolParams[i], VolDefault[i]); } catch { return VolDefault[i]; }
+            try { return PlayerPrefs.GetFloat(VolKeys[i], VolDefault[i]); } catch { return VolDefault[i]; }
         }
 
         public static void SetVolume(int i, float v)
         {
             v = Mathf.Clamp01(Mathf.Round(v * 10f) / 10f);
-            try { PlayerPrefs.SetFloat("zvuk." + VolParams[i], v); } catch { }
+            try { PlayerPrefs.SetFloat(VolKeys[i], v); } catch { }
             if (!I) return;
             I.ApplyVolumes();
             // a short tick through the changed group (the phone pauses the listener; this voice ignores the pause)

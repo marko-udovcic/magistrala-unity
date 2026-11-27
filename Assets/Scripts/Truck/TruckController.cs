@@ -52,6 +52,10 @@ public sealed class TruckController : MonoBehaviour
         public BodyBox[] boxes;
         // truckPhysics.ts firm_truck: 6300 kg already agrees with the real empty box + tail-lift mass.
         public float mass = 6300f, radius = 0.46f, finalDrive = 4.4f, torqueNm = 800f, topKmh = 95f, reverseKmh = 14f;
+        // Optional engine map in real rpm. Null keeps the original Atego curve and shift logic.
+        public float[] torqueRpm, torqueFraction;
+        public float upLoad = 2100, upCruise = 1600, downLoad = 1150, downCruise = 850, downLimit = 1950;
+        public float turboRise = 1.6f, rotatingInertia = 0.0022f, pedalExponent = 1f, boostGain = 1f;
         public float idle = 600f, redline = 2450f, shiftTime = 0.6f, rpmScale = 1f; // rpmScale: the shift points / torque curve (built for a 2450 rpm diesel) scaled
         public float travel = 0.30f, sag = 0.13f, sagLoaded = 0.16f, springTarget = 0.3f, damping = 0.65f; // (bench vs web: 0.09 m sag rolled only 1.6° at 0.4 g, web 2.5°)
         public float[] ratios = { 6.75f, 3.6f, 2.13f, 1.39f, 1f, 0.78f };
@@ -70,6 +74,9 @@ public sealed class TruckController : MonoBehaviour
     public struct BodyBox { public string name; public Vector3 min, max; }
     [System.NonSerialized] public Spec spec = new Spec();
     public string VehicleId => spec.id;
+    public TurnSignals Signals { get; internal set; }
+    public int Indicator => Signals ? Signals.Direction : 0; // traffic convention: -1 left, +1 right
+    public bool HazardsOn => Signals && Signals.Hazards;
     float Mass => spec.mass; float Radius => spec.radius; float FinalDrive => spec.finalDrive;
     float Idle => spec.idle; float Redline => spec.redline; float ShiftTime => spec.shiftTime;
     float Travel => spec.travel; float Sag => spec.sag; float SpringTarget => spec.springTarget;
@@ -384,6 +391,7 @@ public sealed class TruckController : MonoBehaviour
                 if (Mathf.Abs(speed) < 0.6f) { Gear = 1; gas = throttleInput; brake = brakeInput; }
             }
         }
+        if (spec.pedalExponent != 1f) gas = Mathf.Pow(gas, spec.pedalExponent);
         // Opposite momentum must be arrested before applying propulsion in the selected direction.
         if ((Gear > 0 && speed < -0.6f && gas > 0) || (Gear < 0 && speed > 0.6f && gas > 0)) { brake = Mathf.Max(brake, gas); gas = 0; }
         shiftTimer = Mathf.Max(0, shiftTimer - dt);
@@ -395,11 +403,13 @@ public sealed class TruckController : MonoBehaviour
         EngineRpm = Mathf.Lerp(EngineRpm, Mathf.Min(Redline + 100f, desiredRpm), Mathf.Min(1, dt * 10f));
         if (Gear > 0 && shiftTimer <= 0 && speed > 0)
         {
-            float up = (gas > 0.6f ? 2100 : 1600) * k, down = (gas > 0.6f ? 1150 : 850) * k;
+            // Shift from pedal position, before the van's torque-request shaping; light cruising must reach sixth.
+            bool loaded = spec.pedalExponent == 1f ? gas > 0.6f : throttleInput > 0.6f;
+            float up = (loaded ? spec.upLoad : spec.upCruise) * k, down = (loaded ? spec.downLoad : spec.downCruise) * k;
             float afterSpeed = Mathf.Max(0, speed - Mathf.Max(0, 9.81f * (forward.y + 0.0065f)) * ShiftTime);
             float nextRpm = Gear < top6 ? afterSpeed / Radius * Ratios[Gear] * FinalDrive * 60f / (2f * Mathf.PI) : 0;
             float nextRatio = Gear < top6 ? Ratios[Gear] * FinalDrive : 0;
-            float nextForce = spec.torqueNm * TorqueFraction(nextRpm / k) * (0.5f + 0.375f * boost) * nextRatio * 0.85f / Radius;
+            float nextForce = spec.torqueNm * TorqueFraction(nextRpm) * (0.5f + 0.375f * boost) * nextRatio * 0.85f / Radius;
             float resistance = body.mass * 9.81f * (forward.y + 0.0065f);
             bool pulls = forward.y <= 0.02f || nextForce > resistance || roadRpm > Redline + 50;
             if (Gear < top6 && pulls && ((roadRpm > up && nextRpm > down + 60 * k) || (roadRpm > Redline - 40 * k && nextRpm > Idle + 250 * k)))
@@ -407,16 +417,16 @@ public sealed class TruckController : MonoBehaviour
             else if (Gear > 1 && EngineRpm < down && kmh > 1 && (sinceUp > ShiftTime + 1.5f || EngineRpm < Idle + 120 * k) && (gas < 0.6f || acceleration < 0.05f))
             {
                 float lowerRpm = roadRpm * Ratios[Gear - 2] / ratio;
-                if (lowerRpm < 1950 * k) { Gear--; shiftTimer = ShiftTime * 0.8f; }
+                if (lowerRpm < spec.downLimit * k) { Gear--; shiftTimer = ShiftTime * 0.8f; }
             }
             ratio = Ratios[Gear - 1];
         }
-        float boostWant = shiftTimer > 0 ? 0 : gas * Mathf.Min(1f, EngineRpm / (1100f * k));
-        float tau = boostWant > boost ? 1.6f : (shiftTimer > 0 && gas > 0.05f ? 1.2f : 0.35f);
+        float boostWant = shiftTimer > 0 ? 0 : Mathf.Min(1f, gas * spec.boostGain) * Mathf.Min(1f, EngineRpm / (1100f * k));
+        float tau = boostWant > boost ? spec.turboRise : (shiftTimer > 0 && gas > 0.05f ? 1.2f : 0.35f);
         boost = Mathf.Lerp(boost, boostWant, Mathf.Min(1, dt / tau));
-        float force = shiftTimer > 0 ? 0 : spec.torqueNm * TorqueFraction(EngineRpm / k) * gas * (0.5f + 0.5f * boost) * ratio * FinalDrive * 0.85f / Radius;
+        float force = shiftTimer > 0 ? 0 : spec.torqueNm * TorqueFraction(EngineRpm) * gas * (0.5f + 0.5f * boost) * ratio * FinalDrive * 0.85f / Radius;
         float gradeForce = body.mass * 9.81f * Mathf.Max(0, (Gear < 0 ? -forward.y : forward.y) + 0.0065f);
-        if (force > gradeForce) force = gradeForce + (force - gradeForce) / (1f + 0.0022f * Mathf.Pow(ratio * FinalDrive, 2));
+        if (force > gradeForce) force = gradeForce + (force - gradeForce) / (1f + spec.rotatingInertia * Mathf.Pow(ratio * FinalDrive, 2));
         if (EngineRpm > Redline) force *= 0.1f;
         float top = Gear < 0 ? spec.reverseKmh : spec.topKmh;
         force *= Mathf.Clamp01((top + 3f - kmh) / 3f);
@@ -453,11 +463,14 @@ public sealed class TruckController : MonoBehaviour
             body.AddForce(-forward * Mathf.Sign(speed) * Mathf.Min(body.mass * 9.81f * 0.0065f, body.mass * Mathf.Abs(speed) / dt));
     }
 
-    static float TorqueFraction(float rpm)
+    float TorqueFraction(float rpm)
     {
-        for (int i = 1; i < CurveRpm.Length; i++)
-            if (rpm <= CurveRpm[i]) return Mathf.Lerp(CurveTorque[i - 1], CurveTorque[i], Mathf.InverseLerp(CurveRpm[i - 1], CurveRpm[i], rpm));
-        return CurveTorque[CurveTorque.Length - 1];
+        var points = spec.torqueRpm ?? CurveRpm;
+        var values = spec.torqueFraction ?? CurveTorque;
+        if (spec.torqueRpm == null) rpm /= spec.rpmScale;
+        for (int i = 1; i < points.Length; i++)
+            if (rpm <= points[i]) return Mathf.Lerp(values[i - 1], values[i], Mathf.InverseLerp(points[i - 1], points[i], rpm));
+        return values[values.Length - 1];
     }
 
     void AntiRoll(int left, int right, float stiffness)

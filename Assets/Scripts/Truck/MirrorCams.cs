@@ -7,6 +7,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 public sealed class MirrorCams : MonoBehaviour
@@ -21,7 +22,7 @@ public sealed class MirrorCams : MonoBehaviour
     sealed class Mirror
     {
         public Transform glass; public Vector3 centerLocal, normalLocal;
-        public Camera cam; public RenderTexture rt; public GameObject quad;
+        public Camera cam; public RenderTexture rt; public GameObject quad; public Vector2 size; public Material material;
     }
 
     TruckController tc; TruckChaseCamera chase;
@@ -39,36 +40,61 @@ public sealed class MirrorCams : MonoBehaviour
             if (t.name == "mglass_L" || t.name == "mglass_R")
             {
                 var mf = t.GetComponent<MeshFilter>(); if (!mf || !mf.sharedMesh) continue;
-                var b = mf.sharedMesh.bounds;
-                // the glass is a thin plate: its normal is the bounds' thinnest local axis
-                Vector3 e = b.extents; Vector3 n = e.x <= e.y && e.x <= e.z ? Vector3.right : e.y <= e.z ? Vector3.up : Vector3.forward;
-                mirrors.Add(new Mirror { glass = t, centerLocal = b.center, normalLocal = n });
+                var mesh = mf.sharedMesh;
+                var vertices = mesh.vertices; var indices = mesh.triangles;
+                // A curved/tilted mirror is not aligned to its AABB's thinnest axis. The L4H1 face is tilted
+                // ~32 degrees: the old quad through bounds.center intersected the lens, hiding much of the image.
+                // Fit the largest face (the optical surface), keeping the quad 4 mm in front of that plane.
+                Vector3 n = Vector3.forward, face = mesh.bounds.center; float largest = 0;
+                for (int j = 0; j + 2 < indices.Length; j += 3)
+                {
+                    Vector3 a = vertices[indices[j]], b = vertices[indices[j + 1]], c = vertices[indices[j + 2]];
+                    Vector3 cross = Vector3.Cross(b - a, c - a);
+                    if (cross.sqrMagnitude <= largest) continue;
+                    largest = cross.sqrMagnitude; n = cross.normalized; face = a;
+                }
+                var eye = t.InverseTransformPoint(tc.transform.TransformPoint(tc.CabinEyeLocal));
+                if (Vector3.Dot(eye - face, n) < 0) n = -n;
+                var up = Vector3.ProjectOnPlane(t.InverseTransformDirection(tc.transform.up), n).normalized;
+                var right = Vector3.Cross(up, n).normalized;
+                Vector2 min = new Vector2(float.PositiveInfinity, float.PositiveInfinity), max = -min;
+                foreach (var v in vertices)
+                {
+                    var p = new Vector2(Vector3.Dot(v, right), Vector3.Dot(v, up));
+                    min = Vector2.Min(min, p); max = Vector2.Max(max, p);
+                }
+                var middle = (min + max) * .5f;
+                var center = right * middle.x + up * middle.y + n * Vector3.Dot(face, n);
+                mirrors.Add(new Mirror { glass = t, centerLocal = center, normalLocal = n, size = max - min });
             }
+        foreach (var m in mirrors) { Build(m); if (m.quad) m.quad.SetActive(false); }
     }
 
     void Build(Mirror m)
     {
-        m.rt = new RenderTexture(width, height, 16, RenderTextureFormat.ARGB32) { name = "mirror_" + m.glass.name, antiAliasing = 1 };
+        m.rt = new RenderTexture(width, height, 16, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB) { name = "mirror_" + m.glass.name, antiAliasing = 1 };
         var go = new GameObject("MirrorCam_" + m.glass.name);
         go.transform.SetParent(transform, false);
         m.cam = go.AddComponent<Camera>();
-        m.cam.targetTexture = m.rt; m.cam.fieldOfView = fov; m.cam.nearClipPlane = 0.3f; m.cam.farClipPlane = far;
+        m.cam.targetTexture = m.rt; m.cam.fieldOfView = fov; m.cam.nearClipPlane = 0.08f; m.cam.farClipPlane = far;
+        var main = Camera.main;
+        m.cam.cullingMask = (main ? main.cullingMask : ~0) & ~(1 << 2); // mirror display surfaces never render into mirrors
+        m.cam.backgroundColor = main ? main.backgroundColor : Color.black;
+        m.cam.clearFlags = CameraClearFlags.Skybox;
         m.cam.allowMSAA = false; m.cam.allowHDR = false; m.cam.enabled = false;
         var cd = go.AddComponent<UniversalAdditionalCameraData>();
         cd.renderShadows = false; cd.renderPostProcessing = false; cd.antialiasing = UnityEngine.Rendering.Universal.AntialiasingMode.None;
         cd.requiresDepthTexture = false; cd.requiresColorTexture = false;
         // the picture: an unlit quad just in front of the glass, sized to the glass, mirrored left-right
-        var mf = m.glass.GetComponent<MeshFilter>(); var b = mf.sharedMesh.bounds;
         m.quad = GameObject.CreatePrimitive(PrimitiveType.Quad); m.quad.name = "MirrorImage_" + m.glass.name;
         var col = m.quad.GetComponent<Collider>(); if (Application.isPlaying) Destroy(col); else DestroyImmediate(col);
+        m.quad.layer = 2; // built-in Ignore Raycast; also excluded from both mirror cameras
         m.quad.transform.SetParent(m.glass, false);
-        var e = b.size; Vector3 n = m.normalLocal;
-        Vector2 size = n == Vector3.right ? new Vector2(e.z, e.y) : n == Vector3.up ? new Vector2(e.x, e.z) : new Vector2(e.x, e.y);
-        m.quad.transform.localScale = new Vector3(size.x * .96f, size.y * .96f, 1);
+        m.quad.transform.localScale = new Vector3(m.size.x * .96f, m.size.y * .96f, 1);
         // URP/Unlit is stripped from the player when no material uses it: fall back to the always-included UI/Default (unlit, textured)
         var sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("UI/Default") ?? Shader.Find("Sprites/Default");
         if (!sh) { enabled = false; return; }
-        var mat = new Material(sh) { mainTexture = m.rt };
+        var mat = m.material = new Material(sh) { mainTexture = m.rt };
         mat.mainTextureScale = new Vector2(-1, 1); mat.mainTextureOffset = new Vector2(1, 0);
         m.quad.GetComponent<MeshRenderer>().sharedMaterial = mat;
         m.quad.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -76,19 +102,36 @@ public sealed class MirrorCams : MonoBehaviour
 
     // per mirror render: coarser LODs and no terrain foliage, restored right after (mirrors were ~0.5 ms GPU of the cab view on the M2)
     void OnEnable() { RenderPipelineManager.beginCameraRendering += BeginCam; RenderPipelineManager.endCameraRendering += EndCam; }
-    void OnDisable() { RenderPipelineManager.beginCameraRendering -= BeginCam; RenderPipelineManager.endCameraRendering -= EndCam; }
-    float savedBias; bool cheap; readonly System.Collections.Generic.List<Terrain> foliageOff = new System.Collections.Generic.List<Terrain>();
+    void OnDisable()
+    {
+        RenderPipelineManager.beginCameraRendering -= BeginCam; RenderPipelineManager.endCameraRendering -= EndCam;
+        RestoreFoliage();
+        foreach (var m in mirrors)
+        {
+            if (m.cam) m.cam.enabled = false;
+            if (m.quad) m.quad.SetActive(false);
+        }
+    }
+    float savedBias; bool cheap; readonly List<Terrain> foliageOff = new List<Terrain>(512);
+    readonly List<Terrain> activeTerrains = new List<Terrain>(512);
     bool Mine(Camera c) { foreach (var m in mirrors) if (m.cam == c) return true; return false; }
     void BeginCam(ScriptableRenderContext ctx, Camera c)
     {
         if (cheap || !Mine(c)) return;
         cheap = true; savedBias = QualitySettings.lodBias; QualitySettings.lodBias = savedBias * .5f;
         foliageOff.Clear();
-        foreach (var t in Terrain.activeTerrains) if (t && t.drawTreesAndFoliage) { t.drawTreesAndFoliage = false; foliageOff.Add(t); }
+        Terrain.GetActiveTerrains(activeTerrains);
+        foreach (var t in activeTerrains) if (t && t.drawTreesAndFoliage) { t.drawTreesAndFoliage = false; foliageOff.Add(t); }
     }
     void EndCam(ScriptableRenderContext ctx, Camera c)
     {
         if (!cheap || !Mine(c)) return;
+        RestoreFoliage();
+    }
+
+    void RestoreFoliage()
+    {
+        if (!cheap) return;
         cheap = false; QualitySettings.lodBias = savedBias;
         foreach (var t in foliageOff) if (t) t.drawTreesAndFoliage = true;
         foliageOff.Clear();
@@ -111,7 +154,7 @@ public sealed class MirrorCams : MonoBehaviour
         {
             var m = mirrors[i];
             if (!on) { if (m.cam) { m.cam.enabled = false; m.quad.SetActive(false); } continue; }
-            if (!m.cam) Build(m);
+            if (!enabled || !m.quad || !m.material) return;
             m.quad.SetActive(true);
             // face the quad toward the eye, a hair in front of the glass
             var c = m.glass.TransformPoint(m.centerLocal);
@@ -128,14 +171,24 @@ public sealed class MirrorCams : MonoBehaviour
             Vector3 flat = Quaternion.AngleAxis(-side * (half - InnerDeg), transform.up) * -transform.forward;
             float up = Mathf.Clamp(Vector3.Dot(refl, transform.up), -.5f, .5f);
             refl = flat * Mathf.Sqrt(1 - up * up) + transform.up * up;
-            m.cam.transform.SetPositionAndRotation(c, Quaternion.LookRotation(refl, transform.up));
+            m.cam.transform.SetPositionAndRotation(c + nW * .025f, Quaternion.LookRotation(refl, transform.up));
             if (now) m.cam.Render(); else m.cam.enabled = frame % 4 == (i % 2) * 2;
         }
-        frame++;
+        frame = (frame + 1) & 3;
     }
 
     void OnDestroy()
     {
-        foreach (var m in mirrors) if (m.rt) { m.rt.Release(); Destroy(m.rt); }
+        foreach (var m in mirrors)
+        {
+            if (m.rt) { m.rt.Release(); Destroy(m.rt); }
+            if (m.quad)
+            {
+                var displayed = m.quad.GetComponent<MeshRenderer>().sharedMaterial;
+                if (displayed && displayed != m.material) Destroy(displayed); // VehicleLook may have instanced it
+                Destroy(m.quad);
+            }
+            if (m.material) Destroy(m.material);
+        }
     }
 }

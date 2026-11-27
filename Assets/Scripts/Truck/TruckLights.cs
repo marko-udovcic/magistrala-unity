@@ -66,6 +66,7 @@ namespace Magistrala
                 }
             }
             Set(false, 0, false);
+            (GetComponent<TurnSignals>() ?? gameObject.AddComponent<TurnSignals>()).Bind(truck);
         }
 
         static readonly int ID_Emis = Shader.PropertyToID("emissiveFactor"), ID_EmissionColor = Shader.PropertyToID("_EmissionColor");

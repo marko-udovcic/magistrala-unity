@@ -26,14 +26,19 @@ public static class PlayerTruck
         }
     }
 
-    /// the van's physics: 2450 kg empty, 3.5 t GVW (~1.1 t payload), 2.3 l diesel 380 Nm, 6 gears, rear-wheel drive
+    /// the van's physics: 2450 kg empty, 3.5 t GVW (~1.1 t payload), 2.3 l diesel 350 Nm, 6 gears, rear-wheel drive
     public static TruckController.Spec VanSpec() => new TruckController.Spec
     {
-        id = "atego", model = "l4h1", mass = 2450, radius = 0.365f, finalDrive = 4.35f, torqueNm = 380, topKmh = 140, reverseKmh = 18,
-        idle = 800, redline = 4200, rpmScale = 1.7f, shiftTime = 0.4f,
+        id = "atego", model = "l4h1", mass = 2450, radius = 0.365f, finalDrive = 4.25f, torqueNm = 350, topKmh = 140, reverseKmh = 18,
+        idle = 800, redline = 4200, rpmScale = 1f, shiftTime = 0.35f,
         travel = 0.22f, sag = 0.10f, sagLoaded = 0.14f, springTarget = 0.3f, damping = 0.5f,
-        ratios = new[] { 4.5f, 2.5f, 1.55f, 1.08f, 0.84f, 0.68f }, reverseRatio = 4.1f, dragArea = 3.1f, steerRate = 1.8f, maxSteer = 0.68f,
-        wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.55f, comFront = 0.5f, cargoAboveAxle = 1.0f, cargoRefKg = 1100, payloadKg = 1100,
+        // ~110 kW / 150 PS peak; 350 Nm plateau, six-speed diesel gearing (2001 rpm at 90).
+        torqueRpm = new[] { 600f, 800f, 1100f, 1500f, 2700f, 3200f, 3600f, 4000f, 4300f },
+        torqueFraction = new[] { .4f, .55f, .8f, 1f, 1f, .93f, .81f, .65f, .3f },
+        upLoad = 2900, upCruise = 2000, downLoad = 1400, downCruise = 1050, downLimit = 2600,
+        turboRise = .35f, rotatingInertia = .00045f, pedalExponent = .35f, boostGain = 1.3f,
+        ratios = new[] { 4f, 2.24f, 1.44f, 1.06f, .85f, .72f }, reverseRatio = 4.1f, dragArea = 3.1f, steerRate = 1.8f, maxSteer = 0.68f,
+        wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.55f, comFront = 0.5f, cargoAboveAxle = 1.0f, cargoRefKg = 1050, payloadKg = 1050,
         brakeEmpty = 7.0f, brakeLoaded = 6.0f, engineBrake = 0.25f, antiRollFront = 7000, antiRollRear = 6000, eyeNode = "a_eye",
         boxes = new[]
         {
