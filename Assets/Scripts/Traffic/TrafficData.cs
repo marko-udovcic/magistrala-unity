@@ -77,6 +77,7 @@ namespace Magistrala.Traffic
     public class TrafficData : ScriptableObject
     {
         public TrafficCorridor[] corridors;
+        public TrafficSideRoute[] sideRoutes;
         public TrafficKind[] kinds;
         public TrafficPlan[] plans;
         /// shared palette material of the far LOD meshes

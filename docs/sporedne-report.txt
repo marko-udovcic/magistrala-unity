@@ -1,0 +1,123 @@
+Side-street traffic — sporedne — 26 November 2026
+
+Implemented: 20 real street mouths, 69 directed movements (35 entries / 34 exits),
+usually 100 m of side lane plus the supplied turn connector. No Google data.
+Lane counts, paths and priorities remain assumptions, not surveyed geometry.
+The point below is the mean main-lane attachment position, in game metres (gx,gz).
+Towns are locality labels; individual movements retain their source piece IDs.
+
+Town        | Street                           | gx, gz             | movements
+ 1. Štafilić    | Škabrnjska                       |  -9348.3,  -4383.8 | 2 in / 1 out
+ 2. Štafilić    | Put Zagoraca                     |  -9154.9,  -4539.9 | 2 in / 2 out
+ 3. Novi        | Put Groblja (D8 ramps)           |  -8994.8,  -5316.9 | 1 in / 1 out
+ 4. Novi        | Nehajski put                     |  -8982.1,  -4628.7 | 2 in / 2 out
+ 5. Novi        | Put sv. Josipa                   |  -8495.9,  -4760.3 | 0 in / 2 out
+ 6. Stari       | Ulica Ivana Danila               |  -7831.6,  -4942.2 | 2 in / 2 out
+ 7. Stari       | Ulica bana Jelačića              |  -7701.6,  -5022.4 | 2 in / 2 out
+ 8. Stari       | Put Štalija                      |  -7166.6,  -5021.5 | 2 in / 2 out
+ 9. Lukšić      | Ulica Frane Ćipina               |  -6811.7,  -5048.2 | 2 in / 2 out
+10. Lukšić      | Janka Rodina                     |  -6351.6,  -5056.0 | 2 in / 2 out
+11. Lukšić      | Put sv. Lovre (D8)               |  -6095.2,  -5587.3 | 1 in / 1 out
+12. Kambelovac  | Ulica kralja Krešimira           |  -4416.5,  -4630.2 | 2 in / 2 out
+13. Kambelovac  | Ulica don Klementa Tadina        |  -4322.5,  -4621.0 | 2 in / 0 out
+14. Gomilica    | Kupališni prilaz                 |  -3388.9,  -4484.1 | 2 in / 2 out
+15. Gomilica    | Ulica fra Fulgencija Careva      |  -3251.6,  -4445.9 | 2 in / 2 out
+16. Gomilica    | Put Kozjaka                      |  -2605.4,  -4325.5 | 2 in / 2 out
+17. Sućurac     | Ulica satnije Putalj             |  -2258.9,  -4336.7 | 2 in / 2 out
+18. Sućurac     | Tamunić                          |  -1334.4,  -4362.6 | 2 in / 2 out
+19. Gomilica    | Južni prilaz (D8)                |  -3078.0,  -5081.1 | 1 in / 1 out
+20. Sućurac     | Putaljski put                    |  -1066.0,  -4310.2 | 2 in / 2 out
+
+Two one-way cases are intentional: Put sv. Josipa has exits only at this mouth;
+Tadina has entries only (its outgoing lane is reached via the waterfront loop).
+D8 selections are Put Groblja, Put sv. Lovre and the southern Gomilica approach.
+All selected D8 movements are right turns/slips; none crosses the median.
+
+Evidence and changes
+- TrafficData previously contained only six corridor paths; no side routes.
+- The supplied generated asset's eastern Tuđmana corridors are only ~1.7 km long,
+  ending at the Krešimira crossroads around gx -4419. GraphRoad cannot follow its
+  unnamed through edge. The editor step now uses the package's two continuous
+  eastern main-lane paths (~5.58 km each), retaining the s13 works gap. This is
+  traffic path data; the road meshes are not rebuilt by this change.
+- Package coordinates must first pass through paket-approaches.json's affine
+  transform, then W.U (Unity x=gx+4200, z=-(gz+5300)). Treating package x/z as game
+  coordinates would put every turn in the wrong place.
+- The editor matches each route's heading, level and endpoint to a corridor lane,
+  corrects the handoff over 15 m, and follows the imported surface with raycasts.
+  A rejected mouth stops Build traffic before saving the asset/scene.
+- Existing model signal groups and generic side-approach stop lines gate entry.
+  Side cars stop before the connector, accept at least four seconds of clearance
+  PLUS connector traversal/acceleration time, and include every main lane and the
+  player's truck. Reservations make main-road IDM see an approaching merge;
+  late gap changes can revoke it before crossing. This deliberately favours long
+  waits over aggressive merging. Left turn-ins also wait for opposing traffic.
+- Only passenger vehicles <=6 m take stubs. Existing indicators are reused.
+  Bodies/colliders, instanced drawing, LODs and materials use the existing pool.
+  A visible finite exit end holds the car until the conservative visibility test
+  permits removal; the car never extrapolates beyond the street's mapped end.
+
+Editor/build steps (for the coordinator)
+1. Let Unity compile, then run Magistrala/Build traffic and save its scene/data.
+   The same menu also regenerates the existing car meshes/materials, as before.
+   No separate menu or external lane file is needed: the reviewed subset is
+   Assets/Editor/sporedne-routes.json. Its original source hash is recorded there.
+2. Check the build log for [sporedne] built 20 mouths and no rejected sources.
+   Rebuild the player after generating TrafficData.asset.
+3. Use -sporedne 1 (default) and -sporedne 0 in that same rebuilt player for A/B.
+   Both use the extended eastern corridors. Existing -trafpk25 and -trafring
+   remain available. The normal ring/fade/despawn defaults remain
+   700–1200 / 850–1050 / 1300 m, 64 cars, 25-degree view margin.
+4. Read [sporedne] once per game minute: entries/min = completed merges,
+   exits/min = completed side-street removals, blocked-merges/min = refused
+   inbound gap/signal checks (a waiting car may be counted repeatedly).
+   The startup line reports enabled state, route count and the shared budget.
+
+Proposed camera poses (unverified in Unity)
+- Nehajski put:  -campose "-9172.1,-4538.7,6,64.65,2"
+- Janka Rodina:  -campose "-6541.6,-4966.0,6,64.65,2"
+- Put Kozjaka:   -campose "-2795.4,-4235.5,6,64.65,2"
+These look toward the corresponding mouth from ~210 m away. Drive/teleport the
+truck within 650 m of that junction first: -campose moves only the camera, while
+traffic activation follows the truck. Observe for 2–3 minutes; events are random
+and a red signal or insufficient cover may delay them. Stub ends use the same
+160 m minimum, widened view, roof+2 m/future-eye cover and near-eye exclusion as
+corridor entries. A camera parked beside a mouth may therefore suppress entries;
+turn-ins remain possible. Adjust framing if buildings hide the turn itself.
+Use the common test-player flags from rules.md, a scratch save and separate logs.
+
+Expected cost (estimate, not measured)
+- Total count stays within the existing budget of 64. Up to six active side cars;
+  four pool slots are reserved near side routes so main spawns do not starve them.
+- Nine local 512 m buckets refreshed once a second; no per-frame full stub scan.
+  Only active cars participate in simulation/gap checks. Spawn attempts <=1/3 s.
+- About 0.2 MB additional path arrays; editor source subset is ~62 KB.
+  No new rendering pipeline or per-junction GameObjects. The more varied visible
+  cars may change existing material/LOD draw counts. CPU/FPS cost is unmeasured;
+  expect a small simulation increase, with occasional cover-raycast spikes.
+
+Verification performed without Unity
+- python3 Tools/sporedne/check.py: all 69 handoffs match, all 20 mouths present;
+  both eastern main paths >5 km, finite route lengths 60–155 m, valid model-plan
+  references, no D8 left turns, source hash and deterministic extraction pass.
+- Maximum horizontal handoff adjustment: 3.82 m (a dedicated D8 slip lane).
+- Explicit-path git diff --check passed. New scripts/data have unique .meta GUIDs.
+- Source regeneration, if deliberately updating the reviewed package:
+  python3 Tools/sporedne/extract.py (then rerun check.py and Build traffic).
+
+Untested / open issues
+Unity compilation, editor menu execution, actual collider heights/curbs, camera
+framing, spawn-cover success, turn radii, truck yielding in both directions,
+queues/reservation behaviour, signal timing, red-light counters, FPS and pop-in
+A/B are all untested. No Unity process was started. In particular review the
+3.5–3.8 m lateral D8 slip handoffs and generic signal approach matches visually.
+Finite ends can remain occupied while visible; conservative reservations can
+produce long waits. This is a stub implementation, not full network routing.
+The existing D8 corridor's eastern endpoint is not extended in this change.
+
+Delivery
+The sandbox grants read-only access to .git, so use:
+  bash Tools/sporedne/commit-code.sh
+It checks branch sporedne and an empty index, stages explicit code/report paths
+only, and creates one Croatian commit with the required co-author trailer.
+No scene, ProjectSettings, generated data, media, merge or push is in the helper.

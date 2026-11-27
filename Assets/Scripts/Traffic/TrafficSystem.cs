@@ -20,7 +20,7 @@ using UnityEngine.Rendering;
 namespace Magistrala.Traffic
 {
     [DefaultExecutionOrder(-50)]
-    public class TrafficSystem : MonoBehaviour
+    public partial class TrafficSystem : MonoBehaviour
     {
         public TrafficData data;
         [Range(0, 80)] public int targetCars = VIEW_CARS;
@@ -67,6 +67,8 @@ namespace Magistrala.Traffic
         public class Car
         {
             public int c, kind, paint, lane, laneTo;
+            public int sideRoute = -1, turnRoute = -1, lastSideSite = -1;
+            public float sideS, sideCheckAt; public bool sideCommitted;
             public float s, v, lat, v0, len, hw, h, a, b, T;
             public float decideT, laneT, stopT;
             public int indicator; // −1 left, +1 right (lane change)
@@ -164,6 +166,7 @@ namespace Magistrala.Traffic
             }
             BuildBuckets();
             BuildDots();
+            InitSides();
         }
 
         // paint look (25. 11., "auti-izgled"): the builders gave every colour one plain coat (paint .62, coat .9, flake .08). Greys,
@@ -277,7 +280,7 @@ namespace Magistrala.Traffic
         void OnDisable()
         {
             foreach (var c in cars) Release(c);
-            cars.Clear(); foreach (var l in byCorridor) l.Clear();
+            cars.Clear(); sideCars.Clear(); foreach (var l in byCorridor) l.Clear();
         }
 
         // ------------------------------------------------------------------ corridor geometry
@@ -508,6 +511,7 @@ namespace Magistrala.Traffic
                 if (o.laneTo != o.lane ? (Overlap(lat, hw, o.lat, o.hw) || Overlap(lat, hw, LaneOffAt(data.corridors[car.c], o.s, o.laneTo), o.hw)) : Overlap(lat, hw, o.lat, o.hw))
                 { if (d < gap) { gap = d; lv = o.v; } break; }
             }
+            SideLeader(car, lat, hw, ref gap, ref lv);
             // cars level with us (sorted ties): any body overlapping in s and lateral is a zero gap
             if (pOn[car.c])
             {
@@ -563,7 +567,7 @@ namespace Magistrala.Traffic
                             float d = st.s - (car.s + car.len / 2) - 1.0f;
                             if (d < -.5f) continue;
                             if (d > 150) break;
-                            float l = LightAt(st);
+                            float l = TurnLight(car, st);
                             // amber: stop when it can comfortably, or when it could not clear the line before red (≤ 2.5 s left) — no dilemma zone
                             bool stop = l == 2 ? car.v * car.v / (2 * 7f) < d + 1.5f || car.v < 3 : l == 1 && (car.v * car.v / (2 * 3f) < d || d > car.v * 2.5f);
                             if (stop && d < gap) { gap = Mathf.Max(d, 0); lv = 0; }
@@ -571,6 +575,7 @@ namespace Magistrala.Traffic
                         }
                     // a closure at the corridor's end: a standing obstacle 1 m before it (the cars queue at the barrier)
                     if (cor.deadEnd) { float d = cor.Length - 1 - (car.s + car.len / 2); if (d < gap) { gap = Mathf.Max(d, 0); lv = 0; } }
+                    TurnApproach(car, ref v0, ref gap, ref lv);
                     float acc = gap > 500 ? car.a * (1 - Mathf.Pow(car.v / Mathf.Max(v0, .1f), 4)) : Idm(car, v0, gap, car.v - lv);
                     acc = Mathf.Clamp(acc, -9f, car.a);
                     car.braking = acc < -1.2f || (car.v < .5f && gap < 6);
@@ -585,7 +590,7 @@ namespace Magistrala.Traffic
                         foreach (var st in cor.stops)
                             if (st.s > f0 && st.s <= f1)
                             {
-                                int l = (int)LightAt(st); StopPass[l]++;
+                                int l = (int)TurnLight(car, st); StopPass[l]++;
                                 if (l == 2) Debug.LogWarning($"[traffic] auto prošao kroz crveno: {cor.name} {st.model} {st.group} s {st.s:F0} v {car.v * 3.6f:F0} km/h");
                             }
                     }
@@ -593,7 +598,7 @@ namespace Magistrala.Traffic
                     car.stopT = car.v < .3f ? car.stopT + dt : 0;
                     // lane keeping / changing
                     float target = LaneOffAt(cor, car.s, car.laneTo);
-                    car.indicator = car.laneTo > car.lane ? -1 : car.laneTo < car.lane ? 1 : 0;
+                    car.indicator = car.turnRoute >= 0 ? data.sideRoutes[car.turnRoute].indicator : car.laneTo > car.lane ? -1 : car.laneTo < car.lane ? 1 : 0;
                     if (car.laneTo != car.lane)
                     {
                         car.laneT += dt;
@@ -608,7 +613,8 @@ namespace Magistrala.Traffic
                     if (car.decideT <= 0 && car.laneTo == car.lane)
                     {
                         car.decideT = .6f + (float)rng.NextDouble() * .6f;
-                        Decide(car, list, i, cor, gap, lv, v0);
+                        PickSideTurn(car);
+                        if (car.turnRoute < 0) Decide(car, list, i, cor, gap, lv, v0);
                     }
                 }
             }
@@ -903,7 +909,13 @@ namespace Magistrala.Traffic
         {
             for (int i = cars.Count - 1; i >= 0; i--)
             {
-                var c = cars[i]; var cor = data.corridors[c.c];
+                var c = cars[i];
+                if (c.sideRoute >= 0)
+                {
+                    if (SideGone(c)) { Release(c); sideCars.Remove(c); cars.RemoveAt(i); Despawned++; }
+                    continue;
+                }
+                var cor = data.corridors[c.c];
                 float d = Mathf.Abs(c.s - pSc[c.c]); d = Mathf.Sqrt(d * d + pFar[c.c] * pFar[c.c]); // (a corridor away from the player: real distance)
                 bool gone = d > despawnDist || c.s < 2 || (!cor.deadEnd && c.s > cor.Length - 8 && (pre26 || c.s > cor.Length + exitRun || !Seen(c)));
                 // a closed end: recycled only where nobody sees it — at the barrier, or already on the last 150 m when unseen and
@@ -938,6 +950,7 @@ namespace Magistrala.Traffic
         // ------------------------------------------------------------------ pose + drawing
         void Pose(Car car)
         {
+            if (car.sideRoute >= 0) { SidePose(car); return; }
             var cor = data.corridors[car.c];
             // body = chord between points 0.3·len ahead and behind (rear tracks inside a curve like a real axle)
             var f = Point(cor, car.s + car.len * .3f, car.lat);
@@ -1129,14 +1142,16 @@ namespace Magistrala.Traffic
             if (cam) GeometryUtility.CalculateFrustumPlanes(cam, planes);
             FindPlayer();
             ProjectPlayer();
-            if (dt > 0) Step(dt);
+            RefreshSides();
+            if (dt > 0) { Step(dt); StepSides(dt); }
             Despawn();
-            if (!warm && Time.frameCount > 3) { for (int k = 0; k < 400 && cars.Count < targetCars; k++) TrySpawn(true); warm = true; }
-            else for (int k = 0; k < 4 && cars.Count < targetCars; k++) if (TrySpawn(false)) break;
+            if (!warm && Time.frameCount > 3) { for (int k = 0; k < 400 && cars.Count < MainSpawnBudget; k++) TrySpawn(true); warm = true; }
+            else if (!TrySideSpawn()) for (int k = 0; k < 4 && cars.Count < MainSpawnBudget; k++) if (TrySpawn(false)) break;
             foreach (var c in cars) { Pose(c); c.rb.MovePosition(c.pos); c.rb.MoveRotation(c.rot); }
             var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw();
             if (spawnLog) SeeCheck();
+            SideStats();
             var t2 = System.Diagnostics.Stopwatch.GetTimestamp();
             float simMs = (t1 - t0) * 1000f / System.Diagnostics.Stopwatch.Frequency, drawMs = (t2 - t1) * 1000f / System.Diagnostics.Stopwatch.Frequency;
             AvgSimMs = AvgSimMs <= 0 ? simMs : AvgSimMs * .97f + simMs * .03f; AvgDrawMs = AvgDrawMs <= 0 ? drawMs : AvgDrawMs * .97f + drawMs * .03f;
