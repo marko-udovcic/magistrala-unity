@@ -535,6 +535,8 @@ namespace Magistrala.EditorTools
         static void Benches()
         {
             var path = W.REGION + "coast.json"; if (!File.Exists(path)) return;
+            // the riva furniture from riva-extras/oprema.json (RivaOprema.cs) replaces these white benches
+            if (File.Exists(W.BD + "/tools/world/riva-extras/oprema.json")) { log.Add("  riva: klupe iz riva-extras/oprema.json (Riva: oprema i brodice)"); return; }
             var j = MiniJson.O(MiniJson.Parse(File.ReadAllText(path)));
             double T = MiniJson.D(j["tileSize"]);
             var slots = new List<(double x, double z, double yaw)>();

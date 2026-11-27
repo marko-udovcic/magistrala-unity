@@ -166,6 +166,9 @@ Shader "Magistrala/Sea"
             float3 n = SurfaceNormalWS(input);
             float3 v = normalize(GetWorldSpaceViewDir(input.positionWS));
             float3 r = reflect(-v, n);
+            // ripples tilted away from a grazing view reflect below the horizon: the probe / sky's lower half (ground) came back as
+            // brown streaks all over the bay (riva review 2026-11-27) — keep every reflection on the sky side
+            r.y = max(r.y, 0.03 + 0.25 * saturate(v.y)); r = normalize(r);
             float fresnel = 0.02 + 0.98 * pow(1.0 - saturate(dot(n, v)), max(_FresnelPower, 0.001));
             InputData inputData = (InputData)0; // Also used by the URP cluster light-loop macro.
             inputData.positionWS = input.positionWS;
