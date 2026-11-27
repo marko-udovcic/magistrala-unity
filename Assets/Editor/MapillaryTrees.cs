@@ -234,6 +234,7 @@ namespace Magistrala.EditorTools
             foreach (var t in all)
             {
                 if (!Taken(t)) { No("conf / patch / palm"); continue; }
+                if (OleanderRows.Replaces(t.gx, t.gz)) { No("oleander.json (OleanderRows)"); continue; }
                 cand++;
                 double x = t.gx, z = t.gz, R = Math.Max(1, t.d / 2);
                 if (!NaturePass.In(x, z)) { No("outside"); continue; }

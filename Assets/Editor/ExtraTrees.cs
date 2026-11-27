@@ -3,6 +3,9 @@
 //   palma_33 / 34 / 35, palma_lepeza_a / b, tamaris_a / b (28. 11.)   tall Canary date palms, Washingtonia fan palms, tamarisks
 //              (Assets/Models/Plants/Palme, see the DEFS) — the riva promenade rows (PalmRows), the surveyed palms (Drvoredi) and
 //              the palme.json palms (MapillaryTrees)
+//   oleander_a / b / c (28. 11.)  green oleander shrubs without flowers (Assets/Models/Plants/Oleander; 3.35 / 2.8 / 2.3 m native,
+//              crowns narrowed to 72 %) — the D8 median / verges and the other oleander.json places (OleanderRows), and the
+//              "oleander-roza" / "-bijeli" of the yard hedges and Mapillary oleanders (NaturePass.Index aliases them)
 //   lisnato_a  tall narrow maple (~18 m native), lisnato_b wide beech (umbrella, ~24 m wide), lisnato_c round maple (~12 m)
 //              (MegaTree, CC BY 4.0, Sketchfab) — the broadleaf street / avenue trees (Marko: like Poljička in Split), instead of
 //              the crnika / olive fallback for the Mapillary "other broadleaf" crowns and the surveyed "broadleaf" ones
@@ -20,7 +23,7 @@ namespace Magistrala.EditorTools
 {
     public static class ExtraTrees
     {
-        public class Def { public string id, glb; public float draw, near; /** a trunk added under the crown (m; 0 none), crown scale */ public float trunk, crown = 1; }
+        public class Def { public string id, glb; public float draw, near; /** a trunk added under the crown (m; 0 none), crown scale */ public float trunk, crown = 1; /** x, z scale (narrower crown) */ public float squash = 1; }
         public static readonly Def[] DEFS =
         {
             // the palms and tamarisks of the rivas (28. 11.: PlantCatalog "Realistic HD" Canary date palm 33/40, 34/40, 35/40, Mexican
@@ -35,11 +38,20 @@ namespace Magistrala.EditorTools
             new Def { id = "palma_lepeza_b", glb = PALME + "palma-lepeza-b.glb", draw = 1000, near = 60 },
             new Def { id = "tamaris_a", glb = PALME + "tamaris-a.glb", draw = 600, near = 45 },
             new Def { id = "tamaris_b", glb = PALME + "tamaris-b.glb", draw = 600, near = 45 },
+            // oleander (28. 11.: "Pink Oleander Shrub 3D Model", misty-wind, CC BY 4.0), reduced in Blender (BalkanDriver
+            // assets-src/oleander/izvjestaj.md): flowers removed, leaf clusters as alpha-cut cards with a baked 2048² atlas, stems the
+            // source's LOD2 bark decimated (~700 tris); 4.3–5.4 k tris; impostor beyond 40 m. Placed by OleanderRows (oleander.json)
+            new Def { id = "oleander_a", glb = OLEANDER + "oleander-a.glb", draw = 450, near = 40, squash = .72f },
+            new Def { id = "oleander_b", glb = OLEANDER + "oleander-b.glb", draw = 450, near = 40, squash = .72f },
+            new Def { id = "oleander_c", glb = OLEANDER + "oleander-c.glb", draw = 450, near = 40, squash = .72f },
             new Def { id = "lisnato_a", glb = "Assets/Models/Plants/lisnato_a.glb", draw = 1000, near = 55 },
             new Def { id = "lisnato_b", glb = "Assets/Models/Plants/lisnato_b.glb", draw = 1000, near = 55 },
             new Def { id = "lisnato_c", glb = "Assets/Models/Plants/lisnato_c.glb", draw = 1000, near = 55 },
         };
-        const string PALME = "Assets/Models/Plants/Palme/";
+        const string PALME = "Assets/Models/Plants/Palme/", OLEANDER = "Assets/Models/Plants/Oleander/";
+        /// the oleander shrubs (28. 11.; off: the old Tripo oleander of MedianHedge again)
+        public static bool Oleanders = true;
+        public static bool HasOleanders => On && Oleanders && File.Exists(OLEANDER + "oleander-a.glb");
         public static bool On = true;
         /// the palm / tamarisk prototypes (27. 11. off: the only palm was a young 2.3 m one without a trunk; 28. 11. on: the tall
         /// Canary / fan palms and the tamarisks of Assets/Models/Plants/Palme)
@@ -52,6 +64,7 @@ namespace Magistrala.EditorTools
             foreach (var d in DEFS)
             {
                 if ((d.id.StartsWith("palma") || d.id.StartsWith("tamaris")) && !Palms) continue;
+                if (d.id.StartsWith("oleander") && !Oleanders) continue;
                 try { var p = Make(d); if (p != null) extra.Add(p); }
                 catch (System.Exception e) { Debug.LogWarning($"[stabla] {d.id}: {e.Message}"); }
             }
@@ -110,6 +123,16 @@ namespace Magistrala.EditorTools
             foot = n > 0 ? foot / n : Vector3.zero; foot.y = y0;
             for (int i = 0; i < v.Length; i++) v[i] -= foot;
             mesh.vertices = v; mesh.RecalculateBounds();
+            if (d.squash != 1)
+            {
+                var nn = mesh.normals;
+                for (int i = 0; i < v.Length; i++)
+                {
+                    v[i] = new Vector3(v[i].x * d.squash, v[i].y, v[i].z * d.squash);
+                    if (nn != null && i < nn.Length) nn[i] = new Vector3(nn[i].x / d.squash, nn[i].y, nn[i].z / d.squash).normalized;
+                }
+                mesh.vertices = v; if (nn != null && nn.Length == v.Length) mesh.normals = nn; mesh.RecalculateTangents(); mesh.RecalculateBounds();
+            }
             if (d.trunk > 0) AddTrunk(mesh, srcMats, d);
             string mp = $"{DIR}/{d.id}.mesh.asset";
             if (File.Exists(mp)) AssetDatabase.DeleteAsset(mp);

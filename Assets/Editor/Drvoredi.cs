@@ -130,6 +130,7 @@ namespace Magistrala.EditorTools
             // the pits stood empty)
             var riva = new HashSet<long>(RivaBuilder.Trees().Select(t => VegetationClean.Key(t.x, t.z)));
             var palmRows = PalmRows.Added();   // the riva palms / tamarisks (PalmRows.cs) stay
+            palmRows.UnionWith(OleanderRows.Added());   // and the oleander.json shrubs (OleanderRows.cs)
             var b = File.ReadAllBytes(path); var outB = new List<byte>(b.Length); int removed = 0;
             for (int o = 0; o + 24 <= b.Length; o += 24)
             {

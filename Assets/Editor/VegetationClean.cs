@@ -60,6 +60,7 @@ namespace Magistrala.EditorTools
             var mapillary = new HashSet<string>(); string added = WorldBuilder.GEN + "/Nature/stabla-mapillary-added.bytes";
             if (File.Exists(added)) { var a = File.ReadAllBytes(added); for (int o = 0; o + 24 <= a.Length; o += 24) mapillary.Add(Convert.ToBase64String(a, o, 24)); }
             mapillary.UnionWith(PalmRows.Added());   // the riva palms / tamarisks (PalmRows.cs: placed on the ground, clear of streets)
+            mapillary.UnionWith(OleanderRows.Added());   // the oleander.json shrubs (OleanderRows.cs: placed on the ground, off the asphalt)
             var survey = Drvoredi.BandTest();   // the surveyed streets' plants are placed as surveyed (Drvoredi.cs)
             var b = File.ReadAllBytes(path); var outB = new List<byte>(b.Length);
             int road = 0, mouth = 0, bay = 0, hard = 0, steep = 0, thin = 0, moved = 0, kept = 0;

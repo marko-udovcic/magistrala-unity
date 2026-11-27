@@ -49,8 +49,14 @@ namespace Magistrala.EditorTools
         {
             narrow.Clear();
             // oleander (Tripo, TripoPropImporter: oleander.json, LOD0 6k / LOD1 1.5k / LOD2 400 tris): LOD1 near, LOD2 far
-            var ol = TripoPropImporter.Prefab("oleander");
-            if (!ol) { TripoPropImporter.ImportAll("oleander"); ol = TripoPropImporter.Prefab("oleander"); }
+            // 28. 11.: replaced by the green oleander shrubs (ExtraTrees oleander_a / b / c; "oleander-roza" / "-bijeli" are aliases
+            // of them in NaturePass.Index), which OleanderRows plants along the D8 from oleander.json
+            GameObject ol = null;
+            if (!ExtraTrees.HasOleanders)
+            {
+                ol = TripoPropImporter.Prefab("oleander");
+                if (!ol) { TripoPropImporter.ImportAll("oleander"); ol = TripoPropImporter.Prefab("oleander"); }
+            }
             if (ol)
             {
                 var lg = ol.GetComponentInChildren<LODGroup>(); var lods = lg ? lg.GetLODs() : null;
@@ -64,7 +70,7 @@ namespace Magistrala.EditorTools
                 list.Add(new NaturePass.Proto { id = "oleander-roza", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { pink }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = pink, draw = 300, near = 30 });
                 list.Add(new NaturePass.Proto { id = "oleander-bijeli", mesh = Narrow(near, "oleander_uski", .75f), mats = new[] { white }, imp = Narrow(far, "oleander_uski_far", .75f), impMat = white, draw = 300, near = 30 });
             }
-            else Debug.LogWarning("[priroda] no oleander prefab (Assets/Models/Props/Tripo/oleander.glb + .json)");
+            else if (!ExtraTrees.HasOleanders) Debug.LogWarning("[priroda] no oleander prefab (Assets/Models/Props/Tripo/oleander.glb + .json)");
             // dense dark-green filler: the package's rose bush without flowers, tinted to a dark Mediterranean evergreen
             var bush = Load<GameObject>(CE + "Bushes/Prefabs/Prefab_beach_rose_02.prefab");
             if (bush)
@@ -281,6 +287,7 @@ namespace Magistrala.EditorTools
         {
             var models = all.FindAll(m => m.x + m.half + 25 > X0 && m.x - m.half - 25 < X1 && m.z + m.half + 25 > Z0 && m.z - m.half - 25 < Z1);
             int nx = (int)Math.Round((X1 - X0) / STEP), nz = (int)((Z1 - Z0) / STEP);
+            bool olRows = OleanderRows.Median;   // 28. 11.: oleander.json plants the median's oleanders (see below)
             bool Asph(double x, double z) => LaneProfile.OnAsphalt(models, x, z);
             // column scan (x fixed): asphalt runs along z; a median cell has asphalt north and south within MAXW total
             var asph = new bool[nx, nz];
@@ -324,13 +331,15 @@ namespace Magistrala.EditorTools
                     double room = half - KERB;                              // half-width a plant may take
                     if (room > .35)
                     {
-                        if (x - lastBlock >= .9)
+                        // 28. 11.: with oleander.json (OleanderRows) the median's oleanders are its runs and gaps; no Tripo accents, no
+                        // continuous dark block body over the gaps — only the grass and the odd low shrub at the base
+                        if (!olRows && x - lastBlock >= .9)
                         {
                             Pick("core", out var cid);
                             if (cid != null) { put(x, Y(x, zc) - .08, zc + (rnd.NextDouble() - .5) * .1, (float)((rnd.NextDouble() - .5) * 16), HS(cid, (float)(2.0 + .4 * rnd.NextDouble()), 1f), cid); n++; }
                             lastBlock = x;
                         }
-                        if (x - lastMain >= 4.5 + 3 * rnd.NextDouble())   // flowering accents every ~4.5–7.5 m (more read as pale flecks)
+                        if (!olRows && x - lastMain >= 4.5 + 3 * rnd.NextDouble())   // flowering accents every ~4.5–7.5 m (more read as pale flecks)
                         {
                             // oleander (narrowed crown): 1.9–2.2 m tall × ~1.2 m wide, one every 0.85 m so the crowns overlap — a solid hedge;
                             // a median with room for it gets two staggered rows (~1.2–2 m planted band), a narrow one a single row

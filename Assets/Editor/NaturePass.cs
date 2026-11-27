@@ -233,7 +233,14 @@ namespace Magistrala.EditorTools
             if (r < .125f && tall.Count < ids.Count) return baseCount + ids.First(t => t.p.id.Contains("medium")).i;
             return baseCount + tall[Mathf.Min(tall.Count - 1, (int)((r - .125f) / .875f * tall.Count))].i;
         }
-        public static int Index(string id) { if (extra == null) return -1; int i = extra.FindIndex(p => p.id == id); return i < 0 ? -1 : baseCount + i; }
+        public static int Index(string id)
+        {
+            if (extra == null) return -1; int i = extra.FindIndex(p => p.id == id);
+            // 28. 11.: the old Tripo oleanders' ids name the new oleander shrubs (ExtraTrees oleander_b / c) when those are in
+            if (i < 0 && OleanderAlias.TryGetValue(id, out var a)) i = extra.FindIndex(p => p.id == a);
+            return i < 0 ? -1 : baseCount + i;
+        }
+        static readonly Dictionary<string, string> OleanderAlias = new Dictionary<string, string> { ["oleander-roza"] = "oleander_b", ["oleander-bijeli"] = "oleander_c" };
         public static int PineCount => extra?.Count(p => p.id.StartsWith("pine:")) ?? 0;
 
         /// a tile tree's prototype in the boxes: our pines (0 / 1) become the package's Aleppo-shaped pines
