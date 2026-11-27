@@ -254,6 +254,9 @@ namespace Magistrala.EditorTools
         static void BuildSignals(List<ModelJ> models, Dictionary<string, Sig> sigs, List<(Vector2 p, Vector2 dir, int plan, string group, string model)> groupStops)
         {
             var props = Props(WorldData.MIN_X, -400);
+            var surveyed = ExtraSignals.Load();
+            props.RemoveAll(p => p.kind.StartsWith("signal_") && surveyed.Any(j => j.model == p.model
+                && Vector2.Distance(j.c, new Vector2((float)p.x, (float)p.z)) < 45));
             int nClosed = props.RemoveAll(OnClosedArm);
             log.Add($"zatvoreni krakovi ({string.Join(", ", ClosedArms)}): {nClosed} rekvizita semafora / znakova nije postavljeno");
             Count("rekvizit na zatvorenom kraku (izostavljen)", nClosed);

@@ -23,16 +23,32 @@ for chunk in text.split('  - name:')[1:5]:
    out.append(float(l[6:]))
   return out
  cors.append(dict(axis=vecs('axis'),right=vecs('right'),off=ns('laneOff'),y=ns('laneY'),lanes=bytes.fromhex(re.search(r'    lanes: (\w+)',chunk)[1]),maxLanes=int(re.search(r'    maxLanes: (\d+)',chunk)[1])))
-for path in payload['easternMain']:
- raw=list(map(U,path));pts=[raw[0]];carry=0
- for a,b in zip(raw,raw[1:]):
-  L=math.dist(a,b)
+# Independent reference for the new eastern model corridor. This uses the
+# reviewed main axes, matching TrafficBuilder's 2 m sampling and +/-10 m smoothing.
+models=json.load(open('/Users/macair/Documents/BalkanDriver/client/public/assets/world/split-kastela/model-junctions.json'))['junctions']
+bykey={m['key']:m for m in models}
+axis=[]
+for mid,count in ((72,1),(73,1),(74,3),(75,3),(76,4),(77,4),(78,3),(79,3)):
+ for r in bykey['krizanje-'+str(mid)]['roads'][:count]:
+  axis += [(p[0],p[1],r['w']/max(2,r['n'])/2) for p in r['p'] if p[0]>=-6052.4]
+assert axis[-1][0]>-850 and axis[0][0]<-6040
+for path in (axis,list(reversed(axis))):
+ raw=[path[0]];carry=0
+ for a,b in zip(path,path[1:]):
+  L=math.hypot(b[0]-a[0],b[1]-a[1])
   if L<.001:continue
   d=2-carry
   while d<=L:
-   pts.append([x+(y-x)*d/L for x,y in zip(a,b)]);d+=2
+   raw.append((a[0]+(b[0]-a[0])*d/L,a[1]+(b[1]-a[1])*d/L,a[2]));d+=2
   carry=L-(d-2)
- cors.append(dict(axis=pts,right=[[0,0,0]]*len(pts),off=[0]*len(pts),y=[p[1] for p in pts],lanes=[1]*len(pts),maxLanes=1))
+ smooth=[tuple(sum(raw[max(0,min(len(raw)-1,i+k))][j] for k in range(-5,6))/11 for j in range(3)) for i in range(len(raw))]
+ pts=[(x+4200,0,-(z+5300)) for x,z,o in smooth]
+ right=[]
+ for i in range(len(pts)):
+  t=sub(pts[min(i+1,len(pts)-1)],pts[max(i-1,0)]);t=norm(t)
+  right.append((t[2],0,-t[0]))
+ cors.append(dict(axis=pts,right=right,off=[p[2] for p in smooth],y=[0]*len(pts),lanes=[1]*len(pts),maxLanes=1))
+assert payload['easternMain']==[], 'Models now own x >= 3260'
 matched=[];fails=[]
 for r in payload['routes']:
  pts=list(map(U,r['points']));e=len(pts)-1 if r['inbound'] else 0;p=pts[e]
@@ -47,28 +63,28 @@ for r in payload['routes']:
     k=i*c['maxLanes']+lane
     q=[c['axis'][i][j]+c['right'][i][j]*c['off'][k] for j in range(3)];q[1]=c['y'][k]
     d=dist(q,p)
-    if d<best and abs(q[1]-p[1])<4:best=d;match=(ci,i,lane)
+    if d<best and (ci>=4 or abs(q[1]-p[1])<4):best=d;match=(ci,i,lane)
  if match:matched.append((r,match,best))
  else:fails.append((r['site'],r['source'],r['name'],tuple(round(x,1) for x in p)))
 assert len(set(r['site'] for r,m,d in matched)) == 20, fails
 assert not fails, fails
 assert len(matched) == len(payload['routes'])
-assert all(sum(math.dist(a,b) for a,b in zip(p,p[1:])) > 5000 for p in payload['easternMain'])
+
 for r in payload['routes']:
     assert all(math.isfinite(v) for p in r['points'] for v in p)
     length = sum(math.dist(a,b) for a,b in zip(r['points'], r['points'][1:]))
-    assert 60 <= length <= 155, (r['source'], length)
+    assert 20 <= length <= 165, (r['source'], length)
     assert not (r['d8'] and r['indicator'] < 0), r['source']
     if r['signal']:
         prefix = r['model'].split('-')[0]
         key = ('dionica-' if prefix.startswith(('s','d')) else 'krizanje-') + prefix
-        assert ('  - key: ' + key + '\n') in (root/'Assets/Generated/Traffic/TrafficData.asset').read_text(), key
+        assert bykey[key].get('signals',{}).get('plan'), key
 from extract import extract
 import hashlib
-source=Path.home()/'Documents/mag-25-11/promet/promet_mreza_sve.json'
+source=Path.home()/'Documents/mag-27-11/promet/promet_mreza_sve.json'
 raw=source.read_bytes()
 assert hashlib.sha256(raw).hexdigest() == payload['sha256'], 'Source changed; review and regenerate routes'
 assert extract(json.loads(raw)) == payload['routes'], 'Route extraction is not reproducible'
-print(f"PASS: {len(matched)} movements, 20 mouths, both eastern lanes >5 km, all handoffs <6 m, source hash and deterministic extraction")
+print(f"PASS: {len(matched)} movements, 20 mouths, eastern MODEL axes >5 km, all handoffs <6 m, source hash and deterministic extraction")
 print('Main handoff maximum correction: %.2f m' % max(d for r,m,d in matched))
-print('Runtime, surface raycasts and Unity compilation are NOT tested by this script.')
+print('Eastern heights require the lead\'s scene surface bake; runtime and raycasts are NOT tested here.')

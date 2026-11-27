@@ -1,4 +1,4 @@
-// Streets outside Marko's road models: ceste_izvan_modela.json (PaketData.CESTE, mag-25-11 Kaštela) (the package's roads that no hand-built
+// Streets outside Marko's road models: ceste_izvan_modela.json (PaketData.CESTE, mag-27-11 Kaštela) (the package's roads that no hand-built
 // model covers, world_1to1 frame: x east, z south, origin Štafilić), turned into new streets of our graph where the graph does
 // not already have them. Shared by StreetsBuilder (drawn like the graph streets: ribbon, markings, kerbs, terrain) and
 // GameDataBuilder (GPS / RoadRouter), so both see the same network.

@@ -122,9 +122,13 @@ namespace Magistrala.EditorTools
                 for (int k = 0; k < 24; k++) outB.Add(b[o + k]);
             }
             int added = 0;
+            var packageModels = models.Where(m => m.key.StartsWith("krizanje-") && int.TryParse(m.key.Substring(9), out int id) && id >= 66 && id <= 82).ToList();
             foreach (var (g, h, p, tree) in add)
             {
                 if (p < 0 || p >= np) continue;
+                bool onRoad = false;
+                foreach (var model in packageModels) if (!double.IsNaN(model.Surface(g.x, g.z))) { onRoad = true; break; }
+                if (onRoad) continue;
                 double y0 = Tiles.Height(g.x, g.z); var q = WorldData.ModelTerrain(models, g.x, g.z, 2, y0); if (q.HasValue) y0 = q.Value;
                 var u = W.U(g.x, y0, g.z);
                 if (VegetationClean.Surface(u, roots, modelRoot, out float sy, out _, out _)) u.y = sy;

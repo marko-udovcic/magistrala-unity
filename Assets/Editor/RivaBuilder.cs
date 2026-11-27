@@ -37,7 +37,29 @@ namespace Magistrala.EditorTools
         static List<Zone> zones; static Dictionary<string, object> data;
         static Dictionary<string, object> Data()
         {
-            if (data == null && File.Exists(DATA)) data = MiniJson.O(MiniJson.Parse(File.ReadAllText(DATA)));
+            if (data == null && File.Exists(DATA))
+            {
+                // Editor-only boolean geometry, same Shapely environment as riva_build.py.
+                // Never rewrite the orthophoto source. Stop the build if cutting fails.
+                string mask = PaketData.Need(PaketData.RIVA_MASKA);
+                string python = PaketData.Need(W.BD + "/tools/world/dgu/cache/venv/bin/python");
+                string output = Path.GetTempFileName();
+                try
+                {
+                    var start = new System.Diagnostics.ProcessStartInfo(python,
+                        $"-I -B \"{Path.GetFullPath("Tools/riva/cut_package.py")}\" \"{Path.GetFullPath(DATA)}\" \"{mask}\" \"{output}\"")
+                    { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
+                    using (var process = System.Diagnostics.Process.Start(start))
+                    {
+                        string report = process.StandardOutput.ReadToEnd(), error = process.StandardError.ReadToEnd();
+                        process.WaitForExit();
+                        if (process.ExitCode != 0) throw new InvalidDataException("[riva] package cut failed: " + error);
+                        Debug.Log("[riva] " + report.Trim());
+                    }
+                    data = MiniJson.O(MiniJson.Parse(File.ReadAllText(output)));
+                }
+                finally { File.Delete(output); }
+            }
             return data;
         }
         public static void Reset() { data = null; zones = null; }
@@ -300,6 +322,7 @@ namespace Magistrala.EditorTools
                 float along = 0;
                 for (int i = 0; i < n; i++)
                 {
+                    if (i == n - 1 && MiniJson.G(r, "open") is bool open && open) break;
                     int j = (i + 1) % n; var a = G[i]; var b = G[j]; float L = (b - a).magnitude; if (L < 1e-3) continue;
                     var dir = (b - a) / L; var outG = new Vector2(dir.y, -dir.x); // right of a -> b in game x / z
                     var ua = W.U(a.x, Y[i], a.y); var ub = W.U(b.x, Y[j], b.y);
@@ -402,13 +425,7 @@ namespace Magistrala.EditorTools
             foreach (var po in parks)
             {
                 var m = MiniJson.O(po); Surface(m, 2, Gnd, 1f);
-                var ring = MiniJson.L(m["ring"]); var pts = new List<object>(); var sea = new List<object>();
-                // ring as config gives it (any orientation): kerb face outward
-                var G = ring.Select(q => { var l = MiniJson.L(q); return new Vector2(MiniJson.F(l[0]), MiniJson.F(l[1])); }).ToList();
-                float area = 0; for (int i = 0; i < G.Count; i++) { var a = G[i]; var b = G[(i + 1) % G.Count]; area += a.x * b.y - b.x * a.y; }
-                if (area < 0) G.Reverse();
-                var rr = new Dictionary<string, object> { ["pts"] = G.Select(v => (object)new List<object> { (double)v.x, (double)v.y }).ToList(), ["sea"] = G.Select(v => (object)0.0).ToList() };
-                Edges(new Dictionary<string, object> { ["rings"] = new List<object> { rr } }, Gnd, 0);
+                Edges(m, Gnd, 0);
             }
             var phys = AssetDatabase.LoadAssetAtPath<PhysicsMaterial>(WorldBuilder.GEN + "/Roads/Asphalt.physicMaterial");
             int nv = 0;

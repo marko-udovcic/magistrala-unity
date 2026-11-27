@@ -105,6 +105,7 @@ namespace Magistrala.EditorTools
                     { if (!roadGrid.TryGetValue((gx, gz), out var l)) roadGrid[(gx, gz)] = l = new List<int>(); l.Add(i); }
             }
             models = WorldData.Models(-1e9, 1e9);
+            SignsBuilder.IndexDrawnAsphalt();
             var game = Resources.Load<GameWorld>(GameWorld.ResourcePath);
             bays = game.stops.Select(s => (s.bay, s.bayDir, s.bayHl, s.bayHw)).ToList();
             root = WorldBuilder.Root("Props").transform;
@@ -169,6 +170,7 @@ namespace Magistrala.EditorTools
         static bool OnRoad(Vector3 u, float margin)
         {
             var g = W.G(u); double gx = g.x, gz = g.y;
+            if (SignsBuilder.DrawnAsphalt(gx, gz, margin)) return true;
             if (roadGrid.TryGetValue(((int)Math.Floor(gx / 16), (int)Math.Floor(gz / 16)), out var l))
                 foreach (int i in l)
                 {

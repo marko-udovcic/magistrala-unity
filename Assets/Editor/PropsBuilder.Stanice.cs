@@ -38,17 +38,35 @@ namespace Magistrala.EditorTools
         }
 
         static List<Vector3> stGates = new List<Vector3>();
-        class Stop { public string id, name, road; public double x, z, heading; public bool shelter; public List<Vector2> drive = new List<Vector2>(); }
+        class Stop { public string id, name, road; public double x, z, heading; public bool shelter; public Vector2? bus; public List<Vector2> drive = new List<Vector2>(); }
 
         static List<Stop> LoadStops()
         {
             var r = new List<Stop>(); if (!File.Exists(STANICE)) return r;
+            var package = MiniJson.O(MiniJson.Parse(File.ReadAllText(PaketData.Need(PaketData.STANICE))));
+            var tr = MiniJson.O(MiniJson.O(MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "paket-approaches.json")))["alignment"])["transform"]);
+            double A(string k) => MiniJson.D(tr[k]);
+            var busByOsm = new Dictionary<string, Vector2>();
+            foreach (var po in MiniJson.L(package["stops"]))
+            {
+                var ps = MiniJson.O(po);
+                if (!(MiniJson.G(ps, "lanePoint") is List<object> lp)) continue;
+                double x = MiniJson.D(lp[0]), z = MiniJson.D(lp[1]);
+                var g = new Vector2((float)(A("a") * x + A("b") * z + A("tx")), (float)(A("c") * x + A("d") * z + A("tz")));
+                foreach (var id in MiniJson.L(ps["osm"])) busByOsm[(string)id] = g;
+            }
             foreach (var o in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(STANICE)))["stops"]))
             {
                 var d = MiniJson.O(o);
                 var s = new Stop { id = (string)d["id"], name = (string)MiniJson.G(d, "name") ?? "", road = (string)MiniJson.G(d, "road") ?? "", x = MiniJson.D(d["x"]), z = MiniJson.D(d["z"]),
                                    heading = MiniJson.D(d["heading"]), shelter = d["shelter"] is bool b && b };
                 if (MiniJson.L(MiniJson.G(d, "driveways")) is List<object> dl) foreach (var q in dl) { var p = MiniJson.L(q); s.drive.Add(new Vector2(MiniJson.F(p[0]), MiniJson.F(p[1]))); }
+                foreach (var id in MiniJson.L(d["osm"]))
+                {
+                    string key = ((string)id).Replace("node/", "n").Replace("way/", "w").Replace("relation/", "r");
+                    if (busByOsm.TryGetValue(key, out var bus)) { s.bus = bus; break; }
+                }
+                if (!s.bus.HasValue) throw new InvalidDataException("[stanice] no package BUS reference for " + s.id);
                 r.Add(s);
             }
             return r;
@@ -85,6 +103,7 @@ namespace Magistrala.EditorTools
                 { var k = ((long)Math.Round(p.Item1 * 2), (long)Math.Round(p.Item2 * 2)); ends.TryGetValue(k, out int c); ends[k] = c + 1; }
             var junctions = ends.Where(e => e.Value >= 3).Select(e => new Vector2(e.Key.Item1 / 2f, e.Key.Item2 / 2f)).ToList();
             models = WorldData.Models(-1e9, 1e9);
+            SignsBuilder.IndexDrawnAsphalt();
             var game = Resources.Load<Magistrala.Game.GameWorld>(Magistrala.Game.GameWorld.ResourcePath);
             bays = game ? game.stops.Select(s => (s.bay, s.bayDir, s.bayHl, s.bayHw)).ToList() : new List<(Vector3, Vector2, float, float)>();
             // the props already there (World/Props: their colliders are ignored by Free, so their footprints count as placed)
@@ -174,6 +193,7 @@ namespace Magistrala.EditorTools
                 {
                     var gc = c.Value.p + n * (c.Value.hw + d + hz);
                     string w = null;
+                    if (s.bus.HasValue && Vector2.Distance(gc, s.bus.Value) > 8) w = "više od 8 m od BUS natpisa";
                     if (junctions != null && junctions.Any(j => (j - gc).sqrMagnitude < 100)) w = "križanje";
                     else if (s.drive.Any(q => (q - gc).magnitude < hx + .5f)) w = "kolni ulaz (Mapillary)";
                     var u = W.U(gc.x, 0, gc.y);
