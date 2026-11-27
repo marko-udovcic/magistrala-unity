@@ -15,6 +15,8 @@ namespace Magistrala.EditorTools
         // These are lane centres already, so lane offset is zero. The s13 works gap is retained.
         public static TrafficCorridor[] EasternMain()
         {
+            Physics.SyncTransforms();
+            var ground = new TrafficGroundSampler();
             var root = MiniJson.O(MiniJson.Parse(File.ReadAllText("Assets/Editor/sporedne-routes.json")));
             var pa = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "paket-approaches.json")));
             var tr = MiniJson.O(MiniJson.O(pa["alignment"])["transform"]);
@@ -43,12 +45,7 @@ namespace Magistrala.EditorTools
                     laneOff = new float[n], laneY = new float[n], vmax = new float[n], deadEnd = result.Count == 1 };
                 for (int i = 0; i < n; i++)
                 {
-                    var p = c.axis[i]; float closest = 3;
-                    foreach (var hit in Physics.RaycastAll(p + Vector3.up * 3, Vector3.down, 6, ~0, QueryTriggerInteraction.Ignore))
-                    {
-                        float d = Mathf.Abs(hit.point.y - p.y);
-                        if (!hit.rigidbody && d < closest) { closest = d; c.axis[i].y = hit.point.y; }
-                    }
+                    if (ground.Sample(c.axis[i], out var surface, out _)) c.axis[i].y = surface.y;
                     c.lanes[i] = 1; c.laneY[i] = c.axis[i].y;
                     var tangent = pts[Mathf.Min(i + 2, n - 1)] - pts[Mathf.Max(0, i - 2)]; tangent.y = 0;
                     c.right[i] = Vector3.Cross(Vector3.up, tangent.normalized);
@@ -63,6 +60,8 @@ namespace Magistrala.EditorTools
         public static TrafficSideRoute[] Build(TrafficCorridor[] corridors, TrafficPlan[] plans,
             List<(Vector2 p, Vector2 dir, int plan, string group, string model)> stops)
         {
+            Physics.SyncTransforms();
+            var ground = new TrafficGroundSampler();
             var root = MiniJson.O(MiniJson.Parse(File.ReadAllText("Assets/Editor/sporedne-routes.json")));
             var pa = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "paket-approaches.json")));
             var tr = MiniJson.O(MiniJson.O(pa["alignment"])["transform"]);
@@ -73,6 +72,8 @@ namespace Magistrala.EditorTools
                 return W.U(A("a") * x + A("b") * z + A("tx"), MiniJson.D(p[1]), A("c") * x + A("d") * z + A("tz"));
             }
             var result = new List<TrafficSideRoute>();
+            int surfaceSamples = 0, surfaceMisses = 0;
+            float maxHeightCorrection = 0;
             foreach (var obj in MiniJson.L(root["routes"]))
             {
                 var o = MiniJson.O(obj);
@@ -114,18 +115,25 @@ namespace Magistrala.EditorTools
                     pts[i] += delta * Mathf.Clamp01(1 - walked / 15);
                 }
                 pts[end] = bp;
-                // Follow the imported road surface, not an elevated roof or a bridge on another level.
+                // Package points carry graph heights and may span an entire raised junction patch.
+                // Densify AFTER alignment, then sample the actual surface at <=1 m intervals for all mouths.
+                var dense = new List<Vector3> { pts[0] };
+                for (int i = 1; i < pts.Count; i++)
+                {
+                    int steps = Mathf.Max(1, Mathf.CeilToInt(Vector3.Distance(pts[i - 1], pts[i])));
+                    for (int k = 1; k <= steps; k++) dense.Add(Vector3.Lerp(pts[i - 1], pts[i], k / (float)steps));
+                }
+                pts = dense; end = inbound ? pts.Count - 1 : 0;
+                // Keep the exact main-lane handoff; its laneY has already been baked by the main builder.
                 for (int i = 0; i < pts.Count; i++)
                 {
                     if (i == end) continue;
-                    var p = pts[i]; float dy = 3, y = p.y;
-                    foreach (var hit in Physics.RaycastAll(p + Vector3.up * 3, Vector3.down, 6, ~0, QueryTriggerInteraction.Ignore))
+                    if (ground.Sample(pts[i], out var surface, out _))
                     {
-                        if (hit.rigidbody) continue;
-                        float d = Mathf.Abs(hit.point.y - p.y);
-                        if (d < dy) { dy = d; y = hit.point.y; }
+                        maxHeightCorrection = Mathf.Max(maxHeightCorrection, Mathf.Abs(surface.y - pts[i].y));
+                        pts[i] = surface; surfaceSamples++;
                     }
-                    p.y = y; pts[i] = p;
+                    else surfaceMisses++;
                 }
                 var r = new TrafficSideRoute {
                     name = (string)o["name"], town = (string)o["town"], source = (int)MiniJson.D(o["source"]),
@@ -176,6 +184,7 @@ namespace Magistrala.EditorTools
             int sites = result.Select(r => r.site).Distinct().Count();
             if (sites != 20) throw new InvalidDataException($"[sporedne] only {sites}/20 mouths match the built corridors. Review rejected source IDs before saving.");
             Debug.Log($"[sporedne] built {sites} mouths, {result.Count(r => r.inbound)} entry routes, {result.Count(r => !r.inbound)} exit routes; assumed lanes, not surveyed");
+            Debug.Log($"[sporedne] ground samples {surfaceSamples}, missing {surfaceMisses}, max height correction {maxHeightCorrection:F2} m");
             return result.ToArray();
         }
     }

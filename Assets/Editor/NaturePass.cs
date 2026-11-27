@@ -209,7 +209,7 @@ namespace Magistrala.EditorTools
             if (!On) return;
             Dir(OUT);
             foreach (var p in PineSrc) { var pr = Pine(p); if (pr != null) extra.Add(pr); }
-            { var sp = Pine(PineSrc[0], true); if (sp != null) extra.Add(sp); }   // pinija (stone pine): umbrella crown, Index("pinija")
+            { var sp = Pine(PineSrc[0], true); if (sp != null) extra.Add(sp); }   // legacy pinija slot: safe existing Aleppo geometry
             MedianHedge.Protos(extra);
             HedgeShell.Protos(extra);   // garden hedges' leaf modules (placed by Build tile buildings: HedgeShell.Commit)
             // crnika (holm oak / closed dark maquis crown): our olive's mesh, leaves a dark evergreen; materials made in Finish from
@@ -307,8 +307,9 @@ namespace Magistrala.EditorTools
         /// one package pine as a TreeRenderer prototype: LOD1 (bark + needles) as the full mesh, the cross billboard LOD as the
         /// impostor; both reshaped toward Aleppo pine (height × .82, crown spread × 1.22: a shorter trunk, a wider flatter crown) and the bark
         /// material made greyer brown instead of the beach pine's orange
-        /// stone = the stone pine (Pinus pinea, pinija) made from the same beach pine: the crown (above 45 % of the height) pushed
-        /// out to an umbrella 2.2 × wider and squashed into the top third, the bare trunk below kept (23. 11., Marko: "veliki borovi")
+        /// stone keeps the legacy pinija index / asset names, but now uses the same existing Aleppo mesh.
+        /// The old per-vertex crown warp jumped from .45*top to .66*top: leaf cards crossing that
+        /// boundary became hanging curtains. An umbrella crown requires a proper model, not this warp.
         static Proto Pine(string prefab, bool stone = false)
         {
             var pf = Load<GameObject>(CE + "Pine Trees/Prefabs/" + prefab + ".prefab"); if (!pf) { Debug.LogWarning("[priroda] no " + prefab); return null; }
@@ -322,15 +323,10 @@ namespace Magistrala.EditorTools
             {
                 var src = r.GetComponent<MeshFilter>().sharedMesh; var m = UnityEngine.Object.Instantiate(src); m.name = name;
                 var M = root.worldToLocalMatrix * r.transform.localToWorldMatrix; var v = src.vertices;
-                float top = 0; for (int i = 0; i < v.Length; i++) top = Mathf.Max(top, M.MultiplyPoint3x4(v[i]).y);
                 for (int i = 0; i < v.Length; i++)
                 {
                     var q = M.MultiplyPoint3x4(v[i]);
-                    if (!stone) { v[i] = new Vector3(q.x * 1.22f, q.y * .82f, q.z * 1.22f); continue; }
-                    float t = Mathf.Clamp01((q.y / Mathf.Max(top, .01f) - .45f) / .55f);          // 0 below the crown, 1 at the top
-                    float w = Mathf.Lerp(1, 2.2f, Mathf.SmoothStep(0, 1, t * 3));                  // the crown spreads out quickly
-                    float y = q.y < .45f * top ? q.y : Mathf.Lerp(.66f * top, top * .92f, t);    // crown squashed into the top third
-                    v[i] = new Vector3(q.x * w, y, q.z * w);
+                    v[i] = new Vector3(q.x * 1.22f, q.y * .82f, q.z * 1.22f);
                 }
                 m.vertices = v; m.RecalculateBounds(); Save(m, $"{OUT}/{name}.asset"); return m;
             }

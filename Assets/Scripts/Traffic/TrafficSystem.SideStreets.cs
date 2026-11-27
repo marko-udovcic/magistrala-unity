@@ -6,6 +6,8 @@ namespace Magistrala.Traffic
     public partial class TrafficSystem
     {
         bool sideEnabled = true;
+        TrafficGroundSampler sideGround;
+        int sideGroundBudget;
         readonly List<int> nearSides = new List<int>();
         readonly List<Car> sideCars = new List<Car>();
         readonly Dictionary<long, List<int>> sideGrid = new Dictionary<long, List<int>>();
@@ -25,6 +27,7 @@ namespace Magistrala.Traffic
 
         void InitSides()
         {
+            sideGround = new TrafficGroundSampler(); sideGroundBudget = 6;
             var args = System.Environment.GetCommandLineArgs();
             sideEnabled = true;
             for (int i = 0; i + 1 < args.Length; i++) if (args[i] == "-sporedne") sideEnabled = args[i + 1] != "0";
@@ -250,6 +253,7 @@ namespace Magistrala.Traffic
                 if (c.s < r.mainS) continue;
                 byCorridor[c.c].Remove(c);
                 c.sideRoute = c.turnRoute; c.turnRoute = -1; c.sideS = 0; c.sideCommitted = true;
+                c.sideGroundReady = false; c.sideGroundAt = 0;
                 c.laneTo = c.lane; c.laneT = 0; sideCars.Add(c);
                 sideTurnStarts++;
                 SideEvent(r);
@@ -358,8 +362,35 @@ namespace Magistrala.Traffic
         {
             var r = data.sideRoutes[c.sideRoute];
             var p = r.Point(c.sideS); var tangent = r.Point(c.sideS + 1) - r.Point(c.sideS - 1);
+            if (clock >= c.sideGroundAt && sideGroundBudget > 0)
+            {
+                sideGroundBudget--;
+                c.sideGroundAt = clock + .2f;
+                if (sideGround.Sample(p, out var point, out var normal))
+                {
+                    c.sideGroundPoint = point; c.sideGroundNormal = normal;
+                    c.sideGroundReady = true;
+                }
+                else c.sideGroundReady = false; // baked route is the fallback when a streamed collider is absent
+            }
+            var up = Vector3.up;
+            if (c.sideGroundReady)
+            {
+                up = c.sideGroundNormal;
+                // Follow the sampled plane between probes, including crossfall. Never smooth a car
+                // below the surface when entering a raised patch; smooth downward corrections only.
+                float y = c.sideGroundPoint.y - (up.x * (p.x - c.sideGroundPoint.x)
+                    + up.z * (p.z - c.sideGroundPoint.z)) / up.y;
+                p.y = Mathf.Max(y, Mathf.Lerp(c.pos.y, y, 1 - Mathf.Exp(-20 * Time.deltaTime)));
+            }
+            var forward = c.sideGroundReady ? Vector3.ProjectOnPlane(tangent, up) : tangent;
+            if (forward.sqrMagnitude > .00001f)
+            {
+                var rotation = Quaternion.LookRotation(forward, up);
+                c.rot = Quaternion.Dot(c.rot, c.rot) > .5f
+                    ? Quaternion.Slerp(c.rot, rotation, 1 - Mathf.Exp(-12 * Time.deltaTime)) : rotation;
+            }
             c.pos = p;
-            if (tangent.sqrMagnitude > .00001f) c.rot = Quaternion.LookRotation(tangent, Vector3.up);
         }
 
         int MainSpawnBudget => sideEnabled && nearSides.Count > 0 ? Mathf.Max(0, targetCars - Mathf.Min(4, targetCars / 4)) : targetCars;

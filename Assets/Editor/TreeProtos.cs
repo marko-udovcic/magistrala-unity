@@ -12,6 +12,22 @@ namespace Magistrala.EditorTools
     {
         public static readonly string[] IDS = { "pine_a", "pine_b", "olive", "cypress", "shrub_a", "shrub_b", "bush_c", "rock_a" };
 
+        /// A street tree keeps its native proportions. Reject unsuitable prototypes instead of
+        /// squeezing them to match a noisy Mapillary height/crown measurement. Width is the larger
+        /// horizontal mesh extent; all instance axes receive the returned scalar (trees.bytes format).
+        public static bool StreetShape(Bounds b, float minRatio, float maxRatio)
+        {
+            float h = b.size.y, w = Mathf.Max(b.size.x, b.size.z);
+            return h > .1f && w / h >= minRatio && w / h <= maxRatio;
+        }
+
+        public static float StreetScale(Bounds b, float wantedHeight, float minHeight, float maxHeight, float maxWidth)
+        {
+            float h = b.size.y, w = Mathf.Max(b.size.x, b.size.z);
+            if (h <= .1f || w <= .1f) return 0;
+            return Mathf.Min(Mathf.Clamp(wantedHeight, minHeight, maxHeight) / h, maxWidth / w);
+        }
+
         public static List<GameObject> Prefabs()
         {
             var outL = new List<GameObject>();

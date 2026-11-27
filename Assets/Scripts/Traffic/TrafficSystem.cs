@@ -70,6 +70,8 @@ namespace Magistrala.Traffic
             public int sideRoute = -1, turnRoute = -1, lastSideSite = -1;
             public int sideTurnWait; // 0 approaching, 1 signal, 2 crossing reservation, 3 opposing gap
             public float sideS, sideCheckAt, sideRetryAt; public bool sideCommitted;
+            public float sideGroundAt; public bool sideGroundReady;
+            public Vector3 sideGroundPoint, sideGroundNormal;
             public float s, v, lat, v0, len, hw, h, a, b, T;
             public float decideT, laneT, stopT;
             public int indicator; // −1 left, +1 right (lane change)
@@ -1159,6 +1161,7 @@ namespace Magistrala.Traffic
             FindPlayer();
             ProjectPlayer();
             RefreshSides();
+            sideGroundBudget = 6; // at most one query per side car, normally 5 Hz (main traffic uses baked laneY)
             if (dt > 0) { Step(dt); StepSides(dt); }
             Despawn();
             if (!warm && Time.frameCount > 3) { for (int k = 0; k < 400 && cars.Count < MainSpawnBudget; k++) TrySpawn(true); warm = true; }

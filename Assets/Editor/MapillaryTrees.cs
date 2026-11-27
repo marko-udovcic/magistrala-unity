@@ -80,20 +80,31 @@ namespace Magistrala.EditorTools
         class Protos
         {
             public int olive = 2, cypress = 3, crnika = -1, tamni = -1, oleander = -1; public List<int> pines = new List<int>();
-            public float[] height;   // (tr must be World/Vegetation, not the AC units' TreeRenderer)
+            public float[] height;
+            public Bounds[] bounds;   // (tr must be World/Vegetation, not the AC units' TreeRenderer)
             public Protos(Magistrala.TreeRenderer tr)
             {
                 height = tr.meshes.Select(m => m ? m.bounds.size.y : 0).ToArray();
+                bounds = tr.meshes.Select(m => m ? m.bounds : new Bounds()).ToArray();
                 for (int i = TreeProtos.IDS.Length; i < tr.meshes.Length; i++)
                 {
                     var m = tr.meshes[i]; if (!m) continue; var mat = tr.materials[tr.materialStart[i]];
                     if (crnika < 0 && mat && mat.name.Contains("crnika")) crnika = i;
-                    else if (m.name.StartsWith("pine_") && !m.name.Contains("medium")) pines.Add(i);
+                    else if (m.name.StartsWith("pine_") && !m.name.Contains("medium") && !m.name.Contains("pinija")
+                        && TreeProtos.StreetShape(m.bounds, .35f, 1.15f)) pines.Add(i);
                     else if (tamni < 0 && (m.name == "grm_tamni" || (mat && mat.name.EndsWith("rose_tamni")))) tamni = i;   // (Flat keeps the package mesh when no reshape is needed)
                     else if (oleander < 0 && m.name.StartsWith("oleander_uski")) oleander = i;
                 }
                 if (crnika < 0) crnika = olive;
-                if (pines.Count == 0) pines.Add(0);
+                if (pines.Count == 0) pines.Add(0); // existing full-size pine_a, not the procedural umbrella
+            }
+
+            public float StreetScale(int proto, double want, float minH, float maxH, float maxW,
+                float minRatio, float maxRatio)
+            {
+                if (proto < 0 || proto >= bounds.Length || !TreeProtos.StreetShape(bounds[proto], minRatio, maxRatio))
+                    throw new InvalidDataException($"[stabla] unsuitable street prototype {proto}: check native bounds before placing trees");
+                return TreeProtos.StreetScale(bounds[proto], (float)want, minH, maxH, maxW);
             }
         }
 
@@ -171,11 +182,13 @@ namespace Magistrala.EditorTools
             }
 
             var add = new List<byte>(); var why = new Dictionary<string, int>(); var kinds = new Dictionary<string, int>();
+            int unchanged = 0;
             void No(string w) { why.TryGetValue(w, out int n); why[w] = n + 1; }
             void Put(double gx, double y, double gz, float yaw, float s, int proto, string kind)
             {
                 var u = W.U(gx, y, gz); var one = new List<byte>(REC);
                 foreach (var v in new[] { u.x, u.y, u.z, yaw, s, proto }) one.AddRange(BitConverter.GetBytes(v));
+                if (old.Contains(Convert.ToBase64String(one.ToArray()))) unchanged++;
                 rec.AddRange(one); add.AddRange(one); kinds.TryGetValue(kind, out int n); kinds[kind] = n + 1;
             }
             int trees = 0, cand = 0; var byRoad = new Dictionary<string, int>();
@@ -224,16 +237,20 @@ namespace Magistrala.EditorTools
                         if (P.oleander < 0) { No("no oleander prototype"); continue; }
                         Put(x, h - .05, z, yaw, Sc(P.oleander, Math.Max(1.8, Math.Min(5, top > 0 ? top : 3))), P.oleander, "oleander"); break;
                     case "olive":
-                        Put(x, h - .08, z, yaw, Sc(P.olive, Math.Max(2.5, Math.Min(7, top > 0 ? top : .8 * t.d + 1))), P.olive, "olive"); break;
+                        Put(x, h - .08, z, yaw, P.StreetScale(P.olive, top > 0 ? top : .8 * t.d + 1,
+                            2.5f, 6, 8, .65f, 1.6f), P.olive, "olive"); break;
                     case "cypress":
-                        Put(x, h - .08, z, yaw, Sc(P.cypress, Math.Max(5, Math.Min(16, top > 0 ? top : 8))), P.cypress, "cypress"); break;
+                        Put(x, h - .08, z, yaw, P.StreetScale(P.cypress, top > 0 ? top : 8,
+                            5, 14, 5, .12f, .5f), P.cypress, "cypress"); break;
                     case "pine":
                         {
                             int p = P.pines[Math.Min(P.pines.Count - 1, (int)(NaturePass.R01(x, z, 93) * P.pines.Count))];
-                            Put(x, h - .1, z, yaw, Sc(p, Math.Max(5, Math.Min(14, top > 0 ? top : 1.1 * t.d))), p, "pine"); break;
+                            Put(x, h - .1, z, yaw, P.StreetScale(p, top > 0 ? top : 1.1 * t.d,
+                                5, 12, 12, .35f, 1.15f), p, "pine"); break;
                         }
                     default:   // other broadleaf
-                        Put(x, h - .08, z, yaw, Sc(P.crnika, Math.Max(2.8, Math.Min(11, top > 0 ? top : .8 * t.d + 1))), P.crnika, "broadleaf (crnika)"); break;
+                        Put(x, h - .08, z, yaw, P.StreetScale(P.crnika, top > 0 ? top : .8 * t.d + 1,
+                            2.8f, 9, 10, .65f, 1.6f), P.crnika, "broadleaf (crnika)"); break;
                 }
                 trees++; byRoad.TryGetValue(t.road, out int nr); byRoad[t.road] = nr + 1;
             }
@@ -241,7 +258,7 @@ namespace Magistrala.EditorTools
             Directory.CreateDirectory(Path.GetDirectoryName(ADDED)); File.WriteAllBytes(ADDED, add.ToArray());
             tr.data = AssetDatabase.LoadAssetAtPath<TextAsset>(path); EditorUtility.SetDirty(tr);
             return $"[stabla] Mapillary trees: {trees} of {cand} candidates added (of {all.Count} records; by road " + string.Join(", ", byRoad.Select(k => $"{k.Key} {k.Value}")) + $"; {add.Count / REC} plants; " + string.Join(", ", kinds.Select(k => $"{k.Key} {k.Value}")) +
-                   $"; {removed} old records replaced); skipped: " + string.Join(", ", why.OrderByDescending(w => w.Value).Select(w => $"{w.Key} {w.Value}"));
+                   $"; {removed} old records replaced; {unchanged} identical, {add.Count / REC - unchanged} new/changed plant records, {old.Count - unchanged} old records superseded); skipped: " + string.Join(", ", why.OrderByDescending(w => w.Value).Select(w => $"{w.Key} {w.Value}"));
         }
     }
 }
