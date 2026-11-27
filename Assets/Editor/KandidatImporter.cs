@@ -43,7 +43,7 @@ namespace Magistrala.EditorTools
             public string name;                 // glTF material name (prefix match)
             public string role = "trim";        // body (paint) | trim | interior | wheel | glass | hide | display (city bus destination sign: lamp 7)
             public string tex, texAlt;          // display: its texture (default: the GLB's own) and the other direction's (paths from the project root)
-            public float emit = 1.4f;           // display: emission strength
+            public float emit = 3f;             // display: brightness (URP Unlit colour × texture, HDR)
             public int size = 2048;             // texture size (<= 2048)
             public float smoothMax = 1, smoothMul = 1, desat = 0, bright = 1;   // look tweaks of the non-paint texels
             public float metalMul = 1;
@@ -1117,7 +1117,7 @@ namespace Magistrala.EditorTools
                 if (g.role == "glass") { m = cfg.glassOpaque ? glassO : glassT; lodMat.Add(glassO); }
                 else if (g.role == "display")
                 {
-                    // destination display (TrafficPart lamp 7): URP Lit, emissive with its own texture; "_on" = the other direction's
+                    // destination display (TrafficPart lamp 7): URP Unlit with its own texture; "_on" = the other direction's
                     var km = c.km[g.mat]; string mn = San(c.g.mats[g.mat].name);
                     Texture2D T(string file, string nm)
                     {
@@ -1130,9 +1130,10 @@ namespace Magistrala.EditorTools
                     }
                     Material D(string nm, Texture2D t)
                     {
-                        var dm = Mat(nm, lit); dm.SetTexture("_BaseMap", t); dm.SetColor("_BaseColor", Color.white); dm.SetFloat("_Smoothness", .85f); dm.SetFloat("_Metallic", 0);
-                        dm.EnableKeyword("_EMISSION"); dm.SetTexture("_EmissionMap", t); dm.SetColor("_EmissionColor", Color.white * km.emit);
-                        dm.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None; EditorUtility.SetDirty(dm); return dm;
+                        // URP Unlit, the LED texture × an HDR white (Lit's _EMISSION keyword did not stay on the saved asset: dark sign);
+                        // it sits behind the tinted windscreen, so a bit over 1
+                        var dm = Mat(nm, Shader.Find("Universal Render Pipeline/Unlit")); dm.SetTexture("_BaseMap", t); dm.SetColor("_BaseColor", Color.white * km.emit);
+                        EditorUtility.SetDirty(dm); return dm;
                     }
                     var t0 = T(km.tex, mn + "_display"); var t1 = T(string.IsNullOrEmpty(km.texAlt) ? km.tex : km.texAlt, mn + "_display_alt");
                     m = D(mn + "_display", t0); on = D(mn + "_display_on", t1); lamp = 7; lodMat.Add(null);
@@ -1224,6 +1225,7 @@ namespace Magistrala.EditorTools
             var wl = new List<string>(); for (int i = 0; i < wheelSubs.Count; i++) wl.Add(wheelMat[int.Parse(wheelSubs[i])].name);
             info.subMat = info.subMat.Concat(new[] { "|wheels|" }).Concat(wl).ToArray();
             foreach (var mo in subOn.Where(x => x)) EditorUtility.SetDirty(mo);
+
             log.Append($"; {groups.Count} body submeshes ({string.Join(", ", groups.Select(g => $"{(g.mat >= 0 ? c.g.mats[g.mat].name : "glass")}/{g.cls}:{g.t.Count}"))})");
         }
 

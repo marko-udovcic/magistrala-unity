@@ -3729,12 +3729,12 @@
           "role": "display",
           "tex": "../BalkanDriver/assets-src/obrada-2711/display-37-trogir.png",
           "texAlt": "../BalkanDriver/assets-src/obrada-2711/display-37-split.png",
-          "emit": 1.4
+          "emit": 3.0
         },
         {
           "name": "Display_Side",
           "role": "display",
-          "emit": 1.4
+          "emit": 3.0
         }
       ],
       "lamps": [
