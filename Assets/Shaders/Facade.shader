@@ -52,8 +52,10 @@ Shader "Magistrala/Facade"
         static const float TINTED[8] = { 1, 0, 1, 0, 1, 1, 1, 0 };
         static const float GLOSS[8] = { 0.1, 0.12, 0.28, 0.08, 0.1, 0.3, 0.45, 0.06 };
         // the plaster variants: metres per repeat (Poly Haven's real sizes, the 1 m ones a little larger against visible repeats)
-        static const float PTILE[12] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2, 1.0, 2.4, 2.7 };
-        static const float PGLOSS[12] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08, 0.25, 0.07, 0.34 };
+        static const float PTILE[15] = { 3.0, 2.2, 2.2, 4.0, 3.0, 2.0, 2.0, 2.5, 2.2, 1.0, 2.4, 2.7, 2.0, 2.0, 3.6 };
+        static const float PGLOSS[15] = { 0.08, 0.06, 0.07, 0.1, 0.14, 0.16, 0.12, 0.08, 0.08, 0.25, 0.07, 0.34, 0.08, 0.08, 0.1 };
+        // layers 12 / 13: the UKRAINIAN CITY pack's light plasters Plaster_H / Plaster_J (tinted like the others), 14: its dressed
+        // stone Brick_E — a variant of the STONE layer (variant 15 on layer 1: untinted, the house's stone tone as layer 1)
         // _Plaster layer 9 (variant 10) is not a plaster but the trimmed yard hedge (HouseBuilder Slot.Hedge): no peeling, grime,
         // rising damp or micro grain on it
         // roof layer: mean luminance 0.197 (linear) -> 0.40 (HouseBuilder.RoofTint)
@@ -126,7 +128,8 @@ Shader "Magistrala/Facade"
             float3 wp0 = input.positionWS;
             float camDist = distance(wp0, _WorldSpaceCameraPos);
             // plaster / concrete with a variant: the Poly Haven plaster array instead of layer 0 / 4
-            bool pl = variant > .5 && (li == 0 || li == 4);
+            bool stoneVar = variant > 14.5 && li == 1;
+            bool pl = variant > .5 && variant < 14.5 && (li == 0 || li == 4) || stoneVar;
             int pi = (int)variant - 1;
             bool hedge = pl && pi == 9;
             bool metal = pl && pi == 11; // corrugated hall roof: no micro grain, peeling or rising damp
@@ -170,7 +173,7 @@ Shader "Magistrala/Facade"
             // (the hall roof's corrugations are its form, not fine grain: a stronger normal; the orthophoto's light membranes /
             // galvanised sheets a little darker, so the sheets' shading reads from the road)
             half3 nt; nt.xy = (ns.xy * 2 - 1) * _NormalScale * (metal ? 1.8 : 1); nt.z = sqrt(saturate(1 - dot(nt.xy, nt.xy)));
-            half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, pl ? lerp(1, 0, peel) : TINTED[li]);
+            half3 albedo = tex * lerp(half3(1, 1, 1), input.color.rgb, pl && !stoneVar ? lerp(1, 0, peel) : TINTED[li]);
             albedo *= 1 - .45 * peelRim * (1 - peel) - .55 * crack;
             if (metal) albedo *= .8;
             // roof tiles with a free colour (HouseBuilder, colour measured on the orthophoto): COLOR.a lerps the tiles to their

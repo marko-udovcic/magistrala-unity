@@ -47,7 +47,7 @@ namespace Magistrala.Audio
         static void Boot()
         {
             if (I) return;
-            var args = System.Environment.GetCommandLineArgs();
+            var args = Magistrala.CliArgs.All;
             for (int i = 0; i < args.Length - 1; i++) if (args[i] == "-zvuk" && args[i + 1] == "0") Off = true;
             if (Off) { Debug.Log("[zvuk] isključen (-zvuk 0)"); return; }
             Muted = System.Array.IndexOf(args, "-mute") >= 0;

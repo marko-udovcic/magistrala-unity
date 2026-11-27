@@ -20,13 +20,17 @@ namespace Magistrala.EditorTools
         /// texture array the plaster / concrete layers switch to (Look.variant 1..9 = layer 0..8, 0 = layer 0 above), plus the near micro grain
         public const string PlasterFolder = "Assets/Textures/PolyHaven/zbuke/";
         public const string PlasterAlbedo = PlasterFolder + "zbuke_albedo.jpg", PlasterNormal = PlasterFolder + "zbuke_normal.jpg", Micro = PlasterFolder + "mikro.png";
-        public const int PlasterLayers = 12;
+        public const int PlasterLayers = 15;
         public const int PConcreteWall = 1, PWhiteRough = 2, PCracked = 3, PPreconcrete = 4, PBeige = 5, PPainted = 6, PYellow = 7, PRedWeathered = 8, PGrey = 9;
         /// not a plaster: the trimmed yard hedge (Tools/zbuke/zivica.py; HouseBuilder Slot.Hedge, its colour kept, no weathering)
         public const int PHedge = 10;
         /// Marko's approved materials in the plaster array (zbuke.py layers 10 / 11): old peeling render (worn_plaster_wall) and the
         /// corrugated metal of hall roofs (corrugated_iron_02, HouseBuilder FlatRoof of industrial buildings)
         public const int PWorn = 11, PMetal = 12;
+        /// the UKRAINIAN CITY pack's layers appended by PackLayers() (layers 12..14): light plasters Plaster_H / Plaster_J (tinted per
+        /// house) and the dressed stone Brick_E (a variant of the stone layer, Facade: variant 15 on layer 1). 15 is the last variant
+        /// the wall code holds (64 * variant < 1024).
+        public const int PPackH = 13, PPackJ = 14, PStoneE = 15;
 
         // source (Poly Haven id) and the sRGB mean the layer is scaled to (null: grey, tinted per building)
         // grey layers keep `contrast` of their detail (plaster 0.8: the trowel marks and blotches read at street level)
@@ -110,6 +114,38 @@ namespace Magistrala.EditorTools
             }
             AssetDatabase.Refresh(); Configure();
             return $"layer {layer} <- {src.id}";
+        }
+
+        /// append (or replace) the pack's layers 12..14 of the plaster strips: Plaster_H, Plaster_J (grey, the house's tint) and
+        /// Brick_E (dressed stone, scaled to the stone layer's limestone mean); the normal strip's blue = roughness
+        public static string PackLayers()
+        {
+            const string T = PaketZgrade.SRC + "Textures/";
+            var src = new[] { ("Plaster_H", (Color?)null, .86f, .8f), ("Plaster_J", (Color?)null, .86f, .8f), ("Brick_E", (Color?)Hex("C6BEAB"), 0f, 1f) };
+            var A = new Color32[Size * Size * PlasterLayers]; var N = new Color32[Size * Size * PlasterLayers];
+            foreach (var (path, dst) in new[] { (PlasterAlbedo, A), (PlasterNormal, N) })
+            {
+                var t = new Texture2D(2, 2, TextureFormat.RGBA32, false); t.LoadImage(File.ReadAllBytes(path));
+                var all = t.GetPixels32(); int layersIn = t.height / Size; UnityEngine.Object.DestroyImmediate(t);
+                if (layersIn < 12) throw new InvalidOperationException(path + ": " + layersIn + " layers");
+                // the first layer is the TOP row: keep layers 0..11 at the top of the taller strip
+                int keep = 12;
+                Array.Copy(all, (layersIn - keep) * Size * Size, dst, (PlasterLayers - keep) * Size * Size, keep * Size * Size);
+            }
+            for (int k = 0; k < src.Length; k++)
+            {
+                var (id, mean, grey, contrast) = src[k];
+                var a = PaketZgrade.Read(T + id + "/" + id + "_BaseMap.png", Size, new Color32(200, 200, 200, 255));
+                var n = PaketZgrade.Read(T + id + "/" + id + "_Normal.png", Size, new Color32(128, 128, 255, 255));
+                var m = PaketZgrade.Read(T + id + "/" + id + "_MaskMap.png", Size, new Color32(0, 255, 0, 64));
+                Normalise(a, mean, grey, contrast);
+                for (int i = 0; i < n.Length; i++) n[i] = new Color32(n[i].r, n[i].g, (byte)(255 - m[i].a), 255);
+                int row = PlasterLayers - 1 - (12 + k);
+                Array.Copy(a, 0, A, row * Size * Size, Size * Size); Array.Copy(n, 0, N, row * Size * Size, Size * Size);
+            }
+            Write(PlasterAlbedo, A, Size, Size * PlasterLayers, 92); Write(PlasterNormal, N, Size, Size * PlasterLayers, 94);
+            AssetDatabase.Refresh(); Configure();
+            return "plaster strips: " + PlasterLayers + " layers (pack: Plaster_H, Plaster_J, Brick_E)";
         }
 
         /// grime atlas from srcDir/Leaking012A|016A|017A_1K-JPG_Color.jpg (white = clean): inverted, levelled, 512²
