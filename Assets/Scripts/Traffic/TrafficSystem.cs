@@ -68,7 +68,8 @@ namespace Magistrala.Traffic
         {
             public int c, kind, paint, lane, laneTo;
             public int sideRoute = -1, turnRoute = -1, lastSideSite = -1;
-            public float sideS, sideCheckAt; public bool sideCommitted;
+            public int sideTurnWait; // 0 approaching, 1 signal, 2 crossing reservation, 3 opposing gap
+            public float sideS, sideCheckAt, sideRetryAt; public bool sideCommitted;
             public float s, v, lat, v0, len, hw, h, a, b, T;
             public float decideT, laneT, stopT;
             public int indicator; // −1 left, +1 right (lane change)
@@ -486,9 +487,24 @@ namespace Magistrala.Traffic
         public int PlanIndex(string key) { if (data?.plans != null) for (int i = 0; i < data.plans.Length; i++) if (data.plans[i].key == key) return i; return -1; }
         /// the state a signal head of group `group` of plan `plan` shows (0 green, 1 amber, 2 red, 3 red + amber) — the same clock
         /// the cars' stop lines use
-        public int LightFor(int plan, string group) => data == null || plan < 0 || plan >= data.plans.Length ? 2 : Light(plan, group);
-        public int LightState(int ci, int si) => (int)LightAt(data.corridors[ci].stops[si]);
-        public string LightName(int ci, int si) => LightAt(data.corridors[ci].stops[si]) switch { 0 => "green", 1 => "amber", _ => "red" };
+        public int LightFor(int plan, string group) => data == null || data.plans == null || plan < 0 || plan >= data.plans.Length
+            || data.plans[plan] == null ? 2 : Light(plan, group);
+        bool warnedStaleSignal;
+        public int LightState(int ci, int si)
+        {
+            var corridors = data ? data.corridors : null;
+            var stops = corridors != null && ci >= 0 && ci < corridors.Length ? corridors[ci]?.stops : null;
+            var stop = stops != null && si >= 0 && si < stops.Length ? stops[si] : null;
+            if (stop != null && data.plans != null && stop.plan >= 0 && stop.plan < data.plans.Length && data.plans[stop.plan] != null)
+                return (int)LightAt(stop);
+            if (!warnedStaleSignal)
+            {
+                warnedStaleSignal = true;
+                Debug.LogWarning($"[traffic] stale signal head c{ci} stop{si}: showing green; run Magistrala/Build signals after Build traffic (warning once)");
+            }
+            return 0;
+        }
+        public string LightName(int ci, int si) => LightState(ci, si) switch { 0 => "green", 1 => "amber", _ => "red" };
 
         // ------------------------------------------------------------------ simulation
         static float Idm(Car car, float v0, float gap, float dv)
