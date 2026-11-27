@@ -32,11 +32,10 @@ namespace Magistrala.Game
             ("peciva", 3, 6, 600, false, 1),
             ("namjestaj", 1, 3, 1400, false, 1),
         };
-        /// a firm job's cargo mass for the firm's main truck: the L4H1 van (PlayerTruck) takes ~1.1 t, so the loads are cut to
-        /// what fits (drinks 2.4 t → 1.05 t, furniture 1.4 t → 0.9 t … the same three pallet rows); the old box truck: as listed
+        /// Scale the whole tour to the driven van before acceptance; switching invalidates the offers cache.
         float FirmKg(float kg)
         {
-            var tc = Atego != null && Atego.tc ? Atego.tc : Truck;
+            var tc = Truck;
             float cap = tc && tc.spec.payloadKg > 0 ? tc.spec.payloadKg : 0;
             return cap > 0 && kg > cap * 0.6f ? Mathf.Round(Mathf.Lerp(cap * 0.6f, cap * 0.95f, Mathf.InverseLerp(cap * 0.6f, 2400, kg)) / 10) * 10 : kg;
         }

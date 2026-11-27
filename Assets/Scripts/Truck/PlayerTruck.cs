@@ -1,14 +1,4 @@
-// The firm's main truck (vehicle id "atego": saves, fuel, parking poses and the fleet keep that id). Since 27. 11. it is the
-// L4H1 isothermal box van (Resources/Vehicles/KombiL4H1/kombi-l4h1.glb, BalkanDriver assets-src/kombi-l4h1: izvjestaj.md),
-// a 3.5 t-class van with a 2.3 l diesel and a 6-speed box, ~1.1 t payload, three rows of two euro pallets in the box, rear
-// swing doors (FirmUnload doors mode, no tail lift).
-// The scene's "Truck" still holds the old 7.5 t box truck model; TruckController.Awake calls Prepare before anything reads the
-// model: the old model is replaced by the van (its pallet rows are reused as the van's load), the spec swapped.
-//   -kamion atego   keep the old box truck (also env MAGISTRALA_KAMION=atego; editor: CliArgs SessionState)
-// Van model frame (glTFast): +Z forward, +X right, origin on the ground. Box inside: floor y 0.818, roof 2.83, walls |x| 1.07,
-// z −3.44 (rear doors) … 0.76 (bulkhead). Wheels r 0.365, wheelbase 4.09 m, track 1.81 m. LOD1 / LOD2 (39k / 9k) in a
-// LODGroup; their wheel meshes ride on the LOD0 wheel spin nodes, every other LOD node is renamed l1_ / l2_ (the rigs bind
-// by node name).
+// Four player vans share the L4H1 node contract. Legacy ids are migrated by the fleet.
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,20 +6,54 @@ public static class PlayerTruck
 {
     public const string Resource = "Vehicles/KombiL4H1/kombi-l4h1";
 
-    /// the old box truck instead of the van (-kamion atego)
-    public static bool UseAtego
+    public const string SprinterResource = "Vehicles/SprinterFirma/sprinter";
+    public const string SmallResource = "Vehicles/MaliKombi/mali-kombi";
+    public const string GalebResource = "Vehicles/GalebL3H2/galeb";
+    public static bool Modern(string model) => model == "l4h1" || model == "sprinter" || model == "mali" || model == "galebl3h2";
+
+    // Shared diesel response and node rig; dimensions and load limits belong to each model.
+    public static TruckController.Spec FleetSpec(string model)
     {
-        get
+        var s = VanSpec(); s.model = model; s.boxes = null;
+        s.cargoAboveAxle = .55f; s.comAboveAxle = .48f;
+        if (model == "sprinter")
         {
-            string k = Magistrala.CliArgs.Arg("-kamion") ?? System.Environment.GetEnvironmentVariable("MAGISTRALA_KAMION");
-            return k != null && k.ToLowerInvariant() == "atego";
+            s.id = "sprinter"; s.mass = 2100; s.radius = .365f; s.payloadKg = 1300;
+            s.torqueNm = 330; s.dragArea = 2.5f; s.comFront = .52f;
+            s.boxes = Shell(1.0f, .40f, 2.70f, -3.45f, 1.0f, 3.47f, 1.45f);
         }
+        else if (model == "mali")
+        {
+            s.id = "mali"; s.mass = 1400; s.radius = .329f; s.payloadKg = 700;
+            s.torqueNm = 250; s.finalDrive = 3.65f; s.topKmh = 150; s.dragArea = 1.65f;
+            s.ratios = new[] { 3.77f, 2.05f, 1.32f, .98f, .76f, .62f };
+            s.comAboveAxle = .32f; s.comFront = .56f; s.cargoAboveAxle = .4f;
+            s.antiRollFront = 4300; s.antiRollRear = 3300;
+            s.boxes = Shell(.92f, .32f, 1.85f, -2.18f, .45f, 2.19f, 1.05f);
+        }
+        else if (model == "galebl3h2")
+        {
+            s.id = "galeb"; s.mass = 2000; s.radius = .365f; s.payloadKg = 1400;
+            s.torqueNm = 285; s.topKmh = 130; s.dragArea = 2.4f; s.comFront = .53f;
+            s.turboRise = .65f; s.shiftTime = .48f; s.brakeEmpty = 6.5f; s.brakeLoaded = 5.3f;
+            s.antiRollFront = 5800; s.antiRollRear = 4500;
+            s.boxes = Shell(1.02f, .38f, 2.50f, -3.01f, .75f, 3.02f, 1.38f);
+        }
+        s.cargoRefKg = s.payloadKg;
+        return s;
     }
+
+    static TruckController.BodyBox[] Shell(float halfWidth, float floor, float roof, float rear, float cab, float nose, float bonnet)
+        => new[] {
+            new TruckController.BodyBox { name = "TruckCargoCollider", min = new Vector3(-halfWidth, floor, rear), max = new Vector3(halfWidth, roof, cab) },
+            new TruckController.BodyBox { name = "TruckCabCollider", min = new Vector3(-halfWidth, floor, cab), max = new Vector3(halfWidth, roof * .85f, nose - .75f) },
+            new TruckController.BodyBox { name = "TruckNoseCollider", min = new Vector3(-halfWidth, floor, nose - .75f), max = new Vector3(halfWidth, bonnet, nose) },
+        };
 
     /// the van's physics: 2450 kg empty, 3.5 t GVW (~1.1 t payload), 2.3 l diesel 350 Nm, 6 gears, rear-wheel drive
     public static TruckController.Spec VanSpec() => new TruckController.Spec
     {
-        id = "atego", model = "l4h1", mass = 2450, radius = 0.365f, finalDrive = 4.25f, torqueNm = 350, topKmh = 140, reverseKmh = 18,
+        id = "furgon", model = "l4h1", mass = 2450, radius = 0.365f, finalDrive = 4.25f, torqueNm = 350, topKmh = 140, reverseKmh = 18,
         idle = 800, redline = 4200, rpmScale = 1f, shiftTime = 0.35f,
         travel = 0.22f, sag = 0.10f, sagLoaded = 0.14f, springTarget = 0.3f, damping = 0.5f,
         // ~110 kW / 150 PS peak; 350 Nm plateau, six-speed diesel gearing (2001 rpm at 90).
@@ -38,7 +62,7 @@ public static class PlayerTruck
         upLoad = 2900, upCruise = 2000, downLoad = 1400, downCruise = 1050, downLimit = 2600,
         turboRise = .35f, rotatingInertia = .00045f, pedalExponent = .35f, boostGain = 1.3f,
         ratios = new[] { 4f, 2.24f, 1.44f, 1.06f, .85f, .72f }, reverseRatio = 4.1f, dragArea = 3.1f, steerRate = 1.8f, maxSteer = 0.68f,
-        wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.55f, comFront = 0.5f, cargoAboveAxle = 1.0f, cargoRefKg = 1050, payloadKg = 1050,
+        wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.55f, comFront = 0.5f, cargoAboveAxle = 1.0f, cargoRefKg = 1100, payloadKg = 1100,
         brakeEmpty = 7.0f, brakeLoaded = 6.0f, engineBrake = 0.25f, antiRollFront = 7000, antiRollRear = 6000, eyeNode = "a_eye",
         boxes = new[]
         {
@@ -49,21 +73,27 @@ public static class PlayerTruck
         },
     };
 
-    /// TruckController.Awake of the scene truck (spec still the default "atego" box truck): put the van in
+    /// TruckController.Awake of the scene root: replace the serialized legacy visual before setup.
     public static void Prepare(TruckController tc)
     {
-        if (tc.spec == null || tc.spec.id != "atego" || tc.spec.model != "atego" || UseAtego) return;
+        if (tc.spec == null || tc.spec.id != "furgon" || tc.spec.model != "l4h1") return;
         var src = Resources.Load<GameObject>(Resource);
-        if (!src) { Debug.LogWarning($"[kamion] Resources/{Resource}.glb missing: the old box truck stays"); return; }
+        if (!src)
+        {
+            var legacy = tc.model ? tc.model : tc.transform.Find("Model");
+            if (legacy) { legacy.gameObject.SetActive(false); Object.Destroy(legacy.gameObject); }
+            tc.spec = VanSpec(); tc.enabled = false;
+            throw new System.InvalidOperationException("Missing required player van: " + Resource);
+        }
         var old = tc.model ? tc.model : tc.transform.Find("Model");
         Transform oldLoad = null;
         if (old) foreach (var t in old.GetComponentsInChildren<Transform>(true)) if (t.name == "load_pallets") { oldLoad = t; break; }
         var m = Object.Instantiate(src, tc.transform, false); m.name = "Model"; m.layer = tc.gameObject.layer;
-        AddLods(m.transform);
+        AddLods(m.transform, Resource);
         int rows = AddPallets(m.transform, oldLoad);
         if (old) { old.SetParent(null, false); old.gameObject.SetActive(false); Object.Destroy(old.gameObject); }
         tc.model = m.transform; tc.modelYawDegrees = 0; tc.spec = VanSpec();
-        Debug.Log($"[kamion] L4H1 izotermni sanduk ({rows} reda paleta); -kamion atego = stari kamion");
+        Debug.Log($"[kamion] Furgon L4H1 ({rows} reda paleta)");
     }
 
     static Transform Find(Transform root, string name)
@@ -73,14 +103,13 @@ public static class PlayerTruck
     }
 
     /// LOD1 / LOD2 of the van in a LODGroup on the model
-    static void AddLods(Transform model)
+    public static void AddLods(Transform model, string resource)
     {
         var r0 = new List<Renderer>(model.GetComponentsInChildren<Renderer>(true));
-        var lods = new List<LOD> { };
         var lists = new List<Renderer>[2];
         for (int L = 1; L <= 2; L++)
         {
-            var src = Resources.Load<GameObject>(Resource + "_lod" + L);
+            var src = Resources.Load<GameObject>(resource + "_lod" + L);
             if (!src) return;
             var inst = Object.Instantiate(src, model, false); inst.name = "lod" + L;
             var list = new List<Renderer>();
@@ -90,6 +119,16 @@ public static class PlayerTruck
                 if (!wm || !spin) continue;
                 wm.SetParent(spin, false); wm.name = $"l{L}_wheelmesh_{i}";
                 list.AddRange(wm.GetComponentsInChildren<Renderer>(true));
+            }
+            // Cab and door rigs in every LOD follow the animated LOD0 pivot. Same authored local frame.
+            foreach (string name in new[] { "steering", "needle_speed", "needle_rpm", "door_L", "door_R", "door_slide_R", "door_rear_L", "door_rear_R", "wiper_L", "wiper_R" })
+            {
+                var part = Find(inst.transform, name); var pivot = Find(model, name);
+                if (!part || !pivot || pivot == part) continue;
+                // Preserve the source pivot offset before nesting under its identical LOD0 pivot.
+                part.SetParent(pivot, true);
+                foreach (var r in part.GetComponentsInChildren<Renderer>(true)) list.Add(r);
+                foreach (var t in part.GetComponentsInChildren<Transform>(true)) t.name = $"l{L}_" + t.name;
             }
             foreach (var t in inst.GetComponentsInChildren<Transform>(true))
             {

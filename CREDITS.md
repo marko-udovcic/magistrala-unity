@@ -175,3 +175,9 @@ od dvojne licence), isaiah658 (ambient birds), Thimras (park ambiences), qubodup
 Rieder (zvona Schruns), Nostrifikator (zvono), Tvabutzku1234 (vjetar), earthcalling (more), DavidDelon (cvrčci), cori (kiša,
 grad), stephan (kafana), ezwa (jutro), Extemporalist (prolaz auta). Ostalo (žmigavac, pištalica, truba Galeba, dvotonac rezerva,
 roletna, rampa): vlastita sinteza, CC0.
+
+## Nova igračeva flota (27. 11. 2026.)
+
+- "Van Sprinter" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: uklonjeni znakovi proizvođača, novi materijali, livreja firme, tablice, instrumenti, ručica mjenjača, razdvojeni kotači/vrata/volan, smanjene gume i sitni dijelovi, LOD-ovi).
+- "Commercial van" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: novi materijali, livreja firme, tablice, instrumenti, razdvojeni kotači/vrata/volan, planarno spajanje i smanjenje gustih dijelova, LOD-ovi).
+- "L3H2 truck" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: nova boja i materijali, natpis GALEB TRANSPORT, slojevi istrošenosti, tablice, instrumenti, ručica mjenjača, razdvojeni kotači/vrata/volan, LOD-ovi).

@@ -237,7 +237,7 @@ namespace Magistrala.Game
             return j;
         }
         /// the firm's main truck in the instrumental ("Ategom" / "furgonom", PlayerTruck)
-        string AtegoIns => Atego != null && Atego.label == "Furgon" ? "furgonom" : "Ategom";
+        string FurgonIns => "furgonom";
         public static float FirmPay(float km) => Mathf.Round((10 + 3 * Mathf.Max(0, km)) * 2) / 2; // driverPay.ts firmBasePay
 
         void Accept(int k, bool force = false)
@@ -249,7 +249,7 @@ namespace Magistrala.Game
             if (!force && !atWarehouse) { Banner("Ture se preuzimaju u skladištu u Lukšiću."); return; }
             if (!force && Truck.SpeedKmh > 3) { Banner("Stani u skladištu pa biraj turu."); return; }
             if (!force && !ToursOpen) { Banner(FirmHours ? "Zdravko još nije dao ture." : "Firma radi radnim danom 6–17 h."); return; }
-            if (!force && !InFirm) { Banner(NearOther && Other != null && Other.firm ? $"Ture firme voziš vozilom firme. E – uzmi {Other.acc}." : $"Ture firme voziš {AtegoIns} ili kombijem firme, ne Galebom."); return; }
+            if (!force && !InFirm) { Banner(NearOther && Other != null && Other.firm ? $"Ture firme voziš vozilom firme. E – uzmi {Other.acc}." : $"Ture firme voziš {FurgonIns} ili kombijem firme, ne Galebom."); return; }
             j.startMin = S.clockMin; j.deadlineMin = TourDeadline(j);
             Current = j; State = Phase.Loading; phaseT = force ? 0.1f : 3f; loadingKind = 'a';
             if (j.loaded) { Truck.SetCargo(j.kg); SetPallets(true); } // four euro pallets of drinks ≈ 2.4 t
@@ -361,7 +361,7 @@ namespace Magistrala.Game
             switch (State)
             {
                 case Phase.Free:
-                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? $"Ture firme voziš {AtegoIns} ili kombijem" : null; HomeEndDay(kb, help, ringing); break; }
+                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? $"Ture firme voziš {FurgonIns} ili kombijem" : null; HomeEndDay(kb, help, ringing); break; }
                     if (atWarehouse)
                     {
                         if (ToursOpen)

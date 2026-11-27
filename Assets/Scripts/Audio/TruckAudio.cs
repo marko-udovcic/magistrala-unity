@@ -24,14 +24,6 @@ namespace Magistrala.Audio
             public string shift, handbrake, horn, start, stop, doorOpen, doorClose; public bool airBrakes, beeper;
             public AudioClip[] on, off; public AudioClip cShift, cHand, cHorn, cStart, cStop, cDoorOpen, cDoorClose;
         }
-        static readonly Set Atego = new Set
-        {
-            veh = "atego", rpm = new[] { 600f, 1200f, 1800f, 2400f }, tag = new[] { "idle", "1200", "1800", "2400" },
-            engine = new Vector3(0, 0.9f, 2.4f), rear = new Vector3(0, 1.5f, -4.3f),
-            shift = "motor/gear_shift_atego", handbrake = "motor/handbrake_atego", horn = "motor/horn_truck_loop",
-            start = "motor/atego_start", stop = "motor/atego_stop", doorOpen = "motor/door_atego_open", doorClose = "motor/door_atego_close",
-            airBrakes = true, beeper = true,
-        };
         static readonly Set Galeb = new Set
         {
             veh = "galeb", rpm = new[] { 750f, 1800f, 2800f, 3800f }, tag = new[] { "idle", "1800", "2800", "3800" },
@@ -56,7 +48,7 @@ namespace Magistrala.Audio
         {
             I = this;
             A = MagistralaAudio.I;
-            foreach (var s in new[] { Atego, Galeb })
+            foreach (var s in new[] { Galeb })
             {
                 s.on = new AudioClip[4]; s.off = new AudioClip[4];
                 for (int i = 0; i < 4; i++) { s.on[i] = A.Clip($"motor/{s.veh}_engine_{s.tag[i]}_on"); s.off[i] = A.Clip($"motor/{s.veh}_engine_{s.tag[i]}_off"); }
@@ -123,7 +115,7 @@ namespace Magistrala.Audio
             }
             tc = d;
             if (!tc) return;
-            set = tc.spec.model == "atego" ? Atego : Galeb; // (the Kombi and the L4H1 van: the same van diesel as the Galeb)
+            set = Galeb; // Shared van diesel; no legacy truck sound set is loaded.
             for (int i = 0; i < 4; i++) { on[i].clip = set.on[i]; off[i].clip = set.off[i]; }
             horn.clip = set.cHorn;
             tc.Hit += OnHit;

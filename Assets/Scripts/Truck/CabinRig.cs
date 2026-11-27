@@ -1,9 +1,8 @@
-// Cab interior animation for the driven vehicles (Atego / Galeb): the steering wheel turns with the front wheels and the
+// Cab interior animation for the driven vans: the steering wheel turns with the front wheels and the
 // speed / rpm needles follow the truck:
 //   steering     node "steering", spins about its local Z (along the column), ±540° at full lock
 //   needle_*     nodes "needle_speed" / "needle_rpm", local Z (normal of the dial), modelled at 0; the 260° sweep clockwise
-//                from the driver is +260° about local Z in Unity's mirrored-X frame (cab interiors v3 (Atego wheel flattened; needle pivots unchanged):
-//                BalkanDriver/assets-src/vehicles/kabina-v3/README.md)
+//                from the driver is +260° about local Z in Unity's mirrored-X frame.
 // Added by TruckController once the model is found; nodes it does not find are simply skipped.
 using UnityEngine;
 
@@ -40,7 +39,7 @@ public sealed class CabinRig : MonoBehaviour
     {
         // Use the existing glTF emissive texture: only the markings glow, the cluster stays dark.
         // VehicleLook leaves these interior materials intact. Cache instances once, never query materials in LateUpdate.
-        if (!tc || tc.spec.model != "l4h1") return;
+        if (!tc || !PlayerTruck.Modern(tc.spec.model)) return;
         preset = FindFirstObjectByType<Magistrala.LightPreset>();
         foreach (var r in tc.model.GetComponentsInChildren<Renderer>(true))
             foreach (var m in r.materials)

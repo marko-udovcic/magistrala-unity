@@ -51,10 +51,10 @@ namespace Magistrala.Game
         public bool wpOn; public float wpX, wpZ;
         /// story phase 3 (MagistralaGame.Vehicles.cs / Faturete.cs): the driven vehicle ("atego" / "galeb" / "kombi"), its exact
         /// pose, every parked one's pose (parks; park* = the single parked pose of older saves), the Galeb's and the Kombi's diesel %
-        public string vehicle = "atego";
+        public string vehicle = "furgon";
         public bool posOn, parkOn; public float posX, posY, posZ, posYaw, parkX, parkY, parkZ, parkYaw;
         public List<ParkPose> parks = new List<ParkPose>();
-        public float fuelG = 64, fuelK = 80;
+        public float fuelG = 64, fuelK = 80, fuelM = 80;
         /// faturete: today's offers and their haggling state, accepted ones waiting their turn, when each job may come again
         /// ("id:day"), the customers' opinion of Mate (0..1, hidden), invoices for Ljubica ("day|hh:mm|customer|€")
         public List<MagistralaGame.FatOffer> fatOffers = new List<MagistralaGame.FatOffer>();
@@ -137,7 +137,10 @@ namespace Magistrala.Game
             else if (s != null && s.id != Warehouse) PlaceAtStop(s);
             if (S.job != null && S.job.legs != null && S.job.legs.Count > 0 && S.job.leg < S.job.legs.Count && S.job.legs.TrueForAll(l => World.Stop(l.stop) != null))
             {
-                var j = Clone(S.job); j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
+                var j = Clone(S.job);
+                j.kg = Mathf.Min(j.kg, j.fatureta ? 1400 : Truck.spec.payloadKg); // migrate old fleet loads
+                AdaptFaturetaLoad(j);
+                j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
                 if (j.fatureta && j.loaded && !InGaleb) { Debug.LogWarning("[save] loaded fatureta but not in the Galeb: dropped"); S.job = null; return; }
                 Current = j; State = Phase.Driving;
                 SetPallets(j.loaded); if (j.loaded && Unload) Unload.SetDelivered(j.rowsOff);
@@ -153,7 +156,7 @@ namespace Magistrala.Game
                 {
                     j.startMin = S.jobStartMin; j.nightMin = S.jobNightMin; j.cargoDamage = S.jobCargoDamage; j.truckDamage = S.jobTruckDamage;
                     j.deadlineMin = Deadline(j.km);
-                    Current = j; State = Phase.Driving; Truck.SetCargo(2400); SetPallets(true);
+                    Current = j; State = Phase.Driving; Truck.SetCargo(j.kg); SetPallets(true);
                     Banner($"Tura se nastavlja: {j.label}");
                 }
             }
@@ -347,7 +350,7 @@ namespace Magistrala.Game
             bool sat = d % 7 == 5;
             S.clockMin = d * 1440 + (sat ? 7 * 60 + 59 : 5 * 60 + 59);
             DropOffers("end of day");
-            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. {Atego?.label ?? "Atego"} čeka u Lukšiću.");
+            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. {Furgon?.label ?? "Furgon"} čeka u Lukšiću.");
             Debug.Log($"[day] end of day → {DayLabel}");
             SaveNow("end of day");
         }

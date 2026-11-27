@@ -1,5 +1,5 @@
 // Command-line switches of the built player (-savefile, -kamion, -jobfresh …). In the editor the same switches can be given
-// for play mode through SessionState "Magistrala.args" (space separated, e.g. "-savefile /tmp/x.json -kamion atego"), set from
+// for play mode through SessionState "Magistrala.args" (space separated, e.g. "-savefile /tmp/x.json -vozilo sprinter"), set from
 // an editor script before entering play mode: editor tests never touch the real save in persistentDataPath.
 using System;
 using System.Collections.Generic;

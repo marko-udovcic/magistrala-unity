@@ -41,9 +41,9 @@ public sealed class TruckController : MonoBehaviour
     /// Set before the GameObject is activated (Awake builds the wheels from it).
     public sealed class Spec
     {
-        public string id = "atego";
-        /// the model / cab rig family ("atego" the old 7.5 t box truck, "l4h1" the van that replaced it under the same id, "galeb", "kombi")
-        public string model = "atego";
+        public string id = "furgon";
+        /// Shared modern van node contract: l4h1 / sprinter / mali / galebl3h2.
+        public string model = "l4h1";
         /// the most cargo the vehicle takes (kg, SetCargo clamps; 0 = no limit); the front wheels' full lock (rad)
         public float payloadKg = 0f, maxSteer = 0.72f;
         /// the driver's eye: a model node (e.g. "a_eye") instead of eyeModel, if the model has it
@@ -72,7 +72,7 @@ public sealed class TruckController : MonoBehaviour
         public float antiRollFront = -1f, antiRollRear = -1f;
     }
     public struct BodyBox { public string name; public Vector3 min, max; }
-    [System.NonSerialized] public Spec spec = new Spec();
+    [System.NonSerialized] public Spec spec = PlayerTruck.VanSpec();
     public string VehicleId => spec.id;
     public TurnSignals Signals { get; internal set; }
     public int Indicator => Signals ? Signals.Direction : 0; // traffic convention: -1 left, +1 right
@@ -106,7 +106,7 @@ public sealed class TruckController : MonoBehaviour
         body.sleepThreshold = 0f; // WheelCollider torque does not wake a sleeping body
         body.solverVelocityIterations = 6;
         body.isKinematic = false; // (WheelColliders created on a kinematic body never simulated: rpm 0, no ground force)
-        PlayerTruck.Prepare(this); // the scene truck: the L4H1 van instead of the old box truck (unless -kamion atego)
+        PlayerTruck.Prepare(this); // the scene truck: the L4H1 van instead of the old box truck
         body.mass = Mass;
         Setup();
     }
@@ -136,10 +136,7 @@ public sealed class TruckController : MonoBehaviour
             foreach (var t in model.GetComponentsInChildren<Transform>(true)) if (t.name == spec.eyeNode) { CabinEyeLocal = transform.InverseTransformPoint(t.position); break; }
         // cab interior: steering wheel and instrument needles (nodes steering / needle_speed / needle_rpm, if the model has them)
         var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
-        // the Galeb's old-van dial (kabina v3 round 2): one speedo 10…140 km/h over 270°, no tachometer
-        if (spec.id == "galeb") { rig.speedMin = 10f; rig.speedMax = 140f; rig.speedSweepDeg = 270f; }
-        // the firm's Kombi (kabina-v3 kombi-firma, the round 1 modern cluster): 0…180 km/h and 0…50 ×100 r/min, both over 260°
-        if (spec.id == "kombi" || spec.model == "l4h1") { rig.speedMin = 0f; rig.speedMax = 180f; rig.speedSweepDeg = 260f; rig.rpmMax = 5000f; rig.sweepDeg = 260f; }
+        if (PlayerTruck.Modern(spec.model)) { rig.speedMin = 0f; rig.speedMax = 180f; rig.speedSweepDeg = 260f; rig.rpmMax = 5000f; rig.sweepDeg = 260f; }
         rig.Bind(this, model);
         // side mirrors that show the road behind in the cab view (nodes mglass_L / mglass_R)
         (GetComponent<MirrorCams>() ?? gameObject.AddComponent<MirrorCams>()).Bind(this, model);

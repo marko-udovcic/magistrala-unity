@@ -1,22 +1,4 @@
-// Three vehicles (story phase 3, Marko 24.11.: "firma ima atego i taj sprinter, galeb je u vlasništvu Mate"):
-//   Atego  the firm's 7.5 t box truck (the scene's "Truck"), firm tours, tail lift
-//   Kombi  the firm's big panel van (Resources/Vehicles/Kombi/kombi.glb, the brand-free long high-roof van), firm tours, pallets
-//          unloaded by hand (no tail lift)
-//   Galeb  Mate's own old TN-type van, GALEB TRANSPORT (Resources/Vehicles/Galeb/galeb.glb; the livery is in the GLB as
-//          "galeb_decal" — older models without it get the side band galeb_livery.mat), faturete only, up to 4 t payload
-// Galeb and Kombi are built at runtime with their own TruckController parameter sets (GalebSpec / KombiSpec).
-//   parked   the vehicle the player is not driving is "parked": its model is lifted out under a static GameObject with box colliders
-//            and the vehicle root (rigidbody, wheels, scripts) is deactivated — every system that looks for "the" TruckController
-//            (camera, HUD, traffic, lights, weather) finds only the driven one.
-//   switch   stopped within SwitchReach m of a parked vehicle, no cargo on board: "E – uzmi Galeba / Atego / kombi" (a short fade;
-//            the nearest parked one, the Galeb first while a fatureta waits). Firm tours need the Atego or the Kombi (taken at the
-//            warehouse), faturete the Galeb (GPS leads to it first).
-//   homes    a new game: Atego in the Lukšić warehouse bay, Kombi on a free spot beside it, Galeb in the Bašić yard (dvor_basica);
-//            later all stay where parked.
-//   save     SaveData.vehicle, the driven vehicle's exact pose (pos*), every parked one's (parks; the old single park* pose is
-//            still read), each vehicle's own diesel (fuel / fuelG / fuelK).
-// Test switches: -vozilo galeb  start in the Galeb (at the yard, unless the save puts it elsewhere)   -zamjena  after 4 s the
-//   driven vehicle is put 9 m beside the parked one and they are swapped (as E does)
+// Furgon, Sprinter firme, mali kombi i očev Galeb L3H2. Park/save ids migrate once at startup.
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -29,7 +11,7 @@ namespace Magistrala.Game
         public const float SwitchReach = 22f;
         public class Vehicle
         {
-            public string id, label, acc; // "atego" / "galeb" / "kombi", "Atego" / "Galeb" / "Kombi", the accusative ("Galeba")
+            public string id, label, acc; // stable id, display label, accusative
             public bool firm; // firm tours may be driven with it
             public string home; public string hello; // home stop, the banner when taken
             public TruckController tc; public Transform model; public Vector3 modelPos; public Quaternion modelRot;
@@ -37,15 +19,16 @@ namespace Magistrala.Game
             public bool IsParked => parked != null;
             public Vector3 At => parked ? parked.transform.position : tc ? tc.transform.position : Vector3.zero;
         }
-        public Vehicle Atego { get; private set; }
+        public Vehicle Furgon { get; private set; }
         public Vehicle Galeb { get; private set; }
         public Vehicle Kombi { get; private set; }
+        public Vehicle Mali { get; private set; }
         readonly List<Vehicle> fleet = new List<Vehicle>();
         public Vehicle Driven
         {
-            get { for (int i = 0; i < fleet.Count; i++) if (Truck && fleet[i].tc == Truck) return fleet[i]; return Atego; }
+            get { for (int i = 0; i < fleet.Count; i++) if (Truck && fleet[i].tc == Truck) return fleet[i]; return Furgon; }
         }
-        /// the parked vehicle E takes: the Galeb while a fatureta waits to be loaded (and it is close), else the nearest parked one
+        /// E always selects the nearest parked vehicle
         /// within SwitchReach (else the nearest parked one at all; null = none)
         public Vehicle Other
         {
@@ -53,8 +36,6 @@ namespace Magistrala.Game
             {
                 if (fleet.Count < 2) return null;
                 Vector3 c = Truck ? Flat(TruckCentre()) : Vector3.zero;
-                if (Galeb != null && Galeb.IsParked && Current != null && Current.fatureta && !Current.loaded
-                    && Vector3.Distance(c, Flat(Galeb.At)) < SwitchReach) return Galeb;
                 Vehicle best = null; float bd = float.PositiveInfinity;
                 var d = Driven;
                 foreach (var v in fleet)
@@ -67,60 +48,42 @@ namespace Magistrala.Game
             }
         }
         public bool InGaleb => Galeb != null && Truck == Galeb.tc;
-        /// driving a firm vehicle (Atego or Kombi): firm tours allowed
+        /// Firm vehicles: Furgon, Sprinter and small van.
         public bool InFirm => Driven.firm;
         /// where the parked Galeb stands (the GPS leads there with a fatureta waiting), null = driven / none
         public Vector3? GalebAt => Galeb != null && Galeb.IsParked ? Galeb.parked.transform.position : (Vector3?)null;
         float fade; bool switching;
 
-        /// the Galeb's physics (TruckController.Spec): Mate's old TN-type panel van, up to 4 t payload, ~2.4 l diesel, 5 gears
-        public static TruckController.Spec GalebSpec() => new TruckController.Spec
-        {
-            id = "galeb", model = "galeb", mass = 2300, radius = 0.405f, finalDrive = 4.0f, torqueNm = 330, topKmh = 135, reverseKmh = 18,
-            idle = 750, redline = 4200, rpmScale = 1.7f, shiftTime = 0.45f,
-            travel = 0.22f, sag = 0.10f, sagLoaded = 0.135f, springTarget = 0.3f, damping = 0.5f,
-            ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 1.9f, steerRate = 1.9f,
-            wheelMassFront = 25, wheelMassRear = 30, comAboveAxle = 0.45f, comFront = 0.56f, cargoAboveAxle = 0.55f, cargoRefKg = 4000,
-            brakeEmpty = 6.5f, brakeLoaded = 4.8f, engineBrake = 0.25f, cabFloor = 0.45f, boxFloor = 0.4f,
-            eyeModel = new Vector3(-0.42f, 1.04f, 1.02f), antiRollFront = 5200, antiRollRear = 3800, // galeb-tn.glb (kabina-v3)
-        };
+        public static TruckController.Spec GalebSpec() => PlayerTruck.FleetSpec("galebl3h2");
+        public static TruckController.Spec KombiSpec() => PlayerTruck.FleetSpec("sprinter");
+        static string VehicleId(string id) => id == "atego" ? "furgon" : id == "kombi" ? "sprinter" : id;
 
-        /// the firm's van: a long high-roof 3.5 t-class panel van, heavier and slower to stop than the Galeb, ~2.5 t payload
-        public static TruckController.Spec KombiSpec() => new TruckController.Spec
-        {
-            id = "kombi", model = "kombi", mass = 2600, radius = 0.367f, finalDrive = 4.2f, torqueNm = 360, topKmh = 140, reverseKmh = 18,
-            idle = 750, redline = 4200, rpmScale = 1.7f, shiftTime = 0.45f,
-            travel = 0.22f, sag = 0.10f, sagLoaded = 0.14f, springTarget = 0.3f, damping = 0.52f,
-            ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 2.4f, steerRate = 1.8f,
-            wheelMassFront = 26, wheelMassRear = 32, comAboveAxle = 0.5f, comFront = 0.52f, cargoAboveAxle = 0.6f, cargoRefKg = 2500,
-            brakeEmpty = 6.3f, brakeLoaded = 4.9f, engineBrake = 0.25f, cabFloor = 0.45f, boxFloor = 0.4f,
-            eyeModel = new Vector3(-0.42f, 0.72f, 0.58f), antiRollFront = 5600, antiRollRear = 4400, // kombi-firma.glb (kabina-v3)
-        };
-
-        // ------------------------------------------------------------------ setup (MagistralaGame.Start)
         void SetupVehicles()
         {
             fleet.Clear();
-            // (id "atego" for the saves; since 27. 11. the firm's main truck is the L4H1 box van, PlayerTruck.cs)
-            bool van = Truck.spec.model == "l4h1";
-            Atego = new Vehicle { id = "atego", label = van ? "Furgon" : "Atego", acc = van ? "furgon" : "Atego", firm = true, home = Warehouse, tc = Truck,
-                hello = van ? "Furgon firme, izotermni sanduk. Ture se uzimaju u skladištu." : "Atego firme. Ture se uzimaju u skladištu." };
-            Atego.unload = Unload; Atego.pallets = pallets;
-            fleet.Add(Atego);
-            var tc = MakeVehicle("Vehicles/Galeb/galeb", "Galeb", GalebSpec());
+            Furgon = new Vehicle { id = "furgon", label = "Furgon", acc = "furgon", firm = true, home = Warehouse, tc = Truck,
+                hello = "Furgon firme. Nosivost 1100 kg. Ture se uzimaju u skladištu.", unload = Unload, pallets = pallets };
+            fleet.Add(Furgon);
+            var tc = MakeVehicle(PlayerTruck.GalebResource, "Galeb", GalebSpec());
             if (tc)
             {
                 Galeb = new Vehicle { id = "galeb", label = "Galeb", acc = "Galeba", home = Yard, tc = tc,
-                    hello = Truck.spec.model == "l4h1" ? "Galeb. Ćaćin kamion. Pazi, koči kasnije nego furgon." : "Galeb. Ćaćin kamion. Pazi, koči kasnije nego Atego." };
-                if (!HasNode(tc.transform, "galeb_decal")) AddLivery(tc.transform.Find("Model"));
+                    hello = "Galeb. Ćaćin stari kombi. Do 1400 kg, pomalo uzbrdo." };
                 fleet.Add(Galeb);
             }
-            tc = MakeVehicle("Vehicles/Kombi/kombi", "Kombi", KombiSpec());
+            tc = MakeVehicle(PlayerTruck.SprinterResource, "Sprinter firme", KombiSpec());
             if (tc)
             {
-                Kombi = new Vehicle { id = "kombi", label = "Kombi", acc = "kombi", firm = true, home = Warehouse, tc = tc,
-                    hello = "Kombi firme. Ture se uzimaju u skladištu, paleta se istovaruje ručno." };
+                Kombi = new Vehicle { id = "sprinter", label = "Sprinter firme", acc = "Sprinter", firm = true, home = Warehouse, tc = tc,
+                    hello = "Sprinter firme. Nosivost 1300 kg, istovar ručno." };
                 fleet.Add(Kombi);
+            }
+            tc = MakeVehicle(PlayerTruck.SmallResource, "Mali kombi", PlayerTruck.FleetSpec("mali"));
+            if (tc)
+            {
+                Mali = new Vehicle { id = "mali", label = "Mali kombi", acc = "mali kombi", firm = true, home = Warehouse, tc = tc,
+                    hello = "Mali kombi firme. Nosivost 700 kg, za manje dostave." };
+                fleet.Add(Mali);
             }
         }
 
@@ -131,6 +94,7 @@ namespace Magistrala.Game
             var root = new GameObject(name); root.SetActive(false);
             root.layer = Truck.gameObject.layer;
             var m = Instantiate(src, root.transform, false); m.name = "Model";
+            PlayerTruck.AddLods(m.transform, resource);
             root.AddComponent<Rigidbody>();
             var tc = root.AddComponent<TruckController>(); tc.spec = spec; tc.modelYawDegrees = 0;
             var ap = root.AddComponent<Autopilot>(); ap.path = new[] { Vector3.zero, Vector3.forward * 10 };
@@ -139,51 +103,21 @@ namespace Magistrala.Game
             return tc;
         }
 
-        static bool HasNode(Transform t, string name)
-        {
-            foreach (var c in t.GetComponentsInChildren<Transform>(true)) if (c.name == name) return true;
-            return false;
-        }
-
-        /// the GALEB TRANSPORT band on both sides of the cargo area (model frame of galeb.glb: +Z forward, sides at |x| 0.948 between
-        /// y −0.33 and −0.03, measured from the body mesh; the rear wheel arch tops out at y −0.4, the sliding-door rail runs at y 0.07)
-        static void AddLivery(Transform model)
-        {
-            var mat = Resources.Load<Material>("Vehicles/Galeb/galeb_livery");
-            if (!mat) { Debug.LogWarning("[vozila] galeb_livery material missing"); return; }
-            const float h = 0.33f, w = h * 2048f / 384f, x = 0.951f, y = -0.19f, z = -0.58f;
-            foreach (float s in new[] { -1f, 1f })
-            {
-                var q = new GameObject(s < 0 ? "livery_L" : "livery_R");
-                q.transform.SetParent(model, false);
-                q.transform.localPosition = new Vector3(s * x, y, z);
-                // the quad faces outwards; the text reads left to right seen from that side
-                q.transform.localRotation = Quaternion.LookRotation(new Vector3(-s, 0, 0), Vector3.up);
-                var mesh = new Mesh { name = "livery" };
-                mesh.vertices = new[] { new Vector3(-w / 2, -h / 2, 0), new Vector3(w / 2, -h / 2, 0), new Vector3(-w / 2, h / 2, 0), new Vector3(w / 2, h / 2, 0) };
-                mesh.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
-                mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
-                mesh.RecalculateNormals(); mesh.RecalculateBounds(); mesh.RecalculateTangents();
-                q.AddComponent<MeshFilter>().sharedMesh = mesh;
-                var r = q.AddComponent<MeshRenderer>(); r.sharedMaterial = mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            }
-        }
-
         /// at start (after LoadSave, before RestoreFromSave): the driven vehicle as saved (or -vozilo), the others at their saved
         /// poses, else their homes; all settle on their wheels for a moment, then the others are frozen as parked models
         void ChooseVehicle(bool placed)
         {
             if (fleet.Count < 2) return;
-            string want = Arg("-vozilo") ?? S.vehicle;
-            var drive = fleet.Find(v => v.id == want) ?? Atego;
-            foreach (var v in fleet) if (v != Atego) v.tc.gameObject.SetActive(true); // Awake: wheels and colliders from the spec
-            if (drive != Atego)
+            string want = VehicleId(Arg("-vozilo") ?? S.vehicle);
+            var drive = fleet.Find(v => v.id == want) ?? Furgon;
+            foreach (var v in fleet) if (v != Furgon) v.tc.gameObject.SetActive(true); // Awake: wheels and colliders from the spec
+            if (drive != Furgon)
             {
                 Truck = drive.tc; OnDrivenChanged();
                 if (!(placed && S.posOn) && World.Stop(drive.home) is GStop h) PlaceAtStop(h); // (RestoreFromSave puts it at its saved pose)
             }
             bool fromSave = placed && Arg("-vozilo") == null;
-            // the vehicle at its home stop first, the second one at the same stop (Kombi beside the Atego) then finds a free spot
+            // the vehicle at its home stop first, the second one at the same stop (Kombi beside the Furgon) then finds a free spot
             var homeTaken = new HashSet<string> { drive.home };
             foreach (var v in fleet)
             {
@@ -197,13 +131,13 @@ namespace Magistrala.Game
             StartCoroutine(ParkOtherLater());
         }
 
-        /// the saved pose of a parked vehicle: SaveData.parks, else (an older save) the single park* pose of the Atego / Galeb pair
+        /// the saved pose of a parked vehicle: SaveData.parks, else (an older save) the single park* pose of the Furgon / Galeb pair
         bool SavedPark(Vehicle v, out Vector3 pos, out float yaw)
         {
-            foreach (var p in S.parks) if (p.id == v.id) { pos = new Vector3(p.x, p.y, p.z); yaw = p.yaw; return true; }
+            foreach (var p in S.parks) if (VehicleId(p.id) == v.id) { pos = new Vector3(p.x, p.y, p.z); yaw = p.yaw; return true; }
             pos = default; yaw = 0;
             if (S.parks.Count > 0 || !S.parkOn) return false;
-            string legacyOther = S.vehicle == "galeb" ? "atego" : "galeb";
+            string legacyOther = VehicleId(S.vehicle) == "galeb" ? "furgon" : "galeb";
             if (v.id != legacyOther) return false;
             pos = new Vector3(S.parkX, S.parkY, S.parkZ); yaw = S.parkYaw; return true;
         }
@@ -237,7 +171,7 @@ namespace Magistrala.Game
         }
 
         /// put any vehicle's root so its (bounds) centre stands on p facing fwd (as Place does for the driven one)
-        /// beside: the bay is taken (the Kombi at the warehouse next to the Atego): the first free spot beside / behind it
+        /// beside: the bay is taken (the Kombi at the warehouse next to the Furgon): the first free spot beside / behind it
         void PlaceAtStopFor(TruckController tc, GStop s, bool beside = false)
         {
             if (s == null || !tc) return;
@@ -342,16 +276,17 @@ namespace Magistrala.Game
             fade = 0; switching = false;
         }
 
-        /// the driven vehicle changed: its box centre and length, pallets / tail lift (Atego only), the camera and the HUD
+        /// The driven vehicle changed: dimensions, offers, Furgon pallets, camera and HUD.
         void OnDrivenChanged()
         {
+            offers = null; // capacities and pallet rows change with the driven van
             centreLocal = CentreOf(Truck);
             var b = new Bounds(); bool any = false;
             foreach (var r in Truck.GetComponentsInChildren<Renderer>()) { if (!any) { b = r.bounds; any = true; } else b.Encapsulate(r.bounds); }
             if (any) truckLen = Mathf.Clamp(Vector3.Dot(b.size, Abs(Truck.transform.forward)), 5, 12);
-            bool atego = Truck == Atego.tc; // tail lift and the pallet rows: the Atego only (the Kombi: by hand)
-            Unload = atego ? Atego.unload : null;
-            pallets = atego ? Atego.pallets : null;
+            bool main = Truck == Furgon.tc; // Furgon pallet rows; panel vans unload by hand.
+            Unload = main ? Furgon.unload : null;
+            pallets = main ? Furgon.pallets : null;
         }
 
         static void SetCamTarget(TruckController tc)
