@@ -38,6 +38,8 @@ namespace Magistrala.EditorTools
             bool c = Cells; NoBake = true;
             try { string b = MacProfileStream(); Debug.Log("[probebuild] " + b); return a + " || " + b; } finally { NoBake = false; Cells = c; }
         }
+        /// both phase-3 players without a new bake (scripts only)
+        public static string MacStreamBothNoBake() { NoBake = true; try { return MacStreamBoth(); } finally { NoBake = false; } }
         /// scripts-only rebuild of Builds/mac-stream: the cell scenes / manifest of the last MacStream bake on disk are reused
         public static string MacStreamNoBake() { NoBake = true; try { var r = MacStream(); Debug.Log("[probebuild] " + r); return r; } finally { NoBake = false; } }
         /// the second build of MacStreamBoth: the bake of the first one is still on disk
