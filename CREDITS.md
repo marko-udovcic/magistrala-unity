@@ -104,6 +104,9 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   razdjelnom pojasu D8, more (shader „Water Sea Offset”), vjetar. Mapa paketa `Assets/NatureManufacture Assets` je u .gitignore
   i nije prisutna u ovom worktreeju; licenca paketa i dokaz kupnje ovdje nisu provjerljivi. Vidi `Tools/dijagnoza/licence.md`.
 
+## CGTrader (Royalty Free licenca, kupljeni paket)
+- **"L4H1 truck isothermal van"** iz paketa **"30 Big collection of commercial vehicles"** (CGTrader) — Royalty Free — **izmijenjeno**: novi materijali, livreja firme, tablice, instrumenti, ručica mjenjača, razdvojeni kotači / vrata / volan / brisači, otvoren stražnji zid sanduka, smanjeni okovi i gume, LOD-ovi. Igračev kamion firme (`Assets/Resources/Vehicles/KombiL4H1/`, izvor `BalkanDriver/assets-src/kombi-l4h1/`, dorada za Unity `Tools/kombi-l4h1/`).
+
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
 

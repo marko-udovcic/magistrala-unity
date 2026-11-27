@@ -347,7 +347,7 @@ namespace Magistrala.Game
             bool sat = d % 7 == 5;
             S.clockMin = d * 1440 + (sat ? 7 * 60 + 59 : 5 * 60 + 59);
             DropOffers("end of day");
-            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. Atego čeka u Lukšiću.");
+            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. {Atego?.label ?? "Atego"} čeka u Lukšiću.");
             Debug.Log($"[day] end of day → {DayLabel}");
             SaveNow("end of day");
         }

@@ -6,6 +6,10 @@
 // an abort brings back only that stop's rows.
 // Nodes of firm_truck.glb (atego.py): door_roll/door_roll_0..6, tail_lift (stowed: rotation.x −90°), load_pallets/load_pallets_0..n.
 // Model space = the GLB's (glTFast mirrors x; y and z as in the web, the box rear at +z).
+// Doors mode (the L4H1 box van that replaced the box truck, PlayerTruck.cs): no tail lift, two rear swing doors door_rear_L /
+// door_rear_R (pivots on the outer hinges) open to DoorOpenDeg against the box sides, then each row is pulled out behind the box
+// at floor height, lowered to the ground (the customer's forklift / the pallet truck off the step) and pushed back; the box rear
+// is at −z there (model +Z forward).
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -21,6 +25,10 @@ namespace Magistrala.Game
         struct Panel { public Transform t; public float y0; }
         readonly List<Panel> panels = new List<Panel>();
         Transform lift; Vector3 liftP0;
+        // doors mode: the swing doors, their closed rotations, the model, the push direction (+1 the box truck's +z rear, −1 the van)
+        const float DoorOpenDeg = 250f;
+        Transform doorL, doorR, model; Quaternion doorL0, doorR0; float back = 1f, liftDrop = LiftDrop;
+        public bool Doors => doorL != null;
         Transform[] rows = new Transform[0];
         float[] rowZ, rowBottom;
         float plateZ, plateTop;
@@ -29,7 +37,7 @@ namespace Magistrala.Game
         /// sequence time (s), −1 idle; while closing after an abort the pose eases back to stowed
         public float T { get; private set; } = -1;
         public bool Running => T >= 0;
-        public bool Ok => lift != null && panels.Count > 0;
+        public bool Ok => (lift != null && panels.Count > 0) || (doorL != null && rows.Length > 0);
         public float Duration => TDoor + TFold + (seq ?? AllRows()).Length * TRow + TFold + TDoor;
         public int RowsOff { get; private set; }
         public int Rows => rows.Length;
@@ -46,10 +54,30 @@ namespace Magistrala.Game
         {
             Transform liftT = null;
             foreach (var t in truck.GetComponentsInChildren<Transform>(true)) if (t.name == "tail_lift") { liftT = t; break; }
-            if (!liftT) return null;
+            if (!liftT)
+            {
+                Transform dl = null;
+                foreach (var t in truck.GetComponentsInChildren<Transform>(true)) if (t.name == "door_rear_L") { dl = t; break; }
+                if (!dl || !dl.parent.Find("door_rear_R")) return null;
+                var v = dl.parent.gameObject.GetComponent<FirmUnload>() ?? dl.parent.gameObject.AddComponent<FirmUnload>();
+                v.InitDoors(dl.parent);
+                return v;
+            }
             var u = liftT.parent.gameObject.GetComponent<FirmUnload>() ?? liftT.parent.gameObject.AddComponent<FirmUnload>();
             u.Init(liftT);
             return u;
+        }
+
+        void InitDoors(Transform m)
+        {
+            model = m; back = -1f;
+            doorL = m.Find("door_rear_L"); doorR = m.Find("door_rear_R"); doorL0 = doorL.localRotation; doorR0 = doorR.localRotation;
+            FindRows(m);
+            // the rows' bottom is the box floor: out behind the doors at that height, then down to the ground (model y 0)
+            var db = ModelBounds(model, doorL);
+            float rearZ = db.size == Vector3.zero ? doorL.localPosition.z : db.min.z;
+            plateZ = rearZ - 0.7f; plateTop = rows.Length > 0 ? rowBottom[0] : 0.82f; liftDrop = Mathf.Max(0.1f, plateTop - 0.02f);
+            Apply();
         }
 
         void Init(Transform liftT)
@@ -59,6 +87,15 @@ namespace Magistrala.Game
             var door = model.Find("door_roll");
             panels.Clear();
             if (door) foreach (Transform c in door) if (c.name.StartsWith("door_roll_")) panels.Add(new Panel { t = c, y0 = c.localPosition.y });
+            FindRows(model);
+            var plate = lift.Find("tail_lift_plate");
+            Vector3 po = plate ? plate.localPosition : new Vector3(0, -0.025f, 0.675f);
+            plateZ = liftP0.z + po.z; plateTop = liftP0.y + po.y + 0.03f;
+            Apply();
+        }
+
+        void FindRows(Transform model)
+        {
             var load = model.Find("load_pallets");
             var rl = new List<Transform>();
             if (load) foreach (Transform c in load) if (c.name.StartsWith("load_pallets_")) rl.Add(c);
@@ -71,10 +108,6 @@ namespace Magistrala.Game
                 var b = ModelBounds(model, rows[i]);
                 rowZ[i] = b.center.z; rowBottom[i] = b.size == Vector3.zero ? 0.13f : b.min.y;
             }
-            var plate = lift.Find("tail_lift_plate");
-            Vector3 po = plate ? plate.localPosition : new Vector3(0, -0.025f, 0.675f);
-            plateZ = liftP0.z + po.z; plateTop = liftP0.y + po.y + 0.03f;
-            Apply();
         }
 
         /// bounds of a node's meshes in the model frame (mesh bounds: also for inactive rows)
@@ -148,14 +181,14 @@ namespace Magistrala.Game
             for (int q = 0; q < sq.Length; q++)
             {
                 int k = sq[q]; float s = RowStart(q);
-                float dk = LiftDrop * Ramp(t, s + TPull, s + TPull + TDown) * (1 - Ramp(t, s + TPull + TDown + TPush, s + TRow));
+                float dk = liftDrop * Ramp(t, s + TPull, s + TPull + TDown) * (1 - Ramp(t, s + TPull + TDown + TPush, s + TRow));
                 drop += dk;
                 var row = rows[k];
                 if (!row.gameObject.activeSelf) continue;
                 if (t < s) { row.localPosition = Vector3.zero; continue; }
                 // onto the platform (and down to its top at the end of the pull), down with the lift, pushed off behind the truck
-                float dz = Ramp(t, s, s + TPull) * (plateZ - rowZ[k]) + Ramp(t, s + TPull + TDown, s + TPull + TDown + TPush) * (PushBack + q * 1.35f); // rows in a line behind the truck
-                float dy = Ramp(t, s + TPull * 0.6f, s + TPull) * (plateTop - rowBottom[k]) - LiftDrop * Ramp(t, s + TPull, s + TPull + TDown);
+                float dz = Ramp(t, s, s + TPull) * (plateZ - rowZ[k]) + back * Ramp(t, s + TPull + TDown, s + TPull + TDown + TPush) * (PushBack + q * 1.35f); // rows in a line behind the truck
+                float dy = Ramp(t, s + TPull * 0.6f, s + TPull) * (plateTop - rowBottom[k]) - liftDrop * Ramp(t, s + TPull, s + TPull + TDown);
                 row.localPosition = new Vector3(0, dy, dz);
                 if (t >= s + TPull + TDown + TPush) Drop(k);
             }
@@ -173,7 +206,7 @@ namespace Magistrala.Game
             // settle on whatever is below (yard, road), ignoring the truck
             // rowBottom is already in the model frame; load_pallets has a -0.93 m
             // offset. Applying its transform again left delivered pallets floating 0.93 m.
-            Vector3 c = row.position; float bottomWorld = lift.parent.TransformPoint(new Vector3(0, rowBottom[k] + row.localPosition.y, 0)).y;
+            Vector3 c = row.position; float bottomWorld = (lift ? lift.parent : model).TransformPoint(new Vector3(0, rowBottom[k] + row.localPosition.y, 0)).y;
             var hits = Physics.RaycastAll(new Vector3(c.x, bottomWorld + 1.5f, c.z), Vector3.down, 4, ~0, QueryTriggerInteraction.Ignore);
             System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
             foreach (var h in hits)
@@ -185,6 +218,14 @@ namespace Magistrala.Game
 
         void Apply()
         {
+            if (doorL)
+            {
+                // the doors swing out round their outer hinges (left door: +y, right door: −y in the van's frame), easing in
+                float a = DoorOpenDeg * door;
+                doorL.localRotation = Quaternion.AngleAxis(a, Vector3.up) * doorL0;
+                doorR.localRotation = Quaternion.AngleAxis(-a, Vector3.up) * doorR0;
+                return;
+            }
             float s = door * RollTravel;
             foreach (var p in panels)
             {

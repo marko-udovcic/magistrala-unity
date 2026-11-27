@@ -107,7 +107,7 @@ public sealed class WindscreenFx : MonoBehaviour
             Quaternion rest = left.parent ? left.parent.rotation * left0 : left0;
             mat.SetVector(WiperRight, rest * Vector3.left); mat.SetVector(WiperUp, rest * Vector3.up);
         }
-        mat.SetVector(Forward, model.TransformDirection(tc.spec.id == "atego" ? Vector3.back : Vector3.forward));
+        mat.SetVector(Forward, model.TransformDirection(tc.spec.model == "atego" ? Vector3.back : Vector3.forward));
     }
 
     void ShowOwnGlass(bool show)

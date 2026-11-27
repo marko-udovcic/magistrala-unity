@@ -16,18 +16,21 @@ namespace Magistrala.Game
         public const float GalebTank = 75, GalebPer100Empty = 10, GalebPer100Full = 14;
         /// the firm's Kombi: 90 l tank, 11 l/100 km empty → 15 with 3 t (SaveData.fuelK)
         public const float KombiTank = 90, KombiPer100Empty = 11, KombiPer100Full = 15;
-        string FuelId => Truck ? Truck.VehicleId : "atego";
+        /// the firm's L4H1 box van (PlayerTruck, id "atego"): 90 l tank, 11.5 l/100 km empty → 14.5 with 1.1 t (its own payload)
+        public const float VanTank = 90, VanPer100Empty = 11.5f, VanPer100Full = 14.5f;
+        string FuelId => Truck ? (Truck.VehicleId == "atego" && Truck.spec.model == "l4h1" ? "van" : Truck.VehicleId) : "atego";
         public float FuelPct => FuelId == "galeb" ? S.fuelG : FuelId == "kombi" ? S.fuelK : S.fuel;
-        float Tank => FuelId == "galeb" ? GalebTank : FuelId == "kombi" ? KombiTank : TankLitres;
+        float Tank => FuelId == "galeb" ? GalebTank : FuelId == "kombi" ? KombiTank : FuelId == "van" ? VanTank : TankLitres;
         public float FuelLitres => FuelPct * Tank / 100f;
         /// l/100 km at the current load
         public float Consumption
         {
             get
             {
-                float k = Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / FullLoadKg);
+                float k = Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / (FuelId == "van" ? Truck.spec.payloadKg : FullLoadKg));
                 return FuelId == "galeb" ? Mathf.Lerp(GalebPer100Empty, GalebPer100Full, k)
                     : FuelId == "kombi" ? Mathf.Lerp(KombiPer100Empty, KombiPer100Full, k)
+                    : FuelId == "van" ? Mathf.Lerp(VanPer100Empty, VanPer100Full, k)
                     : Mathf.Lerp(LitresPer100Empty, LitresPer100Full, k);
             }
         }

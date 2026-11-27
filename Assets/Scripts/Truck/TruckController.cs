@@ -42,6 +42,14 @@ public sealed class TruckController : MonoBehaviour
     public sealed class Spec
     {
         public string id = "atego";
+        /// the model / cab rig family ("atego" the old 7.5 t box truck, "l4h1" the van that replaced it under the same id, "galeb", "kombi")
+        public string model = "atego";
+        /// the most cargo the vehicle takes (kg, SetCargo clamps; 0 = no limit); the front wheels' full lock (rad)
+        public float payloadKg = 0f, maxSteer = 0.72f;
+        /// the driver's eye: a model node (e.g. "a_eye") instead of eyeModel, if the model has it
+        public string eyeNode;
+        /// explicit body colliders in the root frame (instead of the generic split of the renderer bounds)
+        public BodyBox[] boxes;
         // truckPhysics.ts firm_truck: 6300 kg already agrees with the real empty box + tail-lift mass.
         public float mass = 6300f, radius = 0.46f, finalDrive = 4.4f, torqueNm = 800f, topKmh = 95f, reverseKmh = 14f;
         public float idle = 600f, redline = 2450f, shiftTime = 0.6f, rpmScale = 1f; // rpmScale: the shift points / torque curve (built for a 2450 rpm diesel) scaled
@@ -59,6 +67,7 @@ public sealed class TruckController : MonoBehaviour
         /// anti-roll bars (N per unit of travel difference); < 0 keeps the component's own (the scene's Atego: 18000 / 14000)
         public float antiRollFront = -1f, antiRollRear = -1f;
     }
+    public struct BodyBox { public string name; public Vector3 min, max; }
     [System.NonSerialized] public Spec spec = new Spec();
     public string VehicleId => spec.id;
     float Mass => spec.mass; float Radius => spec.radius; float FinalDrive => spec.finalDrive;
@@ -90,6 +99,8 @@ public sealed class TruckController : MonoBehaviour
         body.sleepThreshold = 0f; // WheelCollider torque does not wake a sleeping body
         body.solverVelocityIterations = 6;
         body.isKinematic = false; // (WheelColliders created on a kinematic body never simulated: rpm 0, no ground force)
+        PlayerTruck.Prepare(this); // the scene truck: the L4H1 van instead of the old box truck (unless -kamion atego)
+        body.mass = Mass;
         Setup();
     }
 
@@ -114,12 +125,14 @@ public sealed class TruckController : MonoBehaviour
         model.localRotation = Quaternion.AngleAxis(modelYawDegrees, Vector3.up) * model.localRotation;
         // glTFast mirrors X. Before yaw: eye (+.55, 1.40, -2.05); after 180 yaw it is the left seat.
         CabinEyeLocal = transform.InverseTransformPoint(model.TransformPoint(spec.eyeModel));
+        if (!string.IsNullOrEmpty(spec.eyeNode))
+            foreach (var t in model.GetComponentsInChildren<Transform>(true)) if (t.name == spec.eyeNode) { CabinEyeLocal = transform.InverseTransformPoint(t.position); break; }
         // cab interior: steering wheel and instrument needles (nodes steering / needle_speed / needle_rpm, if the model has them)
         var rig = GetComponent<CabinRig>() ?? gameObject.AddComponent<CabinRig>();
         // the Galeb's old-van dial (kabina v3 round 2): one speedo 10…140 km/h over 270°, no tachometer
         if (spec.id == "galeb") { rig.speedMin = 10f; rig.speedMax = 140f; rig.speedSweepDeg = 270f; }
         // the firm's Kombi (kabina-v3 kombi-firma, the round 1 modern cluster): 0…180 km/h and 0…50 ×100 r/min, both over 260°
-        if (spec.id == "kombi") { rig.speedMin = 0f; rig.speedMax = 180f; rig.speedSweepDeg = 260f; rig.rpmMax = 5000f; rig.sweepDeg = 260f; }
+        if (spec.id == "kombi" || spec.model == "l4h1") { rig.speedMin = 0f; rig.speedMax = 180f; rig.speedSweepDeg = 260f; rig.rpmMax = 5000f; rig.sweepDeg = 260f; }
         rig.Bind(this, model);
         // side mirrors that show the road behind in the cab view (nodes mglass_L / mglass_R)
         (GetComponent<MirrorCams>() ?? gameObject.AddComponent<MirrorCams>()).Bind(this, model);
@@ -171,7 +184,8 @@ public sealed class TruckController : MonoBehaviour
         body.centerOfMass = new Vector3(0, axleY + spec.comAboveAxle, Mathf.Lerp(rear, front, spec.comFront)); // ≈ 1.05 m above ground like the web spec (comEmpty y .12 on a 0.98 m body origin)
         comEmpty = body.centerOfMass; axleYc = axleY;
         float frontShare = Mathf.Clamp((body.centerOfMass.z - rear) / wheelbase, 0.3f, 0.7f);
-        CreateBodyColliders(renderers, axleY - Radius);
+        if (spec.boxes != null && spec.boxes.Length > 0) CreateSpecColliders();
+        else CreateBodyColliders(renderers, axleY - Radius);
         for (int i = 0; i < 4; i++)
         {
             var child = new GameObject("TruckWheelCollider_" + i);
@@ -278,6 +292,19 @@ public sealed class TruckController : MonoBehaviour
         AddBox("TruckCargoCollider", box, ground + Mathf.Min(0.85f, spec.boxFloor));
         cargoCentre = box.center;
         AddBox("TruckChassisCollider", chassis, ground + 0.4f);
+    }
+
+    void CreateSpecColliders()
+    {
+        foreach (Collider c in GetComponentsInChildren<Collider>(true))
+            if (c.attachedRigidbody == body && !c.isTrigger) c.enabled = false;
+        cargoCentre = Vector3.zero;
+        foreach (var b in spec.boxes)
+        {
+            var bounds = new Bounds(); bounds.SetMinMax(b.min, b.max);
+            AddBox(b.name, bounds, float.NegativeInfinity);
+            if (b.name == "TruckCargoCollider") cargoCentre = bounds.center;
+        }
     }
 
     static void Include(ref Bounds bounds, ref bool hasBounds, Bounds value)
@@ -396,7 +423,8 @@ public sealed class TruckController : MonoBehaviour
         brakePressure = Mathf.Lerp(brakePressure, brake, Mathf.Min(1, dt / 0.25f));
         float engineBrake = gas < 0.05f && kmh > 3 && shiftTimer <= 0 ? Mass * spec.engineBrake * Mathf.Min(1, EngineRpm / Redline) * 1.4f * Radius / 2f : 0;
         float v2 = speed * speed;
-        float limit = v2 < 0.0001f || benchFullLock ? 0.72f : Mathf.Min(0.72f, Mathf.Atan(wheelbase * (4f + 1.5f / (1f + v2 / 36f)) / v2));
+        float lockRad = spec.maxSteer;
+        float limit = v2 < 0.0001f || benchFullLock ? lockRad : Mathf.Min(lockRad, Mathf.Atan(wheelbase * (4f + 1.5f / (1f + v2 / 36f)) / v2));
         steerAngle = Mathf.MoveTowards(steerAngle, steerInput * limit, spec.steerRate * dt);
         for (int i = 0; i < 4; i++)
         {
@@ -464,6 +492,7 @@ public sealed class TruckController : MonoBehaviour
     {
         if (!ready) Setup();
         CargoKg = Mathf.Max(0, kg);
+        if (spec.payloadKg > 0) CargoKg = Mathf.Min(CargoKg, spec.payloadKg);
         body.mass = Mass + CargoKg;
         // payload on the box floor, its centre ~0.55 m above the floor
         Vector3 cc = new Vector3(0, axleYc + spec.cargoAboveAxle, cargoCentre.z);

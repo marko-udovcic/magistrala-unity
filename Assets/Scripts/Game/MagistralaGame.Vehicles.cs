@@ -76,7 +76,7 @@ namespace Magistrala.Game
         /// the Galeb's physics (TruckController.Spec): Mate's old TN-type panel van, up to 4 t payload, ~2.4 l diesel, 5 gears
         public static TruckController.Spec GalebSpec() => new TruckController.Spec
         {
-            id = "galeb", mass = 2300, radius = 0.405f, finalDrive = 4.0f, torqueNm = 330, topKmh = 135, reverseKmh = 18,
+            id = "galeb", model = "galeb", mass = 2300, radius = 0.405f, finalDrive = 4.0f, torqueNm = 330, topKmh = 135, reverseKmh = 18,
             idle = 750, redline = 4200, rpmScale = 1.7f, shiftTime = 0.45f,
             travel = 0.22f, sag = 0.10f, sagLoaded = 0.135f, springTarget = 0.3f, damping = 0.5f,
             ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 1.9f, steerRate = 1.9f,
@@ -88,7 +88,7 @@ namespace Magistrala.Game
         /// the firm's van: a long high-roof 3.5 t-class panel van, heavier and slower to stop than the Galeb, ~2.5 t payload
         public static TruckController.Spec KombiSpec() => new TruckController.Spec
         {
-            id = "kombi", mass = 2600, radius = 0.367f, finalDrive = 4.2f, torqueNm = 360, topKmh = 140, reverseKmh = 18,
+            id = "kombi", model = "kombi", mass = 2600, radius = 0.367f, finalDrive = 4.2f, torqueNm = 360, topKmh = 140, reverseKmh = 18,
             idle = 750, redline = 4200, rpmScale = 1.7f, shiftTime = 0.45f,
             travel = 0.22f, sag = 0.10f, sagLoaded = 0.14f, springTarget = 0.3f, damping = 0.52f,
             ratios = new[] { 4.6f, 2.6f, 1.6f, 1.1f, 0.84f, 0.67f }, reverseRatio = 4.2f, dragArea = 2.4f, steerRate = 1.8f,
@@ -101,15 +101,17 @@ namespace Magistrala.Game
         void SetupVehicles()
         {
             fleet.Clear();
-            Atego = new Vehicle { id = "atego", label = "Atego", acc = "Atego", firm = true, home = Warehouse, tc = Truck,
-                hello = "Atego firme. Ture se uzimaju u skladištu." };
+            // (id "atego" for the saves; since 27. 11. the firm's main truck is the L4H1 box van, PlayerTruck.cs)
+            bool van = Truck.spec.model == "l4h1";
+            Atego = new Vehicle { id = "atego", label = van ? "Furgon" : "Atego", acc = van ? "furgon" : "Atego", firm = true, home = Warehouse, tc = Truck,
+                hello = van ? "Furgon firme, izotermni sanduk. Ture se uzimaju u skladištu." : "Atego firme. Ture se uzimaju u skladištu." };
             Atego.unload = Unload; Atego.pallets = pallets;
             fleet.Add(Atego);
             var tc = MakeVehicle("Vehicles/Galeb/galeb", "Galeb", GalebSpec());
             if (tc)
             {
                 Galeb = new Vehicle { id = "galeb", label = "Galeb", acc = "Galeba", home = Yard, tc = tc,
-                    hello = "Galeb. Ćaćin kamion. Pazi, koči kasnije nego Atego." };
+                    hello = Truck.spec.model == "l4h1" ? "Galeb. Ćaćin kamion. Pazi, koči kasnije nego furgon." : "Galeb. Ćaćin kamion. Pazi, koči kasnije nego Atego." };
                 if (!HasNode(tc.transform, "galeb_decal")) AddLivery(tc.transform.Find("Model"));
                 fleet.Add(Galeb);
             }

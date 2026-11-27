@@ -22,7 +22,7 @@ namespace Magistrala
         void Start()
         {
             truck = GetComponent<TruckController>(); preset = FindFirstObjectByType<LightPreset>();
-            VehicleLook.Apply(transform, truck && truck.spec != null ? truck.spec.id : "atego"); // paint, glass, lamp submeshes (before the lenses are collected)
+            VehicleLook.Apply(transform, truck && truck.spec != null ? truck.spec.model : "atego"); // paint, glass, lamp submeshes (before the lenses are collected)
             Renderer head = null; Bounds headB = default; bool headSub = false;
             foreach (var r in GetComponentsInChildren<Renderer>(true))
             {

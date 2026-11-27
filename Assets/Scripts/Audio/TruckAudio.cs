@@ -123,7 +123,7 @@ namespace Magistrala.Audio
             }
             tc = d;
             if (!tc) return;
-            set = tc.VehicleId == "atego" ? Atego : Galeb; // (the Kombi: the same van diesel as the Galeb)
+            set = tc.spec.model == "atego" ? Atego : Galeb; // (the Kombi and the L4H1 van: the same van diesel as the Galeb)
             for (int i = 0; i < 4; i++) { on[i].clip = set.on[i]; off[i].clip = set.off[i]; }
             horn.clip = set.cHorn;
             tc.Hit += OnHit;

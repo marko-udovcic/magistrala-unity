@@ -28,7 +28,7 @@ namespace Magistrala
             // Mate's old TN van: the paint has lost its gloss (chalky white, a thin worn coat)
             "galeb" => new Profile { paintRough = .55f, coat = .35f, coatRough = .32f, boxCoat = .3f, glassA = .22f, glassTint = new Color(.55f, .6f, .6f) },
             // the firm's van: a clean modern white with a deep coat
-            "kombi" => new Profile { paintRough = .32f, coat = 1f, coatRough = .04f, boxCoat = .6f, glassA = .3f, glassTint = new Color(.32f, .36f, .38f) },
+            "kombi" or "l4h1" => new Profile { paintRough = .32f, coat = 1f, coatRough = .04f, boxCoat = .6f, glassA = .3f, glassTint = new Color(.32f, .36f, .38f) },
             // Atego: clean cab, the box panels a plainer gloss
             _ => new Profile { paintRough = .28f, coat = 1f, coatRough = .05f, boxCoat = .55f, glassA = .28f, glassTint = new Color(.35f, .4f, .42f) },
         };
@@ -58,6 +58,7 @@ namespace Magistrala
                 {
                     var m = mats[i]; if (!m) continue;
                     string n = m.name.Replace(" (Instance)", "");
+                    if (id == "l4h1") n = L4H1(m, n);
                     if (n.StartsWith("i_") || n.StartsWith("v2_") || n.StartsWith("v3_") || n.StartsWith("M_") || n.StartsWith("cargo") || n.StartsWith("pallet")) continue; // the cab interior / load
                     switch (n)
                     {
@@ -94,6 +95,29 @@ namespace Magistrala
             if (id == "kombi") nLamp += AddTailLamps(root, lampTemplate);
             ContactShadow(root);
             Debug.Log($"[vozlook] {id}: lak {nPaint}, stakla {nGlass}, metal {nMetal}, plastika {nPlastic}, svjetla {nLamp}");
+        }
+
+        /// the L4H1 van's materials (BalkanDriver assets-src/kombi-l4h1 k2_build.py) → the shared look classes; its lamp materials
+        /// are renamed to TruckLights' L_* (Lights_Front head, Lights_Brake tail / brake, Lights_Reverse, Lights_Indicator L_blink)
+        static string L4H1(Material m, string n)
+        {
+            switch (n)
+            {
+                case "Lights_Front": m.name = "L_head"; return "L_head";
+                case "Lights_Brake": m.name = "L_brake"; return "L_brake";
+                case "Lights_Reverse": m.name = "L_reverse"; return "L_reverse";
+                case "Lights_Indicator": m.name = "L_blink"; return "L_blink";
+                case "Body_Paint": return "paint";
+                case "Box_White": return "box_panel";
+                case "Glass": return "glass";
+                case "Lamp_Lens": return "lens_clear";
+                case "Chrome": case "Lamp_Reflector": return "chrome";
+                case "Alu_Satin": case "Rim": case "Silver": return "alu";
+                case "Mirror_Glass": return "mirror";
+                case "Black_Plastic": case "Chassis_Black": return "black_plastic";
+                case "Tyre": return "tyre";
+                default: return "i_" + n; // interior, gauges, plates, livery: as modelled
+            }
         }
 
         static readonly string[] BlendState = { "_Surface", "_Blend", "_BlendModePreserveSpecular", "_SrcBlend", "_DstBlend", "_SrcBlendAlpha", "_DstBlendAlpha", "_ZWrite", "_AlphaClip" };
