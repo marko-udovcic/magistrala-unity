@@ -113,8 +113,11 @@ public sealed class TruckChaseCamera : MonoBehaviour
         if (!initialized) { yaw = heading; focusHeight = focus.y; }
         yaw = Mathf.LerpAngle(yaw, heading, Ease(2.2f + Mathf.Clamp01(target.SpeedKmh / 72f) * 1.3f, dt));
         focusHeight = Mathf.Lerp(focusHeight, focus.y, Ease(4f, dt));
-        float back = (9.6f + speedK * 1.2f) * zoom;
-        float height = 4.16f + speedK * 0.4f;
+        // Close chase sized to the driven vehicle (body boxes of its spec): a small van fills the frame like a big one, the
+        // camera just behind and a little above the roof (the old fixed 9.6 m / 4.16 m was the 8 m truck's, a car was tiny)
+        VehicleSize(out float len, out float roof);
+        float back = (len * 0.5f + 2.6f + speedK * 0.9f) * zoom;
+        float height = roof + 0.75f + speedK * 0.25f;
         float elevation = Mathf.Clamp(Mathf.Atan2(height, back) + orbitPitch * Mathf.Deg2Rad, -0.17f, 0.79f);
         float distance = Mathf.Sqrt(back * back + height * height);
         Vector3 offset = Quaternion.Euler(0, yaw + orbitYaw, 0) * new Vector3(0, Mathf.Sin(elevation) * distance, -Mathf.Cos(elevation) * distance);
@@ -124,7 +127,7 @@ public sealed class TruckChaseCamera : MonoBehaviour
         Vector3 position = initialized ? Vector3.Lerp(transform.position, desired, Ease(9f, dt)) : desired;
         // Clamp again after smoothing so a rising slope cannot swallow the camera.
         KeepAboveTerrain(ref position);
-        Vector3 ahead = focus + truck.forward * (7f + speedK * 8f) + Vector3.up * 0.2f;
+        Vector3 ahead = focus + truck.forward * (len * 0.5f + 3.5f + speedK * 6f) + Vector3.up * (roof * 0.55f);
         float orbitAmount = Mathf.Clamp01((Mathf.Abs(orbitYaw) + Mathf.Abs(orbitPitch)) * Mathf.Deg2Rad / 0.25f);
         ahead = Vector3.Lerp(ahead, focus + Vector3.up * 1.5f, orbitAmount);
         lookPoint = initialized ? Vector3.Lerp(lookPoint, ahead, Ease(6f, dt)) : ahead;
@@ -132,6 +135,24 @@ public sealed class TruckChaseCamera : MonoBehaviour
         transform.SetPositionAndRotation(position, direction.sqrMagnitude > 0.001f ? Quaternion.LookRotation(direction, Vector3.up) : transform.rotation);
         view.fieldOfView = 55f + speedK * 7f;
         initialized = true;
+    }
+
+    TruckController.Spec sizedSpec; float sizedLen = 8f, sizedRoof = 3.4f;
+    /// the driven vehicle's body length (along z) and roof height above its origin, from its spec's collider boxes
+    void VehicleSize(out float len, out float roof)
+    {
+        var s = target.spec;
+        if (s != sizedSpec)
+        {
+            sizedSpec = s;
+            if (s != null && s.boxes != null && s.boxes.Length > 0)
+            {
+                float zMin = float.MaxValue, zMax = float.MinValue, yMax = 0;
+                foreach (var b in s.boxes) { zMin = Mathf.Min(zMin, b.min.z); zMax = Mathf.Max(zMax, b.max.z); yMax = Mathf.Max(yMax, b.max.y); }
+                sizedLen = Mathf.Clamp(zMax - zMin, 3.5f, 12f); sizedRoof = Mathf.Clamp(yMax, 1.3f, 4f);
+            }
+        }
+        len = sizedLen; roof = sizedRoof;
     }
 
     void KeepAboveTerrain(ref Vector3 position)
