@@ -11,7 +11,8 @@ namespace Magistrala.Traffic
     {
         public Mesh mesh; public int sub; public Material mat; public Matrix4x4 local; public bool paint;
         /// lamps: 0 none, 1 tail (brake light), 2 left indicator, 3 right indicator, 4 headlight, 5 / 6 beacon A / B (alternating,
-        /// emergency kinds: TrafficSystem flashes them on some cars); matOn = the lit variant
+        /// emergency kinds: TrafficSystem flashes them on some cars), 7 destination display (city bus: mat = towards Split, matOn =
+        /// towards Trogir, by the corridor it drives); matOn = the lit variant
         public int lamp; public Material matOn;
         /// wheel: spun about its local x axis (origin = wheel centre) by the distance driven / radius
         public bool wheel; public float radius;
@@ -45,6 +46,11 @@ namespace Magistrala.Traffic
         /// arc length of the stop line on the corridor (m); signal plan index into TrafficData.plans, group name
         public float s; public int plan; public string group; public string model;
     }
+
+    /// a city bus stop on a corridor (TrafficBuilder.BusStops: Assets/Editor/stanice-mapillary.json, the D8 stops): arc length of the
+    /// stop (the pole / shelter) on corridor `corridor`
+    [Serializable]
+    public class TrafficBusStop { public int corridor; public float s; public string name; }
 
     [Serializable]
     public class TrafficCorridor
@@ -80,6 +86,9 @@ namespace Magistrala.Traffic
         public TrafficSideRoute[] sideRoutes;
         public TrafficKind[] kinds;
         public TrafficPlan[] plans;
+        /// city bus line 37 (TrafficSystem.Buses.cs): the bus kind (weight 0: never a random car), −1 none; its stops on the D8
+        public int busKind = -1;
+        public TrafficBusStop[] busStops;
         /// shared palette material of the far LOD meshes
         public Material farPalette;
     }

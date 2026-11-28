@@ -83,18 +83,25 @@ namespace Magistrala.EditorTools
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(matp); if (!mat) { mat = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(mat, matp); }
                 int n = full[p].subMeshCount, s0 = start[p];
                 var tex = BakeImpostor(full[p], Enumerable.Range(s0, n).Select(i => i < mats.Length ? mats[i] : null).ToArray(), m, $"{dir}/{IDS[p]}_imp.png");
-                mat.shader = Shader.Find("Universal Render Pipeline/Lit");
-                mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
-                mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .5f); mat.EnableKeyword("_ALPHATEST_ON");
-                mat.SetFloat("_Cull", 0); mat.doubleSidedGI = true; mat.SetFloat("_Smoothness", .05f); mat.SetFloat("_SpecularHighlights", 0); mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
-                mat.renderQueue = 2450; mat.enableInstancing = true;
-                // impostor: the crossed quads' normals bent to a sphere around the crown's middle (as the near mesh's leaves)
-                var b = m.bounds; Foliage(mat, null, -1); mat.SetFloat("_CrownY", b.center.y); mat.SetFloat("_CrownR", Mathf.Max(b.extents.x, b.extents.y)); mat.SetFloat("_Bend", .8f); mat.SetFloat("_Inner", .2f);
-                mat.SetColor("baseColorFactor", new Color(IMP_ALB, IMP_ALB, IMP_ALB, 1)); mat.SetFloat("_DirShade", IMP_SHADE); mat.SetFloat("_Grade", 0);
-                EditorUtility.SetDirty(mat); EditorUtility.SetDirty(m);
+                ImpostorMat(mat, tex, m);
+                EditorUtility.SetDirty(m);
                 meshes[p] = m; impMats[p] = mat;
             }
             AssetDatabase.SaveAssets();
+        }
+
+        /// the impostor material of a baked atlas `tex` on the crossed quads `m` (also ExtraTrees)
+        public static void ImpostorMat(Material mat, Texture2D tex, Mesh m)
+        {
+            mat.shader = Shader.Find("Universal Render Pipeline/Lit");
+            mat.SetTexture("_BaseMap", tex); mat.SetColor("_BaseColor", Color.white);
+            mat.SetFloat("_AlphaClip", 1); mat.SetFloat("_Cutoff", .5f); mat.EnableKeyword("_ALPHATEST_ON");
+            mat.SetFloat("_Cull", 0); mat.doubleSidedGI = true; mat.SetFloat("_Smoothness", .05f); mat.SetFloat("_SpecularHighlights", 0); mat.EnableKeyword("_SPECULARHIGHLIGHTS_OFF");
+            mat.renderQueue = 2450; mat.enableInstancing = true;
+            // impostor: the crossed quads' normals bent to a sphere around the crown's middle (as the near mesh's leaves)
+            var b = m.bounds; Foliage(mat, null, -1); mat.SetFloat("_CrownY", b.center.y); mat.SetFloat("_CrownR", Mathf.Max(b.extents.x, b.extents.y)); mat.SetFloat("_Bend", .8f); mat.SetFloat("_Inner", .2f);
+            mat.SetColor("baseColorFactor", new Color(IMP_ALB, IMP_ALB, IMP_ALB, 1)); mat.SetFloat("_DirShade", IMP_SHADE); mat.SetFloat("_Grade", 0);
+            EditorUtility.SetDirty(mat);
         }
 
         const int TILE = 512;
@@ -245,6 +252,14 @@ namespace Magistrala.EditorTools
                     mt.SetTexture("baseColorTexture", tex);
                 }
                 mt.SetColor("baseColorFactor", new Color(IMP_ALB, IMP_ALB, IMP_ALB, 1)); EditorUtility.SetDirty(mt); n++;
+            }
+            // the downloaded prototypes (ExtraTrees: palm, broadleaf street trees): their own quads, rebaked from their own materials
+            for (int p = IDS.Length; p < tr.meshes.Length && p < tr.impMeshes.Length; p++)
+            {
+                var me = tr.meshes[p]; if (!me || !tr.impMeshes[p] || !tr.impMaterials[p] || !ExtraTrees.DEFS.Any(d => me.name == d.id || me.name.StartsWith(d.id + "."))) continue;
+                int sn = me.subMeshCount, s0 = tr.materialStart[p];
+                var tex = BakeImpostor(me, Enumerable.Range(s0, sn).Select(i => i < tr.materials.Length ? tr.materials[i] : null).ToArray(), tr.impMeshes[p], $"{WorldBuilder.GEN}/Plants/{me.name.Split('.')[0]}_imp.png");
+                ImpostorMat(tr.impMaterials[p], tex, tr.impMeshes[p]); EditorUtility.SetDirty(tr.impMeshes[p]); n++;
             }
             AssetDatabase.SaveAssets();
             Debug.Log($"[stabla] impostors baked: {n}");

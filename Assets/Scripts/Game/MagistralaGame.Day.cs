@@ -90,7 +90,8 @@ namespace Magistrala.Game
         // ------------------------------------------------------------------ save
         void LoadSave()
         {
-            savePath = Arg("-savefile") ?? System.IO.Path.Combine(Application.persistentDataPath, "magistrala-save.json");
+            // (MAGISTRALA_SAVEFILE: editor play-mode tests set it in the editor process — never the real save)
+            savePath = Arg("-savefile") ?? System.Environment.GetEnvironmentVariable("MAGISTRALA_SAVEFILE") ?? System.IO.Path.Combine(Application.persistentDataPath, "magistrala-save.json");
             if (!save) { S = new SaveData(); return; }
             try
             {

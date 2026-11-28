@@ -2,7 +2,8 @@
 // Data: Assets/Editor/stanice-mapillary.json = BalkanDriver tools/world/mapillary/stanice-all.json (s8_stanice.py: OSM bus stops /
 // platforms (ODbL, OpenStreetMap contributors) checked against Mapillary map features and street photos (CC BY-SA 4.0, Mapillary
 // contributors)): per stop game x / z, the bus's heading (the stop on its right), shelter yes / no, nearby driveways.
-//   shelter   the Tripo model "stanica" (Assets/Models/Props/Tripo/stanica.glb + .json: 3.8 x 2.5 x 2.0 m, open side +Z) on the
+//   shelter   the Tripo model "stanica" (Assets/Models/Props/Tripo/stanica.glb + .json: 3.8 x 2.5 x 2.0 m, open side +Z; since 27. 11.
+//             its glass-sided version Assets/Models/Props/Stanice/stanica-staklo.glb, StanicaStaklo.cs) on the
 //             pavement / verge beside the lane, its open side to the road: the nearest carriageway (StreetsBuilder.Carriageways)
 //             running with the bus, the footprint 0.5–3.5 m beyond its edge, slid up to ±20 m along it until it is free
 //             (PropsBuilder.Free: ground, not the sea, not on any carriageway / model asphalt, not in a delivery bay, no building /
@@ -89,6 +90,8 @@ namespace Magistrala.EditorTools
             if (stops.Count == 0) return $"[stanice] nema {STANICE}";
             if (!TripoPropImporter.Prefab("stanica")) log.Add(TripoPropImporter.ImportAll("stanica").Trim());
             var pf = TripoPropImporter.Prefab("stanica");
+            // 27. 11.: the shelter with glass sides (StanicaStaklo), same footprint / placement, when its GLB is there
+            if (File.Exists(StanicaStaklo.GLB)) { log.Add(StanicaStaklo.Build()); var gp = StanicaStaklo.Prefab(); if (gp) pf = gp; }
             if (pf)
             {
                 var b = new Bounds(); bool first = true;

@@ -3656,6 +3656,138 @@
       "paintVMin": 0.5,
       "plateFrontY": 0.45,
       "plateRearY": 0.75
+    },
+    {
+      "kind": "bus37",
+      "glb": "Assets/Models/Vehicles/Traffic/bus37/autobus-37.glb",
+      "lod1Glb": "Assets/Models/Vehicles/Traffic/bus37/autobus-37_lod1.glb",
+      "lod2Glb": "Assets/Models/Vehicles/Traffic/bus37/autobus-37_lod2.glb",
+      "namedWheels": true,
+      "label": "Gradski autobus 37",
+      "source": "Mercedes-Benz Citaro 2 Turen O530 HQ interior - niev - https://sketchfab.com/3d-models/51dceb73d719491c9f83ea896a885a80 - CC BY 4.0 (izmijenjen: bez marke, nasa livreja PROMEX)",
+      "length": 12.0,
+      "up": "y",
+      "front": "+",
+      "parkFront": "+",
+      "glassNode": "glass|staklo|window",
+      "materials": [
+        {
+          "name": "Tyre",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Rim",
+          "role": "wheel",
+          "size": 1024
+        },
+        {
+          "name": "Body",
+          "role": "body",
+          "size": 2048
+        },
+        {
+          "name": "Glass",
+          "role": "glass"
+        },
+        {
+          "name": "Black",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Metal",
+          "role": "trim",
+          "size": 256,
+          "metal": 0.8,
+          "smooth": 0.6
+        },
+        {
+          "name": "Lights_Front",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Lights_Rear",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Lights_Indicator",
+          "role": "trim",
+          "size": 256
+        },
+        {
+          "name": "Interior_Dark",
+          "role": "interior",
+          "size": 256
+        },
+        {
+          "name": "Decals",
+          "role": "trim",
+          "size": 2048
+        },
+        {
+          "name": "Display_37",
+          "role": "display",
+          "tex": "Assets/Models/Vehicles/Traffic/bus37/display-37-trogir.png",
+          "texAlt": "Assets/Models/Vehicles/Traffic/bus37/display-37-split.png",
+          "emit": 3.0
+        },
+        {
+          "name": "Display_Side",
+          "role": "display",
+          "emit": 3.0
+        }
+      ],
+      "lamps": [
+        {
+          "type": "head",
+          "mat": "Lights_Front",
+          "color": "any",
+          "end": "front",
+          "depth": 0.6,
+          "facing": 0.2
+        },
+        {
+          "type": "tail",
+          "mat": "Lights_Rear",
+          "color": "any",
+          "end": "rear",
+          "depth": 0.6,
+          "facing": 0.2
+        },
+        {
+          "type": "ind",
+          "mat": "Lights_Indicator",
+          "color": "any",
+          "end": "any"
+        }
+      ],
+      "colors": [
+        "#ffffff"
+      ],
+      "colorWeights": [
+        1
+      ],
+      "noPaint": true,
+      "weight": 0,
+      "vMul": 0.85,
+      "a": 1.0,
+      "b": 2.5,
+      "T": 1.6,
+      "lod0": 0,
+      "lod1": 15000,
+      "lod2": 3000,
+      "far": 800,
+      "lodNear": 25,
+      "lodMid": 60,
+      "plateFront": false,
+      "plateRear": false,
+      "glassOpaque": false,
+      "grime": 0.3,
+      "glassAlpha": 0.8,
+      "interiorLod0": 0.6
     }
   ]
 }

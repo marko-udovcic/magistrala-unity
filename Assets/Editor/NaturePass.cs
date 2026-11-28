@@ -216,6 +216,7 @@ namespace Magistrala.EditorTools
             // the scene's (leaf-clipped) olive materials (VegetationMask)
             var olive = Load<Mesh>(WorldBuilder.GEN + "/Plants/olive.mesh.asset");
             if (olive && VegetationMask.On) extra.Add(new Proto { id = "crnika", mesh = olive, mats = null, draw = 1000, near = 45 });
+            ExtraTrees.Protos(extra);   // palm, the three broadleaf street trees (27. 11.)
         }
         /// the height (m, at scale 1) of a prototype: ours by index or an extra one by id
         public static float Height(string id) { int i = Index(id); return i < 0 ? 0 : HeightOf(i); }
@@ -232,7 +233,14 @@ namespace Magistrala.EditorTools
             if (r < .125f && tall.Count < ids.Count) return baseCount + ids.First(t => t.p.id.Contains("medium")).i;
             return baseCount + tall[Mathf.Min(tall.Count - 1, (int)((r - .125f) / .875f * tall.Count))].i;
         }
-        public static int Index(string id) { if (extra == null) return -1; int i = extra.FindIndex(p => p.id == id); return i < 0 ? -1 : baseCount + i; }
+        public static int Index(string id)
+        {
+            if (extra == null) return -1; int i = extra.FindIndex(p => p.id == id);
+            // 28. 11.: the old Tripo oleanders' ids name the new oleander shrubs (ExtraTrees oleander_b / c) when those are in
+            if (i < 0 && OleanderAlias.TryGetValue(id, out var a)) i = extra.FindIndex(p => p.id == a);
+            return i < 0 ? -1 : baseCount + i;
+        }
+        static readonly Dictionary<string, string> OleanderAlias = new Dictionary<string, string> { ["oleander-roza"] = "oleander_b", ["oleander-bijeli"] = "oleander_c" };
         public static int PineCount => extra?.Count(p => p.id.StartsWith("pine:")) ?? 0;
 
         /// a tile tree's prototype in the boxes: our pines (0 / 1) become the package's Aleppo-shaped pines

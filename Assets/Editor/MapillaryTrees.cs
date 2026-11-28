@@ -6,8 +6,10 @@
 //   * taken      conf ≥ MIN_CONF (seen in ≥ 1 segmented street photo); on the old road and the other streets (village streets,
 //                little segmented imagery; OrthoStreets) also the orthophoto-only crowns (conf 0.15–0.25) of 3–12 m that are not
 //                hedges; never a `patch` (scrub / grove
-//                along the D8, not one crown); no palms (no palm prototype; the classifier also takes lamps for palms)
-//   * species    other broadleaf → crnika (dark evergreen broadleaf), olive → olive, pine → the package's Aleppo-shaped pines,
+//                along the D8, not one crown); palms (27. 11., ExtraTrees "palma") at conf ≥ PALM_CONF (all are 0.3: the classifier
+//                is unsure of them) unless within 2.5 m of a Mapillary street light / pole (it also takes lamps for palms)
+//   * species    other broadleaf → the three broadleaf street trees (ExtraTrees lisnato_a / b / c by crown shape, else crnika),
+//                palm → palma (uniform scale, 4–12 m), olive → olive, pine → the package's Aleppo-shaped pines,
 //                cypress → cypress, oleander → oleander-roza, hedge → 1–5 dark bushes (grm-tamni) over the crown; scaled to the
 //                measured top height (else from the crown Ø)
 //   * skipped    a tree of ours (≥ 2.5 m tall) within crown radius + 2 m; on / near a street, footway or model asphalt (more off
@@ -32,7 +34,23 @@ namespace Magistrala.EditorTools
     {
         public const string PATH = "Assets/Editor/stabla-mapillary.json";
         const string ADDED = WorldBuilder.GEN + "/Nature/stabla-mapillary-added.bytes";
-        public const float MIN_CONF = .35f;
+        public const float MIN_CONF = .35f, PALM_CONF = .5f;
+        /// Codex's model / palm assignment (BalkanDriver tools/world/mapillary/vrste, README.md there): per Mapillary detection the
+        /// broadleaf model (three MegaTree street trees or crnika) with a height and place flag; the palm positions with confidence
+        public const string VRSTE = W.BD + "/tools/world/mapillary/vrste/stabla-modeli.json", PALME = W.BD + "/tools/world/mapillary/vrste/palme.json";
+        class Vr { public string model; public float height; public bool place; }
+        static Dictionary<long, Vr> vrste;
+        static long VKey(double gx, double gz) => ((long)Math.Round(gx * 10) << 32) ^ (uint)(int)Math.Round(gz * 10);
+        static void LoadVrste()
+        {
+            vrste = null; if (!File.Exists(VRSTE)) { Debug.LogWarning("[stabla] no " + VRSTE + " (broadleaf: crnika)"); return; }
+            vrste = new Dictionary<long, Vr>();
+            foreach (var o in MiniJson.L(MiniJson.Parse(File.ReadAllText(VRSTE))))
+            {
+                var d = MiniJson.O(o); if ((string)d["type"] != "other broadleaf") continue;
+                vrste[VKey(MiniJson.D(d["gx"]), MiniJson.D(d["gz"]))] = new Vr { model = (string)d["model"], height = MiniJson.F(d["height"]), place = d["place"] is bool b && b };
+            }
+        }
         public static bool On = true;
         /// false: the orthophoto-only crowns of the other streets (road u) are not taken (only the seen ones, conf ≥ MIN_CONF)
         public static bool OrthoStreets = true;
@@ -70,7 +88,8 @@ namespace Magistrala.EditorTools
 
         static bool Taken(T t)
         {
-            if (t.patch || t.type == "palm") return false;
+            if (t.patch) return false;
+            if (t.type == "palm") return false;   // (palms: vrste/palme.json)
             if (t.conf >= MIN_CONF) return true;
             return (t.road == "s" || (t.road == "u" && OrthoStreets)) && t.type != "hedge" && t.d >= 3 && t.d <= 12;
         }
@@ -79,7 +98,9 @@ namespace Magistrala.EditorTools
         /// material name)
         class Protos
         {
-            public int olive = 2, cypress = 3, crnika = -1, tamni = -1, oleander = -1; public List<int> pines = new List<int>();
+            public int olive = 2, cypress = 3, crnika = -1, tamni = -1, oleander = -1, palm = -1; public List<int> pines = new List<int>();
+            /// the broadleaf street trees (ExtraTrees): a tall narrow, b wide umbrella, c round; −1 none
+            public int lisA = -1, lisB = -1, lisC = -1;
             public float[] height;
             public Bounds[] bounds;   // (tr must be World/Vegetation, not the AC units' TreeRenderer)
             public Protos(Magistrala.TreeRenderer tr)
@@ -89,6 +110,11 @@ namespace Magistrala.EditorTools
                 for (int i = TreeProtos.IDS.Length; i < tr.meshes.Length; i++)
                 {
                     var m = tr.meshes[i]; if (!m) continue; var mat = tr.materials[tr.materialStart[i]];
+                    if (m.name.StartsWith("palma_3")) { if (palm < 0) palm = i; continue; }   // a Canary date palm (ExtraTrees, 28. 11.)
+                    if (m.name.StartsWith("palma") || m.name.StartsWith("tamaris")) continue;
+                    if (m.name.StartsWith("lisnato_a")) { lisA = i; continue; }
+                    if (m.name.StartsWith("lisnato_b")) { lisB = i; continue; }
+                    if (m.name.StartsWith("lisnato_c")) { lisC = i; continue; }
                     if (crnika < 0 && mat && mat.name.Contains("crnika")) crnika = i;
                     else if (m.name.StartsWith("pine_") && !m.name.Contains("medium") && !m.name.Contains("pinija")
                         && TreeProtos.StreetShape(m.bounds, .35f, 1.15f)) pines.Add(i);
@@ -112,6 +138,7 @@ namespace Magistrala.EditorTools
         {
             string path = WorldBuilder.GEN + "/trees.bytes";
             if (!On || !tr || !File.Exists(path) || !File.Exists(PATH)) return "[stabla] Mapillary trees: off / no data";
+            LoadVrste();
             var bytes = File.ReadAllBytes(path);
             // the records added before
             var old = new HashSet<string>();
@@ -181,6 +208,17 @@ namespace Magistrala.EditorTools
                 return false;
             }
 
+            // Mapillary street lights / poles (palms: the classifier takes lamps for palms)
+            var lampPts = new Dictionary<long, List<Vector2>>();
+            if (File.Exists("Assets/Editor/rasvjeta-mapillary.json"))
+                foreach (var lo in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText("Assets/Editor/rasvjeta-mapillary.json")))["lights"]))
+                { var l = MiniJson.L(lo); long k = Key(MiniJson.D(l[0]), MiniJson.D(l[1])); if (!lampPts.TryGetValue(k, out var ll)) lampPts[k] = ll = new List<Vector2>(); ll.Add(new Vector2(MiniJson.F(l[0]), MiniJson.F(l[1]))); }
+            bool NearLamp(double x, double z, double R)
+            {
+                for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++)
+                        if (lampPts.TryGetValue(Key(x + i * 8, z + j * 8), out var l)) foreach (var q in l) if ((q.x - x) * (q.x - x) + (q.y - z) * (q.y - z) < R * R) return true;
+                return false;
+            }
             var add = new List<byte>(); var why = new Dictionary<string, int>(); var kinds = new Dictionary<string, int>();
             int unchanged = 0;
             void No(string w) { why.TryGetValue(w, out int n); why[w] = n + 1; }
@@ -196,6 +234,7 @@ namespace Magistrala.EditorTools
             foreach (var t in all)
             {
                 if (!Taken(t)) { No("conf / patch / palm"); continue; }
+                if (OleanderRows.Replaces(t.gx, t.gz)) { No("oleander.json (OleanderRows)"); continue; }
                 cand++;
                 double x = t.gx, z = t.gz, R = Math.Max(1, t.d / 2);
                 if (!NaturePass.In(x, z)) { No("outside"); continue; }
@@ -217,6 +256,11 @@ namespace Magistrala.EditorTools
                 float Sc(int proto, double want) { float H = proto >= 0 && proto < P.height.Length ? P.height[proto] : 0; return H > 0 ? (float)(want / H) : 1; }
                 switch (t.type)
                 {
+                    case "palm":
+                        {
+                            // palms: only from vrste/palme.json (below); the classifier's palm type is weak evidence (often a lamp)
+                            No("palm (vrste/palme.json)"); continue;
+                        }
                     case "hedge":
                         {
                             if (P.tamni < 0) { No("no bush prototype"); continue; }
@@ -248,17 +292,44 @@ namespace Magistrala.EditorTools
                             Put(x, h - .1, z, yaw, P.StreetScale(p, top > 0 ? top : 1.1 * t.d,
                                 5, 12, 12, .35f, 1.15f), p, "pine"); break;
                         }
-                    default:   // other broadleaf
-                        Put(x, h - .08, z, yaw, P.StreetScale(P.crnika, top > 0 ? top : .8 * t.d + 1,
-                            2.8f, 9, 10, .65f, 1.6f), P.crnika, "broadleaf (crnika)"); break;
+                    default:   // other broadleaf: the model chosen in vrste/stabla-modeli.json (27. 11.), crnika where none is given
+                        {
+                            double want = top > 0 ? top : .8 * t.d + 1;
+                            if (vrste != null && vrste.TryGetValue(VKey(t.gx, t.gz), out var vr))
+                            {
+                                if (!vr.place) { No("vrste: place=false"); continue; }
+                                int lp = vr.model == "real_tree_models" ? P.lisA : vr.model == "realistic_tree_models_for_games" ? P.lisB : vr.model == "mega_tree_models" ? P.lisC : -1;
+                                if (lp >= 0)
+                                {
+                                    // uniform scale = height / the mesh's height, within the model's range (modeli.json), crown width capped
+                                    var (mn, mx, mw) = lp == P.lisA ? (12f, 18f, 14f) : lp == P.lisB ? (8f, 12f, 16f) : (10f, 12f, 12f);
+                                    Put(x, h - .08, z, yaw, P.StreetScale(lp, vr.height, mn, mx, mw, .3f, 1.8f), lp, "broadleaf " + vr.model); break;
+                                }
+                                if (vr.model == "crnika") want = vr.height;
+                            }
+                            Put(x, h - .08, z, yaw, P.StreetScale(P.crnika, want,
+                                2.8f, 10, 10, .65f, 1.6f), P.crnika, "broadleaf (crnika)"); break;
+                        }
                 }
                 trees++; byRoad.TryGetValue(t.road, out int nr); byRoad[t.road] = nr + 1;
             }
+            // palms (vrste/palme.json, conf ≥ PALM_CONF): with a palm prototype only; the surveyed ones (drvoredi.json) are Drvoredi's,
+            // which clears its bands after this — not placed twice
+            int nPalm = 0;
+            if (P.palm >= 0 && File.Exists(PALME))
+                foreach (var o in MiniJson.L(MiniJson.Parse(File.ReadAllText(PALME))))
+                {
+                    var d = MiniJson.O(o); double x = MiniJson.D(d["gx"]), z = MiniJson.D(d["gz"]);
+                    if (MiniJson.F(d["conf"]) < PALM_CONF || ((string)MiniJson.G(d, "src") ?? "").Contains("drvoredi")) continue;
+                    if (StreetsBuilder.Covered(x, z, .8) || VegetationMask.NearBuilding(x, z) || NearLamp(x, z, 2.5) || Nearest(x, z, 2) < 2) { No("palm: street / building / lamp / tree"); continue; }
+                    float h = (float)Tiles.Height(x, z); var q = WorldData.ModelTerrain(models, x, z, 2, h); if (q.HasValue) h = (float)q.Value; if (h < .4f) continue;
+                    Put(x, h - .08, z, NaturePass.R01(x, z, 95) * 360, P.StreetScale(P.palm, MiniJson.D(d["height"]), 6, 12, 14, .3f, 2f), P.palm, "palm"); nPalm++;
+                }
             File.WriteAllBytes(path, rec.ToArray()); AssetDatabase.ImportAsset(path);
             Directory.CreateDirectory(Path.GetDirectoryName(ADDED)); File.WriteAllBytes(ADDED, add.ToArray());
             tr.data = AssetDatabase.LoadAssetAtPath<TextAsset>(path); EditorUtility.SetDirty(tr);
             return $"[stabla] Mapillary trees: {trees} of {cand} candidates added (of {all.Count} records; by road " + string.Join(", ", byRoad.Select(k => $"{k.Key} {k.Value}")) + $"; {add.Count / REC} plants; " + string.Join(", ", kinds.Select(k => $"{k.Key} {k.Value}")) +
-                   $"; {removed} old records replaced; {unchanged} identical, {add.Count / REC - unchanged} new/changed plant records, {old.Count - unchanged} old records superseded); skipped: " + string.Join(", ", why.OrderByDescending(w => w.Value).Select(w => $"{w.Key} {w.Value}"));
+                   $"; palms (palme.json) {nPalm}; vrste {(vrste != null ? vrste.Count : 0)} broadleaf records; {removed} old records replaced; {unchanged} identical, {add.Count / REC - unchanged} new/changed plant records, {old.Count - unchanged} old records superseded); skipped: " + string.Join(", ", why.OrderByDescending(w => w.Value).Select(w => $"{w.Key} {w.Value}"));
         }
     }
 }

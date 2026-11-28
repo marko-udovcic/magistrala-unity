@@ -569,6 +569,38 @@ namespace Magistrala.EditorTools
             c.stops = list.OrderBy(q => q.s).ToArray();
         }
 
+        public const string BUS_KIND = "bus37";
+
+        /// the D8 bus stops (PropsBuilder.STANICE, road "d8": game x / z, the bus's compass heading) on the D8 corridors running
+        /// that way: arc length of the stop's projection (within 25 m of the axis)
+        static TrafficBusStop[] BusStops(List<TrafficCorridor> cors)
+        {
+            var r = new List<TrafficBusStop>();
+            if (!File.Exists(PropsBuilder.STANICE)) return r.ToArray();
+            foreach (var o in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(PropsBuilder.STANICE)))["stops"]))
+            {
+                var d = MiniJson.O(o); if ((string)MiniJson.G(d, "road") != "d8") continue;
+                var p = W.U(MiniJson.D(d["x"]), 0, MiniJson.D(d["z"]));
+                double h = MiniJson.D(d["heading"]) * Math.PI / 180;
+                var dir = new Vector3((float)Math.Sin(h), 0, (float)Math.Cos(h));   // game (sin, −cos) with z flipped
+                TrafficBusStop best = null; float bd = 25;
+                for (int ci = 0; ci < cors.Count; ci++)
+                {
+                    var c = cors[ci]; if (!c.name.StartsWith("D8")) continue;
+                    int bi = -1; float b2 = float.MaxValue;
+                    for (int i = 0; i < c.axis.Length; i++) { var q = c.axis[i] - p; float dd = q.x * q.x + q.z * q.z; if (dd < b2) { b2 = dd; bi = i; } }
+                    if (bi < 0) continue;
+                    var t = c.axis[Mathf.Min(bi + 1, c.axis.Length - 1)] - c.axis[Mathf.Max(bi - 1, 0)]; t.y = 0; t.Normalize();
+                    if (Vector3.Dot(t, dir) < .7f) continue;
+                    var dp = p - c.axis[bi]; dp.y = 0;
+                    float lat = Vector3.Dot(dp, c.right[bi]), s = bi * c.step + Vector3.Dot(dp, t);
+                    if (Mathf.Abs(lat) < bd && s > 80 && s < c.Length - 80) { bd = Mathf.Abs(lat); best = new TrafficBusStop { corridor = ci, s = s, name = (string)MiniJson.G(d, "name") ?? (string)d["id"] }; }
+                }
+                if (best != null) r.Add(best); else Debug.LogWarning($"[traffic] bus stop {(string)d["id"]} {(string)MiniJson.G(d, "name")}: no D8 corridor within 25 m");
+            }
+            return r.ToArray();
+        }
+
         [MenuItem("Magistrala/Build traffic")]
         public static void Build()
         {
@@ -639,6 +671,12 @@ namespace Magistrala.EditorTools
             data.sideRoutes = sideRoutes;
             data.kinds = Kinds();
             data.farPalette = PaletteMat(pal);
+            // city bus line 37 (TrafficSystem.Buses.cs): its kind (KandidatImporter "bus37", weight 0) and the D8 stops
+            data.busKind = Array.FindIndex(data.kinds, k => k.name == BUS_KIND);
+            if (data.busKind < 0) data.busKind = Array.FindIndex(data.kinds, k => k.name == "coach");   // placeholder until bus37 is imported
+            data.busStops = BusStops(cors);
+            Debug.Log($"[traffic] buses: kind {(data.busKind >= 0 ? data.kinds[data.busKind].name : "none (Magistrala/Auti: uvezi kandidata)")}, {data.busStops.Length} stops: " +
+                string.Join(", ", data.busStops.Select(b => $"{b.name} c{b.corridor} s {b.s:F0}")));
             // parked cars: one mesh per level + one atlas material per parkable kind (ParkedBake)
             foreach (var kd in data.kinds) if (ParkedBake.Parkable(kd)) ParkedBake.Bake(kd);
             EditorUtility.SetDirty(data);
