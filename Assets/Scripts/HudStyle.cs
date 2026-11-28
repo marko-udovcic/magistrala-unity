@@ -1,7 +1,7 @@
 // Shared look of the in-game HUD (owner's mockup hud-mockup-11-20): dark rounded panels (#1e1e22, 85 %), white Inter text, orange
 // accents from the marketing palette (ink #0f0d0b, accent #f2a33a, highlight #ffc46b). Everything scales with Screen.height
 // (1080 p = 1): K × a size in 1080 p pixels. Styles are cached per (size, weight, colour, alignment) so OnGUI does not allocate
-// a GUIStyle a frame; T() reuses one GUIContent. Glyphs (fuel pump, truck) are drawn in code once.
+// a GUIStyle a frame; T() reuses one GUIContent. HUD glyph textures are generated in code once.
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -29,9 +29,9 @@ namespace Magistrala
         public static float PanelTop = 1e6f;
         /// the HUD panel's rect on screen (zero when hidden)
         public static Rect PanelRect;
-        /// the map panel's rect on screen (bottom left; zero when hidden)
+        /// the minimap picture's rect on screen (inside the left column; zero when hidden)
         public static Rect MapRect;
-        /// the top of everything stacked above the panel (job card, game keys)
+        /// the top of the right-side stack (job card, game keys), Screen.height when hidden
         public static float StackTop = 1e6f;
 
         static Font regular, semi;
@@ -59,7 +59,7 @@ namespace Magistrala
         // toast (default font 22) took 1.4 s, a new banner size ~100 ms (HitchDiag: GUI.Repaint / FontEngine). Prewarm() draws the
         // whole Croatian charset off screen in every HUD size once per screen height (sizes scale with it), in the first frames.
         const string Charset = "0123456789 abcčćdđefghijklmnopqrsštuvwxyzžABCČĆDĐEFGHIJKLMNOPQRSŠTUVWXYZŽ.,:;!?–-—·%€()/'\"+*=<>…„“”‘’°&#@";
-        static readonly int[] WarmSizes = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 26, 28, 30, 34, 38 };
+        static readonly int[] WarmSizes = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 26, 28, 30, 34, 38, 48 };
         static int warmH = -1; static GUIStyle warmBox;
         /// call from OnGUI (Repaint); cheap when already done for this screen height
         public static void Prewarm()
@@ -107,7 +107,37 @@ namespace Magistrala
         }
 
         // ------------------------------------------------------------------ glyphs (white, alpha = shape; v up)
-        static Texture2D pump, truck;
+        static Texture2D pump, truck, wallet, thumb, person, arrowLeft, arrowRight, headlight;
+        public static Texture2D Wallet => wallet ? wallet : wallet = Make(64, (u, v) =>
+        {
+            float body = Mathf.Clamp01(RRect(u, v, .48f, .48f, .38f, .28f, .06f) - RRect(u, v, .48f, .48f, .32f, .22f, .03f));
+            return Mathf.Max(body, Mathf.Max(RRect(u, v, .75f, .48f, .17f, .1f, .03f), RRect(u, v, .44f, .82f, .28f, .035f, .02f)));
+        });
+        public static Texture2D Thumb => thumb ? thumb : thumb = Make(64, (u, v) =>
+        {
+            float cuff = RRect(u, v, .18f, .35f, .09f, .22f, .025f);
+            float hand = RRect(u, v, .59f, .36f, .27f, .23f, .07f);
+            float finger = RRect(u, v, .49f + .14f * v, .68f, .09f, .23f, .07f);
+            return Mathf.Max(cuff, Mathf.Max(hand, finger));
+        });
+        public static Texture2D Person => person ? person : person = Make(64, (u, v) =>
+            Mathf.Max(Ell(u, v, .5f, .75f, .15f, .15f), RRect(u, v, .5f, .32f, .3f, .22f, .14f)));
+        static float Arrow(float u, float v)
+        {
+            float head = S(Mathf.Abs(v - .5f) - (u - .08f)) * S(u - .49f);
+            return Mathf.Max(head, RRect(u, v, .64f, .5f, .27f, .12f, .01f));
+        }
+        public static Texture2D ArrowLeft => arrowLeft ? arrowLeft : arrowLeft = Make(64, Arrow);
+        public static Texture2D ArrowRight => arrowRight ? arrowRight : arrowRight = Make(64, (u, v) => Arrow(1 - u, v));
+        public static Texture2D Headlight => headlight ? headlight : headlight = Make(64, (u, v) =>
+        {
+            float shell = Mathf.Clamp01(Ell(u, v, .61f, .5f, .29f, .35f) - Ell(u, v, .61f, .5f, .23f, .29f));
+            shell *= S(.54f - u);
+            shell = Mathf.Max(shell, RRect(u, v, .54f, .5f, .03f, .33f, .01f));
+            float rays = 0;
+            for (int i = 0; i < 4; i++) rays = Mathf.Max(rays, Band(v - u * .28f, .14f + i * .19f, .025f) * S(u - .42f) * S(.08f - u));
+            return Mathf.Max(shell, rays);
+        });
         /// fuel pump, outline style (mockup)
         public static Texture2D Pump => pump ? pump : pump = Make(64, (u, v) =>
         {

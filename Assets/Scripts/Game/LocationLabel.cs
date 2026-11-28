@@ -128,15 +128,14 @@ namespace Magistrala.Game
             float rw = refLine ? HudStyle.Width(refStyle, shownRoad) + 12 * K : 0;
             float line2 = (refLine ? rw + (sw > 0 ? 8 * K : 0) : 0) + sw;
             float bw = Mathf.Max(tw, line2) + 40 * K, bh = (line2 > 0 ? 54 : 34) * K;
-            // bottom centre, on the HUD's margin line, between the map panel (bottom left) and the gauges (bottom right); when the gap
-            // is too narrow, above them
+            // Bottom centre in the space to the right of the left HUD column.
             var box = new Rect(Mathf.Round((Screen.width - bw) / 2), Screen.height - HudStyle.Margin - bh, bw, bh);
-            float lo = HudStyle.MapRect.width > 0 ? HudStyle.MapRect.xMax + 12 * K : HudStyle.Margin;
-            float hi = HudStyle.PanelRect.width > 0 ? HudStyle.PanelRect.x - 12 * K : Screen.width - HudStyle.Margin;
+            float lo = HudStyle.PanelRect.width > 0 ? HudStyle.PanelRect.xMax + 12 * K : HudStyle.Margin;
+            float hi = Screen.width - HudStyle.Margin;
             if (hi - lo >= bw) box.x = Mathf.Clamp(box.x, lo, hi - bw);
             else
             {
-                float above = Mathf.Min(HudStyle.MapRect.width > 0 ? HudStyle.MapRect.y : Screen.height, HudStyle.PanelRect.width > 0 ? HudStyle.StackTop : Screen.height);
+                float above = HudStyle.PanelRect.width > 0 ? HudStyle.PanelRect.y : Screen.height;
                 box.y = above - 12 * K - bh;
             }
             float a = fade;
