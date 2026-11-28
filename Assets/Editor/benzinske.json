@@ -1,5 +1,5 @@
 {
- "note": "Benzinske (Magistrala/Benzinske: postavi, Assets/Editor/Benzinske.cs). Game frame: x east, z south (Unity ux = x + 4200, uz = -(z + 5300)); canopy along (cos a, sin a), n islands 10 m apart; shop/totem/hut face the point (faceX, faceZ). OSM amenity=fuel (ODbL); package objects = model-buildings.json ids; tiles = tx_tz:i. Brands invented: jn Jadranska nafta, sunce Sunce gorivo, benzol Benzol.",
+ "note": "Benzinske (Magistrala/Benzinske: postavi, Assets/Editor/Benzinske.cs). Game frame: x east, z south (Unity ux = x + 4200, uz = -(z + 5300)); canopy pillar row (cos a, sin a), n islands 10 m apart across the lanes; islands and drive-through perpendicular to this row; shop/totem/hut face the point (faceX, faceZ). OSM amenity=fuel (ODbL); package objects = model-buildings.json ids; tiles = tx_tz:i. Brands invented: jn Jadranska nafta, sunce Sunce gorivo, benzol Benzol.",
  "sites": [
   {
    "id": "ks-sjever",
@@ -78,7 +78,7 @@
    "canopy": {
     "x": -603.62,
     "z": -4683.15,
-    "a": 0.19969240836916427,
+    "a": 1.7704887351640608,
     "n": 2
    },
    "shop": {
@@ -148,7 +148,7 @@
    "canopy": {
     "x": -8552.0,
     "z": -5441.0,
-    "a": -0.4887,
+    "a": 1.0820963267948966,
     "n": 2
    },
    "pad": {
