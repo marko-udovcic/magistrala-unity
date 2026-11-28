@@ -848,13 +848,25 @@ namespace Magistrala.Traffic
         float QuarterW(int ci, int side)
         {
             if (isD8 == null || isD8.Length != data.corridors.Length) isD8 = System.Array.ConvertAll(data.corridors, c => c.name != null && c.name.StartsWith("D8"));
-            if (pFar[ci] >= roadR) return isD8[ci] ? d8Bias : 1;
-            // ahead = the side of the corridor the eye looks towards (the corridor's +s direction against the camera's heading)
+            int q = Quarter(ci, side);
+            if (q < 0) return isD8[ci] ? d8Bias : 1;
+            return roadBias * (q == 0 ? onAhead : q == 1 ? sameAhead : q == 2 ? sameBehind : onBehind);
+        }
+        /// the quarter (corridor ci, side of the player along it) on the road being driven: 0 oncoming ahead, 1 same direction
+        /// ahead, 2 same direction behind, 3 oncoming behind; −1 another road. Ahead = the side the eye looks towards (the
+        /// corridor's +s direction against the camera's heading)
+        int Quarter(int ci, int side)
+        {
+            if (pFar[ci] >= roadR) return -1;
             var cor = data.corridors[ci]; int i = Mathf.Clamp(hint[ci], 1, cor.axis.Length - 2);
             var t = cor.axis[i + 1] - cor.axis[i - 1]; var f = cam ? cam.transform.forward : (player ? player.forward : Vector3.forward);
             float dot = t.x * f.x + t.z * f.z; bool ahead = dot * side > 0, oncoming = dot < 0;
-            return roadBias * (ahead ? oncoming ? onAhead : sameAhead : oncoming ? onBehind : sameBehind);
+            return ahead ? oncoming ? 0 : 1 : oncoming ? 3 : 2;
         }
+        /// a same-direction car ahead is born no farther than this past the draw distance (and a bit slower, sameAheadV): born at
+        /// 1.2–1.5 km it kept the player's pace and was never seen (-trafview D8 west: 9.7 cars in the frustum beyond the draw
+        /// distance, 1.7 drawn); one that stays out there unseen is recycled (Despawn)
+        public float sameAheadOver = 110, sameAheadV = .86f;
 
         bool TrySpawn(bool warmStart, int forceKind = -1)
         {
@@ -890,7 +902,9 @@ namespace Magistrala.Traffic
             }
             var cor = data.corridors[ci];
             float sp = pSc[ci];
-            float d = warmStart ? 40 + (float)rng.NextDouble() * (spawnMax - 40) : spawnMin + (float)rng.NextDouble() * (spawnMax - spawnMin);
+            int quarter = warmStart || pre26 || busy ? -1 : Quarter(ci, side);
+            float dMax = quarter == 1 ? Mathf.Min(spawnMax, farFadeEnd + sameAheadOver) : spawnMax;
+            float d = warmStart ? 40 + (float)rng.NextDouble() * (spawnMax - 40) : spawnMin + (float)rng.NextDouble() * (dMax - spawnMin);
             float s = entry ? 31 + (float)rng.NextDouble() * 25 : sp + side * d;
             if (s < 30 || s > cor.Length - (cor.deadEnd ? 300 : 30)) { SpawnFails[0]++; return false; }
             int n = LanesAt(cor, s);
@@ -932,6 +946,7 @@ namespace Magistrala.Traffic
                 c = ci, kind = kind, lane = lane, laneTo = lane, s = s, lat = lat, len = kd.len, hw = kd.halfW, h = kd.h, a = kd.a, b = kd.b, T = kd.T,
                 v0 = 70 / 3.6f * kd.vMul * (.92f + (float)rng.NextDouble() * .2f), decideT = (float)rng.NextDouble(),
             };
+            if (quarter == 1) car.v0 *= sameAheadV + (float)rng.NextDouble() * .08f;   // the ones the player catches up with
             car.v = Mathf.Min(car.v0, cor.vmax[Mathf.Clamp((int)(s / cor.step), 0, cor.axis.Length - 1)]) * .9f;
             // match a close leader
             foreach (var o in byCorridor[ci]) if (o.s > s && o.s - s < 80 && Overlap(lat, kd.halfW, o.lat, o.hw)) car.v = Mathf.Min(car.v, o.v);
@@ -987,6 +1002,9 @@ namespace Magistrala.Traffic
                 var cor = data.corridors[c.c];
                 float d = Mathf.Abs(c.s - pSc[c.c]); d = Mathf.Sqrt(d * d + pFar[c.c] * pFar[c.c]); // (a corridor away from the player: real distance)
                 bool gone = d > despawnDist || c.s < 2 || (!cor.deadEnd && c.s > cor.Length - 8 && (pre26 || c.s > cor.Length + exitRun || !Seen(c)));
+                // (28. 11.) a same-direction car pulling away far ahead, past the draw distance: nobody will see it again, its
+                // place goes to the quarters the eye sees
+                if (!gone && !pre26 && c.sideRoute < 0 && !c.bus && d > farFadeEnd + sameAheadOver + 40 && Quarter(c.c, c.s > pSc[c.c] ? 1 : -1) == 1 && c.v >= playerSpeed - .5f) gone = true;
                 // a closed end: recycled only where nobody sees it — at the barrier, or already on the last 150 m when unseen and
                 // not right by the player (the queue never grows in front of a camera that turns away)
                 if (!gone && cor.deadEnd && c.s > cor.Length - 150 && !InView(c.pos) && (c.pos - PlayerPos).magnitude > 60) gone = true;
