@@ -88,6 +88,7 @@ namespace Magistrala
         {
             foreach (var b in beams) b.enabled = on;
             Glow("L_head", on ? new Color(1f, .96f, .88f) * 6f : Color.black);
+            Glow("L_headrefl", on ? new Color(1f, .95f, .85f) * .3f : Color.black); // the vans' chrome bowls (VehicleLook)
             Glow("L_fog", on ? new Color(1f, .92f, .75f) * 4f : Color.black);
             Glow("L_marker", on ? new Color(1f, .55f, .1f) * 3f : Color.black);
             Glow("L_tail", on ? new Color(1f, .05f, .02f) * 3f : Color.black);

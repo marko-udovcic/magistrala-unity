@@ -23,7 +23,10 @@ namespace Magistrala.EditorTools
 {
     public static class ExtraTrees
     {
-        public class Def { public string id, glb; public float draw, near; /** a trunk added under the crown (m; 0 none), crown scale */ public float trunk, crown = 1; /** x, z scale (narrower crown) */ public float squash = 1; }
+        public class Def { public string id, glb; public float draw, near; /** a trunk added under the crown (m; 0 none), crown scale */ public float trunk, crown = 1; /** x, z scale (narrower crown) */ public float squash = 1;
+            /** leaf grade (TreeProtos.Grade: xyz tint × luminance, w amount; w 0 = as downloaded) and per-plant colour variation */ public Vector4 grade; public float vary = .12f; }
+        // (declared before DEFS: static fields initialise in text order)
+        static readonly Vector4 MAPLE_GRADE = new Vector4(.6f, .85f, .36f, .85f), BEECH_GRADE = new Vector4(.36f, .5f, .21f, .85f);
         public static readonly Def[] DEFS =
         {
             // the palms and tamarisks of the rivas (28. 11.: PlantCatalog "Realistic HD" Canary date palm 33/40, 34/40, 35/40, Mexican
@@ -44,10 +47,21 @@ namespace Magistrala.EditorTools
             new Def { id = "oleander_a", glb = OLEANDER + "oleander-a.glb", draw = 450, near = 40, squash = .72f },
             new Def { id = "oleander_b", glb = OLEANDER + "oleander-b.glb", draw = 450, near = 40, squash = .72f },
             new Def { id = "oleander_c", glb = OLEANDER + "oleander-c.glb", draw = 450, near = 40, squash = .72f },
-            new Def { id = "lisnato_a", glb = "Assets/Models/Plants/lisnato_a.glb", draw = 1000, near = 55 },
-            new Def { id = "lisnato_b", glb = "Assets/Models/Plants/lisnato_b.glb", draw = 1000, near = 55 },
-            new Def { id = "lisnato_c", glb = "Assets/Models/Plants/lisnato_c.glb", draw = 1000, near = 55 },
+            // (28. 11., Marko: "prezelena stabla"): the MegaTree leaf atlases are a saturated spring green (linear ~.04 .11 .01 maple,
+            // ~.10 .21 .01 beech) that glowed next to the grey-green olives; graded to a dusty, slightly darker Mediterranean summer
+            // green (~.05 .08 .03) with more per-tree variation. The impostor bake takes the grade into the atlases.
+            new Def { id = "lisnato_a", glb = "Assets/Models/Plants/lisnato_a.glb", draw = 1000, near = 55, grade = MAPLE_GRADE, vary = .22f },
+            new Def { id = "lisnato_b", glb = "Assets/Models/Plants/lisnato_b.glb", draw = 1000, near = 55, grade = BEECH_GRADE, vary = .22f },
+            new Def { id = "lisnato_c", glb = "Assets/Models/Plants/lisnato_c.glb", draw = 1000, near = 55, grade = MAPLE_GRADE, vary = .22f },
         };
+        /// the leaf grade / variation of a downloaded prototype's leaf material (Make, and again before every impostor bake)
+        public static void Look(Def d, Material c)
+        {
+            if (!c || !c.HasProperty("_Grade")) return;
+            if (d.grade.w > 0) TreeProtos.Grade(c, d.grade);
+            if (c.HasProperty("_Vary")) c.SetFloat("_Vary", d.vary);
+            EditorUtility.SetDirty(c);
+        }
         const string PALME = "Assets/Models/Plants/Palme/", OLEANDER = "Assets/Models/Plants/Oleander/";
         /// the oleander shrubs (28. 11.; off: the old Tripo oleander of MedianHedge again)
         public static bool Oleanders = true;
@@ -154,6 +168,7 @@ namespace Magistrala.EditorTools
                     c.SetOverrideTag("RenderType", "TransparentCutout"); c.renderQueue = 2450;
                     TreeProtos.Foliage(c, mesh, s);
                     c.SetFloat("_Cull", 0); c.doubleSidedGI = true;
+                    Look(d, c);
                 }
                 EditorUtility.SetDirty(c); mats[s] = c;
             }
@@ -162,7 +177,7 @@ namespace Magistrala.EditorTools
             var quads = AssetDatabase.LoadAssetAtPath<Mesh>(qp); if (!quads) { quads = new Mesh { name = d.id + "_imp" }; AssetDatabase.CreateAsset(quads, qp); }
             var tex = TreeProtos.BakeImpostor(mesh, mats, quads, $"{DIR}/{d.id}_imp.png");
             var im = AssetDatabase.LoadAssetAtPath<Material>(ip); if (!im) { im = new Material(Shader.Find("Universal Render Pipeline/Lit")); AssetDatabase.CreateAsset(im, ip); }
-            TreeProtos.ImpostorMat(im, tex, quads);
+            TreeProtos.ImpostorMat(im, tex, quads); im.SetFloat("_Vary", d.vary);
             EditorUtility.SetDirty(quads);
             AssetDatabase.SaveAssets();
             int tris = 0; for (int s = 0; s < mesh.subMeshCount; s++) tris += (int)mesh.GetIndexCount(s) / 3;

@@ -24,6 +24,7 @@ namespace Magistrala
     ///   -tpxz gx,gz,yaw[;gx,gz,yaw..]  instead of -tp: put the truck at game (x, z) heading yaw° (0 = north, 90 = east), every 12 s
     ///   -near M / -far M  camera clip planes (after TruckChaseCamera.Awake)
     ///   -ssao ...,nq0..2  normals-from-depth reconstruction quality (Low / Medium / High; only with depth)
+    ///   -ssao ...,int0.6,rad0.3,fall60  intensity / radius (m) / falloff distance (m)
     ///   -appath gx,gz;gx,gz;..  the autopilot drives this path from its first point ([gpu] truck y every second; -apkmh K cruise)
     ///   -dron       start in drone mode (DroneCamera; F toggles in game)   -dronlet S  the drone flies forward at S × speed (tests / clips)  -dronh H  start H m above the truck
     public class GpuSwitches : MonoBehaviour
@@ -38,6 +39,7 @@ namespace Magistrala
             return null;
         }
         static bool Off(string k) => Arg(k) == "0";
+        static float F(string s) => float.Parse(s, System.Globalization.CultureInfo.InvariantCulture);
         static bool TryF(string k, out float f) { f = 0; var s = Arg(k); return s != null && float.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out f); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -103,6 +105,9 @@ namespace Magistrala
                         else if (w.StartsWith("samples")) SetEnum(st, "Samples", int.Parse(w.Substring(7)));
                         else if (w == "interleaved") SetEnum(st, "AOMethod", 1);
                         else if (w.StartsWith("nq")) SetEnum(st, "NormalSamples", int.Parse(w.Substring(2)));
+                        else if (w.StartsWith("int")) SetField(st, "Intensity", F(w.Substring(3)));
+                        else if (w.StartsWith("rad")) SetField(st, "Radius", F(w.Substring(3)));
+                        else if (w.StartsWith("fall")) SetField(st, "Falloff", F(w.Substring(4)));
                     }
                 }
                 sb.Append($" ssao {ssao}");

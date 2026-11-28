@@ -38,6 +38,16 @@ namespace Magistrala
         // prepass drew the whole scene a second time (~3.5 M triangles, ~2.4 k draws, ~12 ms GPU on the M2 at oštro on the D8 at
         // Lukšić) and with the new vegetation, details and houses that pass alone cost more than the whole frame of 21. 11.
         // AA: TAA blurs a lot under FSR (brzo draws at ~74 %), SMAA is sharper and cheaper there; srednje / oštro keep TAA.
+        // 28. 11. (Marko: grainy "shadows" on the cab walls): no SSAO in the cab view. Everything in the cab is within the 0.6 m AO
+        // radius and a few dm from the eye, so the half-resolution depth AO spread its few samples over a large part of the
+        // screen: blotchy grey noise over the whole lining (and the cab twice as dark). The view out of the windows loses little,
+        // and the cab view is ~2.5 ms cheaper. Toggled when the view changes (C); -ssao (GpuSwitches) still overrides.
+        // Same day, outside: the renderer's SSAO went from intensity 1.1 / radius 0.6 m to 0.6 / 0.3 m (PC_Renderer, _SSAOdubina).
+        // With AO taken after the opaque pass it darkens the lit colour itself, and the 0.6 m radius from reconstructed depth
+        // normals put blotchy grey "shadows" on flat sunlit panels (van doors, house walls, window recesses); the smaller
+        // radius keeps the contact darkening at sills and wall feet, same cost.
+        bool aoCab; TruckChaseCamera chase;
+        static bool InCab(TruckChaseCamera c) => c && c.isActiveAndEnabled && c.CabinView;
         ScriptableRendererFeature aoFeature; bool o_aoActive; object ao; System.Reflection.FieldInfo aoSource, aoDown, aoAfter; object o_aoSource; bool o_aoDown, o_aoAfter;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -104,7 +114,7 @@ namespace Magistrala
             rp.mainLightShadowmapResolution = L.shadowRes;
             rp.shadowCascadeCount = L.cascades;
             ApplyGrass();
-            if (ao != null) { aoSource.SetValue(ao, System.Enum.ToObject(aoSource.FieldType, L.aoDepth ? 0 : 1)); aoAfter.SetValue(ao, L.aoAfter); aoDown.SetValue(ao, L.aoHalf); aoFeature.SetActive(!L.aoOff); }
+            if (ao != null) { aoSource.SetValue(ao, System.Enum.ToObject(aoSource.FieldType, L.aoDepth ? 0 : 1)); aoAfter.SetValue(ao, L.aoAfter); aoDown.SetValue(ao, L.aoHalf); aoFeature.SetActive(!L.aoOff && !aoCab); }
             var cd = Camera.main ? Camera.main.GetComponent<UniversalAdditionalCameraData>() : null;
             if (cd) { cd.antialiasing = L.aa; cd.antialiasingQuality = AntialiasingQuality.High; }
             TreeRenderer.Distance = L.veg; // vegetation distances (full mesh / impostor / shadows / far cutoff)
@@ -118,6 +128,14 @@ namespace Magistrala
             if (toast) PlayerPrefs.SetInt(PREF, Current); // only the player's own choice (K) is remembered
             Debug.Log($"[kvaliteta] {L.name}: ekran {Screen.width}x{Screen.height}, crta se {Mathf.RoundToInt(Screen.width * Scale)}x{Mathf.RoundToInt(Screen.height * Scale)} (scale {Scale:F2}), sjene {L.shadowDist} m / {L.shadowRes} / {L.cascades}, SSAO {(ao == null ? "?" : L.aoOff ? "isključen" : L.aoDepth ? "Depth" : "DepthNormals")}{(L.aoHalf ? " pola rez." : "")}{(L.aoAfter ? " nakon neprozirnih" : "")}, AA {L.aa}, meke sjene {L.soft}");
             if (toast) toastUntil = Time.unscaledTime + 2.5f;
+        }
+
+        /// SSAO on / off only (cab view changed), then the command-line overrides as after every Set
+        void SetAO()
+        {
+            if (ao == null) return;
+            aoFeature.SetActive(!Levels[Current].aoOff && !aoCab);
+            GpuSwitches.ApplyPipeline(rp);
         }
 
         void FindAO()
@@ -146,8 +164,11 @@ namespace Magistrala
         void Update()
         {
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.kKey.wasPressedThisFrame) Set((Current + 1) % Levels.Length, true);
-            else if (Screen.width != lastW || Screen.height != lastH) Set(Current, false); // window resized / fullscreen toggled
+            if (!chase && Camera.main) chase = Camera.main.GetComponent<TruckChaseCamera>();
+            bool cab = InCab(chase);
+            if (kb != null && kb.kKey.wasPressedThisFrame) { aoCab = cab; Set((Current + 1) % Levels.Length, true); }
+            else if (Screen.width != lastW || Screen.height != lastH) { aoCab = cab; Set(Current, false); } // window resized / fullscreen toggled
+            else if (cab != aoCab) { aoCab = cab; SetAO(); }
         }
 
         void OnGUI()
