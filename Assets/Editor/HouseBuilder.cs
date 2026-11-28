@@ -42,6 +42,8 @@ namespace Magistrala.EditorTools
         /// plaster variant (BuildingTextures.P*: the Poly Haven plaster array, 0 = the old layer), old = weathered render (peeled
         /// patches, cracks: Magistrala/Facade); concrete / measured: from Mapillary (MapillaryFacades)
         public int variant; public bool old, concrete, measured;
+        /// Paket2 areas: the roof takes the pack's barrel tiles (BuildingTextures.PRoofPack)
+        public bool roofPack;
 
         static Color H(string h) { ColorUtility.TryParseHtmlString("#" + h, out var c); return c; }
         /// the plaster / concrete layers are grey ~#DCDCDC (linear .71): the tint that makes the wall show `hex`
@@ -65,7 +67,7 @@ namespace Magistrala.EditorTools
 
         /// the plaster variant and weathering by age / type, after Pick (and MapillaryFacades.Apply); own draws (seed), so the
         /// other draws of the house stay as they were; folds them into wallCode (Magistrala/Facade UV1.x)
-        public static void Finish(ref Look k, int seed, bool core)
+        public static void Finish(ref Look k, int seed, bool core, bool pack2 = false)
         {
             var r = new System.Random(seed * 97 + 13); double a = r.NextDouble(), b = r.NextDouble();
             int V(params (int v, double p)[] t) { double acc = 0; foreach (var e in t) { acc += e.p; if (a < acc) return e.v; } return t[t.Length - 1].v; }
@@ -97,6 +99,11 @@ namespace Magistrala.EditorTools
             else if (k.family == 2 && !k.old && !k.derelict && !k.concrete && k.bare == 0 && !k.measured
                 && (k.variant == BuildingTextures.PPainted || k.variant == BuildingTextures.PBeige || k.variant == BuildingTextures.PYellow) && pk < .34)
                 k.variant = pk < .17 ? BuildingTextures.PPackH : BuildingTextures.PPackJ;
+            // Paket2 areas (paket2-podrucja.json "zbuka"): the pack's dressed stone on two thirds of the stone houses, its light plasters
+            // on two thirds of the sound plastered ones (B houses' upper floors too); the same draw pk, so a house outside keeps its look
+            else if (pack2 && k.family == 0 && !k.derelict && pk < .65) k.variant = BuildingTextures.PStoneE;
+            else if (pack2 && (k.family == 2 || k.family == 1) && !k.old && !k.derelict && !k.concrete && k.bare == 0 && !k.measured && k.variant != BuildingTextures.PWorn && pk < .68)
+                k.variant = pk < .52 ? BuildingTextures.PPackH : BuildingTextures.PPackJ;
             k.wallCode = k.wallCode % 64 + 64 * k.variant + (k.old ? 1024 : 0);
         }
 
@@ -171,7 +178,7 @@ namespace Magistrala.EditorTools
 
         static Vector4 Data(Slot s, float y)
         {
-            float code = s == Slot.Wall ? look.wallCode : s == Slot.Roof ? BuildingTextures.Roof * 9 : s == Slot.Trim ? look.trimLayer * 9
+            float code = s == Slot.Wall ? look.wallCode : s == Slot.Roof ? BuildingTextures.Roof * 9 + (look.roofPack ? 64 * BuildingTextures.PRoofPack : 0) : s == Slot.Trim ? look.trimLayer * 9
                 : s == Slot.Balcony ? BuildingTextures.Concrete * 9 + (metalSlab ? 64 * BuildingTextures.PMetal : 0) : s == Slot.Shutter ? BuildingTextures.Louvre * 9
                 : s == Slot.Yard ? BuildingTextures.Rubble * 9 : s == Slot.Hedge ? 64 * BuildingTextures.PHedge : BuildingTextures.Plain * 9;
             if (rustOn && s == Slot.Wall) code += 2048;
@@ -557,7 +564,11 @@ namespace Magistrala.EditorTools
             bool apartment = string.Equals(kind, "apartment", StringComparison.OrdinalIgnoreCase);
             float bottom = (float)bottomY, ground = (float)baseY, top = (float)topY;
             look = Look.Pick(new System.Random(o.lookSeed * 31 + 7), kind, ground, top - ground, o.core); gY = ground; tY = top;
-            MapillaryFacades.Apply(ref look, o.mly, industrial, Lod == 0); Look.Finish(ref look, o.lookSeed, o.core);
+            // Paket2 (paket2-podrucja.json): the house's centre in one of the areas
+            float pcx = 0, pcz = 0; foreach (var q in footprintGame) { pcx += q.x; pcz += q.y; } pcx /= footprintGame.Count; pcz /= footprintGame.Count;
+            bool p2wall = Paket2.In(pcx, pcz, "zbuka"), p2open = Paket2.In(pcx, pcz, "vrata") && PaketDetalji.Ready2;
+            MapillaryFacades.Apply(ref look, o.mly, industrial, Lod == 0); Look.Finish(ref look, o.lookSeed, o.core, p2wall);
+            look.roofPack = Paket2.In(pcx, pcz, "krov");
             var orr = o.ortho; flatSlab = null; flatTiles = false; industrialNow = industrial;
             if (OrthoRoofs.Enabled)
             {
@@ -716,7 +727,8 @@ namespace Magistrala.EditorTools
                         else if (Lod == 0)
                         {
                             Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop && !front, !door && !front);
-                            if (road && framesHere && !front && !shop) PaketDetalji.Frame(g, f.origin, f.along, f.outward, x0, x1, openingBottom, y1, look.family <= 1, ground);
+                            if ((road && framesHere || p2open && look.family != 4) && !front && !shop) PaketDetalji.Frame(g, f.origin, f.along, f.outward, x0, x1, openingBottom, y1, look.family <= 1, ground);
+                            if (front && p2open) PaketDetalji.Door(g, f.origin, f.along, f.outward, x0, x1, openingBottom, y1, H01(f.P(centre, lastY), 57), look.shutter, look.family <= 1, ground);
                         }
                         else FlatWindow(g, f, x0, x1, openingBottom, y1, leaves, state, cell, !door && !front);
                         if (front && Lod == 0) { Doors.Add((f.P(centre, lastY, .9f), f.outward)); { detailTint = new Color(.5f, .48f, .45f); { againstWall = true; Box(g, Slot.Detail, f.P(x0 - .25f, lastY - .5f, 0), f.along, f.outward, x1 - x0 + .5f, .5f, .45f, false); againstWall = false; } } } // a step

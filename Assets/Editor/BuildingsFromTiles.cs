@@ -623,7 +623,8 @@ namespace Magistrala.EditorTools
             int hsh = (int)(Math.Abs(Math.Sin(cx * 12.9898 + cz * 78.233) * 43758.5453) * 1000);
             bool ind = kind == "industrial" || kind == "warehouse";
             var look = Look.Pick(new System.Random(hsh), kind, (float)baseY, (float)(top - baseY), InCore(cx, cz));
-            MapillaryFacades.Apply(ref look, curMly, ind, false); Look.Finish(ref look, hsh, InCore(cx, cz));
+            MapillaryFacades.Apply(ref look, curMly, ind, false); Look.Finish(ref look, hsh, InCore(cx, cz), Paket2.In(cx, cz, "zbuka"));
+            look.roofPack = Paket2.In(cx, cz, "krov");
             // far level: no window quads; the wall takes their average (1.1 x 1.35 m per 3.2 x 3 m cell = 15 %)
             if (!windows && !ind) { look.wall = Color.Lerp(look.wall, WIN, .15f); look.trim = look.wall; }
             HouseBuilder.Begin(look, (float)baseY, (float)top);

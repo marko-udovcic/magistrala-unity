@@ -20,7 +20,7 @@ namespace Magistrala.EditorTools
         /// texture array the plaster / concrete layers switch to (Look.variant 1..9 = layer 0..8, 0 = layer 0 above), plus the near micro grain
         public const string PlasterFolder = "Assets/Textures/PolyHaven/zbuke/";
         public const string PlasterAlbedo = PlasterFolder + "zbuke_albedo.jpg", PlasterNormal = PlasterFolder + "zbuke_normal.jpg", Micro = PlasterFolder + "mikro.png";
-        public const int PlasterLayers = 15;
+        public const int PlasterLayers = 16;
         public const int PConcreteWall = 1, PWhiteRough = 2, PCracked = 3, PPreconcrete = 4, PBeige = 5, PPainted = 6, PYellow = 7, PRedWeathered = 8, PGrey = 9;
         /// not a plaster: the trimmed yard hedge (Tools/zbuke/zivica.py; HouseBuilder Slot.Hedge, its colour kept, no weathering)
         public const int PHedge = 10;
@@ -31,6 +31,9 @@ namespace Magistrala.EditorTools
         /// house) and the dressed stone Brick_E (a variant of the stone layer, Facade: variant 15 on layer 1). 15 is the last variant
         /// the wall code holds (64 * variant < 1024).
         public const int PPackH = 13, PPackJ = 14, PStoneE = 15;
+        /// Paket2 (28. 11.): the pack's barrel tiles RoofTiles_A as _Plaster layer 15, a variant of the ROOF layer (Facade: variant 15 on
+        /// layer 2), only on the houses inside the Paket2 areas (Assets/Editor/paket2-podrucja.json)
+        public const int PRoofPack = 15;
 
         // source (Poly Haven id) and the sRGB mean the layer is scaled to (null: grey, tinted per building)
         // grey layers keep `contrast` of their detail (plaster 0.8: the trowel marks and blotches read at street level)
@@ -145,7 +148,38 @@ namespace Magistrala.EditorTools
             }
             Write(PlasterAlbedo, A, Size, Size * PlasterLayers, 92); Write(PlasterNormal, N, Size, Size * PlasterLayers, 94);
             AssetDatabase.Refresh(); Configure();
-            return "plaster strips: " + PlasterLayers + " layers (pack: Plaster_H, Plaster_J, Brick_E)";
+            return "plaster strips: " + PlasterLayers + " layers (pack: Plaster_H, Plaster_J, Brick_E); " + PackRoof();
+        }
+
+        /// Paket2: the pack's barrel roof tiles (RoofTiles_A, scaled to the roof layer's terracotta) as the strip's layer 15 (its top
+        /// row); a 15-layer strip (before Paket2) grows by one, a 16-layer one gets its layer 15 replaced
+        public static string PackRoof()
+        {
+            const string T = PaketZgrade.SRC + "Textures/RoofTiles_A/RoofTiles_A";
+            if (!File.Exists(T + "_BaseMap.png")) return "PackRoof: " + T + "_BaseMap.png missing (extract the pack, docs/paket2.md)";
+            var a = PaketZgrade.Read(T + "_BaseMap.png", Size, new Color32(170, 90, 60, 255));
+            var n = PaketZgrade.Read(T + "_Normal.png", Size, new Color32(128, 128, 255, 255));
+            var m = PaketZgrade.Read(T + "_MaskMap.png", Size, new Color32(0, 255, 0, 64));
+            // the pack's AO (mask g) deepens the gaps between the tiles before the levelling
+            for (int i = 0; i < a.Length; i++) { float ao = Mathf.Lerp(1, m[i].g / 255f, .7f); a[i] = new Color32((byte)(a[i].r * ao), (byte)(a[i].g * ao), (byte)(a[i].b * ao), 255); }
+            Normalise(a, Hex("A9573F"), 0, 1);
+            for (int i = 0; i < n.Length; i++) n[i] = new Color32(n[i].r, n[i].g, (byte)(255 - m[i].a), 255);
+            var log = new System.Text.StringBuilder();
+            foreach (var (path, layer) in new[] { (PlasterAlbedo, a), (PlasterNormal, n) })
+            {
+                var t = new Texture2D(2, 2, TextureFormat.RGBA32, false); t.LoadImage(File.ReadAllBytes(path));
+                var all = t.GetPixels32(); int layersIn = t.height / Size; UnityEngine.Object.DestroyImmediate(t);
+                if (layersIn != PlasterLayers - 1 && layersIn != PlasterLayers) throw new InvalidOperationException(path + ": " + layersIn + " layers");
+                var dst = new Color32[Size * Size * PlasterLayers];
+                // GetPixels32 starts at the BOTTOM row = the last layer; the top row (end of the array) is layer 0
+                int keep = Math.Min(layersIn, PlasterLayers - 1);
+                Array.Copy(all, (layersIn - keep) * Size * Size, dst, (PlasterLayers - keep) * Size * Size, keep * Size * Size);
+                Array.Copy(layer, 0, dst, 0, Size * Size);
+                Write(path, dst, Size, Size * PlasterLayers, path == PlasterAlbedo ? 92 : 94);
+                log.Append(Path.GetFileName(path)).Append(' ').Append(layersIn).Append("->").Append(PlasterLayers).Append("; ");
+            }
+            AssetDatabase.Refresh(); Configure();
+            return "PackRoof: " + log;
         }
 
         /// grime atlas from srcDir/Leaking012A|016A|017A_1K-JPG_Color.jpg (white = clean): inverted, levelled, 512²

@@ -201,6 +201,23 @@ namespace Magistrala.EditorTools
                 post[g0 - 1] = post[g0 + 3] = true;
                 var a = S[g0 - 1]; var b = S[g0 + 3];
                 gates.Add((W.U((a.x + b.x) / 2, (ground[g0 - 1] + ground[g0 + 3]) / 2, (a.z + b.z) / 2), W.U(a.nx, 0, a.nz) - W.U(0, 0, 0)));
+                // Paket2 areas: the pack's gate in the opening (between the piers' inner faces) and a shrub inside by each pier
+                if (Paket2.In((a.x + b.x) / 2, (a.z + b.z) / 2, "ograde") && PaketDetalji.Ready2)
+                {
+                    Vector3 ua = W.U(a.x, ground[g0 - 1], a.z), ub = W.U(b.x, ground[g0 + 3], b.z), ow = W.U(a.nx, 0, a.nz) - W.U(0, 0, 0);
+                    Vector3 e = (ub - ua); e.y = 0; e.Normalize();
+                    float gr = (float)new System.Random(seed * 59 + 3).NextDouble();
+                    foreach (var g in new[] { near, mid })
+                    {
+                        if (g == null) continue;
+                        PaketDetalji.Gate(g, ua + e * .25f, ub - e * .25f, ow, gr);
+                        if (g == near)
+                        {
+                            if (gr < .7f) PaketDetalji.Shrub(g, ua - e * .9f - ow * .9f, 1.3f + .5f * gr, gr);
+                            if (gr > .3f) PaketDetalji.Shrub(g, ub + e * .9f - ow * .9f, 1.2f + .6f * (1 - gr), 1 - gr);
+                        }
+                    }
+                }
             }
             // runs: start at an invalid sample so no run wraps; a whole ring (no gate, no gap) is one closed run
             int start = Array.IndexOf(okA, false); bool whole = start < 0;
@@ -284,10 +301,37 @@ namespace Magistrala.EditorTools
                     side -= -e.z * o.x + e.x * o.z;
                 }
                 side = side >= 0 ? 1 : -1;
+                // Paket2 areas: the street runs' wire fences become the pack's iron railing (painted per house) on the wall, and
+                // shrubs stand behind the low railings (near level only)
+                Vector3 mid0 = raw[raw.Count / 2]; var mg = W.G(mid0);
+                bool p2 = street && (type == TFence || type == TFenceHedge || type == TLowFence) && Paket2.In(mg.x, mg.y, "ograde") && PaketDetalji.Ready2;
+                var rr = new System.Random(seed * 67 + emitted);
+                Color railTint = new[] { new Color(.25f, .3f, .27f), new Color(.85f, .85f, .82f), new Color(.3f, .3f, .32f), new Color(.38f, .5f, .42f) }[rr.Next(4)];
+                Vector3 insideDir = Vector3.zero;
+                if (raw.Count >= 2) { Vector3 e0 = raw[raw.Count - 1] - raw[0]; insideDir = side * new Vector3(-e0.z, 0, e0.x).normalized; }
                 for (int lod = 0; lod < 3; lod++)
                 {
                     var g = lod == 0 ? near : lod == 1 ? mid : hull; if (g == null) continue;
                     HouseBuilder.Lod = lod; bool piers = lod < 2;
+                    if (p2 && lod < 2)
+                    {
+                        float wallH = type == TLowFence ? lowH : baseH;
+                        HouseBuilder.YardWall(g, pts, wallH, type == TLowFence ? 1 : 3, piers && pa, piers && pb, wallH + (type == TLowFence ? 1f : 1.2f));
+                        PaketDetalji.Railing(g, pts, wallH + .05f, type == TLowFence ? 1.0f : 1.2f, insideDir, railTint);
+                        if (type == TFenceHedge) HouseBuilder.YardHedge(g, pts, side, .25f, hedgeW, Mathf.Max(hedgeH, baseH + 1.3f), tint, -.2f, sp, 0, seed * 5 + emitted);
+                        else if (lod == 0)
+                            for (int k = 0; k + 1 < pts.Count; k++)
+                            {
+                                float L = Vector3.Distance(pts[k], pts[k + 1]);
+                                for (float t = 2.5f; t < L - 1.5f; t += 4.5f)
+                                {
+                                    var q = Vector3.Lerp(pts[k], pts[k + 1], t / L);
+                                    float hv = Mathf.Abs(Mathf.Sin(q.x * 12.99f + q.z * 78.23f) * 43758.5f) % 1f;
+                                    if (hv < .45f) PaketDetalji.Shrub(g, q + insideDir * 1.0f, 1.1f + .6f * hv, hv * 2);
+                                }
+                            }
+                        continue;
+                    }
                     switch (type)
                     {
                         case THedge:

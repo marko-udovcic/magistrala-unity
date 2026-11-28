@@ -26,6 +26,10 @@ namespace Magistrala.EditorTools
             ("cijev", "Pipe_B_1 Variant", 1200, false), ("oluk", "GutterDrain_A", 200, false), ("tenda", "Awning_B", 900, false),
             // "vječna gradnja": a scaffolding bay (CGTrader free model, Royalty Free, modified: Detalji/skela) and the pack's rusty site fence
             ("skela", "#" + DIR + "skela/scaffolding.obj", 1200, false), ("ograda", "Fence_B", 700, false),
+            // Paket2 (the towns of Assets/Editor/paket2-podrucja.json): wooden front doors, yard gates (a barred double gate, a sheet
+            // gate turned to face +z: "@" = the pack model faces x) and a leafy shrub (cutout) by the gates / behind the railings
+            ("vrata_a", "Door_A_1", 5000, false), ("vrata_b", "Door_A_2", 5000, false),
+            ("kapija_b", "Gate_B", 5000, false), ("kapija_a", "@Gate_A_1", 5000, false), ("grm", "Bush_A", 100000, false),
         };
 
         [MenuItem("Magistrala/Zgrade: paket – ispeci detalje")]
@@ -38,13 +42,16 @@ namespace Magistrala.EditorTools
             var log = new StringBuilder(); var baked = new List<(string key, List<PaketZgrade.Part> parts, Bounds b)>();
             foreach (var (key, prefab, cap, noGlass) in Items)
             {
-                var pf = AssetDatabase.LoadAssetAtPath<GameObject>(prefab.StartsWith("#") ? prefab.Substring(1) : PaketZgrade.SRC + "Prefabs/" + prefab + ".prefab");
+                bool turn = prefab.StartsWith("@"); string pname = turn ? prefab.Substring(1) : prefab;
+                var pf = AssetDatabase.LoadAssetAtPath<GameObject>(pname.StartsWith("#") ? pname.Substring(1) : PaketZgrade.SRC + "Prefabs/" + pname + ".prefab");
                 if (!pf) { log.Append(prefab + " missing; "); continue; }
-                var inst = (GameObject)Object.Instantiate(pf); inst.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity); inst.transform.localScale = Vector3.one;
+                var inst = (GameObject)Object.Instantiate(pf); inst.transform.SetPositionAndRotation(Vector3.zero, turn ? Quaternion.Euler(0, 90, 0) : Quaternion.identity); inst.transform.localScale = Vector3.one;
                 log.Append(key + ":");
                 var parts = PaketZgrade.Parts(inst, log, false); Object.DestroyImmediate(inst);
                 if (noGlass) parts = parts.Where(p => !(PaketZgrade.layers[p.lay.layer].baseTex ?? "").Contains("Glass")).ToList();
                 parts = PaketZgrade.Cap(parts, cap);
+                // the shrub's leaf cards (2 triangles each): keep ~35 % of them (a lighter, still full-looking bush)
+                if (key == "grm") foreach (var p in parts) { var keep = new List<int>(); for (int i = 0; i + 5 < p.tri.Length; i += 6) if (Mathf.Abs(Mathf.Sin(i * 12.9898f) * 43758.5453f) % 1f < .35f) keep.AddRange(new ArraySegment<int>(p.tri, i, 6)); p.tri = keep.ToArray(); }
                 // the scaffolding has no textures: galvanised steel and weathered planks as tints of the plain layer
                 if (key == "skela") foreach (var p in parts) p.lay = new PaketZgrade.Lay { layer = 0, tri = true, scale = 1, tiling = Vector2.one,
                     tint = (p.v.Length > 0 && IsWood(p) ? new Color(.62f, .5f, .36f) : new Color(.66f, .68f, .7f)).linear };
@@ -105,7 +112,7 @@ namespace Magistrala.EditorTools
         }
         public static bool Ready => Get("okvir_f") != null;
         public static int nFrames, nBalconies, nPipes, nAwnings;
-        public static void ResetCounts() { nFrames = nBalconies = nPipes = nAwnings = nSites = nBays = nSiteCand = 0; SiteSpots.Clear(); cache.Clear(); }
+        public static void ResetCounts() { nFrames = nBalconies = nPipes = nAwnings = nSites = nBays = nSiteCand = nDoors = nGates = nRails = nShrubs = 0; SiteSpots.Clear(); cache.Clear(); }
 
         /// one detail into the house mesh: canonical (x, y, z) -> origin + along * x * sx + up * y * sy + outward * (z0 + z * sz)
         static void Put(HouseGeo g, string key, Vector3 origin, Vector3 along, Vector3 outward, float sx, float sy, float sz, float z0, float ground, Color tint)
@@ -170,6 +177,64 @@ namespace Magistrala.EditorTools
             float w = x1 - x0 + .2f;
             Put(g, "tenda", origin + along * ((x0 + x1) / 2) + Vector3.up * (y + .12f), along, outward, w / d.size.x, 1, reach / d.size.z, 0, ground, tint);
             nAwnings++;
+        }
+
+        // ------------------------------------------------------------------ Paket2 (HouseBuilder / Yards, inside the Paket2 areas)
+        public static int nDoors, nGates, nRails, nShrubs;
+        public static bool Ready2 => Get("vrata_a") != null && Get("kapija_b") != null;
+
+        /// the pack's wooden front door filling the door opening (x0..x1 along the facade, y0..y1 absolute), in the reveal just in
+        /// front of our louvred leaf; tint: the house's shutter colour on some (painted), the wood's own on the others
+        public static void Door(HouseGeo g, Vector3 origin, Vector3 along, Vector3 outward, float x0, float x1, float y0, float y1, float r, Color shutter, bool stone, float ground)
+        {
+            string key = x1 - x0 > .95f && r < .55f ? "vrata_b" : "vrata_a"; var d = Get(key); if (d == null) return;
+            float w = x1 - x0 + .02f, h = y1 - y0 + .01f;
+            Color tint = r < .3f ? Color.white : r < .55f ? new Color(.62f, .46f, .34f) : r < .8f ? Color.Lerp(Color.white, shutter * 1.6f, .85f) : new Color(.55f, .42f, .32f);
+            float back = (stone ? -.24f : -.16f);
+            Put(g, key, origin + along * ((x0 + x1) / 2) + Vector3.up * y0, along, outward, w / d.size.x, h / d.size.y, .06f / Mathf.Max(.02f, d.size.z), back, ground, tint);
+            nDoors++;
+        }
+
+        /// a yard gate in the opening between the piers a .. b (Unity, on the ground), facing `outward` (the street)
+        public static void Gate(HouseGeo g, Vector3 a, Vector3 b, Vector3 outward, float r)
+        {
+            string key = r < .55f ? "kapija_b" : "kapija_a"; var d = Get(key); if (d == null) return;
+            Vector3 along = b - a; along.y = 0; float w = along.magnitude; if (w < 1.5f) return; along /= w;
+            float h = key == "kapija_b" ? 1.75f + .25f * r : d.size.y;
+            Color tint = r < .2f ? new Color(.42f, .55f, .45f) : r < .4f ? new Color(.8f, .8f, .78f) : r < .55f ? new Color(.55f, .45f, .36f)
+                : r < .75f ? new Color(.75f, .85f, .8f) : new Color(.6f, .62f, .66f);
+            float ground = Mathf.Min(a.y, b.y);
+            Put(g, key, (a + b) / 2 + Vector3.up * (ground - (a.y + b.y) / 2), along, outward, (w - .1f) / d.size.x, h / d.size.y, 1, -d.size.z / 2, ground, tint);
+            nGates++;
+        }
+
+        /// the pack's iron railing along a yard boundary polyline (Unity points on the ground), standing on a wall `y0` m high,
+        /// `h` m tall
+        public static void Railing(HouseGeo g, List<Vector3> pts, float y0, float h, Vector3 inside, Color tint)
+        {
+            var d = Get("ograda"); if (d == null) return;
+            for (int k = 0; k + 1 < pts.Count; k++)
+            {
+                Vector3 a = pts[k], b = pts[k + 1], e = b - a; e.y = 0; float L = e.magnitude; if (L < .3f) continue; e /= L;
+                var o = new Vector3(e.z, 0, -e.x); if (Vector3.Dot(o, inside) > 0) o = -o; // outward: away from the yard
+                int n = Mathf.Max(1, Mathf.RoundToInt(L / d.size.x)); float sw = L / n;
+                for (int i = 0; i < n; i++)
+                {
+                    var p = Vector3.Lerp(a, b, (i + .5f) / n);
+                    Put(g, "ograda", p + Vector3.up * y0, e, o, sw / d.size.x, h / d.size.y, 1, -d.size.z / 2, p.y, tint);
+                    nRails++;
+                }
+            }
+        }
+
+        /// a shrub (cutout leaves) at p on the ground, `size` m across, turned by r
+        public static void Shrub(HouseGeo g, Vector3 p, float size, float r)
+        {
+            var d = Get("grm"); if (d == null) return;
+            float a = r * Mathf.PI * 2; var e = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)); var o = new Vector3(e.z, 0, -e.x);
+            float s = size / Mathf.Max(d.size.x, .1f);
+            Put(g, "grm", p + Vector3.up * -.05f, e, o, s, s * (.8f + .3f * r), s, -d.size.z * s / 2, p.y, new Color(.9f, .95f, .85f));
+            nShrubs++;
         }
 
         public static Material[] Materials() => new[] { AssetDatabase.LoadAssetAtPath<Material>(DIR + "PaketDetalji.mat"), AssetDatabase.LoadAssetAtPath<Material>(DIR + "PaketDetaljiCut.mat") };

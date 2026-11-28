@@ -714,7 +714,7 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ output (game coordinates in, per chunk / material out)
-        const int MAT_ASPHALT = 0, MAT_PAINT = 1, MAT_VERGE = 2, MAT_KERB = 3, MAT_WALK = 4, MAT_COURT = 5, MAT_BAY = 6, NMAT = 7;
+        const int MAT_ASPHALT = 0, MAT_PAINT = 1, MAT_VERGE = 2, MAT_KERB = 3, MAT_WALK = 4, MAT_COURT = 5, MAT_BAY = 6, MAT_WALK2 = 7, NMAT = 8;
         class Chunk
         {
             public List<Vector3>[] v = new List<Vector3>[NMAT]; public List<Vector2>[] u0 = new List<Vector2>[NMAT], u1 = new List<Vector2>[NMAT], u2 = new List<Vector2>[NMAT];
@@ -733,6 +733,8 @@ namespace Magistrala.EditorTools
         {
             double cx = (a.x + b.x + c.x) / 3, cz = (a.z + b.z + c.z) / 3;
             if (Dropped(drop, cx, cz)) { dropped++; return; }
+            // Paket2 areas (paket2-podrucja.json "plocnik"): the footways take the pack's concrete slabs
+            if (mat == MAT_WALK && Paket2.In(cx, cz, "plocnik")) mat = MAT_WALK2;
             Vector3 A = W.U(a.x, a.y, a.z), B = W.U(b.x, b.y, b.z), C = W.U(c.x, c.y, c.z);
             var n = Vector3.Cross(B - A, C - A);
             if (Vector3.Dot(n, face) < 0) { var t = B; B = C; C = t; var g = b; b = c; c = g; n = -n; }
@@ -1500,7 +1502,9 @@ namespace Magistrala.EditorTools
             if (paint.GetTexture("_BaseMap")) bay.SetTexture("_BaseMap", paint.GetTexture("_BaseMap"));
             verge = CesteMaterials.Shoulder(verge);
             kerb = CesteMaterials.Stone(kerb, "rubnjak");
-            return new[] { asph, paint, verge, kerb, walk, court, bay };
+            // Paket2: the UKRAINIAN CITY pack's grey concrete slabs (Pavement_A, Paket2.Textures), world xz x .25: 4 m per repeat
+            var walk2 = WorldBuilder.Lit("StreetWalkPaket", new Color(1.15f, 1.14f, 1.12f), .16f, 0, "Paket2/plocnik_d.jpg", "Paket2/plocnik_n.jpg", 1f);
+            return new[] { asph, paint, verge, kerb, walk, court, bay, walk2 };
         }
         static void Save(UnityEngine.Object o, string path) { if (AssetDatabase.LoadMainAssetAtPath(path) != null) AssetDatabase.DeleteAsset(path); AssetDatabase.CreateAsset(o, path); }
 
@@ -1604,6 +1608,7 @@ namespace Magistrala.EditorTools
             }
             BuildBarriers(root);
             AssetDatabase.SaveAssets();
+            log.Add(Paket2.Roads());
             log.Add($"streets: {kmDrawn:F1} km ribbon ({segsDrawn} segments, {sidewalkSegs} sidewalk sides), {discs} junction discs, {nCourts} courts, {barriers.Count} barriers ({barriersDropped} dropped: an outside street continues the stub); {tris} triangles ({dropped} dropped on models), {nv} vertices, {chunks.Count} chunks");
             log.Add(WriteCover()); // (before the ground: WalkTerrain keeps off our streets)
             log.Add(WriteWalkCover());
