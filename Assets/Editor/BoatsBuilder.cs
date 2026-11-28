@@ -31,8 +31,11 @@ namespace Magistrala.EditorTools
     public static class BoatsBuilder
     {
         const string DIR = WorldBuilder.GEN + "/Boats";
-        const int PASARA = 0, GUC = 1, GAJETA = 2, PENTASA = 3, JEDRILICA = 4, JAHTA = 5;
-        static readonly string[] Names = { "pasara", "guc", "gajeta", "pentasa", "jedrilica", "jahta" };
+        const int PASARA = 0, GUC = 1, GAJETA = 2, PENTASA = 3, JEDRILICA = 4, JAHTA = 5, GUMENJAK = 6, KAIC = 7;
+        static readonly string[] Names = { "pasara", "guc", "gajeta", "pentasa", "jedrilica", "jahta", "gumenjak", "kaic" };
+        /// imported kinds (2026-11-27): meshes from Assets/Models/Boats/<name>.json (BalkanDriver assets-src/riva-oprema/gumenjak/
+        /// gumenjak_lod.py + kaic_kafic.py: boat frame, lod0 / lod1, vertex colour + paint mask, CREDITS.md), not lofted here
+        const string IMPORTED = "Assets/Models/Boats/";
 
         // ------------------------------------------------------------------ hulls
         class Hull
@@ -78,10 +81,15 @@ namespace Magistrala.EditorTools
             new Hull { L = 5.6f, B = 2.15f, transom = .85f, s0 = .70f, sMid = .68f, sBow = .92f, draft = .35f, n = 1.3f, rake = .45f },   // pentaša
             new Hull { L = 10f,  B = 3.40f, transom = .78f, s0 = 1.0f, sMid = 1.05f, sBow = 1.25f, draft = .50f, n = 1.8f, rake = .60f }, // jedrilica
             new Hull { L = 11f,  B = 3.70f, transom = .85f, s0 = 1.15f, sMid = 1.25f, sBow = 1.50f, draft = .60f, n = 1.35f, rake = .90f }, // jahta
+            new Hull { L = 6.43f, B = 2.64f, transom = .9f, s0 = .9f, sMid = .9f, sBow = 1f, draft = .3f, n = 2, rake = 0 },              // gumenjak (imported)
+            new Hull { L = 4.5f, B = 1.53f, transom = 0, s0 = .55f, sMid = .5f, sBow = .6f, draft = .22f, n = 2.4f, rake = 0 },           // kaić (imported)
         };
         /// bobbing per kind: heave (m), roll / pitch (deg), period (s) — bigger boats slower and smaller
         static readonly (float heave, float roll, float pitch, float period)[] Bobs = {
-            (.07f, 3.5f, 2.0f, 5.0f), (.07f, 3.8f, 2.2f, 4.8f), (.06f, 3.0f, 1.6f, 6.0f), (.065f, 3.2f, 1.8f, 5.4f), (.05f, 2.4f, 1.0f, 7.8f), (.045f, 2.0f, .9f, 8.4f) };
+            (.07f, 3.5f, 2.0f, 5.0f), (.07f, 3.8f, 2.2f, 4.8f), (.06f, 3.0f, 1.6f, 6.0f), (.065f, 3.2f, 1.8f, 5.4f), (.05f, 2.4f, 1.0f, 7.8f), (.045f, 2.0f, .9f, 8.4f), (.06f, 2.6f, 1.4f, 5.6f), (.075f, 4.0f, 2.4f, 4.6f) };
+        /// RIB tube colours (grey / white / dark grey / light grey)
+        static readonly (Color c, float w)[] RibPal = {
+            (new Color(.55f, .57f, .60f), 40), (new Color(.92f, .92f, .90f), 25), (new Color(.30f, .32f, .35f), 20), (new Color(.75f, .76f, .78f), 15) };
         /// hull colours (sRGB, weight) per kind
         static readonly (Color c, float w)[] WoodPal = {
             (new Color(.93f, .93f, .91f), 40), (new Color(.55f, .73f, .86f), 10), (new Color(.18f, .36f, .62f), 11), (new Color(.22f, .48f, .33f), 9),
@@ -171,6 +179,12 @@ namespace Magistrala.EditorTools
             }
 
             public int Tris => T.Count / 3;
+            /// raw vertices of an imported boat (appended)
+            public void Raw(List<Vector3> v, List<Vector3> n, List<Color> c, List<Vector2> u, List<Vector3> inner, int[] t)
+            {
+                int b = V.Count; V.AddRange(v); N.AddRange(n); C.AddRange(c); U.AddRange(u); I.AddRange(inner); foreach (int k in t) T.Add(b + k);
+            }
+
                 public Mesh ToMesh(string name, Mesh m = null)
             {
                 if (!m) m = new Mesh(); m.Clear(); m.name = name; m.indexFormat = V.Count > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
@@ -238,6 +252,20 @@ namespace Magistrala.EditorTools
             mb.Box(new Vector3(0, top - .2f * size, z - .05f * size), new Vector3(.34f * size, .42f * size, .5f * size), cowl, .55f);    // cowl
             mb.Box(new Vector3(0, h.s0 - .3f, z), new Vector3(.1f * size, h.s0 + .45f, .16f * size), Engine, .35f);                       // leg
             mb.Box(new Vector3(0, -.28f, z + .02f), new Vector3(.14f * size, .1f, .3f * size), Engine, .35f);                              // cavitation plate
+        }
+
+        /// an imported boat level as an MB (the same channels as the lofted ones)
+        static MB Imported(int kind, string lod)
+        {
+            var j = MiniJson.O(MiniJson.O(MiniJson.Parse(File.ReadAllText(IMPORTED + Names[kind] + ".json")))[lod]);
+            float[] F(string k) => MiniJson.L(j[k]).Select(x => (float)MiniJson.D(x)).ToArray();
+            var v = F("v"); var n = F("n"); var c = F("c"); var u = F("u"); var i = F("i"); var t = MiniJson.L(j["t"]).Select(x => (int)MiniJson.D(x)).ToArray();
+            var mb = new MB(); mb.Raw(Enumerable.Range(0, v.Length / 3).Select(q => new Vector3(v[3 * q], v[3 * q + 1], v[3 * q + 2])).ToList(),
+                Enumerable.Range(0, v.Length / 3).Select(q => new Vector3(n[3 * q], n[3 * q + 1], n[3 * q + 2])).ToList(),
+                Enumerable.Range(0, v.Length / 3).Select(q => new Color(c[4 * q], c[4 * q + 1], c[4 * q + 2], c[4 * q + 3])).ToList(),
+                Enumerable.Range(0, v.Length / 3).Select(q => new Vector2(u[2 * q], u[2 * q + 1])).ToList(),
+                Enumerable.Range(0, v.Length / 3).Select(q => new Vector3(i[3 * q], i[3 * q + 1], i[3 * q + 2])).ToList(), t);
+            return mb;
         }
 
         static MB Make(int kind, int lod)
@@ -411,7 +439,8 @@ namespace Magistrala.EditorTools
             var near = new Mesh[Names.Length]; var far = new Mesh[Names.Length]; var tris = new List<string>();
             for (int k = 0; k < Names.Length; k++)
             {
-                near[k] = SaveMesh(Make(k, 0), Names[k] + "_near", $"{DIR}/{Names[k]}_near.asset"); far[k] = SaveMesh(Make(k, 1), Names[k] + "_far", $"{DIR}/{Names[k]}_far.asset");
+                near[k] = SaveMesh(k >= GUMENJAK ? Imported(k, "lod0") : Make(k, 0), Names[k] + "_near", $"{DIR}/{Names[k]}_near.asset");
+                far[k] = SaveMesh(k >= GUMENJAK ? Imported(k, "lod1") : Make(k, 1), Names[k] + "_far", $"{DIR}/{Names[k]}_far.asset");
                 tris.Add($"{Names[k]} {Tris(near[k])}/{Tris(far[k])}");
             }
             string mp = DIR + "/Brodice.mat"; var sh = Shader.Find("Magistrala/MooredBoat");
@@ -483,18 +512,67 @@ namespace Magistrala.EditorTools
                 if (s.kind == "boat")
                 {
                     len = 4.7f * (1 + .07f * s.variant); double r = rng.NextDouble();
-                    if (len < 5.3f) k = r < .42 ? PASARA : r < .66 ? GUC : r < .9 ? PENTASA : GAJETA;
+                    bool rib = area != null && area.StartsWith("marina") || Village(s.x) == "Sućurac" || Village(s.x) == "Gomilica";
+                    if (rib && r < .4) k = GUMENJAK;
+                    else if (len < 5.3f) k = r < .36 ? PASARA : r < .52 ? GUC : r < .66 ? KAIC : r < .9 ? PENTASA : GAJETA;
                     else k = r < .4 ? GAJETA : r < .75 ? PENTASA : PASARA;
                     if (k == GAJETA) len = Mathf.Max(len, 5.8f) + (float)rng.NextDouble() * .8f;
                 }
-                else if (area == "marina-stari") { k = s.kind == "sail" ? JEDRILICA : PENTASA; len = k == JEDRILICA ? 7.6f + (float)rng.NextDouble() : 6.2f + (float)rng.NextDouble() * .5f; }
+                else if (area == "marina-stari") { k = s.kind == "sail" && rng.NextDouble() < .3 ? JEDRILICA : rng.NextDouble() < .45 ? GAJETA : PENTASA; len = k == JEDRILICA ? 7.6f + (float)rng.NextDouble() : 6.2f + (float)rng.NextDouble() * .5f; }
                 else { k = s.kind == "sail" ? JEDRILICA : JAHTA; len = 10 + s.variant; }
                 float sc = Mathf.Clamp(len / Hulls[k].L, .72f, 1.4f);
-                var pal = k <= GAJETA ? WoodPal : k == PENTASA ? GrpPal : YachtPal;
+                if (k == GUMENJAK) len = 6.0f + (float)rng.NextDouble() * .6f; else if (k == KAIC) len = 4.2f + (float)rng.NextDouble() * .5f;
+                sc = Mathf.Clamp(len / Hulls[k].L, .72f, 1.4f);
+                var pal = k <= GAJETA || k == KAIC ? WoodPal : k == PENTASA ? GrpPal : k == GUMENJAK ? RibPal : YachtPal;
                 var b = new Boat { p = W.U(s.x, 0, s.z), yaw = (float)(-s.yaw * Mathf.Rad2Deg), kind = k, scale = sc, beam = Beam(k, sc), col = pal[Pick(pal, rng.NextDouble())].c, phase = (float)rng.NextDouble(), where = area ?? Village(s.x) };
                 TryPut(b, -.12f, true);
             }
             int fromSlots = boats.Count;
+
+            // ---- riva-extras/boats.json (BalkanDriver tools/world/riva-extras, 2026-11-27): berths along the quay walls / moles of
+            // every Kaštela riva (stern-to or alongside), bow = (sin h, cos h) in game x / z -> Unity yaw 180 − h (hull bow = +z);
+            // kept only clear of the coast.json boats above (capsule test: hull centre lines ≥ (beam_a + beam_b) / 2 + 0.25 m apart)
+            int fromJson = 0, jsonSlots = 0;
+            var bj = W.BD + "/tools/world/riva-extras/boats.json";
+            if (File.Exists(bj))
+            {
+                bool Clear(Vector3 c, float yaw, float halfL, float beam)
+                {
+                    var d = Quaternion.Euler(0, yaw, 0) * Vector3.forward;
+                    foreach (var o in boats)
+                    {
+                        if ((o.p - c).sqrMagnitude > 400) continue;
+                        var od = Quaternion.Euler(0, o.yaw, 0) * Vector3.forward; float oh = Hulls[o.kind].L * o.scale * .5f;
+                        float min = 9;
+                        for (int i = 0; i <= 6; i++)
+                        {
+                            var q = c + d * Mathf.Lerp(-halfL, halfL, i / 6f) - o.p; float t = Mathf.Clamp(Vector3.Dot(q, od), -oh, oh);
+                            min = Mathf.Min(min, (q - od * t).magnitude);
+                        }
+                        if (min < (o.beam + beam) * .5f + .25f) return false;
+                    }
+                    return true;
+                }
+                int ji = 0;
+                foreach (var bo in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(bj)))["boats"]))
+                {
+                    var o = MiniJson.O(bo); var pos = MiniJson.L(o["position"]); double x = MiniJson.D(pos[0]), z = MiniJson.D(pos[1]);
+                    if (x < StreetsBuilder.AX0 || x >= StreetsBuilder.AX1 || z < StreetsBuilder.AZ0 || z >= StreetsBuilder.AZ1) continue;
+                    jsonSlots++;
+                    var rng = new System.Random(5000 + ji++ * 7919);
+                    string type = (string)o["boatType"]; float len = MiniJson.F(o["lengthM"]); double r = rng.NextDouble(); int k;
+                    string town = Village(x); bool ribTown = town == "Gomilica" || town == "Sućurac" || (Area(x, z) ?? "").StartsWith("marina");
+                    if (type == "pasara") k = ribTown && r < .45 ? GUMENJAK : len < 4.8f ? (r < .45 ? PASARA : r < .75 ? KAIC : GUC) : (r < .45 ? PASARA : r < .8 ? PENTASA : r < .9 ? KAIC : GUC);
+                    else k = ribTown && r < .2 ? GUMENJAK : GAJETA;          // gajeta / leut: the double-ended wooden boat, longer
+                    if (k == GUMENJAK) len = Mathf.Clamp(len, 5.8f, 6.6f); else if (k == KAIC) len = Mathf.Clamp(len, 4.0f, 4.8f);
+                    float sc = Mathf.Clamp(len / Hulls[k].L, .8f, 1.25f);
+                    var pal = k <= GAJETA || k == KAIC ? WoodPal : k == GUMENJAK ? RibPal : GrpPal;
+                    float yaw = 180 - MiniJson.F(o["headingDeg"]);
+                    var b = new Boat { p = W.U(x, 0, z), yaw = yaw, kind = k, scale = sc, beam = Beam(k, sc), col = pal[Pick(pal, rng.NextDouble())].c, phase = (float)rng.NextDouble(), where = (Area(x, z) ?? Village(x)) + " (riva)" };
+                    if (!Clear(b.p, yaw, Hulls[k].L * sc * .5f, b.beam)) { Why("riva: zauzeto"); continue; }
+                    if (TryPut(b, -.12f, true)) fromJson++;
+                }
+            }
 
             // ---- a few on buoys off every harbour (seaward = Unity −z), bows to the bura (NE) ± 25°
             int buoys = 0;
@@ -532,7 +610,7 @@ namespace Magistrala.EditorTools
 
             var perKind = string.Join(", ", Enumerable.Range(0, Names.Length).Select(k => $"{Names[k]} {boats.Count(b => b.kind == k)}"));
             var perWhere = string.Join(", ", boats.GroupBy(b => b.where).OrderBy(g => g.Key).Select(g => $"{g.Key} {g.Count()}"));
-            return $"[brodice] {boats.Count} brodica ({fromSlots} na {slots.Count} vezova iz coast.json, {nudged} pomaknuto, {buoys} na bovama); vrste: {perKind}\n" +
+            return $"[brodice] {boats.Count} brodica ({fromSlots} na {slots.Count} vezova iz coast.json, {fromJson} na {jsonSlots} vezova iz riva-extras/boats.json, {nudged} pomaknuto, {buoys} na bovama); vrste: {perKind}\n" +
                    $"  po mjestima: {perWhere}\n  odbijeno: {string.Join(", ", why.Select(x => $"{x.Key} {x.Value}"))}\n  trokuti blizu/daleko: {string.Join(", ", tris)}; {sw.ElapsedMilliseconds / 1000.0:F1} s";
         }
 
@@ -639,7 +717,7 @@ namespace Magistrala.EditorTools
         }
 
         static readonly Plane[] planes = new Plane[6];
-        static string Render(Camera cam, MooredBoats mb, Magistrala.Traffic.ParkedCars pc, string file)
+        public static string Render(Camera cam, MooredBoats mb, Magistrala.Traffic.ParkedCars pc, string file)
         {
             const int Wd = 1600, Ht = 900;
             ShaderUtil.allowAsyncCompilation = false;

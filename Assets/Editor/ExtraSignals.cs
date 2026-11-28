@@ -28,7 +28,7 @@ namespace Magistrala.EditorTools
         }
         public class Junction
         {
-            public string key, title; public Vector2 c; public float y; public TrafficPlan plan;
+            public string key, title, model; public long node; public Vector2 c; public float y; public TrafficPlan plan;
             public List<Approach> approaches = new List<Approach>();
             /// zebras with pedestrian heads at both ends (centre, road direction, width across)
             public List<(Vector2 p, Vector2 t, float w)> ped = new List<(Vector2, Vector2, float)>();
@@ -84,7 +84,36 @@ namespace Magistrala.EditorTools
                 foreach (var d in MiniJson.L(MiniJson.G(j, "domes")) ?? new List<object>()) J.domes.Add(V(d));
                 res.Add(J);
             }
+            BindModels(res);
             return res;
+        }
+
+        // IDs in the importer's node table are not stable identities. Restrict to
+        // the owning model, then resolve against the surveyed signal position.
+        static void BindModels(List<Junction> junctions)
+        {
+            var owners = new Dictionary<string, string> {
+                ["semafor-gomilica-t"] = "krizanje-74", ["semafor-gomilica-pomaknuto"] = "krizanje-74",
+                ["semafor-kambelovac"] = "krizanje-75", ["semafor-tamunic"] = "krizanje-78", ["semafor-putaljski"] = "krizanje-79"
+            };
+            var root = MiniJson.O(MiniJson.Parse(File.ReadAllText(W.REGION + "model-junctions.json")));
+            GameDataBuilder.MergedGraph(out var nodes, out _, out _);
+            foreach (var j in junctions)
+            {
+                if (!owners.TryGetValue(j.key, out var owner)) continue;
+                var model = MiniJson.L(root["junctions"]).Select(MiniJson.O).Single(m => (string)m["key"] == owner);
+                float best = 35; long found = 0;
+                foreach (var no in MiniJson.L(model["nodes"]))
+                {
+                    long id = (long)MiniJson.D(no);
+                    if (!nodes.TryGetValue(id, out var n)) continue;
+                    float d = Vector2.Distance(j.c, new Vector2((float)n.x, (float)n.z));
+                    if (d < best) { best = d; found = id; }
+                }
+                if (found == 0) throw new InvalidDataException("[semafori] no model node near " + j.key + " / " + owner);
+                j.model = owner; j.node = found;
+                if (best > 10) Debug.LogWarning($"[semafori] {j.key}: {owner} node {found}, {best:F1} m from survey; keep surveyed poles/stop lines, inspect seam");
+            }
         }
 
         /// the stop lines of every approach (game frame: p, travel direction (x east, z south)), with the junction's key and group

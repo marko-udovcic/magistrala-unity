@@ -605,23 +605,21 @@ namespace Magistrala.EditorTools
                 cors[cors.Count - 1].deadEnd = s13 != null;
                 cors.Add(Corridor("Stara cesta zapad (Štafilić)", back, models, true));
             }
-            // Cesta dr. Franje Tuđmana east of the s13 gap (Lukšić node at game x −6052 → Kambelovac, Gomilica, Sućurac, to the world's
-            // east edge): two-way, from the game graph (GameWorld edges, the streets as StreetsBuilder draws them) — the AI on the main
-            // road of the signalised junctions without a model (semafori-bez-modela.json); the westbound end is the gap (closure)
-            var gwd = AssetDatabase.LoadAssetAtPath<GameWorld>("Assets/Generated/Game/Resources/" + GameWorld.ResourcePath + ".asset");
-            float tudY = float.NaN, tudY1 = float.NaN;
-            var tud = gwd ? GraphRoad(gwd, "Tuđmana", new Vector2(-6052.4f, -5036.1f), -430, out tudY, out tudY1) : null;
-            if (tud != null && tud.Count > 10)
-            {
-                var back = new List<(double x, double z, double w, int n, Piece pc)>(tud); back.Reverse();
-                cors.Add(Corridor("Tuđmana istok (Sućurac)", tud, models, true, tudY));
-                var w = Corridor("Tuđmana zapad (Lukšić)", back, models, true, tudY1);
-                w.deadEnd = true; cors.Add(w);
-            }
-            else Debug.LogWarning("[traffic] Tuđmana east of Lukšić: no GameWorld (run Igra: podaci) — corridor skipped");
-            // Package lanes continue beyond GraphRoad's unnamed crossroads edge.
-            cors.RemoveAll(c => c.name.StartsWith("Tuđmana"));
-            cors.AddRange(TrafficSideBuilder.EasternMain());
+            // New package replaces the old assumed easternMain corridor. Chain
+            // only 72–79; the direction test follows their through axes to Sućurac.
+            var eastModels = models.Where(m => int.TryParse(m.key.Replace("krizanje-", ""), out int id) && id >= 72 && id <= 79).ToList();
+            var easternRoads = Roads(eastModels);
+            var m72 = eastModels.Find(m => m.key == "krizanje-72");
+            if (m72 == null) throw new InvalidDataException("[traffic] missing model 72");
+            var easternAxis = Chain(easternRoads, easternRoads.Find(r => r.p == m72.roads[0].p));
+            if (easternAxis[easternAxis.Count - 1].x < -850)
+                throw new InvalidDataException("[traffic] model chain 72–79 stops before Sućurac");
+            // The s13 works remain closed: start on the eastern side of the gap.
+            easternAxis.RemoveAll(q => q.x < -6052.4);
+            var easternBack = new List<(double x, double z, double w, int n, Piece pc)>(easternAxis); easternBack.Reverse();
+            cors.Add(Corridor("Tuđmana istok (Sućurac)", easternAxis, models, true));
+            var easternWest = Corridor("Tuđmana zapad (Lukšić)", easternBack, models, true);
+            easternWest.deadEnd = true; cors.Add(easternWest);
             var (plans, stops) = Signals(models);
             // the real signalised junctions without a model: generic plans, their stop lines
             var extra = ExtraSignals.Load();

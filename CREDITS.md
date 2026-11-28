@@ -172,3 +172,13 @@ od dvojne licence), isaiah658 (ambient birds), Thimras (park ambiences), qubodup
 Rieder (zvona Schruns), Nostrifikator (zvono), Tvabutzku1234 (vjetar), earthcalling (more), DavidDelon (cvrčci), cori (kiša,
 grad), stephan (kafana), ezwa (jutro), Extemporalist (prolaz auta). Ostalo (žmigavac, pištalica, truba Galeba, dvotonac rezerva,
 roletna, rampa): vlastita sinteza, CC0.
+
+Modeli s CGTradera (Royalty Free, dopuštena komercijalna uporaba; izmijenjeni u Blenderu, bez oznaka/brendova):
+- Gumenjak (`Assets/Models/Boats/gumenjak.json`): "Salpa Soleil 20 Rubber Boat" by genovezosgeorge (CGTrader, Royalty Free),
+  modified, no branding — preimenovani dijelovi, naše boje, smanjeno na LOD0 ~6,7k / LOD1 ~1,3k trokuta
+  (BalkanDriver `assets-src/riva-oprema/gumenjak/gumenjak_lod.py`).
+- Drveni kaić (`Assets/Models/Boats/kaic.json`): CGTrader free model, modified — vesla maknuta, 4,5 m, naše boje.
+- Kafić set suncobran + stol + 4 stolice (`Assets/Models/Props/RivaOprema/kafic-set-*.glb`): CGTrader free model, modified —
+  stvarne mjere (3 m), tri boje platna (BalkanDriver `assets-src/riva-oprema/kaic_kafic.py`).
+Ostala oprema rive (klupe, koševi, stalci za bicikle, stupići, bitve, lampe s dvije kugle): vlastiti proceduralni modeli
+(`assets-src/riva-oprema/riva_oprema.py`), CC0.

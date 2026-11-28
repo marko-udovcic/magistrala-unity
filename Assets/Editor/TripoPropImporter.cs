@@ -25,7 +25,11 @@ namespace Magistrala.EditorTools
         public const string SRC = "Assets/Models/Props/Tripo";
         /// Poly Haven CC0 models (glTF packed to one-material GLBs, CREDITS.md), imported the same way
         public const string SRC_PH = "Assets/Models/Props/PolyHaven";
-        public static IEnumerable<string> Sources(string pattern) => Directory.GetFiles(SRC, pattern).Concat(Directory.Exists(SRC_PH) ? Directory.GetFiles(SRC_PH, pattern) : new string[0]);
+        /// our own riva furniture (BalkanDriver assets-src/riva-oprema/riva_oprema.py, Blender; palette texture), imported the same way
+        public const string SRC_RO = "Assets/Models/Props/RivaOprema";
+        public static IEnumerable<string> Sources(string pattern) => Directory.GetFiles(SRC, pattern)
+            .Concat(Directory.Exists(SRC_PH) ? Directory.GetFiles(SRC_PH, pattern) : new string[0])
+            .Concat(Directory.Exists(SRC_RO) ? Directory.GetFiles(SRC_RO, pattern) : new string[0]);
         public const string OUT = "Assets/Generated/Props/Tripo";
         /// field of view the LOD distances are worked out for (the chase camera)
         const float FOV = 60;

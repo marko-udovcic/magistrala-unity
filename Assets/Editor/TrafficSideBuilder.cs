@@ -28,8 +28,10 @@ namespace Magistrala.EditorTools
                 foreach (var point in MiniJson.L(path))
                 {
                     var p = MiniJson.L(point); double x = MiniJson.D(p[0]), z = MiniJson.D(p[2]);
+                    if (x >= 3260) throw new InvalidDataException("[sporedne] easternMain overlaps package 2711");
                     raw.Add(W.U(A("a") * x + A("b") * z + A("tx"), MiniJson.D(p[1]), A("c") * x + A("d") * z + A("tz")));
                 }
+                if (raw.Count < 2) continue;
                 var pts = new List<Vector3> { raw[0] }; float carry = 0;
                 for (int i = 1; i < raw.Count; i++)
                 {

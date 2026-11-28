@@ -2,6 +2,8 @@
 
   1. Unity: Magistrala/Riva: ulazni podaci (RivaBuilder.ExportInputs) -> Logs/riva-input.json (carriageways of the built streets, trees)
   2. tools/world/dgu/cache/venv/bin/python -I Tools/riva/riva_build.py   (numpy, scipy, Pillow, shapely >= 2.1)
+     [--only=id,id: just these zones, merged into the existing riva.json; the eastern zones of 28 Nov: --only=luksic-istok,kambelovac,gomilica]
+     (models 80-82 cut mask: Tools/riva/maska_istok.py -> Tools/riva/riva-maska-istok.json, read by RivaBuilder with the package mask)
   3. Unity: Magistrala/Build streets (ends with RivaBuilder.Build), Build trees, ...
 
 Reads (never writes) the BalkanDriver repo: the DOF LiDAR 2022/23 mosaic (tools/world/dgu/cache/dof/mosaic-lidar/t_TX_TZ.png, 0.5 m/px,
@@ -37,6 +39,9 @@ INP = json.loads((UP / 'Logs/riva-input.json').read_text())
 OUT = UP / 'Assets/Editor/riva.json'
 PX = 0.5
 DEBUG = '--debug' in sys.argv
+# --only id,id: rebuild just these zones and merge them into the existing riva.json (the other zones stay byte for byte as they are:
+# their streets / package cut / riva furniture were checked against that data)
+ONLY = next((a.split('=', 1)[1].split(',') for a in sys.argv if a.startswith('--only=')), None)
 
 
 def tile_heights_bld(tx, tz):
@@ -166,6 +171,7 @@ def main():
     res = {'version': 1, 'source': 'DGU DOF LiDAR 2022./23. (ortofoto, Otvorena dozvola), OSM (coast.json, ODbL), Tools/riva/riva_build.py',
            'zones': [], 'paving': [], 'pontoons': [], 'parking': [], 'trees': [], 'landmarks': CFG.get('landmarks', {})}
     for zone in CFG['zones']:
+        if ONLY and zone['id'] not in ONLY: continue
         x0, z0, x1, z1 = zone['box']; g = Grid(x0, z0, x1, z1)
         a = photo(g); r, gg, b, al = [a[..., k].astype(np.int16) for k in range(4)]
         lum = (r * 3 + gg * 6 + b) / 10
@@ -226,7 +232,7 @@ def main():
         parkm = g.mask(im)
         # the riva: land by the sea, between the street and the water
         dw = ndimage.distance_transform_edt(~water) * PX
-        cand = land & ~road & ~bld & ~(beachm & ~workm) & ~parkm & (dw <= 35)
+        cand = land & ~road & ~bld & ~(beachm & ~workm) & ~parkm & (dw <= zone.get('maxDist', 35))   # (maxDist: narrow shores, not gardens)
         cand = ndimage.binary_opening(cand, iterations=1)
         lab, n = ndimage.label(cand)
         touch = np.unique(lab[ndimage.binary_dilation(water, iterations=2) & cand])
@@ -234,9 +240,29 @@ def main():
         riva = ndimage.binary_closing(riva, iterations=1) & ~road & ~bld
         quay = land & road & (dw <= 2.5) & ndimage.binary_dilation(riva | (water & ~basin), iterations=int(3 / PX))
         riva |= quay
+        # zone exclusions (beach sand the coast.json beach misses: beaches stay beach), and the moles / piers that
+        # 'Magistrala/Riva: oprema i brodice' builds from riva-extras/breakwaters.json (concrete top + coping: not twice)
+        bw = []
+        if zone.get('breakwaters') == 'riva-extras':
+            bj = json.loads((BD / 'tools/world/riva-extras/breakwaters.json').read_text())
+            bw = [shapely.geometry.shape(it['polygon']).buffer(0) for v in bj.values() if isinstance(v, list) for it in v if 'polygon' in it]
+            bw = [P for P in bw if P.intersects(zb)]
+        if zone.get('exclude') or bw:
+            im = g.img(); dr = ImageDraw.Draw(im)
+            for pts in zone.get('exclude', []): g.poly(dr, pts)
+            for P in bw:
+                for q in (P.geoms if hasattr(P, 'geoms') else [P]): g.poly(dr, list(q.buffer(.5).exterior.coords))
+            riva &= ~g.mask(im)
+        # forced strips (a promenade the photo / coast.json put on the beach): line + width, their own surface
+        forced = [(f.get('surface', zone.get('surface', 'ploce')), LineString(f['line']).buffer(f['w'] / 2, cap_style='flat', join_style='round'))
+                  for f in zone.get('force', [])]
+        if forced:
+            im = g.img(); dr = ImageDraw.Draw(im)
+            for _, P in forced: g.poly(dr, list(P.exterior.coords))
+            riva |= g.mask(im) & ~road & ~bld
         pav = to_polys(riva, g)
         # pontoons: apart, minus the paving they start from
-        pu = unary_union(pav) if pav else Polygon()
+        pu = unary_union(pav + bw) if pav or bw else Polygon()
         pon = []
         for P in pontoons:
             q = P.difference(pu).buffer(0)
@@ -309,12 +335,34 @@ def main():
         cls = np.zeros((n1z, n1x), np.uint8)
         cls[pv] = 1; cls[pv & (dsea <= 3) & (down(pavm) >= .5)] = 2; cls[sea1] = 3
         cr = down(ndimage.binary_dilation(crown, iterations=int(2 / PX))) > 0
+        if zone.get('breakwaters') == 'riva-extras':
+            # the palm / tamarisk rows proposed in riva-extras/oprema.json (treeRowSuggestion, planted by the trees branch): a tree
+            # may stand there (crown bit), so RivaBuilder.NoTree keeps them on the new paving
+            oj = json.loads((BD / 'tools/world/riva-extras/oprema.json').read_text())
+            im = g.img(); dr = ImageDraw.Draw(im)
+            for row in oj.get('treeRowSuggestion', []):
+                P = LineString(row['polyline']).buffer(2.0)
+                if P.intersects(zb): g.poly(dr, list(P.exterior.coords))
+            cr |= down(g.mask(im)) > 0
         code = cls | (cr.astype(np.uint8) << 2) | (np.clip(np.round(dland * 2), 0, 31).astype(np.uint8) << 3) * sea1
         code |= ((down(parkm) >= .5) & pv).astype(np.uint8) << 3   # (paving / car park cells: bit 3 = car park)
         res['zones'].append({'id': zone['id'], 'x0': g.x0, 'z0': g.z0, 'nx': int(n1x), 'nz': int(n1z), 'cell': 1,
                              'grid': base64.b64encode(gzip.compress(code.tobytes(), 9)).decode()})
-        V, I = mesh(pav)
-        res['paving'].append({'zone': zone['id'], 'v': [c for p in V for c in p], 't': I, 'rings': rings(pav, water, g)})
+        # surface per real use: zone default (ploce = limestone slabs, beton = concrete quay / approaches), regions override it
+        # (sljunak = gravel beach promenade); one paving entry per surface
+        groups, rest = [], pav
+        for surf_, R in [(ov['surface'], Polygon(ov['pts']).buffer(0)) for ov in zone.get('surfaces', [])] + [(f, P.buffer(.6)) for f, P in forced]:
+            inn, out = [], []
+            for P in rest:
+                for q, lst in ((P.intersection(R), inn), (P.difference(R), out)):
+                    for p in (q.geoms if hasattr(q, 'geoms') else [q]):
+                        if p.geom_type == 'Polygon' and p.area >= 1: lst.append(shapely.geometry.polygon.orient(p, 1.0))
+            if inn: groups.append((surf_, inn))
+            rest = out
+        groups.insert(0, (zone.get('surface', 'ploce'), rest))
+        for surf, ps in groups:
+            V, I = mesh(ps)
+            res['paving'].append({'zone': zone['id'], 'surface': surf, **({'heights': zone['heights']} if zone.get('heights') else {}), 'v': [c for p in V for c in p], 't': I, 'rings': rings(ps, water, g)})
         V, I = mesh(pon)
         res['pontoons'].append({'zone': zone['id'], 'v': [c for p in V for c in p], 't': I, 'rings': rings(pon, water, g)})
         for p in parks:
@@ -347,6 +395,15 @@ def main():
             for t in add: D.ellipse([g.pix(t[0] - 1.5, t[1] - 1.5), g.pix(t[0] + 1.5, t[1] + 1.5)], outline=(255, 128, 0), width=2)
             for t in have: D.ellipse([g.pix(t[0] - 1, t[1] - 1), g.pix(t[0] + 1, t[1] + 1)], outline=(255, 255, 255), width=1)
             im2.save(UP / f"Logs/riva-debug-{zone['id']}.jpg", quality=85)
+    if ONLY:
+        old = json.loads(OUT.read_text())
+        boxes = [z['box'] for z in CFG['zones'] if z['id'] in ONLY]
+        for k in ('zones', 'paving', 'pontoons'):
+            res[k] = [e for e in old[k] if e.get('zone', e.get('id')) not in ONLY] + res[k]
+        ids = {p['id'] for p in res['parking']}
+        res['parking'] = [p for p in old['parking'] if p['id'] not in ids] + res['parking']
+        res['trees'] = [t for t in old['trees'] if not any(b[0] <= t[0] < b[2] and b[1] <= t[1] < b[3] for b in boxes)] + res['trees']
+        res['landmarks'] = old.get('landmarks', res['landmarks'])
     OUT.write_text(json.dumps(res, separators=(',', ':')))
     print(f'{OUT}: {OUT.stat().st_size / 1e6:.2f} MB')
 

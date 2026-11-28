@@ -169,7 +169,9 @@ namespace Magistrala.EditorTools
             var root = WorldBuilder.Root("Sea");
             // sunny Kaštela bay (owner 2026-11-20): lighter — turquoise-teal shallows over the riva (~#4fa3a8 on screen), clear mid-blue
             // open water (~#2a6f9e…#3a7fae); vertex colours are linear body colours (the shader lights them at ~0.6–0.8)
-            Color shallow = new Color(.13f, .50f, .47f), mid = new Color(.045f, .25f, .45f), deep = new Color(.022f, .16f, .37f), foam = new Color(.55f, .72f, .68f);
+            // riva review 2026-11-27: the bay read oversaturated (cyan pool) — Kaštelanski zaljev is greener and calmer: clear greenish
+            // turquoise over the shallows, a muted mid blue-green, deep blue less violet
+            Color shallow = new Color(.10f, .37f, .34f), mid = new Color(.04f, .20f, .31f), deep = new Color(.02f, .13f, .27f), foam = new Color(.40f, .54f, .50f);
             Color Tint(double h) { float d = (float)-h; if (d < .35f) return Color.Lerp(foam, shallow, Mathf.Clamp01((d + .2f) / .55f)); return d < 6 ? Color.Lerp(shallow, mid, Mathf.Clamp01(d / 6)) : Color.Lerp(mid, deep, Mathf.Clamp01((d - 6) / 20)); }
             // near grid: game x -9300 … 1200, z -6000 … -2800 (the bay), 25 m cells
             double x0 = -9300, x1 = 1200, z0 = -6000, z1 = -2800, cell = 25;
