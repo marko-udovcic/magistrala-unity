@@ -100,8 +100,11 @@ def cut(data, mask):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('source', type=Path); ap.add_argument('mask', type=Path); ap.add_argument('output',type=Path)
+    ap.add_argument('--extra', type=Path, action='append', default=[], help='further masks (Tools/riva/riva-maska-istok.json: models 80-82)')
     a = ap.parse_args()
-    d = cut(json.loads(a.source.read_text()),json.loads(a.mask.read_text()))
+    mask = json.loads(a.mask.read_text())
+    for e in a.extra: mask['models'] = mask['models'] + json.loads(e.read_text())['models']
+    d = cut(json.loads(a.source.read_text()),mask)
     a.output.write_text(json.dumps(d, ensure_ascii=False,separators=(',',':'))+'\n')
     print(json.dumps(d['packageCut']))
 

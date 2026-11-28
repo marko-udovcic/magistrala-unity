@@ -29,6 +29,8 @@ namespace Magistrala.EditorTools
     public static class RivaBuilder
     {
         public const string DATA = "Assets/Editor/riva.json", INPUT = "Logs/riva-input.json";
+        /// models 80-82 (Kambelovac, Gomilica, Sućurac) model their promenade: cut too (Tools/riva/maska_istok.py)
+        const string MASK_ISTOK = "Tools/riva/riva-maska-istok.json";
         const string OUT = WorldBuilder.GEN + "/Riva";
         const float WALL_BOTTOM = -2.6f, KERB = .35f, FLOOR = .7f, PONTOON = .45f, LIFT = .10f, FALL = .012f;
 
@@ -47,7 +49,8 @@ namespace Magistrala.EditorTools
                 try
                 {
                     var start = new System.Diagnostics.ProcessStartInfo(python,
-                        $"-I -B \"{Path.GetFullPath("Tools/riva/cut_package.py")}\" \"{Path.GetFullPath(DATA)}\" \"{mask}\" \"{output}\"")
+                        $"-I -B \"{Path.GetFullPath("Tools/riva/cut_package.py")}\" \"{Path.GetFullPath(DATA)}\" \"{mask}\" \"{output}\""
+                        + (File.Exists(MASK_ISTOK) ? $" --extra \"{Path.GetFullPath(MASK_ISTOK)}\"" : ""))
                     { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
                     using (var process = System.Diagnostics.Process.Start(start))
                     {
@@ -236,10 +239,12 @@ namespace Magistrala.EditorTools
         static Dictionary<(long, long), float> SmoothHeights(List<object> pavings)
         {
             var id = new Dictionary<(long, long), int>(); var X = new List<double>(); var Z = new List<double>(); var nb = new List<HashSet<int>>();
-            int Id(double x, double z) { var k = ((long)Math.Round(x * 100), (long)Math.Round(z * 100)); if (!id.TryGetValue(k, out int i)) { i = X.Count; id[k] = i; X.Add(x); Z.Add(z); nb.Add(new HashSet<int>()); } return i; }
+            var local = new HashSet<int>(); bool loc = false;
+            int Id(double x, double z) { var k = ((long)Math.Round(x * 100), (long)Math.Round(z * 100)); if (!id.TryGetValue(k, out int i)) { i = X.Count; id[k] = i; X.Add(x); Z.Add(z); nb.Add(new HashSet<int>()); } if (loc) local.Add(i); return i; }
             foreach (var po in pavings)
             {
                 var m = MiniJson.O(po); var V = MiniJson.L(m["v"]); var T = MiniJson.L(m["t"]); int n = V.Count / 2; var map = new int[n];
+                loc = MiniJson.G(m, "heights") as string == "local";
                 for (int i = 0; i < n; i++) map[i] = Id(MiniJson.D(V[2 * i]), MiniJson.D(V[2 * i + 1]));
                 for (int k = 0; k + 2 < T.Count; k += 3)
                 {
@@ -256,6 +261,23 @@ namespace Magistrala.EditorTools
             int N = X.Count; var y = new float[N]; var fix = new bool[N];
             for (int i = 0; i < N; i++)
             {
+                if (local.Contains(i))
+                {
+                    // heights 'local' (the eastern rivas: their streets are road models 80 / 81, not in the street list, and the
+                    // nearest listed street is the main road up the hill): the ground of the source tiles, fixed to a road model's
+                    // or a street's surface where one lies within 3 m
+                    y[i] = (float)Tiles.Height(X[i], Z[i]) + .05f;
+                    float sy = StreetY(X[i], Z[i]); float bd = 0;
+                    if (float.IsNaN(sy))
+                        for (int ri = 1; ri <= 2 && float.IsNaN(sy); ri++)
+                            for (int a = 0; a < 8; a++)
+                            {
+                                double ang = a * Math.PI / 4; float q = StreetY(X[i] + Math.Cos(ang) * 1.5 * ri, Z[i] + Math.Sin(ang) * 1.5 * ri);
+                                if (!float.IsNaN(q) && (float.IsNaN(sy) || q > sy)) { sy = q; bd = 1.5f * ri; }
+                            }
+                    if (!float.IsNaN(sy)) { y[i] = sy + LIFT - FALL * bd; fix[i] = true; }
+                    continue;
+                }
                 y[i] = PaveY(X[i], Z[i]);
                 if (NearestRoad(X[i], Z[i], 40, out double ex, out double ez, out double d, out double hw) && d - hw < 3)
                 {
@@ -283,11 +305,11 @@ namespace Magistrala.EditorTools
         }
 
         // ------------------------------------------------------------------ meshes
-        class Chunk { public List<Vector3> v = new List<Vector3>(); public List<Vector2> u = new List<Vector2>(); public List<int>[] t = { new List<int>(), new List<int>(), new List<int>(), new List<int>(), new List<int>() }; }
+        class Chunk { public List<Vector3> v = new List<Vector3>(); public List<Vector2> u = new List<Vector2>(); public List<int>[] t = { new List<int>(), new List<int>(), new List<int>(), new List<int>(), new List<int>(), new List<int>(), new List<int>() }; }
         static Dictionary<(int, int), Chunk> chunks;
         const float CH = 128;
         static Chunk At(Vector3 p) { var k = ((int)Math.Floor(p.x / CH), (int)Math.Floor(p.z / CH)); if (!chunks.TryGetValue(k, out var c)) chunks[k] = c = new Chunk(); return c; }
-        /// triangle in material m (0 paving, 1 wall, 2 parking asphalt, 3 soil), facing `face` (wound to it)
+        /// triangle in material m (0 paving, 1 wall, 2 parking asphalt, 3 soil, 4 bitts, 5 concrete, 6 gravel), facing `face` (wound to it)
         static void Tri(int m, Vector3 a, Vector3 b, Vector3 c, Vector2 ua, Vector2 ub, Vector2 uc, Vector3 face)
         {
             var ch = At((a + b + c) / 3); int o = ch.v.Count;
@@ -311,7 +333,7 @@ namespace Magistrala.EditorTools
         }
 
         /// sea walls (to WALL_BOTTOM) and kerb faces along the rings; outward = right of an exterior (counter-clockwise in game x / z)
-        static (int, int) Edges(Dictionary<string, object> m, Func<double, double, float> height, int kerbMat)
+        static (int, int) Edges(Dictionary<string, object> m, Func<double, double, float> height, int kerbMat, int wallMat = 1)
         {
             int nw = 0, nk = 0;
             foreach (var ro in MiniJson.L(m["rings"]))
@@ -328,7 +350,7 @@ namespace Magistrala.EditorTools
                     var ua = W.U(a.x, Y[i], a.y); var ub = W.U(b.x, Y[j], b.y);
                     var face = new Vector3(outG.x, 0, -outG.y);
                     bool wall = MiniJson.D(sea[i]) > .5;
-                    float bot = wall ? WALL_BOTTOM : 0, s = wall ? 2.5f : 3f, mat = wall ? 1 : kerbMat;
+                    float bot = wall ? WALL_BOTTOM : 0, s = wall ? 2.5f : 3f, mat = wall ? wallMat : kerbMat;
                     var la = new Vector3(ua.x, wall ? WALL_BOTTOM : ua.y - KERB, ua.z); var lb = new Vector3(ub.x, wall ? WALL_BOTTOM : ub.y - KERB, ub.z);
                     Vector2 Uv(float t, float y) => new Vector2((along + t) / s, y / s);
                     Tri((int)mat, ua, ub, lb, Uv(0, ua.y), Uv(L, ub.y), Uv(L, lb.y), face);
@@ -409,13 +431,22 @@ namespace Magistrala.EditorTools
             paveMat = CesteMaterials.Stone(paveMat, "riva_ploce");
             wallMat = CesteMaterials.Stone(wallMat, "riva_rub", true, true);
             var iron = WorldBuilder.Lit("RivaBitve", new Color(.12f,.13f,.13f), .28f, .7f);
-            var mats = new[] { paveMat, wallMat, asph, soil, iron };
+            // per real use (riva.json paving 'surface'): ploce = limestone slabs, beton = concrete quay / approaches (as the breakwaters),
+            // sljunak = gravel beach promenade (the streets' pale gravel verge)
+            var beton = WorldBuilder.Lit("RivaBeton", new Color(.86f, .84f, .80f), .12f, 0, "PolyHaven/concrete_wall_007_d.jpg", "PolyHaven/concrete_wall_007_n.jpg", .8f);
+            var gravel = WorldBuilder.Lit("RivaSljunak", new Color(.95f, .93f, .89f), .05f, 0, "PolyHaven/gravel_ground_01_diff.jpg", "PolyHaven/gravel_ground_01_nor.jpg", .7f);
+            var mats = new[] { paveMat, wallMat, asph, soil, iron, beton, gravel };
 
             // the paving heights: computed once per vertex (cache by position: the rings share the mesh's boundary vertices)
             var cache = SmoothHeights(MiniJson.L(d["paving"]));
             float H(double x, double z) { var k = ((long)Math.Round(x * 100), (long)Math.Round(z * 100)); if (!cache.TryGetValue(k, out var y)) cache[k] = y = PaveY(x, z); return y; }
             int nt = 0, nw = 0, nk = 0;
-            foreach (var po in MiniJson.L(d["paving"])) { var m = MiniJson.O(po); nt += Surface(m, 0, H, 3f); var e = Edges(m, H, 0); nw += e.Item1; nk += e.Item2; }
+            foreach (var po in MiniJson.L(d["paving"]))
+            {
+                var m = MiniJson.O(po); string surf = MiniJson.G(m, "surface") as string;
+                int sm = surf == "beton" ? 5 : surf == "sljunak" ? 6 : 0;
+                nt += Surface(m, sm, H, 3f); var e = Edges(m, H, sm == 6 ? 5 : sm, sm == 0 ? 1 : 5); nw += e.Item1; nk += e.Item2; // (concrete quays: concrete wall, the stone coping stays)
+            }
             float Pon(double x, double z) => PONTOON;
             foreach (var po in MiniJson.L(d["pontoons"])) { var m = MiniJson.O(po); nt += Surface(m, 0, Pon, 3f); Edges(m, Pon, 0); }
             log.Add($"paving {nt} triangles, sea wall {nw} segments, kerb {nk}, {cache.Count} heights");
@@ -435,7 +466,7 @@ namespace Magistrala.EditorTools
                 // welded per material (identical position + uv)
                 var V = new List<Vector3>(); var U = new List<Vector2>(); var subs = new List<int[]>(); var sm = new List<Material>();
                 var col = new List<int>();
-                for (int k = 0; k < 5; k++)
+                for (int k = 0; k < mats.Length; k++)
                 {
                     if (ch.t[k].Count == 0) continue;
                     var map = new Dictionary<(Vector3, Vector2), int>(); var ix = new int[ch.t[k].Count];
