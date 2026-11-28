@@ -71,11 +71,11 @@ namespace Magistrala.Game
                     hello = "Galeb. Ćaćin stari kombi. Do 1400 kg, pomalo uzbrdo." };
                 fleet.Add(Galeb);
             }
-            tc = MakeVehicle(PlayerTruck.SprinterResource, "Sprinter firme", KombiSpec());
+            tc = MakeVehicle(PlayerTruck.SprinterResource, "Dugi kombi firme", KombiSpec());
             if (tc)
             {
-                Kombi = new Vehicle { id = "sprinter", label = "Sprinter firme", acc = "Sprinter", firm = true, home = Warehouse, tc = tc,
-                    hello = "Sprinter firme. Nosivost 1300 kg, istovar ručno." };
+                Kombi = new Vehicle { id = "sprinter", label = "Dugi kombi firme", acc = "dugi kombi firme", firm = true, home = Warehouse, tc = tc,
+                    hello = "Dugi kombi firme. Nosivost 1300 kg, istovar ručno." };
                 fleet.Add(Kombi);
             }
             tc = MakeVehicle(PlayerTruck.SmallResource, "Mali kombi", PlayerTruck.FleetSpec("mali"));

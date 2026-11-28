@@ -138,7 +138,8 @@ namespace Magistrala.Game
             if (S.job != null && S.job.legs != null && S.job.legs.Count > 0 && S.job.leg < S.job.legs.Count && S.job.legs.TrueForAll(l => World.Stop(l.stop) != null))
             {
                 var j = Clone(S.job);
-                j.kg = Mathf.Min(j.kg, j.fatureta ? 1400 : Truck.spec.payloadKg); // migrate old fleet loads
+                if (!j.fatureta) AdaptFirmLoad(j, Unload ? Unload.Rows : 0, Truck.spec.payloadKg);
+                else j.kg = Mathf.Min(j.kg, 1400);
                 AdaptFaturetaLoad(j);
                 j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
                 if (j.fatureta && j.loaded && !InGaleb) { Debug.LogWarning("[save] loaded fatureta but not in the Galeb: dropped"); S.job = null; return; }
@@ -160,6 +161,59 @@ namespace Magistrala.Game
                     Banner($"Tura se nastavlja: {j.label}");
                 }
             }
+        }
+
+        /// Fit only unfinished firm drops to the current box. Zero-row drops use the existing hand-crate unload.
+        /// Pure C#: also exercised by Tools/flota/check_fleet.py without starting Unity.
+        static void AdaptFirmLoad(Job j, int capacity, float payloadKg)
+        {
+            if (j.fatureta) return;
+            j.kg = Math.Min(j.kg, payloadKg);
+            if (capacity <= 0) return; // panel vans unload by hand, without pallet geometry
+            j.rowsOff = Math.Max(0, Math.Min(j.rowsOff, capacity));
+            int budget = capacity - j.rowsOff;
+            var drops = new List<int>();
+            int total = 0;
+            for (int i = j.leg; i < j.legs.Count; i++)
+            {
+                var l = j.legs[i];
+                if (l.K != 'd' || l.rows == 0) continue;
+                // Legacy single drops use -1 (all remaining rows).
+                if (l.rows < 0) l.rows = budget;
+                int rows = l.rows;
+                total += rows;
+                if (rows > 0) drops.Add(i);
+            }
+            if (total <= budget) return;
+            float oldKg = j.kg;
+            // Keep the largest drops if even one row per drop will not fit. Earlier ties merge first,
+            // so the last delivery cannot accidentally request pallets from an already empty box.
+            drops.Sort((a, b) => {
+                int c = j.legs[b].rows.CompareTo(j.legs[a].rows);
+                return c != 0 ? c : b.CompareTo(a);
+            });
+            var assigned = new int[drops.Count];
+            int kept = Math.Min(budget, drops.Count), weight = 0;
+            for (int k = 0; k < kept; k++) { assigned[k] = 1; weight += j.legs[drops[k]].rows; }
+            // Apportion the remaining rows by the original weights, respecting the one-row minimum.
+            for (int n = kept; n < budget; n++)
+            {
+                int best = -1; double deficit = double.NegativeInfinity;
+                for (int k = 0; k < kept; k++)
+                {
+                    int rows = j.legs[drops[k]].rows;
+                    double d = (double)budget * rows / weight - assigned[k];
+                    if (assigned[k] < rows && d > deficit) { best = k; deficit = d; }
+                }
+                if (best < 0) break;
+                assigned[best]++;
+            }
+            for (int k = 0; k < drops.Count; k++) j.legs[drops[k]].rows = assigned[k];
+            // kg describes the whole tour; preserve the completed share and scale only the remaining share.
+            int left = 0;
+            for (int i = j.leg; i < j.legs.Count; i++) if (j.legs[i].K == 'd') left++;
+            float remainingShare = j.drops > 0 ? (float)left / j.drops : 1;
+            j.kg = oldKg * (1 - remainingShare + remainingShare * budget / total);
         }
 
         // ------------------------------------------------------------------ clock and calls

@@ -92,7 +92,9 @@ methods = block(player, 'public static TruckController.Spec FleetSpec') + '\n' +
 idmap = re.search(r'static string VehicleId\(.*?;', fleet).group()
 scale = block(tours, 'float FirmKg').replace('var tc = Truck;', 'var tc = Truck;')
 fat = block((ROOT/'Assets/Scripts/Game/MagistralaGame.Faturete.cs').read_text(), 'static void AdaptFaturetaLoad')
+migration = block((ROOT/'Assets/Scripts/Game/MagistralaGame.Day.cs').read_text(), 'static void AdaptFirmLoad')
 harness = '''using System;
+using System.Collections.Generic;
 struct Vector3 { public float x,y,z; public Vector3(float x,float y,float z){this.x=x;this.y=y;this.z=z;} }
 static class Mathf {
  public static float Min(float a,float b)=>Math.Min(a,b);
@@ -108,12 +110,43 @@ SPEC
 class Check {
  static void Assert(bool ok){if(!ok)throw new Exception("Fleet check failed");}
  TruckController Truck;
- class Job {public bool fatureta=true;public string fatId,label;public float kg;}
+ class Leg {public string kind="d";public int rows;public char K=>kind[0];}
+ class Job {public bool fatureta=true;public string fatId,label;public float kg;public int leg,drops,rowsOff;public List<Leg> legs=new List<Leg>();}
 METHODS
 IDMAP
 SCALE
 FAT
+MIGRATION
+ static Job Tour(int[] rows,int leg=0,int off=0){
+  var j=new Job{fatureta=false,kg=2400,drops=rows.Length,leg=leg,rowsOff=off};
+  foreach(int r in rows)j.legs.Add(new Leg{rows=r});return j;
+ }
+ static string Rows(Job j)=>string.Join(",",j.legs.ConvertAll(l=>l.rows.ToString()));
+ static void MigrationChecks(){
+  // Exact saved structure: pickup, six drops, warehouse return; leg 2, rowsOff 0.
+  var j=Tour(new[]{0,1,1,0,1,1});
+  j.legs.Insert(0,new Leg{kind="u",rows=-1});j.legs.Add(new Leg{kind="r",rows=-1});j.leg=2;
+  AdaptFirmLoad(j,3,1100);
+  Assert(Rows(j)=="-1,0,0,1,0,1,1,-1" && j.rowsOff==0 && j.leg==2 && j.drops==6);
+  Assert(Math.Abs(j.kg-870.8333f)<.01f);
+  Console.WriteLine("Marko save: drop rows ["+string.Join(",",j.legs.GetRange(1,6).ConvertAll(l=>l.rows.ToString()))+"], kg="+j.kg);
+  var once=Rows(j);float kg=j.kg;AdaptFirmLoad(j,3,1100);Assert(Rows(j)==once && j.kg==kg);
+  // Completed rows stay unchanged; delivered physical rows consume the new capacity.
+  var partial=Tour(new[]{1,1,2,1},1,1);AdaptFirmLoad(partial,3,1100);
+  Assert(Rows(partial)=="1,0,1,1" && partial.rowsOff==1);
+  var proportional=Tour(new[]{6,3,1});AdaptFirmLoad(proportional,6,1100);
+  Assert(Rows(proportional)=="3,2,1");
+  var full=Tour(new[]{1,1},1,4);AdaptFirmLoad(full,3,1100);
+  Assert(Rows(full)=="1,0" && full.rowsOff==3);
+  var single=Tour(new[]{-1},0,1);AdaptFirmLoad(single,3,1100);Assert(Rows(single)=="2");
+  var pending=Tour(new[]{2,2});pending.legs.Insert(0,new Leg{kind="u",rows=-1});
+  AdaptFirmLoad(pending,3,1100);Assert(Rows(pending)=="-1,1,2");
+  var hand=Tour(new[]{2,2});AdaptFirmLoad(hand,0,700);Assert(Rows(hand)=="2,2" && hand.kg==700);
+  var fat=Tour(new[]{2,2});fat.fatureta=true;AdaptFirmLoad(fat,3,1100);Assert(Rows(fat)=="2,2" && fat.kg==2400);
+  Console.WriteLine("Firm migration: finished legs, partial delivery, proportional rows, exhausted box, single drop, pending pickup, hand unload, fatureta and repeat load OK");
+ }
  static void Main(){
+  MigrationChecks();
   var f=VanSpec(); Assert(f.id=="furgon" && f.payloadKg==1100);
   var spr=FleetSpec("sprinter");var small=FleetSpec("mali");var gal=FleetSpec("galebl3h2");
   Assert(spr.mass==2100 && spr.payloadKg==1300 && spr.ratios.Length==6);
@@ -130,7 +163,7 @@ FAT
   var i=new Job{fatId="ivica_blokovi",kg=2800,label="Paleta blokova i deset vrića cementa"};AdaptFaturetaLoad(i);Assert(i.kg==1400 && i.label.StartsWith("Pola"));
   Console.WriteLine("Actual C#: four specs, bounds, five tour loads per van, legacy ids and old faturete OK");
  }
-}'''.replace('SPEC', spec).replace('METHODS',methods).replace('IDMAP',idmap).replace('SCALE',scale).replace('FAT',fat)
+}'''.replace('SPEC', spec).replace('METHODS',methods).replace('IDMAP',idmap).replace('SCALE',scale).replace('FAT',fat).replace('MIGRATION',migration)
 # The extracted specs use their original TruckController.Spec type names.
 versions = sorted(Path('/Applications/Unity/Hub/Editor').glob('*/Unity.app/Contents/Resources/Scripting/MonoBleedingEdge'))
 assert versions, 'Bundled Mono required for C# checks'

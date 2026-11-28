@@ -3,7 +3,7 @@
 | Vozilo / save ID | Nosivost | Motor, 6 brzina |
 |---|---:|---|
 | Furgon L4H1 / `furgon` | 1100 kg | 2,3 l, ~150 KS |
-| Sprinter firme / `sprinter` | 1300 kg | 2,1–2,2 l, ~140 KS |
+| Dugi kombi firme / `sprinter` | 1300 kg | 2,1–2,2 l, ~140 KS |
 | Mali kombi / `mali` | 700 kg | 1,6 l, ~105 KS |
 | Očev Galeb L3H2 / `galeb` | 1400 kg | 2,3 l, ~120 KS; tromiji turbo/mjenjač |
 
@@ -30,8 +30,25 @@ Za **svaki red**: prazna/puna vožnja, C kabina, oba retrovizora, kazaljke/noćn
 | Vozilo | Isporuka / posebna provjera | Gotovo |
 |---|---|---|
 | Furgon | Palete ≤1100 kg; stražnja vrata/istovar | ☐ |
-| Sprinter | Palete ≤1300 kg; ručni istovar | ☐ |
+| Dugi kombi firme | Palete ≤1300 kg; ručni istovar | ☐ |
 | Mali kombi | Palete ≤700 kg; slobodan parking u Lukšiću | ☐ |
 | Galeb | Juretova drva 1250 kg; maglenke/habanje | ☐ |
 
 Učitati stare saveove `atego`, `kombi`, `galeb`, s parkiranim vozilima i prihvaćenim/čekajućim drvima ili blokovima; ponovno spremiti/učitati. `-kamion atego` mora dati Furgon. Provjeriti Console. Vizualna i PhysX provjera ostaju leadu.
+
+
+## Review K1/K2 – 28. 11. 2026.
+
+- **K1:** vidljivi naziv vozila, akuzativ za E i banner koriste **Dugi kombi firme**. Ostaju Furgon, Mali kombi i Galeb. Pretraženi su svi `Assets/Scripts` te JSON/TXT u `Assets/Resources` za Sprinter, Ducato, Crafter, Mercedes, Fiat, Doblo i Atego. Telefonske zasluge također koriste neutralne opise; autori, licence i poveznice izvora ostaju. Interni `sprinter`, putanje resursa i komentari nisu migrirani.
+- **K2:** `AdaptFirmLoad` pri obnovi firmine ture ograničava kg i samo nedovršene dostavne etape prilagođava na `Unload.Rows - rowsOff`. Završene etape ostaju netaknute; `rowsOff` se ograničava na fizički kapacitet novog sanduka. Svaki pozitivan istovar zadržava barem jedan red ako ima mjesta. Inače se prvo spajaju najmanji istovari (kod jednakih raniji), a preostali redovi dijele se proporcionalno izvornim veličinama uz minimum jedan. Nulti istovar koristi postojeće ručne gajbe, umjesto praznog `FirmUnload.Begin()` slijeda. Negativni broj redova starog pojedinačnog posla znači sve preostale redove. Panelni kombiji ostaju na ručnom istovaru.
+- Kg se prvo ograničava nosivošću. Zatim se smanjuje samo preostali udio ture razmjerno smanjenju redova; već završeni udio ostaje. To prati postojeći obračun mase prema broju preostalih dostavnih etapa. Ponovno učitavanje već prilagođenog posla ne smanjuje ga opet.
+- Markov stvarni save pročitan je **samo za čitanje**. C# provjera simulira njegovu strukturu: utovar, šest istovara `[0,1,1,0,1,1]`, povratak, `leg=2`, `rowsOff=0`, `kg=2400`. Novi istovari: **`[0,0,1,0,1,1]`**, `rowsOff=0`, ukupni parametar mase ture **870,8334 kg** (trenutno u vozilu prema postojećem obračunu 725,6945 kg). Etape, odredišta i broj dostava nisu uklonjeni.
+- `python3 Tools/flota/check_fleet.py` prolazi: izvršava stvarnu izdvojenu C# migraciju preko Mono kompajlera/runtimea, ispisuje nove redove te pokriva ponovno učitavanje, djelomičnu isporuku, proporcionalnu raspodjelu, potrošen kapacitet, pojedinačnu dostavu, turu prije utovara, ručni istovar i izuzimanje fatureta. Prolaze i postojeće provjere devet GLB-ova, četiri specifikacije i 39 fatureta. Unity nije pokrenut i commit nije napravljen. Zatečene izmjene scene i ProjectSettingsa nisu dirane.
+
+Datoteke ove review dorade:
+
+- `Assets/Scripts/Game/MagistralaGame.Vehicles.cs`
+- `Assets/Scripts/Game/Phone/MatePhone.cs`
+- `Assets/Scripts/Game/MagistralaGame.Day.cs`
+- `Tools/flota/check_fleet.py`
+- `docs/flota-dorada.md`

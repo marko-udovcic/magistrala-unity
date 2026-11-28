@@ -301,7 +301,7 @@ namespace Magistrala.Game.Phone
             "\n" +
             "NatureManufacture — Coast & Dunes Environment – Dynamic Nature, Unity Asset Store.\n" +
             "\n" +
-            "Punat: „2005 Fiat Grande Punto” — ActsOfDoge / Sketchfab, izmijenjeno. Izvor navodi „Free Standard”; uvjeti su u provjeri." +
+            "Punat: „Gradski automobil (2005)” — ActsOfDoge / Sketchfab, izmijenjeno. Izvor navodi „Free Standard”; uvjeti su u provjeri." +
             AboutPage +
             "Fontovi — SIL OFL 1.1\n" +
             "\n" +
@@ -321,9 +321,9 @@ namespace Magistrala.Game.Phone
             "Sljedeći modeli: CC BY 4.0\n" +
             "creativecommons.org/licenses/by/4.0/\n" +
             "\n" +
-            "Izmijenjeno: uklonjene oznake, naše tablice i boje, materijali i razine detalja (LOD). Sprinter ima i našu policijsku izvedbu.\n" +
+            "Izmijenjeno: uklonjene oznake, naše tablice i boje, materijali i razine detalja (LOD). Dugi kombi ima i našu policijsku izvedbu.\n" +
             "\n" +
-            "Kombi firme koristi „Mercedes Benz Sprinter 2006” autora Max (Max-7215 / Max-5532), produljen i povišen, s našom unutrašnjosti. Izvor je naveden uz Sprinter.\n" +
+            "Kombi firme koristi „Dugi kombi (2006)” autora Max (Max-7215 / Max-5532), produljen i povišen, s našom unutrašnjosti. Izvor je naveden uz dugi kombi.\n" +
             "\n" +
             "Galeb koristi „European Delivery Van” autora Evan Hiltz — CC BY 4.0\n" +
             "sketchfab.com/3d-models/european-delivery-van-0b2f1ad95a79419f9a092420024d329c\n" +
@@ -348,7 +348,7 @@ namespace Magistrala.Game.Phone
             "Prometni auti — CC BY 4.0\n" +
             "Izmijenjeni; licenca na stranici „3D modeli”.\n" +
             "\n" +
-            "„Mercedes-Benz E-class W124 (unfinished)”\n" +
+            "„Klasična limuzina (nedovršeni model)”\n" +
             "OverLord\n" +
             "sketchfab.com/models/4b468dbe4b6d4ca994bc7066b90781e2\n" +
             "\n" +
@@ -457,7 +457,7 @@ namespace Magistrala.Game.Phone
             "mk2design\n" +
             "sketchfab.com/models/edc994ad28ed438cb365c0e0389ac177\n" +
             "\n" +
-            "„Mercedes Benz Sprinter 2006”\n" +
+            "„Dugi kombi (2006)”\n" +
             "Max (Max-7215; u metapodacima Max-5532)\n" +
             "sketchfab.com/models/f69de1315bb049c8946d57f6006acd73" +
             AboutPage +
