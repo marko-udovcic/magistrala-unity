@@ -84,3 +84,7 @@ docs/bus-dorada.md
 ```
 
 Izvor modela: „Mercedes-Benz Citaro 2 Turen (O530) HQ interior”, Nieve5677, [Sketchfab](https://sketchfab.com/3d-models/51dceb73d719491c9f83ea896a885a80), CC BY 4.0. Kopije zadržavaju postojeće izmjene modela (PROMEX livreja, uklonjene marke, pripremljeni LOD-ovi), uz ovdje opisanu promjenu hijerarhije kotača. Atribucija ostaje i u konfiguraciji kandidata.
+
+## B1 — smjer prikaza linije 37 (28. 11. 2026.)
+
+Čitanjem konfiguracije `auti-kandidati.json`, importera i runtime odabira potvrđeno je da postojeći uvjet u `BusBorn` već odgovara traženom pravilu: `D8 zapad (Trogir)` postavlja `displayAlt = true`, čime renderer za lampu 7 bira `matOn`, odnosno `texAlt = display-37-split.png` („37 SPLIT-AIRPORT-TROGIR”); `D8 istok (Split)` bira osnovni `mat`, odnosno `tex = display-37-trogir.png` („37 TROGIR-AIRPORT-SPLIT”). Nalaz B1 nije potvrđen u ovoj grani; inverzija uvjeta sama bi okrenula ispravna odredišta. Dodan je jednoredni komentar s pravilom, bez promjene ponašanja ili tekstura. Unity nije pokrenut; provjera je statička. Datoteke ovog zahvata: `Assets/Scripts/Traffic/TrafficSystem.Buses.cs` i `docs/bus-dorada.md`.

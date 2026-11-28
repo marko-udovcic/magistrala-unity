@@ -55,6 +55,7 @@ namespace Magistrala.Traffic
         void BusBorn(Car car)
         {
             car.bus = true; busCount++; busDir++;
+            // West towards Trogir: "37 SPLIT-AIRPORT-TROGIR" (alt); east towards Split: "37 TROGIR-AIRPORT-SPLIT" (base).
             car.displayAlt = data.corridors[car.c].name.Contains("Trogir");
             car.busStop = 0; var S = busS[car.c];
             while (car.busStop < S.Length && S[car.busStop] + BUS_AHEAD - (car.s + car.len / 2) < 40) car.busStop++;
