@@ -107,8 +107,22 @@ namespace Magistrala.EditorTools
 
         static string GreyConcrete() { Tinted("concrete_d.jpg", "concrete_grey_d.jpg", new Color(1.55f, 1.55f, 1.53f), new Color(.2f, .2f, .2f), 0); return "concrete_grey_d.jpg"; }
 
+        static int Cls(Vector3[] col, int i)
+        {
+            if (col == null) return 0; int k = 0; float best = 9;
+            for (int q = 0; q < CLS.Length; q++) { float d = (CLS[q] - col[i]).sqrMagnitude; if (d < best) { best = d; k = q; } }
+            return k;
+        }
+
         static Material DeckMat()
         {
+            // 28. 11.: the overpasses' clean concrete (Overpasses.Concrete: concrete_wall_007) — the grey concrete_d copy read as
+            // lumpy noisy stone on the decks / abutments
+            if (Overpasses.On)
+            {
+                var c = Lit("DeckConcrete", new Color(.93f, .93f, .91f), .12f, 0, "PolyHaven/concrete_wall_007_d.jpg", "PolyHaven/concrete_wall_007_n.jpg", .5f);
+                c.SetTextureScale("_BaseMap", new Vector2(1.5f, 1.5f)); c.SetFloat("_Cull", 0); c.doubleSidedGI = true; EditorUtility.SetDirty(c); return c;
+            }
             // concrete_d.jpg is brown (mean sRGB .30 .26 .20): the d08 footbridge read dark brown — a grey copy (its luminance, lifted to
             // ~.6 like light concrete) keeps the texture's detail
             var m = Lit("DeckConcrete", new Color(.95f, .95f, .94f), .12f, 0, null, "concrete_n.jpg", .6f);
@@ -181,7 +195,7 @@ namespace Magistrala.EditorTools
                 var v = new List<Vector3>[8]; var nr = new List<Vector3>[8]; var uv = new List<Vector2>[8]; var uv1 = new List<Vector2>[8]; var uv2 = new List<Vector2>[8];
                 for (int k = 0; k < 8; k++) { v[k] = new List<Vector3>(); nr[k] = new List<Vector3>(); uv[k] = new List<Vector2>(); uv1[k] = new List<Vector2>(); uv2[k] = new List<Vector2>(); }
                 var groundRoads = m.roads.FindAll(r => r.lvl == 0);
-                var cv = new List<Vector3>(); var ci = new List<int>();
+                var cv = new List<Vector3>(); var ci = new List<int>(); Overpasses.Plan ovPlan = null;
                 // mag-23-11-v2 advertising faces `ad_*` (own child renderers below) and, of the `structure` node, only their posts / poles /
                 // frames / wall backs (our signals and signs are built from data: the rest of `structure` stays out)
                 var ads = glb.FindAll(g => g.name.StartsWith("ad_"));
@@ -202,6 +216,9 @@ namespace Magistrala.EditorTools
                         var n = gm.nrm != null ? gm.nrm[i] : Vector3.up; N[i] = new Vector3(n.x, n.y, -n.z);
                     }
                     var kerbShape = gm.name == "sidewalk" || gm.name == "island" ? new CesteKerbs(P,gm.idx) : null;
+                    // the bridge deck: parapets / box piers / soffit dropped here, rebuilt by Overpasses (28. 11.)
+                    if (gm.name == "deck") { var gcol = gm.col; ovPlan = Overpasses.Analyze(m, gm, P, i => Cls(gcol, i)); }
+                    var ov = gm.name == "deck" ? ovPlan : null;
                     int cbase = cv.Count;
                     if (coll) cv.AddRange(P);
                     // road frame of every asphalt vertex (ModelJunctions2 roadAsphalt: lateral u, arc s of the model road whose band holds it)
@@ -226,6 +243,8 @@ namespace Magistrala.EditorTools
                     for (int t = 0; t + 2 < gm.idx.Length; t += 3)
                     {
                         if (gm.name == "structure" && !adKeep[t / 3]) continue;
+                        bool dropColl = ov != null && ov.dropColl[t / 3];
+                        if (ov != null && ov.drop[t / 3]) { if (coll && !dropColl) { ci.Add(cbase + gm.idx[t]); ci.Add(cbase + gm.idx[t + 2]); ci.Add(cbase + gm.idx[t + 1]); } continue; }
                         int a = gm.idx[t], b = gm.idx[t + 2], c = gm.idx[t + 1]; // reversed winding (z flip)
                         int k = 0;
                         if (gm.name == "markings") k = 1;
@@ -261,7 +280,7 @@ namespace Magistrala.EditorTools
                                 else {uv1[k].Add(Vector2.zero);uv2[k].Add(Vector2.zero);}
                             }
                         }
-                        if (coll) { ci.Add(cbase + a); ci.Add(cbase + b); ci.Add(cbase + c); }
+                        if (coll && !dropColl) { ci.Add(cbase + a); ci.Add(cbase + b); ci.Add(cbase + c); }
                         tris++;
                     }
                 }
@@ -299,6 +318,7 @@ namespace Magistrala.EditorTools
                 var mr = go.AddComponent<MeshRenderer>(); mr.sharedMaterials = subMats.ToArray(); mr.shadowCastingMode = ShadowCastingMode.On;
                 var mc = go.AddComponent<MeshCollider>(); mc.sharedMesh = cm; mc.sharedMaterial = phys;
                 foreach (var ad in ads) AdFace(m, ad, go);
+                if (ovPlan != null) tris += Overpasses.Build(m, go, ovPlan, models);
                 if (m.rails.Count > 0)
                 {
                     var rg = new GameObject("rails"); rg.isStatic = true; rg.transform.SetParent(go.transform, false);
@@ -318,6 +338,8 @@ namespace Magistrala.EditorTools
             }
             // section rails continued across the seams into the junction models (no guardrails in their GLBs), sloped terminals
             Debug.Log(RailSeams.Build(models, gos, mats[2], railPhys));
+            // the D8's raised central median with kerbs on both edges (MedianKerbs.cs, 28. 11.)
+            Debug.Log(MedianKerbs.Build(models, root.transform, mats[3]));
             AssetDatabase.SaveAssets();
             Debug.Log($"[Magistrala] roads: {models.Count} models, {tris} triangles");
         }

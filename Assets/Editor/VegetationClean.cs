@@ -132,8 +132,10 @@ namespace Magistrala.EditorTools
             foreach (var h in Physics.RaycastAll(new Vector3(u.x, u.y + 30, u.z), Vector3.down, 60, ~0, QueryTriggerInteraction.Ignore))
             {
                 bool ground = h.collider is TerrainCollider || roots.Any(r => h.collider.transform.IsChildOf(r));
-                if (!ground || Mathf.Abs(h.point.y - u.y) >= best) continue;
-                best = Mathf.Abs(h.point.y - u.y); y = h.point.y; nrm = h.normal; onModel = modelRoot && h.collider.transform.IsChildOf(modelRoot);
+                // the raised D8 median (MedianKerbs): its top, not the terrain under it, ~15 cm below
+                float dist = Mathf.Abs(h.point.y - u.y) - (MedianKerbs.IsMedian(h.collider) ? .5f : 0);
+                if (!ground || dist >= best) continue;
+                best = dist; y = h.point.y; nrm = h.normal; onModel = modelRoot && h.collider.transform.IsChildOf(modelRoot);
             }
             return best < 8;
         }
