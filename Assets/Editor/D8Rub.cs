@@ -6,6 +6,7 @@
 //   shrubs  3.5–13 m: maquis runs (lentisk-like dark shrub, the dark evergreen grm-tamni, our shrub, low crnika), 0.8–2.6 m
 //   trees   9–32 m: groups of Aleppo pine, holm oak (crnika), olive, now and then a cypress pair or a stone pine, 3.5–13 m,
 //           heights varied ±30 %; fewer in built-up land (VegetationMask BUILT), none in yards / on buildings
+// Behind the raised sidewalk Kambelovac → Lukšić (D8Plocnik.cs) every band starts at the sidewalk's outer edge (28. 11.).
 // Kept clear: asphalt / footways / graph streets (trees 4 m, shrubs 2 m, grass 0.8 m), car parks / pitches, the riva, the sea,
 // within 2 m of a building footprint, anything with a collider (lamp / sign / signal posts, guardrail posts, buildings, bridge
 // piers: an overlap capsule, the ground colliders aside), within 55 m of a junction model's centre only grass (the sight lines),
@@ -165,6 +166,8 @@ namespace Magistrala.EditorTools
                     edge += 1.85f;
                     var a = cor.axis[i]; var rt = cor.right[i];
                     var g0 = W.G(a);
+                    // the raised sidewalk Kambelovac → Lukšić (D8Plocnik.cs): the verge starts behind it (the grassy bank)
+                    { var sw = W.G(a + rt * (edge + .6f)); if (D8Plocnik.Covered(sw.x, sw.y, .3)) edge += D8Plocnik.WID + .25f; }
                     // noise along the road (by world position, so both corridors / every build agree)
                     float run = Mathf.PerlinNoise(g0.x * .022f + 17.3f, g0.y * .022f + 3.1f), grp = Mathf.PerlinNoise(g0.x * .0085f + 71.9f, g0.y * .0085f + 13.7f) * .7f + Mathf.PerlinNoise(g0.x * .03f + 5.5f, g0.y * .03f + 41.2f) * .3f;
                     // grass: every metre up to three clumps, most within 3 m of the edge, a few out to 9 m (28. 11.: five per metre,

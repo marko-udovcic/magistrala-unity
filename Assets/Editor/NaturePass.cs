@@ -278,7 +278,7 @@ namespace Magistrala.EditorTools
                             Put(x, h - .1, z, R01(x, z, 25) * 360, .75f + .5f * R01(x, z, 26), baseCount + k); np++;
                         }
             total += np;
-            int nh = MedianHedge.Place((gx, y, gz, yaw, s, id) => { int pi = Index(id); if (pi >= 0) Put(gx, y, gz, yaw, s, pi); }, models);
+            int nh = MedianHedge.Place((gx, y, gz, yaw, s, id) => { int pi = Index(id); if (pi >= 0 && !D8Ograda.NoHedge(gx, gz)) Put(gx, y, gz, yaw, s, pi); }, models);   // (no median hedge Kambelovac → Lukšić: D8Ograda.cs)
             total += nh;
             int nyh = VegetationMask.PlaceHedges((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto));   // yard hedges (docs/audit-stari.md)
             total += nyh; Debug.Log($"[priroda] yard hedge plants {nyh}");

@@ -71,7 +71,7 @@ namespace Magistrala.EditorTools
                 var g = W.G(u); double x = g.x, z = g.y;
                 // Surface() includes non-asphalt islands too. Test the actual asphalt triangles before
                 // any surveyed/row exemption, without clearing a radius around a green strip or promenade.
-                if (LaneProfile.OnAsphalt(models, x, z) || StreetsBuilder.CoveredStreet(x, z, 0)) { road++; continue; }
+                if (LaneProfile.OnAsphalt(models, x, z) || StreetsBuilder.CoveredStreet(x, z, 0) || D8Plocnik.Covered(x, z, .35) || D8Luksic.Covered(x, z)) { road++; continue; }   // (and the D8's raised sidewalks, D8Plocnik.cs)
                 if (p < 0 || p >= np || !NaturePass.In(x, z) || riva.Contains(Key(x, z)) || mapillary.Contains(Convert.ToBase64String(b, o, 24)) || (survey != null && survey(x, z))) { Keep(b, o, outB, u.y); continue; }
                 bool tree = !hedge[p] && !rock[p] && h1[p] * s >= 3;
                 double sd = WorldData.SurfDist(models, x, z), r = hedge[p] ? .6 : tree ? 2.5 : 1.2;

@@ -178,6 +178,8 @@ namespace Magistrala.EditorTools
         {
             MainScene.Ensure();
             var models = WorldData.Models(); LaneProfile.Clear();
+            // the single median rail of the d02–d06 tiles gives way to the double guardrail Kambelovac → Lukšić (D8Ograda.cs, 28. 11.)
+            D8Ograda.Reset(); Debug.Log($"[d8ograda] {D8Ograda.FilterRails(models)} median section rails dropped");
             var root = Root("Roads");
             Dir(GEN + "/Roads");
             var mats = RoadMats();
@@ -246,6 +248,7 @@ namespace Magistrala.EditorTools
                         bool dropColl = ov != null && ov.dropColl[t / 3];
                         if (ov != null && ov.drop[t / 3]) { if (coll && !dropColl) { ci.Add(cbase + gm.idx[t]); ci.Add(cbase + gm.idx[t + 2]); ci.Add(cbase + gm.idx[t + 1]); } continue; }
                         int a = gm.idx[t], b = gm.idx[t + 2], c = gm.idx[t + 1]; // reversed winding (z flip)
+                        if (gm.name == "guardrail" && D8Ograda.DropGlb(models, m, P[a], P[b], P[c])) continue;
                         int k = 0;
                         if (gm.name == "markings") k = 1;
                         else if (gm.name != "asphalt" && gm.col != null)
@@ -340,6 +343,9 @@ namespace Magistrala.EditorTools
             Debug.Log(RailSeams.Build(models, gos, mats[2], railPhys));
             // the D8's raised central median with kerbs on both edges (MedianKerbs.cs, 28. 11.)
             Debug.Log(MedianKerbs.Build(models, root.transform, mats[3]));
+            // the raised sidewalks on the D8's outer edges, Kambelovac → Lukšić (D8Plocnik.cs, 28. 11.)
+            Debug.Log(D8Plocnik.Build(models, root.transform, mats[3], mats[5]));
+            Debug.Log(D8Ograda.Build(models, root.transform, mats[2], railPhys));
             AssetDatabase.SaveAssets();
             Debug.Log($"[Magistrala] roads: {models.Count} models, {tris} triangles");
         }
