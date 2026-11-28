@@ -56,6 +56,7 @@ namespace Magistrala.EditorTools
                 float x = Num(o, "x"), z = Num(o, "z");
                 if (!Finite(x) || !Finite(z)) throw new FormatException("Non-finite building position.");
                 if (x < minX || x > maxX) continue;
+                if (Benzinske.SkipPackage(Str(o, "id"))) continue; // replaced by a kit petrol station (Benzinske.cs)
                 int cell = Mathf.FloorToInt(x / CellSize);
                 if (!chunks.TryGetValue(cell, out Geometry geo))
                 {

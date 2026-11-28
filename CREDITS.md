@@ -169,6 +169,14 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   Plastic010, Leather037, Rubber004, DiamondPlate008C, Leather026, Plastic018B, Plastic012B, Leather018 (CC0).
   Popis izvora: `BalkanDriver/client/public/assets/CREDITS-vehicles.md`; ne predstavlja potvrdu da svaki materijal ulazi u ovaj build.
 
+## Benzinske (Assets/Models/Benzinske)
+- **„Gas station” i „Gas station Props” — Elbolilloduro, Sketchfab**, CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/). Izmijenjeno: iz izvora preuzeti škrinja za sladoled, palete, gajbe, kontejner,
+  aparati za kavu i ledeni napitak te teksture hladnjaka s pićima, grickalica i betona (prepakirano u `tex/src_atlas.png`,
+  natpisi zamućeni); nadstrešnice, otoci, aparati za gorivo, trgovina, totem i ostali dijelovi novo modelirani (Blender,
+  BalkanDriver `assets-src/benzinske/scripts`). Marke „Jadranska nafta”, „Sunce gorivo” i „Benzol”, njihovi znakovi i cijene su
+  izmišljeni (vlastiti crtež), bez stvarnih naziva i logotipa.
+
 ## Punat (treća strana; potvrditi licencu)
 - **„2005 Fiat Grande Punto” — ActsOfDoge, Sketchfab**, osnova za
   `Assets/Models/Vehicles/Traffic/punat.glb` i `punat_lod1.glb`.

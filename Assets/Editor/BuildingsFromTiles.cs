@@ -225,6 +225,7 @@ namespace Magistrala.EditorTools
                         if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
                         if (onFoot) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
+                        if (Benzinske.SkipTile(id)) { skipped++; continue; } // replaced by a kit petrol station (Benzinske.cs)
                         string kind = (string)MiniJson.G(b, "kind") ?? "house";
                         // storeys: the owner's corrections > OSM > the orthophoto shadow estimate > the tile's h (BuildingFloors)
                         double h = BuildingFloors.Height(id, b, MiniJson.D(MiniJson.G(b, "h") ?? 7.0), out var hSrc, out var storeys);
