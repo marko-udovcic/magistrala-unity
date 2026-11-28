@@ -51,10 +51,10 @@ namespace Magistrala.Game
         public bool wpOn; public float wpX, wpZ;
         /// story phase 3 (MagistralaGame.Vehicles.cs / Faturete.cs): the driven vehicle ("atego" / "galeb" / "kombi"), its exact
         /// pose, every parked one's pose (parks; park* = the single parked pose of older saves), the Galeb's and the Kombi's diesel %
-        public string vehicle = "atego";
+        public string vehicle = "furgon";
         public bool posOn, parkOn; public float posX, posY, posZ, posYaw, parkX, parkY, parkZ, parkYaw;
         public List<ParkPose> parks = new List<ParkPose>();
-        public float fuelG = 64, fuelK = 80;
+        public float fuelG = 64, fuelK = 80, fuelM = 80;
         /// faturete: today's offers and their haggling state, accepted ones waiting their turn, when each job may come again
         /// ("id:day"), the customers' opinion of Mate (0..1, hidden), invoices for Ljubica ("day|hh:mm|customer|€")
         public List<MagistralaGame.FatOffer> fatOffers = new List<MagistralaGame.FatOffer>();
@@ -138,7 +138,11 @@ namespace Magistrala.Game
             else if (s != null && s.id != Warehouse) PlaceAtStop(s);
             if (S.job != null && S.job.legs != null && S.job.legs.Count > 0 && S.job.leg < S.job.legs.Count && S.job.legs.TrueForAll(l => World.Stop(l.stop) != null))
             {
-                var j = Clone(S.job); j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
+                var j = Clone(S.job);
+                if (!j.fatureta) AdaptFirmLoad(j, Unload ? Unload.Rows : 0, Truck.spec.payloadKg);
+                else j.kg = Mathf.Min(j.kg, 1400);
+                AdaptFaturetaLoad(j);
+                j.to = j.Leg.stop; j.deadlineMin = TourDeadline(j);
                 if (j.fatureta && j.loaded && !InGaleb) { Debug.LogWarning("[save] loaded fatureta but not in the Galeb: dropped"); S.job = null; return; }
                 Current = j; State = Phase.Driving;
                 SetPallets(j.loaded); if (j.loaded && Unload) Unload.SetDelivered(j.rowsOff);
@@ -154,10 +158,63 @@ namespace Magistrala.Game
                 {
                     j.startMin = S.jobStartMin; j.nightMin = S.jobNightMin; j.cargoDamage = S.jobCargoDamage; j.truckDamage = S.jobTruckDamage;
                     j.deadlineMin = Deadline(j.km);
-                    Current = j; State = Phase.Driving; Truck.SetCargo(2400); SetPallets(true);
+                    Current = j; State = Phase.Driving; Truck.SetCargo(j.kg); SetPallets(true);
                     Banner($"Tura se nastavlja: {j.label}");
                 }
             }
+        }
+
+        /// Fit only unfinished firm drops to the current box. Zero-row drops use the existing hand-crate unload.
+        /// Pure C#: also exercised by Tools/flota/check_fleet.py without starting Unity.
+        static void AdaptFirmLoad(Job j, int capacity, float payloadKg)
+        {
+            if (j.fatureta) return;
+            j.kg = Math.Min(j.kg, payloadKg);
+            if (capacity <= 0) return; // panel vans unload by hand, without pallet geometry
+            j.rowsOff = Math.Max(0, Math.Min(j.rowsOff, capacity));
+            int budget = capacity - j.rowsOff;
+            var drops = new List<int>();
+            int total = 0;
+            for (int i = j.leg; i < j.legs.Count; i++)
+            {
+                var l = j.legs[i];
+                if (l.K != 'd' || l.rows == 0) continue;
+                // Legacy single drops use -1 (all remaining rows).
+                if (l.rows < 0) l.rows = budget;
+                int rows = l.rows;
+                total += rows;
+                if (rows > 0) drops.Add(i);
+            }
+            if (total <= budget) return;
+            float oldKg = j.kg;
+            // Keep the largest drops if even one row per drop will not fit. Earlier ties merge first,
+            // so the last delivery cannot accidentally request pallets from an already empty box.
+            drops.Sort((a, b) => {
+                int c = j.legs[b].rows.CompareTo(j.legs[a].rows);
+                return c != 0 ? c : b.CompareTo(a);
+            });
+            var assigned = new int[drops.Count];
+            int kept = Math.Min(budget, drops.Count), weight = 0;
+            for (int k = 0; k < kept; k++) { assigned[k] = 1; weight += j.legs[drops[k]].rows; }
+            // Apportion the remaining rows by the original weights, respecting the one-row minimum.
+            for (int n = kept; n < budget; n++)
+            {
+                int best = -1; double deficit = double.NegativeInfinity;
+                for (int k = 0; k < kept; k++)
+                {
+                    int rows = j.legs[drops[k]].rows;
+                    double d = (double)budget * rows / weight - assigned[k];
+                    if (assigned[k] < rows && d > deficit) { best = k; deficit = d; }
+                }
+                if (best < 0) break;
+                assigned[best]++;
+            }
+            for (int k = 0; k < drops.Count; k++) j.legs[drops[k]].rows = assigned[k];
+            // kg describes the whole tour; preserve the completed share and scale only the remaining share.
+            int left = 0;
+            for (int i = j.leg; i < j.legs.Count; i++) if (j.legs[i].K == 'd') left++;
+            float remainingShare = j.drops > 0 ? (float)left / j.drops : 1;
+            j.kg = oldKg * (1 - remainingShare + remainingShare * budget / total);
         }
 
         // ------------------------------------------------------------------ clock and calls
@@ -348,7 +405,7 @@ namespace Magistrala.Game
             bool sat = d % 7 == 5;
             S.clockMin = d * 1440 + (sat ? 7 * 60 + 59 : 5 * 60 + 59);
             DropOffers("end of day");
-            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. Atego čeka u Lukšiću.");
+            Banner(sat ? "Subota. Nema firme – faturete s Galebom od 8 do 20." : sunday ? $"Nedjelja je bila za obitelj. Novi tjedan: {DayNames[d % 7]}." : $"Novi radni dan: {DayNames[d % 7]}. {Furgon?.label ?? "Furgon"} čeka u Lukšiću.");
             Debug.Log($"[day] end of day → {DayLabel}");
             SaveNow("end of day");
         }

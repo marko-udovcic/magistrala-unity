@@ -1,40 +1,37 @@
-// Fuel (the HUD panel's pump %): Unity's first fuel model. A 7.5 t box truck, 120 l tank; diesel by distance driven, more with
-// the load: 22 l/100 km empty → 30 l/100 km with 3 t on (Kaštela town driving, stop-and-go included), so a working day of
-// 30–40 km takes ~8–12 l (7–10 % of the tank). Saved in SaveData.fuel (%, a new game starts at 72 %). Empty: the gauge shows 0 and
-// warns; the engine still runs (TODO: cut the engine at 0).
-// TODO (pumpa): refuelling at "Pumpa Kaštela" (stops.json kastela_pumpa) – stop at the pump, a key, pay from the cash →
-// Refuel(litres). Not in scope of the HUD rework; the hook is ready.
+// Per-vehicle diesel; legacy fuel/fuelK/fuelG fields retain the previous saves.
 using UnityEngine;
 
 namespace Magistrala.Game
 {
     public partial class MagistralaGame
     {
-        public const float TankLitres = 120, LitresPer100Empty = 22, LitresPer100Full = 30, FullLoadKg = 3000;
         /// fuel in the tank, 0–100 %
-        /// the Galeb (MagistralaGame.Vehicles.cs): 75 l tank, 10 l/100 km empty → 14 with 3 t (SaveData.fuelG)
+        /// Galeb: 75 l, 10–14 l/100 km (empty → 1400 kg).
         public const float GalebTank = 75, GalebPer100Empty = 10, GalebPer100Full = 14;
-        /// the firm's Kombi: 90 l tank, 11 l/100 km empty → 15 with 3 t (SaveData.fuelK)
+        /// Sprinter: 90 l, 11–15 l/100 km (empty → 1300 kg).
         public const float KombiTank = 90, KombiPer100Empty = 11, KombiPer100Full = 15;
-        string FuelId => Truck ? Truck.VehicleId : "atego";
-        public float FuelPct => FuelId == "galeb" ? S.fuelG : FuelId == "kombi" ? S.fuelK : S.fuel;
-        float Tank => FuelId == "galeb" ? GalebTank : FuelId == "kombi" ? KombiTank : TankLitres;
+        /// the firm's L4H1 box van (PlayerTruck, id "furgon"): 90 l tank, 11.5 l/100 km empty → 14.5 with 1.1 t (its own payload)
+        public const float VanTank = 90, VanPer100Empty = 11.5f, VanPer100Full = 14.5f;
+        string FuelId => Truck ? Truck.VehicleId : "furgon";
+        public float FuelPct => FuelId == "mali" ? S.fuelM : FuelId == "galeb" ? S.fuelG : FuelId == "sprinter" ? S.fuelK : S.fuel;
+        float Tank => FuelId == "mali" ? 60 : FuelId == "galeb" ? GalebTank : FuelId == "sprinter" ? KombiTank : VanTank;
         public float FuelLitres => FuelPct * Tank / 100f;
         /// l/100 km at the current load
         public float Consumption
         {
             get
             {
-                float k = Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / FullLoadKg);
-                return FuelId == "galeb" ? Mathf.Lerp(GalebPer100Empty, GalebPer100Full, k)
-                    : FuelId == "kombi" ? Mathf.Lerp(KombiPer100Empty, KombiPer100Full, k)
-                    : Mathf.Lerp(LitresPer100Empty, LitresPer100Full, k);
+                float k = Mathf.Clamp01((Truck ? Truck.CargoKg : 0) / (Truck ? Mathf.Max(1, Truck.spec.payloadKg) : 1100));
+                return FuelId == "mali" ? Mathf.Lerp(6.5f, 9f, k)
+                    : FuelId == "galeb" ? Mathf.Lerp(GalebPer100Empty, GalebPer100Full, k)
+                    : FuelId == "sprinter" ? Mathf.Lerp(KombiPer100Empty, KombiPer100Full, k)
+                    : Mathf.Lerp(VanPer100Empty, VanPer100Full, k);
             }
         }
         void SetFuelPct(float pct)
         {
             pct = Mathf.Clamp(pct, 0, 100);
-            if (FuelId == "galeb") S.fuelG = pct; else if (FuelId == "kombi") S.fuelK = pct; else S.fuel = pct;
+            if (FuelId == "mali") S.fuelM = pct; else if (FuelId == "galeb") S.fuelG = pct; else if (FuelId == "sprinter") S.fuelK = pct; else S.fuel = pct;
         }
 
         void TickFuel(float dt)

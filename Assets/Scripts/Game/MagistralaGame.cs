@@ -81,8 +81,8 @@ namespace Magistrala.Game
         Vector3 centreLocal; float truckLen = 8.4f;
         GameObject pallets, marker;
 
-        static string Arg(string k) { var a = System.Environment.GetCommandLineArgs(); for (int i = 0; i < a.Length - 1; i++) if (a[i] == k) return a[i + 1]; return null; }
-        static bool Has(string k) => System.Array.IndexOf(System.Environment.GetCommandLineArgs(), k) >= 0;
+        static string Arg(string k) => Magistrala.CliArgs.Arg(k); // (editor play mode: also SessionState "Magistrala.args")
+        static bool Has(string k) => Magistrala.CliArgs.Has(k);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -232,10 +232,12 @@ namespace Magistrala.Game
             if (World.Stop(to) == null) return null;
             float m = World.RoadMetres(Warehouse, to);
             float km = m > 0 ? m / 1000f : 0;
-            var j = new Job { from = Warehouse, to = to, label = label, cargo = cargo, km = km, pay = FirmPay(km), key = to, drops = 1, loaded = true };
+            var j = new Job { from = Warehouse, to = to, label = label, cargo = cargo, km = km, pay = FirmPay(km), key = to, drops = 1, loaded = true, kg = FirmKg(2400) };
             j.legs.Add(new Leg { stop = to, kind = "d" });
             return j;
         }
+        /// the firm's main truck in the instrumental ("Ategom" / "furgonom", PlayerTruck)
+        string FurgonIns => "furgonom";
         public static float FirmPay(float km) => Mathf.Round((10 + 3 * Mathf.Max(0, km)) * 2) / 2; // driverPay.ts firmBasePay
 
         void Accept(int k, bool force = false)
@@ -247,7 +249,7 @@ namespace Magistrala.Game
             if (!force && !atWarehouse) { Banner("Ture se preuzimaju u skladištu u Lukšiću."); return; }
             if (!force && Truck.SpeedKmh > 3) { Banner("Stani u skladištu pa biraj turu."); return; }
             if (!force && !ToursOpen) { Banner(FirmHours ? "Zdravko još nije dao ture." : "Firma radi radnim danom 6–17 h."); return; }
-            if (!force && !InFirm) { Banner(NearOther && Other != null && Other.firm ? $"Ture firme voziš vozilom firme. E – uzmi {Other.acc}." : "Ture firme voziš Ategom ili kombijem firme, ne Galebom."); return; }
+            if (!force && !InFirm) { Banner(NearOther && Other != null && Other.firm ? $"Ture firme voziš vozilom firme. E – uzmi {Other.acc}." : $"Ture firme voziš {FurgonIns} ili kombijem firme, ne Galebom."); return; }
             j.startMin = S.clockMin; j.deadlineMin = TourDeadline(j);
             Current = j; State = Phase.Loading; phaseT = force ? 0.1f : 3f; loadingKind = 'a';
             if (j.loaded) { Truck.SetCargo(j.kg); SetPallets(true); } // four euro pallets of drinks ≈ 2.4 t
@@ -276,7 +278,7 @@ namespace Magistrala.Game
             handCrates = Unload == null || rows == 0;
             if (Current.fatureta) handCrates = true;
             if (!handCrates) { Unload.Begin(rows); phaseT = Unload.Duration; } else phaseT = Current.fatureta ? (auto && nearStart == 0 ? 2 : Current.unloadSec) : Unload == null ? 4f : 5f;
-            Banner(Current.fatureta ? $"Ručna povučena. Istovar: {Current.cargo}…" : handCrates && Unload ? "Ručna povučena. Gajbe rukom, potpis na otpremnici…" : "Ručna povučena. Rampa dolje, transpaleta van…");
+            Banner(Current.fatureta ? $"Ručna povučena. Istovar: {Current.cargo}…" : handCrates && Unload ? "Ručna povučena. Gajbe rukom, potpis na otpremnici…" : Unload && Unload.Doors ? "Ručna povučena. Vrata sanduka otvorena, palete van…" : "Ručna povučena. Rampa dolje, transpaleta van…");
             Debug.Log($"[job] unload started at {Current.to} ({(unloadReversed ? "reversed in" : "nose in")}), {phaseT:0.0} s");
         }
 
@@ -359,7 +361,7 @@ namespace Magistrala.Game
             switch (State)
             {
                 case Phase.Free:
-                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? "Ture firme voziš Ategom ili kombijem" : null; HomeEndDay(kb, help, ringing); break; }
+                    if (atWarehouse && InGaleb) { if (!swap) prompt = FirmHours && ToursOpen ? $"Ture firme voziš {FurgonIns} ili kombijem" : null; HomeEndDay(kb, help, ringing); break; }
                     if (atWarehouse)
                     {
                         if (ToursOpen)

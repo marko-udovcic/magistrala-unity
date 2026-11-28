@@ -121,6 +121,9 @@ Datoteke: `Assets/Textures/PolyHaven/*` (2k jpg; rive 1k) i `Assets/Textures/Sky
   razdjelnom pojasu D8, more (shader „Water Sea Offset”), vjetar. Mapa paketa `Assets/NatureManufacture Assets` je u .gitignore
   i nije prisutna u ovom worktreeju; licenca paketa i dokaz kupnje ovdje nisu provjerljivi. Vidi `Tools/dijagnoza/licence.md`.
 
+## CGTrader (Royalty Free licenca, kupljeni paket)
+- **"L4H1 truck isothermal van"** iz paketa **"30 Big collection of commercial vehicles"** (CGTrader) — Royalty Free — **izmijenjeno**: novi materijali, livreja firme, tablice, instrumenti, ručica mjenjača, razdvojeni kotači / vrata / volan / brisači, otvoren stražnji zid sanduka, smanjeni okovi i gume, LOD-ovi. Igračev kamion firme (`Assets/Resources/Vehicles/KombiL4H1/`, izvor `BalkanDriver/assets-src/kombi-l4h1/`, dorada za Unity `Tools/kombi-l4h1/`).
+
 ## Unity paketi
 - glTFast (com.unity.cloud.gltfast), URP, Input System, Pipeline — Unity Technologies
 
@@ -199,3 +202,9 @@ Modeli s CGTradera (Royalty Free, dopuštena komercijalna uporaba; izmijenjeni u
   stvarne mjere (3 m), tri boje platna (BalkanDriver `assets-src/riva-oprema/kaic_kafic.py`).
 Ostala oprema rive (klupe, koševi, stalci za bicikle, stupići, bitve, lampe s dvije kugle): vlastiti proceduralni modeli
 (`assets-src/riva-oprema/riva_oprema.py`), CC0.
+
+## Nova igračeva flota (27. 11. 2026.)
+
+- "Van Sprinter" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: uklonjeni znakovi proizvođača, novi materijali, livreja firme, tablice, instrumenti, ručica mjenjača, razdvojeni kotači/vrata/volan, smanjene gume i sitni dijelovi, LOD-ovi).
+- "Commercial van" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: novi materijali, livreja firme, tablice, instrumenti, razdvojeni kotači/vrata/volan, planarno spajanje i smanjenje gustih dijelova, LOD-ovi).
+- "L3H2 truck" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: nova boja i materijali, natpis GALEB TRANSPORT, slojevi istrošenosti, tablice, instrumenti, ručica mjenjača, razdvojeni kotači/vrata/volan, LOD-ovi).

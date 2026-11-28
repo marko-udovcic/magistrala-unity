@@ -22,7 +22,13 @@ namespace Magistrala
         void Start()
         {
             truck = GetComponent<TruckController>(); preset = FindFirstObjectByType<LightPreset>();
-            VehicleLook.Apply(transform, truck && truck.spec != null ? truck.spec.id : "atego"); // paint, glass, lamp submeshes (before the lenses are collected)
+            VehicleLook.Apply(transform, truck && truck.spec != null ? truck.spec.model : "l4h1"); // paint, glass, lamp submeshes (before the lenses are collected)
+            Transform headL = null, headR = null;
+            foreach (var t in truck.model.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "a_headL") headL = t;
+                else if (t.name == "a_headR") headR = t;
+            }
             Renderer head = null; Bounds headB = default; bool headSub = false;
             foreach (var r in GetComponentsInChildren<Renderer>(true))
             {
@@ -50,7 +56,7 @@ namespace Magistrala
                     }
                 }
             }
-            if (head || headSub)
+            if ((headL && headR) || head || headSub)
             {
                 var b = head ? head.bounds : headB; var right = transform.right; var c = b.center;
                 float half = Mathf.Abs(Vector3.Dot(b.extents, new Vector3(Mathf.Abs(right.x), Mathf.Abs(right.y), Mathf.Abs(right.z))));
@@ -58,7 +64,9 @@ namespace Magistrala
                 foreach (float s in new[] { -1f, 1f })
                 {
                     var go = new GameObject("headlight"); go.transform.SetParent(transform, false);
-                    go.transform.position = c + right * s * Mathf.Max(0, half - .18f) + fwd * .15f;
+                    var anchor = s < 0 ? headL : headR;
+                    go.transform.position = anchor ? anchor.position + transform.forward * .05f : c + right * s * Mathf.Max(0, half - .18f) + fwd * .15f;
+                    if (anchor) fwd = transform.forward;
                     go.transform.rotation = Quaternion.LookRotation(Quaternion.AngleAxis(4f, Vector3.Cross(fwd, transform.up) * -1f) * fwd, transform.up);
                     var L = go.AddComponent<Light>(); L.type = LightType.Spot; L.range = 70; L.spotAngle = 62; L.innerSpotAngle = 30;
                     L.intensity = 60; L.color = new Color(1f, .95f, .85f); L.shadows = LightShadows.None; L.renderMode = LightRenderMode.ForcePixel;
@@ -66,6 +74,7 @@ namespace Magistrala
                 }
             }
             Set(false, 0, false);
+            (GetComponent<TurnSignals>() ?? gameObject.AddComponent<TurnSignals>()).Bind(truck);
         }
 
         static readonly int ID_Emis = Shader.PropertyToID("emissiveFactor"), ID_EmissionColor = Shader.PropertyToID("_EmissionColor");
@@ -79,6 +88,7 @@ namespace Magistrala
         {
             foreach (var b in beams) b.enabled = on;
             Glow("L_head", on ? new Color(1f, .96f, .88f) * 6f : Color.black);
+            Glow("L_fog", on ? new Color(1f, .92f, .75f) * 4f : Color.black);
             Glow("L_marker", on ? new Color(1f, .55f, .1f) * 3f : Color.black);
             Glow("L_tail", on ? new Color(1f, .05f, .02f) * 3f : Color.black);
             float br = Mathf.Max(on ? .25f : 0f, brake);

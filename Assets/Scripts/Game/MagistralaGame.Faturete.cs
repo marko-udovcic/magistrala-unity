@@ -81,9 +81,9 @@ namespace Magistrala.Game
                 MatePhone.AddContact(new MatePhone.Contact { id = c.id, name = c.name, role = c.role, color = col });
             }
             var bad = new List<string>();
-            foreach (var j in fat.jobs) if (World.Stop(j.from) == null || World.Stop(j.to) == null || World.RoadMetres(j.from, j.to) < 0 || FCust(j.customer) == null) bad.Add(j.id);
+            foreach (var j in fat.jobs) if (j.kg <= 0 || j.kg > 1400 || World.Stop(j.from) == null || World.Stop(j.to) == null || World.RoadMetres(j.from, j.to) < 0 || FCust(j.customer) == null) bad.Add(j.id);
             foreach (var j in fat.jobs) if (!bad.Contains(j.id)) { float km = World.RoadMetres(j.from, j.to) / 1000f; Debug.Log($"[fatureta] {j.id}: {World.Stop(j.from).name} → {World.Stop(j.to).name} {km:0.00} km, fair {(j.fair > 0 ? j.fair : FaturetaBasePay(km)):0.0} €"); }
-            if (bad.Count > 0) Debug.LogWarning($"[fatureta] not playable (stop / road / customer missing): {string.Join(", ", bad)}");
+            if (bad.Count > 0) Debug.LogWarning($"[fatureta] not playable (payload / stop / road / customer): {string.Join(", ", bad)}");
             fat.jobs = Array.FindAll(fat.jobs, j => !bad.Contains(j.id));
             // the phone: offers in Poslovi, "Odgovori" in the customer's thread, customers answer calls
             var jp = Phone.jobsProvider; var jn = Phone.jobsNote; var og = Phone.outgoing;
@@ -324,8 +324,22 @@ namespace Magistrala.Game
 
         void SetCooldown(FatJob j, int days) { S.fatNext.RemoveAll(n => n.StartsWith(j.id + ":")); S.fatNext.Add($"{j.id}:{Day + Mathf.Max(1, days)}"); }
 
+        static void AdaptFaturetaLoad(Job j)
+        {
+            if (!j.fatureta) return;
+            j.kg = Mathf.Min(j.kg, 1400);
+            if (j.fatId == "jure_drva")
+            {
+                j.kg = Mathf.Min(j.kg, 1250);
+                j.label = j.label?.Replace("Dva metra drva", "Jedan metar drva");
+            }
+            else if (j.fatId == "ivica_blokovi")
+                j.label = j.label?.Replace("Paleta blokova i deset vrića cementa", "Pola palete blokova i pet vrića cementa");
+        }
+
         void StartFatureta(Job j)
         {
+            AdaptFaturetaLoad(j);
             Current = j; State = Phase.Driving; Truck.SetCargo(0); SetPallets(false); routeT = 0;
             j.to = j.Leg.stop;
             var from = World.Stop(j.from)?.name;

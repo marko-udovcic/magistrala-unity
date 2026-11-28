@@ -554,12 +554,12 @@
     }
   ],
   "jobs": [
-    { "id": "jure_drva", "customer": "jure", "cargo": "drva", "what": "Dva metra drva", "kg": 2500, "from": "dvor_basica", "to": "kupac_drva_sucurac", "days": "wd,sat", "fair": 60, "open": 50, "max": 65, "loadSec": 25, "unloadSec": 20, "cooldown": 7,
-      "text": "Mate, možeš li mi danas odvest dva metra drva iz vašeg dvora u Sućurac? Pedeset eura, Mate, to je pošteno za susida." },
+    { "id": "jure_drva", "customer": "jure", "cargo": "drva", "what": "Jedan metar drva", "kg": 1250, "from": "dvor_basica", "to": "kupac_drva_sucurac", "days": "wd,sat", "fair": 60, "open": 50, "max": 65, "loadSec": 25, "unloadSec": 20, "cooldown": 7,
+      "text": "Mate, možeš li mi danas odvest jedan metar drva iz vašeg dvora u Sućurac? Pedeset eura, Mate, to je pošteno za susida." },
     { "id": "anka_ormar", "customer": "anka", "cargo": "namještaj", "what": "Ormar i dvi komode", "kg": 400, "from": "p76", "to": "p68", "days": "wd,sat", "loadSec": 18, "unloadSec": 18, "cooldown": 6,
       "text": "Mate, sine, ormar i dvi komode triba prinit ćeri u Novi. Dala bi {offer} eura, ako ti nije teško." },
-    { "id": "ivica_blokovi", "customer": "ivica", "cargo": "građevinski materijal", "what": "Paleta blokova i deset vrića cementa", "kg": 2800, "from": "p74", "to": "p75", "days": "wd,sat", "loadSec": 22, "unloadSec": 22, "cooldown": 5,
-      "text": "Mate, odma mi triba paleta blokova i deset vrića cementa gori na Zagorski put. Majstori čekaju. {offer} eura?" },
+    { "id": "ivica_blokovi", "customer": "ivica", "cargo": "građevinski materijal", "what": "Pola palete blokova i pet vrića cementa", "kg": 1400, "from": "p74", "to": "p75", "days": "wd,sat", "loadSec": 22, "unloadSec": 22, "cooldown": 5,
+      "text": "Mate, odma mi triba pola palete blokova i pet vrića cementa gori na Zagorski put. Majstori čekaju. {offer} eura?" },
     { "id": "zorka_ulje", "customer": "zorka", "cargo": "maslinovo ulje", "what": "Deset kanistara ulja", "kg": 250, "from": "p70", "to": "p71", "days": "wd,sat", "loadSec": 12, "unloadSec": 12, "cooldown": 7,
       "text": "Mate, deset kanistara ulja od sestre iz Štafilića do mene u Lukšić. Ono, to ti je usput. {offer} eura." },
     { "id": "frane_frizider", "customer": "frane", "cargo": "frižider", "what": "Frižider iz stare kuće", "kg": 90, "from": "p69", "to": "p30", "days": "wd,sat", "loadSec": 12, "unloadSec": 12, "cooldown": 6,

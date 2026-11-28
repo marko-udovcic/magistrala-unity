@@ -1,0 +1,10 @@
+--- /Users/macair/Documents/BalkanDriver/assets-src/kombi-l4h1/scripts/k3_export.py	2026-11-27 19:50:36
++++ /private/tmp/claude-501/-Users-macair-Documents-BalkanDriver/eff135b3-602f-4849-9129-cf1d21309610/scratchpad/kombi/work/scripts/k3_export.py	2026-11-27 20:40:40
+@@ -51,6 +51,7 @@
+         elif n == 'body': remove_small(o, S['thr']); decimate(o, S['body'])
+         elif n in ('door_L', 'door_R'): remove_small(o, S['thr']); decimate(o, S['door'])
+         elif n.startswith('door_rear'): remove_small(o, S['thr']); decimate(o, S['rdoor'])
++        elif n.endswith('_glass') or n == 'windscreen_fx': decimate(o, S['door'])
+         elif n.startswith('plate') or n.startswith('firm_marking') or n.startswith('needle'): pass
+         else: decimate(o, S['small'])
+     report(f'LOD{L}'); export(f'kombi-l4h1_lod{L}.glb')
