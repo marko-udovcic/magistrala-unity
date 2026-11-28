@@ -55,6 +55,7 @@ namespace Magistrala.EditorTools
                 var g = new Vector2((float)(A("a") * x + A("b") * z + A("tx")), (float)(A("c") * x + A("d") * z + A("tz")));
                 foreach (var id in MiniJson.L(ps["osm"])) busByOsm[(string)id] = g;
             }
+            System.Text.StringBuilder unlinked = null;
             foreach (var o in MiniJson.L(MiniJson.O(MiniJson.Parse(File.ReadAllText(STANICE)))["stops"]))
             {
                 var d = MiniJson.O(o);
@@ -66,9 +67,16 @@ namespace Magistrala.EditorTools
                     string key = ((string)id).Replace("node/", "n").Replace("way/", "w").Replace("relation/", "r");
                     if (busByOsm.TryGetValue(key, out var bus)) { s.bus = bus; break; }
                 }
-                if (!s.bus.HasValue) throw new InvalidDataException("[stanice] no package BUS reference for " + s.id);
+                // Stops outside the package keep their original placement without a BUS-paint constraint.
+                if (!s.bus.HasValue)
+                {
+                    if (unlinked == null) unlinked = new System.Text.StringBuilder();
+                    else unlinked.Append(", ");
+                    unlinked.Append(s.id).Append(" (").Append(s.name).Append(')');
+                }
                 r.Add(s);
             }
+            if (unlinked != null) Debug.LogWarning("[stanice] no package BUS reference; keeping original positioning: " + unlinked);
             return r;
         }
 

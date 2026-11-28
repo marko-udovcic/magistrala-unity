@@ -69,3 +69,9 @@ docs/izvjestaj-2711.md
 ```
 
 Bez commita i pisanja u `.git`. Zatečene izmjene scene, ProjectSettings, `.codex/zadatak.md`, recovery/Tripo/vozila i ostale tuđe datoteke nisu dio ovog popisa.
+
+## C1 popravak
+
+Ispravak navoda 48/48 iz točke 5: paketnu BUS referencu ima **45/48 stanica**. `LoadStops()` za st41 (Strinje), st47 (Kaštel Sućurac Luvica 2) i st48 (Kaštel Sućurac Luvica 1), izvan modeliranog područja, zadržava staro pozicioniranje i ispisuje jedno upozorenje s popisom nepovezanih stanica. Nedostajuća veza više ne baca iznimku; obrada neispravnih podataka ostaje nepromijenjena. Povezane stanice zadržavaju postojeće ograničenje ≤8 m od BUS natpisa, bez novih alokacija u petlji pozicioniranja.
+
+Provjereno uparivanje svih 48 stanica sa stvarnim paketom 2711; kod pozicioniranja ostao je nepromijenjen. `git diff --check` prolazi za ove dvije datoteke (zatečene izmjene scene imaju razmake na kraju redaka). Unity nije pokrenut; bez commita. Izmijenjene datoteke: `Assets/Editor/PropsBuilder.Stanice.cs` i `docs/izvjestaj-2711.md`.
