@@ -5,7 +5,7 @@
 // "Benzol" (red / dark blue). Each part GLB holds <part>_LOD0 / <part>_LOD1; its materials are named brand / src / glass / emit
 // and are swapped here for the brand's own (one URP Lit material per brand atlas, instanced).
 // Data: Assets/Editor/benzinske.json — per site (OSM amenity=fuel): brand, canopy centre / axis / islands (game frame: x east,
-// z south; along = (cos a, sin a), as model-buildings.json canopies), shop / totem / hut / LPG tank spots, the package objects
+// z south; pillar row = (cos a, sin a), drive-through perpendicular to that row), shop / totem / hut / LPG tank spots, the package objects
 // (model-buildings.json ids) and tile buildings (tx_tz:i) it replaces. BuildingsBuilder / BuildingsFromTiles skip those ids
 // (Skip*), so after editing the lists run "Build tile buildings" (or at least this menu, which rebuilds the package part).
 // Rules: a job's bay (GameWorld stops: the refuelling spot of Pumpa Kaštela, deliveries) never gets an island / pump / prop
@@ -266,14 +266,69 @@ namespace Magistrala.EditorTools
             return false;
         }
 
-        static (Vector3 c, Vector2 dir, float hl, float hw) BayAt(Vector3 p, float r)
+        // SAT overlap of the complete island footprint (including a clearance margin) and a job bay.
+        // A centre/radius check misses the ends when an island is turned into the driving direction.
+        static bool IslandBay(Vector3 p, Vector3 drive, out (Vector3 c, Vector2 dir, float hl, float hw) hit)
         {
-            foreach (var b in bays)
+            var f = new Vector2(drive.x, drive.z).normalized;
+            var n = new Vector2(-f.y, f.x);
+            const float hl = 3.4f, hw = 1.1f; // kit island: 6 x 1.4 m; 0.4 m clearance
+            foreach (var b0 in bays)
             {
-                var d = new Vector2(p.x - b.c.x, p.z - b.c.z); var f = b.dir.sqrMagnitude > 0 ? b.dir.normalized : Vector2.up;
-                if (Mathf.Abs(Vector2.Dot(d, f)) < b.hl + r && Mathf.Abs(d.x * f.y - d.y * f.x) < b.hw + r) return b;
+                var b = b0;
+                if (cur != null && !double.IsNaN(cur.bayHw) && Vector2.Distance(new Vector2(b.c.x, b.c.z), new Vector2(p.x, p.z)) < 60)
+                    b.hw = Mathf.Min(b.hw, (float)cur.bayHw);
+                var bf = b.dir.sqrMagnitude > 0 ? b.dir.normalized : Vector2.up;
+                var bn = new Vector2(-bf.y, bf.x);
+                var d = new Vector2(p.x - b.c.x, p.z - b.c.z);
+                bool separate = false;
+                foreach (var axis in new[] { f, n, bf, bn })
+                {
+                    float reach = hl * Mathf.Abs(Vector2.Dot(f, axis)) + hw * Mathf.Abs(Vector2.Dot(n, axis))
+                        + b.hl * Mathf.Abs(Vector2.Dot(bf, axis)) + b.hw * Mathf.Abs(Vector2.Dot(bn, axis));
+                    if (Mathf.Abs(Vector2.Dot(d, axis)) >= reach) { separate = true; break; }
+                }
+                if (!separate) { hit = b; return true; }
             }
-            return bays[0];
+            hit = default; return false;
+        }
+
+        // The kit combines roof and columns in each LOD mesh. Cantilever the roof over omitted islands;
+        // leaving the original column (or its collider) there would still obstruct the job bay.
+        static void OmitPillars(GameObject canopy, List<Vector3> centres, string siteId)
+        {
+            if (centres.Count == 0) return;
+            var local = centres.Select(p => canopy.transform.InverseTransformPoint(p)).ToArray();
+            foreach (var cap in canopy.GetComponents<CapsuleCollider>())
+                if (local.Any(p => new Vector2(p.x - cap.center.x, p.z - cap.center.z).sqrMagnitude < .01f))
+                    UnityEngine.Object.DestroyImmediate(cap);
+            int lod = 0;
+            foreach (var mf in canopy.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = UnityEngine.Object.Instantiate(mf.sharedMesh);
+                var vertices = mesh.vertices.Select(v => canopy.transform.InverseTransformPoint(mf.transform.TransformPoint(v))).ToArray();
+                for (int sub = 0; sub < mesh.subMeshCount; sub++)
+                {
+                    var indices = mesh.GetTriangles(sub); var kept = new List<int>(indices.Length);
+                    for (int i = 0; i < indices.Length; i += 3)
+                    {
+                        bool column = local.Any(p => Enumerable.Range(0, 3).All(k =>
+                        {
+                            var v = vertices[indices[i + k]];
+                            return v.y <= 5.01f && Mathf.Abs(v.x - p.x) <= .36f && Mathf.Abs(v.z - p.z) <= .36f;
+                        }));
+                        if (!column) { kept.Add(indices[i]); kept.Add(indices[i + 1]); kept.Add(indices[i + 2]); }
+                    }
+                    mesh.SetTriangles(kept, sub);
+                }
+                mesh.RecalculateBounds(); mesh.name = $"canopy-{siteId}-lod{lod}";
+                string path = $"{GEN}/{mesh.name}.asset";
+                var old = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+                if (old) { EditorUtility.CopySerialized(mesh, old); UnityEngine.Object.DestroyImmediate(mesh); mesh = old; }
+                else AssetDatabase.CreateAsset(mesh, path);
+                EditorUtility.SetDirty(mesh); AssetDatabase.SaveAssetIfDirty(mesh);
+                mf.sharedMesh = mesh; lod++;
+            }
         }
 
         static GameObject Put(Transform parent, string part, string brand, Vector3 p, float yaw, string name = null)
@@ -306,6 +361,8 @@ namespace Magistrala.EditorTools
                 cur = s;
                 if (!double.IsNaN(s.px)) Pad(g, s);
                 var C = W.U(s.cx, 0, s.cz); var A = GDir(Math.Cos(s.ca), Math.Sin(s.ca)); var N = Vector3.Cross(Vector3.up, A);
+                // A is the cross-lane pillar row / canopy long axis; N is the drive-through direction.
+                // Island centres stay under their columns, but the islands and pump fins run along N.
                 // the old Tripo dispensers of the package canopy (World/Props/benzinske) within the canopy
                 var tp = GameObject.Find("World/Props/benzinske");
                 if (tp) for (int i = tp.transform.childCount - 1; i >= 0; i--)
@@ -316,43 +373,68 @@ namespace Magistrala.EditorTools
                 float y0 = ys.Average();
                 string cp = "canopy" + Mathf.Clamp(s.n, 2, 4);
                 // the canopy part is built along its local x (Blender X); glTFast mirrors x, which a symmetric canopy does not mind
-                Put(g, cp, s.brand, new Vector3(C.x, y0, C.z), Yaw(A) - 90, "nadstresnica"); nParts++;
+                var canopy = Put(g, cp, s.brand, new Vector3(C.x, y0, C.z), Yaw(A) - 90, "nadstresnica"); nParts++;
+                var omittedPillars = new List<Vector3>();
+                var truckIslands = new HashSet<Vector3>();
                 var pumpB = sizes.TryGetValue("pump", out var pbnd) ? pbnd : new Bounds(Vector3.zero, Vector3.one);
                 // the brand fin is at the pump's +x (Blender) end; after the import it is where the bounds reach further
                 float fin = pumpB.max.x > -pumpB.min.x ? 1 : -1;
                 int nIsl = 0, nPump = 0;
+                void TruckIsland((Vector3 c, Vector2 dir, float hl, float hw) tb)
+                {
+                    if (!double.IsNaN(s.bayHw)) tb.hw = Mathf.Min(tb.hw, (float)s.bayHw);
+                    var bd = tb.dir.sqrMagnitude > 0 ? new Vector3(tb.dir.x, 0, tb.dir.y).normalized : Vector3.forward;
+                    var bn = Vector3.Cross(Vector3.up, bd);
+                    if (Vector3.Dot(C - tb.c, bn) < 0) bn = -bn; // side toward the canopy
+                    var tc = tb.c + bn * (tb.hw + 1.25f); tc.y = 0;
+                    if (!truckIslands.Add(tc)) return; // at most one island per bay
+                    if (IslandBay(tc, bd, out _))
+                    {
+                        log.Add($"  {s.id}: otok kamioni izostavljen zbog susjednog mjesta posla");
+                        return;
+                    }
+                    float yt = Ground(tc);
+                    Put(g, "island", s.brand, new Vector3(tc.x, yt, tc.z), Yaw(bd) - 90, "otok kamioni");
+                    var rf = bd * fin;
+                    Put(g, "pump", s.brand, new Vector3(tc.x, yt + .2f, tc.z) + bd * 1.8f, Yaw(Vector3.Cross(rf, Vector3.up)), "aparat kamioni");
+                    log.Add($"  {s.id}: otok uz mjesto točenja posla"); nIsl++; nPump++;
+                }
                 for (int i = 0; i < s.n; i++)
                 {
-                    if (s.skipIslands.Contains(i)) continue;
                     var ic = C + A * ((i - (s.n - 1) / 2f) * 10);
-                    if (InBay(ic, 3.2f - 1.4f))
+                    if (s.skipIslands.Contains(i)) { omittedPillars.Add(ic); continue; }
+                    if (IslandBay(ic, N, out var tb))
                     {
-                        // the job's bay crosses this island: a diesel pump on a short island beside the bay instead (the truck refuels there)
-                        var tb = BayAt(ic, 3.2f - 1.4f);
-                        var bd = new Vector3(tb.dir.x, 0, tb.dir.y).normalized; var bn = Vector3.Cross(Vector3.up, bd);
-                        if (Vector3.Dot(C - tb.c, bn) < 0) bn = -bn;           // the side toward the canopy centre
-                        var tc = tb.c + bn * (tb.hw + 1.25f); tc.y = 0;
-                        float yt = Ground(tc);
-                        Put(g, "island", s.brand, new Vector3(tc.x, yt, tc.z), Yaw(bd) - 90, "otok kamioni");
-                        var rf = bd * fin; Put(g, "pump", s.brand, new Vector3(tc.x, yt + .2f, tc.z) + bd * 1.8f, Yaw(Vector3.Cross(rf, Vector3.up)), "aparat kamioni");
-                        log.Add($"  {s.id}: otok {i} zamijenjen otokom uz mjesto točenja posla"); nIsl++; nPump++;
+                        // Keep the complete bay clear and put its diesel dispenser alongside the truck.
+                        omittedPillars.Add(ic);
+                        TruckIsland(tb);
                         continue;
                     }
                     float yi = Ground(ic);
-                    Put(g, "island", s.brand, new Vector3(ic.x, yi, ic.z), Yaw(A) - 90, $"otok {i}"); nIsl++;
+                    Put(g, "island", s.brand, new Vector3(ic.x, yi, ic.z), Yaw(N) - 90, $"otok {i}"); nIsl++;
                     // two dispensers, the brand fins outward (away from the pillar); the LPG one on the last island's far end
                     for (int e = -1; e <= 1; e += 2)
                     {
-                        var pc = ic + A * (1.8f * e);
+                        var pc = ic + N * (1.8f * e);
                         bool lpg = s.lpg && i == s.n - 1 && e == 1;
-                        // local +x of the part (after the mirror: fin side) must point along e * A
-                        var right = A * e * fin; var fwd = Vector3.Cross(right, Vector3.up);
+                        // The fins point to the island ends; both fuel faces look sideways into the lanes.
+                        var right = N * e * fin; var fwd = Vector3.Cross(right, Vector3.up);
                         Put(g, lpg ? "pump_lpg" : "pump", s.brand, new Vector3(pc.x, yi + .2f, pc.z), Yaw(fwd), lpg ? "autoplin" : "aparat"); nPump++;
                     }
                     // a washer bucket at one island end
-                    var wp = ic + A * 3.4f + N * .2f;
-                    if (!InBay(wp, .3f)) Put(g, "washer", s.brand, new Vector3(wp.x, Ground(wp), wp.z), Yaw(A), "brisaci");
+                    var wp = ic + N * 3.4f + A * .2f;
+                    if (!InBay(wp, .3f)) Put(g, "washer", s.brand, new Vector3(wp.x, Ground(wp), wp.z), Yaw(N), "brisaci");
                 }
+                // A fuel stop may sit beyond the pillar row (kastela_pumpa_2). It still needs a
+                // dispenser beside its bay, even when no regular island had to be omitted.
+                if (game) foreach (var stop in game.stops.Where(stop => stop.kind == "fuel"))
+                {
+                    var bp = stop.bay; bp.y = 0;
+                    if (Vector3.Distance(C, bp) < 60 && list.OrderBy(site =>
+                        (W.U(site.cx, 0, site.cz) - bp).sqrMagnitude).First() == s)
+                        TruckIsland((stop.bay, stop.bayDir, stop.bayHl, stop.bayHw));
+                }
+                OmitPillars(canopy, omittedPillars, s.id);
                 nParts += nIsl + nPump;
                 // shop: its front (glass) to the canopy
                 if (!double.IsNaN(s.sx))
