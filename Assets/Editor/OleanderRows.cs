@@ -154,10 +154,13 @@ namespace Magistrala.EditorTools
             var why = new Dictionary<string, int>(); var areas = new Dictionary<string, int>(); var kinds = new int[3];
             void No(string w) { why.TryGetValue(w, out int n); why[w] = n + 1; }
             int cand = 0;
+            // Kambelovac → Lukšić: the one bush where the median opens into the westbound left-turn bay (D8Ograda.cs)
+            { var b = D8Ograda.Bush(WorldData.Models()); if (D8Ograda.On && !float.IsNaN(b.x)) all = all.Concat(new[] { new Item { x = b.x, z = b.y, variant = 1, height = 1.9f, area = "D8 razdjelni", place = true } }).ToList(); }
             foreach (var it in all)
             {
                 if (!it.place) continue; cand++;
                 double x = it.x, z = it.z;
+                if (it.area == "D8 razdjelni" && D8Ograda.NoHedge(x, z)) { No("Kambelovac – Lukšić: median guardrail, no hedge (D8Ograda)"); continue; }
                 if (!NaturePass.In(x, z)) { No("outside the world"); continue; }
                 var near = Models(x, z);
                 if (LaneProfile.OnAsphalt(near, x, z)) { No("model asphalt"); continue; }

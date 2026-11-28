@@ -57,6 +57,8 @@ namespace Magistrala.EditorTools
             }
             string msg = $"[Magistrala] semafori: {heads.Count} glava; stop-crte AI-ja s vidljivom glavom svoje skupine: {ok}, bez: {miss.Count}" + (miss.Count > 0 ? " (" + string.Join("; ", miss) + ")" : "");
             Debug.Log(msg); System.IO.File.AppendAllText("Logs/znakovi-izvjestaj.txt", msg + "\n");
+            // the Lukšić junction's islands (hedges, white gravel) and the showroom corner (D8Luksic.cs, 28. 11.)
+            Debug.Log(D8Luksic.Build());
             AssetDatabase.SaveAssets();
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene()); EditorSceneManager.SaveOpenScenes();
             return msg + "\n" + report;

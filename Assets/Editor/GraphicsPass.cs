@@ -384,7 +384,7 @@ namespace Magistrala.EditorTools
                     {
                         double gx = tx * 1024 + (c + .5) * 4, gz = (tz + 1) * 1024 - (r + .5) * 4;
                         double h = Tiles.Height(gx, gz); if (h < .8) continue;
-                        if (WorldData.SurfDist(models, gx, gz) < 2.5 || WorldData.FootDist(models, gx, gz) < 1.5 || StreetsBuilder.Covered(gx, gz, 1) || RivaBuilder.Class(gx, gz) != 0) continue; // (graph streets: Build streets' cover mask; the riva's paving / sea)
+                        if (WorldData.SurfDist(models, gx, gz) < 2.5 || WorldData.FootDist(models, gx, gz) < 1.5 || StreetsBuilder.Covered(gx, gz, 1) || D8Plocnik.Covered(gx, gz, 1) || D8Luksic.Covered(gx, gz) || RivaBuilder.Class(gx, gz) != 0) continue; // (graph streets: Build streets' cover mask; the riva's paving / sea)
                         int ai = Mathf.Min(ar - 1, r * ar / R), aj = Mathf.Min(ar - 1, c * ar / R);
                         float grassW = A[ai, aj, 0], soilW = A[ai, aj, 1], rockW = A[ai, aj, 2];
                         float n = Mathf.PerlinNoise((float)gx * .05f + 300, (float)gz * .05f + 300);

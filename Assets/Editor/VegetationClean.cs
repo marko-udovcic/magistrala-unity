@@ -71,7 +71,7 @@ namespace Magistrala.EditorTools
                 var g = W.G(u); double x = g.x, z = g.y;
                 // Surface() includes non-asphalt islands too. Test the actual asphalt triangles before
                 // any surveyed/row exemption, without clearing a radius around a green strip or promenade.
-                if (LaneProfile.OnAsphalt(models, x, z) || StreetsBuilder.CoveredStreet(x, z, 0)) { road++; continue; }
+                if (LaneProfile.OnAsphalt(models, x, z) || StreetsBuilder.CoveredStreet(x, z, 0) || D8Plocnik.Covered(x, z, .35) || D8Luksic.Covered(x, z)) { road++; continue; }   // (and the D8's raised sidewalks, D8Plocnik.cs)
                 if (p < 0 || p >= np || !NaturePass.In(x, z) || riva.Contains(Key(x, z)) || mapillary.Contains(Convert.ToBase64String(b, o, 24)) || (survey != null && survey(x, z))) { Keep(b, o, outB, u.y); continue; }
                 bool tree = !hedge[p] && !rock[p] && h1[p] * s >= 3;
                 double sd = WorldData.SurfDist(models, x, z), r = hedge[p] ? .6 : tree ? 2.5 : 1.2;
@@ -132,8 +132,10 @@ namespace Magistrala.EditorTools
             foreach (var h in Physics.RaycastAll(new Vector3(u.x, u.y + 30, u.z), Vector3.down, 60, ~0, QueryTriggerInteraction.Ignore))
             {
                 bool ground = h.collider is TerrainCollider || roots.Any(r => h.collider.transform.IsChildOf(r));
-                if (!ground || Mathf.Abs(h.point.y - u.y) >= best) continue;
-                best = Mathf.Abs(h.point.y - u.y); y = h.point.y; nrm = h.normal; onModel = modelRoot && h.collider.transform.IsChildOf(modelRoot);
+                // the raised D8 median (MedianKerbs): its top, not the terrain under it, ~15 cm below
+                float dist = Mathf.Abs(h.point.y - u.y) - (MedianKerbs.IsMedian(h.collider) ? .5f : 0);
+                if (!ground || dist >= best) continue;
+                best = dist; y = h.point.y; nrm = h.normal; onModel = modelRoot && h.collider.transform.IsChildOf(modelRoot);
             }
             return best < 8;
         }

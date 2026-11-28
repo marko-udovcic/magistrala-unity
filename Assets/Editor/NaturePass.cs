@@ -217,6 +217,7 @@ namespace Magistrala.EditorTools
             var olive = Load<Mesh>(WorldBuilder.GEN + "/Plants/olive.mesh.asset");
             if (olive && VegetationMask.On) extra.Add(new Proto { id = "crnika", mesh = olive, mats = null, draw = 1000, near = 45 });
             ExtraTrees.Protos(extra);   // palm, the three broadleaf street trees (27. 11.)
+            D8Rub.Protos(extra);   // the D8 verges' tall dry grass, wormwood, lentisk-like shrub (D8Rub.cs, 28. 11.)
         }
         /// the height (m, at scale 1) of a prototype: ours by index or an extra one by id
         public static float Height(string id) { int i = Index(id); return i < 0 ? 0 : HeightOf(i); }
@@ -277,11 +278,12 @@ namespace Magistrala.EditorTools
                             Put(x, h - .1, z, R01(x, z, 25) * 360, .75f + .5f * R01(x, z, 26), baseCount + k); np++;
                         }
             total += np;
-            int nh = MedianHedge.Place((gx, y, gz, yaw, s, id) => { int pi = Index(id); if (pi >= 0) Put(gx, y, gz, yaw, s, pi); }, models);
+            int nh = MedianHedge.Place((gx, y, gz, yaw, s, id) => { int pi = Index(id); if (pi >= 0 && !D8Ograda.NoHedge(gx, gz)) Put(gx, y, gz, yaw, s, pi); }, models);   // (no median hedge Kambelovac → Lukšić: D8Ograda.cs)
             total += nh;
             int nyh = VegetationMask.PlaceHedges((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto));   // yard hedges (docs/audit-stari.md)
             total += nyh; Debug.Log($"[priroda] yard hedge plants {nyh}");
             total += GustaVegetacija.Place((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto), models, rec);   // Kaštel Stari trial (VEGETACIJA_I_TLO.md)
+            total += D8Rub.Place((gx, y, gz, yaw, s, proto) => Put(gx, y, gz, yaw, s, proto), models, rec);   // the D8's outer verges (D8Rub.cs)
             Debug.Log($"[priroda] extra pines {np}, median hedge plants {nh}");
         }
 

@@ -220,6 +220,10 @@ namespace Magistrala.EditorTools
                             pr.laneMv = (MiniJson.L(MiniJson.G(p, "laneMv")) ?? new List<object>()).Select(q => q as string).ToArray();
                             foreach (var f in MiniJson.L(MiniJson.G(p, "flags")) ?? new List<object>()) pr.flags.Add((string)f);
                             foreach (var b in MiniJson.L(MiniJson.G(p, "boards")) ?? new List<object>()) { var bo = MiniJson.O(b); pr.boards.Add((MiniJson.F(bo["u"]), MiniJson.G(bo, "text") as string ?? "", MiniJson.G(bo, "style") as string ?? "yellow")); }
+                            // Lukšić westbound gantry (28. 11., Marko's photo): a lane signal under each of its three boards (the left
+                            // lane's shows the left-turn group), heads on both legs (the left-turn pole C-2 stays by the median) and
+                            // the priority diamonds on the legs, as the eastbound gantry has
+                            if (pr.id == "krizanje-01-C-1") { pr.flags.Remove("no_heads"); pr.flags.Add("priority"); pr.laneMv = new[] { "left", null, null }; }
                             res.Add(pr);
                         }
             }
@@ -713,7 +717,12 @@ namespace Magistrala.EditorTools
                 {
                     var j = MiniJson.O(jo); string file = j["file"] as string;
                     if (file == null || !byGlb.TryGetValue(file, out var m)) continue;
-                    if (sigs.TryGetValue(m.key, out var s) && s.plan) continue; // signalised: the owner's props carry the plates
+                    if (sigs.TryGetValue(m.key, out var s) && s.plan)
+                    {
+                        // signalised: the owner's props carry the plates; at Lukšić the zebras get pedestrian heads (PedHeadsAt)
+                        if (PedHeadModels.Contains(m.key)) PedHeadsAt(m, j);
+                        continue;
+                    }
                     foreach (var oo in MiniJson.L(MiniJson.G(j, "objs")) ?? new List<object>())
                     {
                         var o = MiniJson.O(oo); if ((string)o["k"] != "zebra") continue;
@@ -730,6 +739,34 @@ namespace Magistrala.EditorTools
                             Post(q2.Value, tt, (float)m.y, "pješački prijelaz", 6, (A.Pedestrian(), A.Back("square"), .6f, .6f));
                         }
                     }
+                }
+            }
+        }
+
+        /// signalised model junctions whose zebras get pedestrian heads (28. 11., Marko at Lukšić: "5 semafora" — the lane signals on
+        /// the gantry, the side heads, and the pedestrian heads at the zebras; Mapillary d8rub.json has traffic lights at both ends of
+        /// each crossing). The plan has no pedestrian phase: a zebra across the D8 shows green with the side road (SG3), one across
+        /// the side road with the D8 (SG1) — the vehicle groups that do not cross it straight on.
+        static readonly HashSet<string> PedHeadModels = new HashSet<string> { "krizanje-01" };
+        static void PedHeadsAt(ModelJ m, Dictionary<string, object> j)
+        {
+            foreach (var oo in MiniJson.L(MiniJson.G(j, "objs")) ?? new List<object>())
+            {
+                var o = MiniJson.O(oo); if ((string)o["k"] != "zebra") continue;
+                double lx = MiniJson.D(o["x"]), lz = MiniJson.D(o["z"]);
+                if (m.lin != null) { double nx = m.lin[0] * lx + m.lin[1] * lz, nz = m.lin[2] * lx + m.lin[3] * lz; lx = nx; lz = nz; }
+                var c = W.U(m.x + lx, m.y, m.z + lz); float a = MiniJson.F(o["a"]), w = MiniJson.F(o["w"]), l = MiniJson.G(o, "l") is object lo ? MiniJson.F(lo) : 4;
+                var t = DirU(a); var right = Vector3.Cross(Vector3.up, t);
+                string g = Mathf.Abs(t.x) > .7f ? "SG3" : "SG1";   // road east–west = the D8
+                foreach (int sg in new[] { 1, -1 })
+                {
+                    var rr = right * sg;
+                    var p = c + rr * (w / 2 + .5f) + t * sg * (l / 2 + .35f);
+                    var q2 = Clear(p, rr, .35f); if (q2 == null) { Count("preskočeno (na cesti) pješački semafor"); continue; }
+                    var e = q2.Value; e.y = Ground(e, (float)m.y, out _);
+                    Pole(e, 2.75f, .06f);
+                    PedHead(e + Vector3.up * 2.35f - rr * .12f, rr, m.key, g);   // seen by the people crossing toward this kerb
+                    log.Add($"{m.key}: pješački semafor ({W.G(e).x:F1}, {W.G(e).y:F1}) {g}");
                 }
             }
         }
