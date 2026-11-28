@@ -13,6 +13,35 @@ namespace Magistrala.Game
 {
     public partial class MagistralaGame
     {
+        /// Existing customer standing is already normalized, unlike the dispatcher's signed story score.
+        public float ReputationPct => Mathf.Clamp01(S.fatRep) * 100;
+
+        SaveData earningsSave;
+        int earningsDay = int.MinValue, earningsCount = -1;
+        float earningsTotal;
+        /// Today and the six preceding game days, cash and invoice payouts together (each delivery once).
+        /// Parse legacy locale-dependent history only when a delivery, day or loaded save changes.
+        public float SevenDayEarnings
+        {
+            get
+            {
+                int count = S.deliveredJobs != null ? S.deliveredJobs.Count : 0;
+                if (earningsSave == S && earningsDay == Day && earningsCount == count) return earningsTotal;
+                earningsSave = S; earningsDay = Day; earningsCount = count; earningsTotal = 0;
+                for (int i = 0; i < count; i++)
+                {
+                    string row = S.deliveredJobs[i];
+                    if (string.IsNullOrEmpty(row)) continue;
+                    var fields = row.Split('|');
+                    if (fields.Length < 4 || !int.TryParse(fields[0], out int day) || day < Day - 6 || day > Day) continue;
+                    if (float.TryParse(fields[3].Replace(',', '.'), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out float amount) && !float.IsNaN(amount) && !float.IsInfinity(amount))
+                        earningsTotal += Mathf.Max(0, amount);
+                }
+                return earningsTotal;
+            }
+        }
+
         public class Payout
         {
             public Job job; public float base_, total; public int rating; public bool late; public string quip;

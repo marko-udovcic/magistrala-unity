@@ -71,11 +71,11 @@ namespace Magistrala.Game.Phone
             float x = vw - W - m, y0 = Mathf.Round(vh - H - m);
             float y = y0 + (1 - e) * (vh - y0 + 40);
             bool ringingOnly = Ringing != null && !Open;
-            // the incoming call peeks up above the HUD's right panel (and what is stacked on it): its top ~345 px (caller, answer / decline)
+            // The incoming call peeks up above the right job/help stack: its top ~345 px (caller, answer / decline).
             bool clip = false;
             if (ringingOnly)
             {
-                float stack = Mathf.Min(Magistrala.HudStyle.StackTop, Magistrala.HudStyle.PanelTop);
+                float stack = Magistrala.HudStyle.StackTop;
                 float bottom = stack < UnityEngine.Screen.height ? stack / s - 12 : vh;
                 float yr = Mathf.Max(m, Mathf.Min(y0, bottom - 345));
                 y = yr + (1 - e) * (vh - yr + 40);

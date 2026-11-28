@@ -1,14 +1,9 @@
-// The in-game HUD (owner's mockup references/grafika/hud-mockup-11-20/hud-voznja.png; owner 2026-11-25: the minimap to the bottom
-// LEFT, ~20 % smaller, GTA layout – the phone comes up at the bottom right), dark rounded panels (HudStyle):
-//   bottom left  the map panel: GpsMap's picture (rounded), the speed limit of the road under the truck in its top-left corner
-//                (LocationLabel), under it where the GPS leads (MagistralaGame.DestName) and the road distance
-//   bottom right the gauges panel: speed (big, orange over the limit) km/h · fuel % (pump) · cargo damage % (truck) · the clock
-//                and "Utorak · Dan 2"; under them cash (muted, left) · "Račun obrta 200,00 €" (orange, right)
-// Above the gauges, right-aligned: the job card (MagistralaGame.JobCard: the running tour, or the warehouse board) and the game's
-// keys for now (MagistralaGame.HelpKeys, e.g. "Tab mobitel (3 nova poruka)"). Above the map: the driving keys for 15 s at the
-// start and while the F1 graph is on (then with the fps readout). While the phone is open it takes the right side (the gauges
-// and the stack hide, the map stays); the full-screen map hides everything; -nohud hides all. Only the Repaint event draws
-// (useGUILayout off), strings are rebuilt only when their value changes.
+// In-game HUD: one tall left column (owner's 119/120 references, 2026-11-28).
+// Cash / seven-day payouts, cargo damage, customer reputation / deliveries, job deadline / clock,
+// speed / road limit, GpsMap picture, estimated arrival / duration / road distance, lamps / diesel.
+// The job card and help keys stay at the right; the phone keeps the bottom right. Opening the phone
+// hides that stack but keeps the column. WorldMap and -nohud hide everything. Repaint only,
+// useGUILayout off; CachedText and value-keyed caches rebuild strings only when inputs change.
 using System.Collections.Generic;
 using Magistrala;
 using Magistrala.Game;
@@ -19,144 +14,166 @@ public sealed class TruckHud : MonoBehaviour
 {
     public TruckController target;
     float smoothedFrameTime = 1f / 60f;
-    // 1080 p layout of the panel
-    const float PW = 485, PH = 98, Pad = 18, TopH = 62, Row2H = 26, HintsFor = 15;
-    // the map panel (bottom left): the map 0.8 × the old 465 × 213
-    const float MapW = 372, MapH = 170, MapInset = 10, BottomH = 46, LW = MapW + 2 * MapInset, LH = MapInset + MapH + BottomH;
-    readonly CachedText tSpeed = new CachedText(), tFuel = new CachedText(), tDmg = new CachedText(), tClock = new CachedText(), tDay = new CachedText(),
-        tAcc = new CachedText(), tCash = new CachedText(), tDist = new CachedText(), tLimit = new CachedText(), tFps = new CachedText();
+    const float CW = 360, CH = 744, Pad = 14, PW = 485, HintsFor = 15;
+    readonly CachedText tSpeed = new CachedText(), tFuel = new CachedText(), tDmg = new CachedText(),
+        tClock = new CachedText(), tCash = new CachedText(), tWeek = new CachedText(),
+        tRep = new CachedText(), tJobs = new CachedText(), tLimit = new CachedText(), tFps = new CachedText(),
+        tDue = new CachedText(), tEta = new CachedText(), tDuration = new CachedText(), tDist = new CachedText();
     readonly List<(string text, int kind)> card = new List<(string, int)>();
-    float cardT = -1; // JobCard is rebuilt 4× a second
-    static readonly string[] Days = { "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota", "Nedjelja" };
+    float cardT = -1;
+    static readonly string[] Days = { "Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned" };
+    static readonly Color Off = new Color(1, 1, 1, .23f);
     const string Keys1 = "WASD vozi · Space ručna · C kabina · F dron · R vrati · miš kamera",
         Keys2 = "G zalazak · V kiša · B kamera · L svjetla · P autopilot · K kvaliteta · F1 pomoć · F2 konzola";
+    TruckController lampsTruck;
+    TruckLights lights;
+    GpsMap gps;
+    MagistralaGame mapGame;
+    Rect column;
 
     void Awake()
     {
         useGUILayout = false;
-        if (!target) target = FindFirstObjectByType<TruckController>();
+        if (!target) target = MagistralaGame.DrivenTruck();
     }
 
     void Update()
     {
         float dt = Time.unscaledDeltaTime;
         if (dt > 0) smoothedFrameTime = Mathf.Lerp(smoothedFrameTime, dt, 1f - Mathf.Exp(-dt * 3f));
-        if (!target) target = FindFirstObjectByType<TruckController>();
+        var driven = MagistralaGame.I ? MagistralaGame.I.Truck : target;
+        if (driven) target = driven;
+        if (!target) target = MagistralaGame.DrivenTruck();
+        if (lampsTruck != target) { lampsTruck = target; lights = target ? target.GetComponent<TruckLights>() : null; }
+        // TruckLights attaches at scene startup; also recover if its Start runs after this HUD.
+        if (target && !lights) lights = target.GetComponent<TruckLights>();
     }
 
     void OnGUI()
     {
-        if (Event.current.type == EventType.Repaint) HudStyle.Prewarm(); // (once per screen height: no first-use glyph stalls later)
-        if (GpuSwitches.NoHud || Event.current.type != EventType.Repaint) return;
+        if (Event.current.type != EventType.Repaint) return;
+        if (GpuSwitches.NoHud || WorldMap.IsOpen)
+        {
+            HudStyle.PanelTop = HudStyle.StackTop = Screen.height;
+            HudStyle.PanelRect = HudStyle.MapRect = Rect.zero;
+            return;
+        }
+        HudStyle.Prewarm();
         var g = MagistralaGame.I;
-        if (WorldMap.IsOpen) { HudStyle.PanelTop = Screen.height; HudStyle.PanelRect = HudStyle.MapRect = Rect.zero; return; }
-        bool phone = g && g.Phone && g.Phone.Open;
         float K = HudStyle.K, M = HudStyle.Margin;
-        bool map = g && g.World != null;
-        HudStyle.MapRect = map ? MapPanel(g, K, M) : Rect.zero;
-        if (phone) { HudStyle.PanelTop = Screen.height; HudStyle.PanelRect = Rect.zero; return; }
-        float pw = Mathf.Round(PW * K), ph = Mathf.Round((map ? PH : TopH) * K);
-        var P = new Rect(Screen.width - M - pw, Screen.height - M - ph, pw, ph);
-        HudStyle.PanelTop = P.y; HudStyle.PanelRect = P;
-        HudStyle.PanelBg(P, 14);
-        float X(float v) => P.x + v * K;
-        float Y(float v) => P.y + v * K;
+        column = new Rect(M, Screen.height - M - CH * K, CW * K, CH * K);
+        HudStyle.PanelRect = column; HudStyle.PanelTop = column.y;
+        HudStyle.MapRect = Rect.zero; HudStyle.StackTop = Screen.height;
+        HudStyle.PanelBg(column, 14);
+        DrawColumn(g, K);
+        bool phone = g && g.Phone && g.Phone.Open;
+        if (!phone) Extras(g, new Rect(Screen.width - M - PW * K, Screen.height - M, PW * K, 0));
+    }
 
-        // ---- top row: speed · fuel · damage · clock
+    Rect Row(float x, float y, float w, float h) => new Rect(column.x + x * HudStyle.K, column.y + y * HudStyle.K, w * HudStyle.K, h * HudStyle.K);
+    void Text(float x, float y, float w, float h, string s, float size, Color c, bool bold = false, TextAnchor a = TextAnchor.MiddleLeft)
+        => HudStyle.Label(Row(x, y, w, h), s, HudStyle.St(size, bold, c, a));
+    void Icon(float x, float y, Texture t, Color c, float size = 23) => HudStyle.Glyph(Row(x, y, size, size), t, c);
+    void Rule(float y) => HudStyle.Fill(Row(Pad, y, CW - 2 * Pad, 1), HudStyle.Line);
+    void Bar(float x, float y, float w, float pct, Color c)
+    {
+        HudStyle.Fill(Row(x, y, w, 4), Off, 2 * HudStyle.K);
+        if (pct > 0) HudStyle.Fill(Row(x, y, w * Mathf.Clamp01(pct / 100), 4), c, 2 * HudStyle.K);
+    }
+    static string DayTime(long min) => Days[(int)((min / 1440 % 7 + 7) % 7)] + " " + MagistralaGame.Hm(min);
+
+    void DrawColumn(MagistralaGame g, float K)
+    {
+        Icon(Pad, 16, HudStyle.Wallet, HudStyle.Muted);
+        Text(44, 10, 135, 34, g ? tCash.Get(Mathf.RoundToInt(g.Cash * 100), k => MagistralaGame.Eur(k / 100f)) : "– €", 18, Color.white, true);
+        Text(181, 10, 165, 34, g ? tWeek.Get(Mathf.RoundToInt(g.SevenDayEarnings * 100), k => "7d: " + MagistralaGame.Eur(k / 100f)) : "7d: – €", 14, HudStyle.Muted, false, TextAnchor.MiddleRight);
+        Rule(47);
+        float damage = g ? g.CargoDamagePct : 0;
+        Color dc = damage >= 35 ? HudStyle.Bad : damage >= 10 ? HudStyle.Accent : Color.white;
+        Icon(Pad, 59, HudStyle.Truck, dc);
+        Text(44, 52, 66, 31, tDmg.Get(Mathf.RoundToInt(damage), k => k + "%"), 18, dc);
+        Bar(112, 67, 234, damage, dc);
+        Rule(92);
+        float rep = g ? g.ReputationPct : 0;
+        Icon(Pad, 106, HudStyle.Thumb, HudStyle.Good);
+        Text(44, 99, 66, 31, g ? tRep.Get(Mathf.RoundToInt(rep), k => k + "%") : "–", 18, Color.white);
+        Bar(112, 114, 153, rep, HudStyle.Good);
+        Icon(278, 105, HudStyle.Person, HudStyle.Muted);
+        Text(303, 99, 43, 31, g ? tJobs.Get(g.Delivered, k => k.ToString()) : "–", 16, Color.white, false, TextAnchor.MiddleRight);
+        Rule(138);
+
+        var job = g ? g.Current : null;
+        string dest = g && g.World != null ? g.DestName : null;
+        string due = job != null ? tDue.Get(Mathf.FloorToInt(job.startMin + job.deadlineMin), k => DayTime(k)) : "";
+        var ds = HudStyle.St(17, true, Color.white);
+        float dw = HudStyle.Width(HudStyle.St(14, false, HudStyle.Muted), due) / K;
+        HudStyle.Label(Row(Pad, 149, CW - 2 * Pad - (job != null ? dw + 12 : 0), 28),
+            FitText(ds, dest ?? "Bez odredišta", (CW - 2 * Pad - (job != null ? dw + 12 : 0)) * K), ds);
+        Text(CW - Pad - dw, 149, dw, 28, due, 14, HudStyle.Muted);
+        bool late = job != null && g.ClockMin > job.startMin + job.deadlineMin;
+        Text(Pad, 178, 140, 24, job == null ? "Slobodna vožnja" : late ? "kasniš" : "na vrijeme", 14, job == null ? HudStyle.Muted : late ? HudStyle.Accent : HudStyle.Good);
+        Text(164, 178, 182, 24, g ? tClock.Get(Mathf.FloorToInt(g.ClockMin), k => DayTime(k)) : "–", 17, Color.white, false, TextAnchor.MiddleRight);
+        Rule(216);
+
         float kmh = target ? target.SpeedKmh : 0;
         int limit = LocationLabel.SpeedLimit;
         bool over = limit > 0 && kmh > limit + 3;
-        string sp = tSpeed.Get(Mathf.RoundToInt(kmh), k => k.ToString());
-        var spSt = HudStyle.St(38, true, over ? HudStyle.Accent : Color.white);
-        float spW = HudStyle.Width(spSt, sp);
-        HudStyle.Label(new Rect(X(Pad), Y(4), spW + 4, (TopH - 4) * K), sp, spSt);
-        string sub = !target ? null : target.parkLock || target.HandbrakeOn ? "RUČNA" : target.Gear < 0 ? "R" : null;
-        float ux = X(Pad) + spW + 6 * K;
-        HudStyle.Label(new Rect(ux, Y(sub != null ? 14 : 22), 60 * K, 22 * K), "km/h", HudStyle.St(16, false, HudStyle.Muted));
-        if (sub != null) HudStyle.Label(new Rect(ux, Y(36), 70 * K, 16 * K), sub, HudStyle.St(11, true, HudStyle.Accent));
-        Divider(X(132), Y(17), 28 * K);
-        float fuel = g ? g.FuelPct : -1;
-        var fc = fuel >= 0 && fuel < 12 ? HudStyle.Bad : fuel >= 0 && fuel < 20 ? HudStyle.Accent : Color.white;
-        HudStyle.Glyph(new Rect(X(147), Y(21), 20 * K, 20 * K), HudStyle.Pump, fc);
-        HudStyle.Label(new Rect(X(172), Y(18), 60 * K, 26 * K), fuel < 0 ? "–" : tFuel.Get(Mathf.CeilToInt(fuel), k => k + "%"), HudStyle.St(16, false, fc));
-        Divider(X(236), Y(17), 28 * K);
-        float dmg = g ? g.CargoDamagePct : 0;
-        var dc = dmg >= 35 ? HudStyle.Bad : dmg >= 10 ? HudStyle.Accent : Color.white;
-        HudStyle.Glyph(new Rect(X(251), Y(21), 21 * K, 21 * K), HudStyle.Truck, dc);
-        HudStyle.Label(new Rect(X(278), Y(18), 60 * K, 26 * K), tDmg.Get(Mathf.RoundToInt(dmg), k => k + "%"), HudStyle.St(16, false, dc));
-        if (g)
-        {
-            float cm = g.ClockMin;
-            HudStyle.Label(new Rect(X(PW - Pad - 150), Y(9), 150 * K, 30 * K), tClock.Get((long)(cm % 1440), k => MagistralaGame.Hm(k)), HudStyle.St(26, true, Color.white, TextAnchor.MiddleRight));
-            HudStyle.Label(new Rect(X(PW - Pad - 180), Y(38), 180 * K, 18 * K), tDay.Get(g.Day, k => $"{Days[k % 7]} · dan {k + 1}"), HudStyle.St(13, false, new Color(1, 1, 1, 0.85f), TextAnchor.MiddleRight));
-        }
-        if (!map) { Extras(g, P); return; }
-
-        // ---- second row: wallet
-        HudStyle.Label(new Rect(X(PW - Pad - 300), Y(TopH), 300 * K, Row2H * K), tAcc.Get(Mathf.RoundToInt(g.Account * 100), k => "Račun obrta " + MagistralaGame.Eur(k / 100f)), HudStyle.St(16, true, HudStyle.Accent, TextAnchor.MiddleRight));
-        if (g.Cash > 0.004f) HudStyle.Label(new Rect(X(Pad), Y(TopH), 200 * K, Row2H * K), tCash.Get(Mathf.RoundToInt(g.Cash * 100), k => "Gotovina " + MagistralaGame.Eur(k / 100f)), HudStyle.St(14, false, HudStyle.Muted));
-
-        Extras(g, P);
-    }
-
-    /// the map panel at the bottom left: the minimap with the speed limit sign, the destination and the distance under it
-    Rect MapPanel(MagistralaGame g, float K, float M)
-    {
-        float lw = Mathf.Round(LW * K), lh = Mathf.Round(LH * K);
-        var P = new Rect(M, Screen.height - M - lh, lw, lh);
-        HudStyle.PanelBg(P, 14);
-        float X(float v) => P.x + v * K;
-        float Y(float v) => P.y + v * K;
-        int limit = LocationLabel.SpeedLimit;
-        var mr = new Rect(X(MapInset), Y(MapInset), Mathf.Round(MapW * K), Mathf.Round(MapH * K));
-        var gps = g.GetComponent<GpsMap>();
-        var pic = gps ? gps.Picture((int)mr.width, (int)mr.height) : null;
-        if (pic) GUI.DrawTexture(mr, pic, ScaleMode.StretchToFill, false, 0, Color.white, 0, 10 * K);
-        else HudStyle.Fill(mr, new Color(0.17f, 0.175f, 0.19f, 1), 10 * K);
+        Text(Pad, 224, 150, 62, tSpeed.Get(Mathf.RoundToInt(kmh), k => k.ToString()), 48, over ? HudStyle.Accent : Color.white, true);
+        Text(151, 239, 70, 30, "km/h", 18, HudStyle.Muted);
+        string gear = !target ? null : target.parkLock || target.HandbrakeOn ? "RUČNA" : target.Gear < 0 ? "R" : null;
+        if (gear != null) Text(152, 267, 80, 18, gear, 11, HudStyle.Accent, true);
         if (limit > 0)
         {
-            float r = 21 * K; var sr = new Rect(mr.x + 10 * K, mr.y + 10 * K, 2 * r, 2 * r);
-            HudStyle.Fill(new Rect(sr.x - K, sr.y - K, sr.width + 2 * K, sr.height + 2 * K), new Color(0, 0, 0, 0.35f), r + K);
-            HudStyle.Fill(sr, Color.white, r);
-            HudStyle.Ring(sr, new Color(0.84f, 0.1f, 0.1f), 4.5f * K, r);
-            HudStyle.Label(sr, tLimit.Get(limit, k => k.ToString()), HudStyle.St(limit >= 100 ? 14 : 17, true, HudStyle.Ink, TextAnchor.MiddleCenter));
+            var sign = Row(286, 231, 56, 56);
+            HudStyle.Fill(sign, Color.white, 28 * K);
+            HudStyle.Ring(sign, new Color(.84f, .1f, .1f), 5 * K, 28 * K);
+            HudStyle.Label(sign, tLimit.Get(limit, k => k.ToString()), HudStyle.St(limit >= 100 ? 20 : 24, true, HudStyle.Ink, TextAnchor.MiddleCenter));
         }
-
-        // ---- bottom row: destination · distance
-        string dest = g.DestName; float by = Y(MapInset + MapH), bh = BottomH * K;
-        if (dest != null)
+        var mr = Row(10, 302, 340, 354);
+        if (g && g.World != null)
         {
-            string d = tDist.Get(Mathf.RoundToInt(g.RouteMetres / 10), k => HudStyle.Km(k * 10));
-            var dst = HudStyle.St(18, true, Color.white, TextAnchor.MiddleRight);
-            float dw = HudStyle.Width(dst, d);
-            HudStyle.Label(new Rect(X(LW - Pad) - dw - 2, by, dw + 2, bh), d, dst);
-            var ds = HudStyle.St(18, false, Color.white);
-            float avail = P.width - 2 * Pad * K - dw - 14 * K;
-            HudStyle.Label(new Rect(X(Pad), by, avail, bh), FitText(ds, dest, avail), ds);
+            if (mapGame != g) { mapGame = g; gps = g.GetComponent<GpsMap>(); }
+            HudStyle.MapRect = mr;
         }
-        else
-        {
-            string place = LocationLabel.Place;
-            var ps = HudStyle.St(18, false, HudStyle.Muted);
-            HudStyle.Label(new Rect(X(Pad), by, P.width - 2 * Pad * K, bh), FitText(ps, string.IsNullOrEmpty(place) ? "Bez odredišta" : place, P.width - 2 * Pad * K), ps);
-        }
-        return P;
+        var pic = g && g.World != null && gps ? gps.Picture(Mathf.RoundToInt(mr.width), Mathf.RoundToInt(mr.height)) : null;
+        if (pic) GUI.DrawTexture(mr, pic, ScaleMode.StretchToFill, false, 0, Color.white, 0, 8 * K);
+        else HudStyle.Fill(mr, new Color(.17f, .175f, .19f, 1), 8 * K);
+        DrawArrival(g);
+        Rule(695);
+        var signals = target ? target.Signals : null;
+        Icon(14, 709, HudStyle.ArrowLeft, signals && signals.LeftLit ? HudStyle.Good : Off, 25);
+        Icon(52, 709, HudStyle.Headlight, lights && lights.IsOn ? HudStyle.Good : Off, 25);
+        float fuel = g ? Mathf.Clamp(g.FuelPct, 0, 100) : -1;
+        Color fc = fuel < 0 ? Off : fuel < 12 ? HudStyle.Bad : fuel < 20 ? HudStyle.Accent : Color.white;
+        Icon(91, 709, HudStyle.Pump, fc, 25);
+        int segments = fuel > 0 ? Mathf.CeilToInt(fuel * .12f) : 0;
+        for (int i = 0; i < 12; i++) HudStyle.Fill(Row(122 + i * 11, 714, 8, 16), i < segments ? fc : Off, K);
+        Text(258, 706, 54, 30, fuel < 0 ? "–" : tFuel.Get(Mathf.CeilToInt(fuel), k => k + "%"), 13, fc, false, TextAnchor.MiddleRight);
+        Icon(321, 709, HudStyle.ArrowRight, signals && signals.RightLit ? HudStyle.Good : Off, 25);
     }
 
-    /// s cut with "…" to fit w (the map panel is narrower now); remembers the last cut per style
+    void DrawArrival(MagistralaGame g)
+    {
+        if (!g || g.Target == null) { Text(Pad, 660, 332, 30, "Bez rute", 13, HudStyle.Muted); return; }
+        // Stable planning estimate at 40 km/h, converted with the same clock rate as the simulation.
+        // It remains useful while stopped; this is arrival at the GPS target, not the whole multi-stop tour.
+        int minutes = Mathf.CeilToInt(Mathf.Max(0, g.RouteMetres) / (40f / 3.6f) * MagistralaGame.ClockRate);
+        Text(Pad, 660, 111, 30, tEta.Get(Mathf.FloorToInt(g.ClockMin) + minutes, k => "≈ " + DayTime(k)), 13, Color.white);
+        Text(125, 660, 111, 30, tDuration.Get(minutes, k => k >= 60 ? $"{k / 60} č {k % 60} min" : k + " min"), 13, HudStyle.Muted, false, TextAnchor.MiddleCenter);
+        Text(236, 660, 110, 30, tDist.Get(Mathf.RoundToInt(g.RouteMetres / 10), k => HudStyle.Km(k * 10)), 13, Color.white, false, TextAnchor.MiddleRight);
+    }
+
     string fitIn, fitOut; GUIStyle fitSt; float fitW;
     string FitText(GUIStyle st, string s, float w)
     {
-        if (s == fitIn && st == fitSt && Mathf.Abs(w - fitW) < 0.5f) return fitOut;
+        if (s == fitIn && st == fitSt && Mathf.Abs(w - fitW) < .5f) return fitOut;
         fitIn = s; fitSt = st; fitW = w; fitOut = s;
         if (HudStyle.Width(st, s) > w)
             for (int n = s.Length - 1; n > 1; n--) { string t = s.Substring(0, n).TrimEnd() + "…"; if (HudStyle.Width(st, t) <= w) { fitOut = t; break; } }
         return fitOut;
     }
 
-    static void Divider(float x, float y, float h) => HudStyle.Fill(new Rect(x, y, Mathf.Max(1, Mathf.Round(HudStyle.K)), h), HudStyle.Line);
-
-    /// above the panel: the game keys, the job card; bottom left: the driving keys (start / F1) and the fps readout (F1)
+    /// Right-side job/help stack; driving keys and F1 readout above the left column.
     void Extras(MagistralaGame g, Rect P)
     {
         float K = HudStyle.K, M = HudStyle.Margin, gap = 10 * K, y = P.y;
@@ -195,10 +212,10 @@ public sealed class TruckHud : MonoBehaviour
             float w = Mathf.Max(HudStyle.Width(st, Keys1), HudStyle.Width(st, Keys2)) + 2 * Pad * K, lh = 22 * K;
             int lines = f1 ? 3 : 2;
             float h = lines * lh + 18 * K;
-            w = Mathf.Min(w, P.x - 2 * M);
+            w = Mathf.Min(w, Screen.width - 2 * M);
             if (w > 200 * K)
             {
-                float bottom = HudStyle.MapRect.width > 0 ? HudStyle.MapRect.y - gap : Screen.height - M;
+                float bottom = column.y - gap;
                 var r = new Rect(M, bottom - h, w, h);
                 HudStyle.PanelBg(r, 14, a);
                 var old = GUI.color; GUI.color = new Color(1, 1, 1, a);

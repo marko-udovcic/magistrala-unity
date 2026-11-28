@@ -11,6 +11,8 @@ namespace Magistrala
         readonly List<Light> beams = new List<Light>();
         readonly Dictionary<string, List<Material>> lens = new Dictionary<string, List<Material>>();
         bool manual, manualOn, lastOn, lastAutoSeen; float lastBrake = -1, lastRev = -1;
+        /// Actual applied dipped-beam state, including automatic sunset/rain and manual overrides.
+        public bool IsOn => lastOn;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Attach()
