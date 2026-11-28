@@ -176,7 +176,7 @@ namespace Magistrala.EditorTools
             OrthoRoofs.Reset(); MapillaryFacades.Reset(); HouseBuilder.nOrthoPitched = HouseBuilder.nOrthoFlat = HouseBuilder.nOrthoTiledFlat = HouseBuilder.nSolar = HouseBuilder.nSolarPanels = 0;
             int nPaket = 0, nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0, nShapeSkipped = 0, nShapeCapped = 0;
             // 1. every footprint (and the annex splits), with its heights; then the houses only the orthophoto shows
-            var B = new List<Bld>(); int n = 0, skipped = 0, nAnnex = 0;
+            var B = new List<Bld>(); int n = 0, skipped = 0, nAnnex = 0, nCastle = 0;
             var feed = new List<(List<Vector2d> P, Dictionary<string, object> b, OrthoRoofs.Rec rec, MapillaryFacades.Rec mly, string id)>();
             BuildingFloors.Begin();
             for (int tz = WorldBuilder.TZ0; tz <= WorldBuilder.TZ1; tz++)
@@ -221,6 +221,7 @@ namespace Magistrala.EditorTools
                         // a UKRAINIAN CITY pack hall / school stands here instead (PaketZgrade, Assets/Editor/zgrade-paket.json)
                         if (PaketZgrade.Replaced(id)) { nPaket++; continue; }
                         double cx = 0, cz = 0; foreach (var p in P) { cx += p.x; cz += p.z; } cx /= P.Count; cz /= P.Count;
+                        if (Kasteli.Excluded(P, cx, cz, id)) { skipped++; nCastle++; continue; } // a castle model stands here (Kasteli.cs)
                         if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
                         if (onFoot) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
@@ -482,7 +483,7 @@ namespace Magistrala.EditorTools
             AssetDatabase.SaveAssets();
             // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
-            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, shape filter {nShapeSkipped} skipped / {nShapeCapped} capped, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
+            Debug.Log($"[Magistrala] tile buildings: {n} ({skipped} cleared, {nCastle} under castles, shape filter {nShapeSkipped} skipped / {nShapeCapped} capped, {nAnnex} annexes, showcase {nShow} ({nDetailed} detailed), main-style {nLegacy} detailed, {nBoxes} boxes, {nYards} yards, {nPaved} paved fronts, facades behind a neighbour {nHidden / 5} hidden, {nBlind / 5} blind), {ci} cells + {hi} chunks");
             Debug.Log($"[Magistrala] orthophoto roofs ({OrthoRoofs.PATH}): {nOrtho} footprints with a record, pitched {HouseBuilder.nOrthoPitched} + tiled slab {HouseBuilder.nOrthoTiledFlat}, flat {HouseBuilder.nOrthoFlat}, solar on {HouseBuilder.nSolar} roofs ({HouseBuilder.nSolarPanels} modules), Mapillary facades {MapillaryFacades.nApplied} ({MapillaryFacades.PATH}), OSM shifted {nShifted} ({nShiftRoad} kept: carriageway), added {nAdded}");
             Yards.WriteSpots();
             Debug.Log($"[zivice] {HedgeShell.Count} leaf modules placed; " + HedgeShell.Save());
