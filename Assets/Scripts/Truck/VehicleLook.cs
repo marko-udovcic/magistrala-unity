@@ -33,6 +33,7 @@ namespace Magistrala
             var look = Resources.LoadAll<Material>("Vehicles/Look");
             foreach (var m in look) { if (m.name == "PaintCoat") coatSrc = m; else if (m.name == "PaintCoatOcc") coatOccSrc = m; else if (m.name == "Glass") glassSrc = m; }
             int nPaint = 0, nGlass = 0, nMetal = 0, nPlastic = 0, nLamp = 0;
+            bool lampReflector = PlayerTruck.Modern(id); // the four vans' headlamps are bulbs in chrome bowls behind a clear lens
             foreach (var r in root.GetComponentsInChildren<Renderer>(true))
             {
                 if (r is not MeshRenderer) continue;
@@ -44,6 +45,12 @@ namespace Magistrala
                     string n = m.name.Replace(" (Instance)", "");
                     if (PlayerTruck.Modern(id)) n = VanMaterial(m, n);
                     if (n.StartsWith("L_")) nLamp++;
+                    if (n == "L_head" && lampReflector)
+                    {
+                        // the bulbs / projector lens inside the bowls: no AO either; clear glass (grey, glossy) rather than flat
+                        // white paint – the Sprinter's projector was a white disc. TruckLights' emission lights them up.
+                        m.renderQueue = LampQueue; m.SetColor(BaseColor, new Color(.42f, .43f, .45f, 1)); m.SetFloat(Metal, .5f); m.SetFloat(Rough, .05f);
+                    }
                     if (n.StartsWith("i_") || n.StartsWith("v2_") || n.StartsWith("v3_") || n.StartsWith("M_") || n.StartsWith("cargo") || n.StartsWith("pallet")) continue; // the cab interior / load
                     switch (n)
                     {
@@ -59,9 +66,17 @@ namespace Magistrala
                             m.SetFloat(Coat, P.boxCoat); m.SetFloat(CoatRough, .12f); m.SetFloat(Rough, .38f); nPaint++; break;
                         case "glass": case "Vitre": case "lens_clear":
                             if (glassSrc) { mats[i] = m = Recoat(m, glassSrc); changed = true; }
-                            Glass(m, n == "lens_clear" ? .12f : P.glassA, n == "lens_clear" ? new Color(.9f, .92f, .95f) : P.glassTint); nGlass++; break;
-                        case "chrome": case "reflector":
+                            // lamp lens: clear polycarbonate – the reflection only, a near-black albedo (28. 11.: the old milky
+                            // white .9 at alpha .12 lit up as a flat white veil over the whole lamp, Marko: "svjetla su loša")
+                            Glass(m, n == "lens_clear" ? .08f : P.glassA, n == "lens_clear" ? new Color(.03f, .032f, .035f) : P.glassTint); nGlass++; break;
+                        case "chrome":
                             m.SetFloat(Metal, 1); m.SetFloat(Rough, .06f); nMetal++; break;
+                        case "reflector":
+                            // the chrome bowls behind the lens: a bright, slightly soft mirror, drawn just before the lens (queue
+                            // 2980, still opaque blending + depth write) so the after-opaque SSAO does not blacken the deep bowls
+                            // (they read as dark holes); behind the lens they need no AO, the lens has no motion vectors either
+                            m.SetFloat(Metal, 1); m.SetFloat(Rough, .2f); m.SetColor(BaseColor, new Color(.95f, .95f, .95f, 1));
+                            m.renderQueue = LampQueue; nMetal++; break;
                         case "alu": case "rim": case "plain_grille_satin": case "step_plate":
                             m.SetFloat(Metal, 1); m.SetFloat(Rough, id == "galebl3h2" ? .4f : .25f); nMetal++; break;
                         case "mirror": case "outside_mirror_glass":
@@ -76,6 +91,7 @@ namespace Magistrala
                 }
                 if (changed) r.materials = mats;
             }
+            if (lampReflector) HeadReflectors(root);
             ContactShadow(root);
             Debug.Log($"[vozlook] {id}: lak {nPaint}, stakla {nGlass}, metal {nMetal}, plastika {nPlastic}, svjetla {nLamp}");
         }
@@ -96,7 +112,8 @@ namespace Magistrala
                 case "Box_White": return "box_panel";
                 case "Glass": return "glass";
                 case "Lamp_Lens": return "lens_clear";
-                case "Chrome": case "Lamp_Reflector": return "chrome";
+                case "Chrome": return "chrome";
+                case "Lamp_Reflector": return "reflector";
                 case "Alu_Satin": case "Rim": case "Silver": return "alu";
                 case "Mirror_Glass": return "mirror";
                 case "Black_Plastic": case "Chassis_Black": return "black_plastic";
@@ -104,6 +121,9 @@ namespace Magistrala
                 default: return "i_" + n; // interior, gauges, plates, livery: as modelled
             }
         }
+
+        /// lamp internals (reflector bowls, bulbs): late in the transparent range, before the lenses (glass template, 3000)
+        const int LampQueue = 2980;
 
         static readonly string[] BlendState = { "_Surface", "_Blend", "_BlendModePreserveSpecular", "_SrcBlend", "_DstBlend", "_SrcBlendAlpha", "_DstBlendAlpha", "_ZWrite", "_AlphaClip" };
         static Material Recoat(Material m, Material src)
@@ -122,6 +142,45 @@ namespace Magistrala
             // (the template Resources/Vehicles/Look/Glass is alpha blended with "Preserve Specular Lighting": the reflection keeps
             // its full strength over the low alpha, the albedo is premultiplied)
             m.SetColor(BaseColor, c); m.SetFloat(Metal, 0); m.SetFloat(Rough, .02f);
+        }
+
+        // ------------------------------------------------------------------ headlamp reflectors
+        /// The vans' Lamp_Reflector submesh holds every lamp's chrome (head, tail, mirror indicators). The bowls around the head
+        /// bulbs (L_head) move to their own submesh / material "L_headrefl", so TruckLights can light the whole bowl up with the
+        /// dipped beams (before: only the tiny bulbs glowed and the lamp stayed a grey reflection at night). Per renderer, all
+        /// LODs; the mesh is copied once at startup (readable glTF meshes only).
+        static void HeadReflectors(Transform root)
+        {
+            int n = 0;
+            foreach (var r in root.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var mf = r.GetComponent<MeshFilter>(); var mesh = mf ? mf.sharedMesh : null; if (!mesh || !mesh.isReadable) continue;
+                var mats = r.sharedMaterials; int refl = -1, head = -1; if (mats.Length != mesh.subMeshCount) continue;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    if (!mats[i]) continue; string mn = mats[i].name.Replace(" (Instance)", "");
+                    if (mn == "Lamp_Reflector") refl = i; else if (mn == "L_head") head = i;
+                }
+                if (refl < 0 || head < 0) continue;
+                // the head bulbs' box (mesh space) grown by 0.3 m: both headlamps' bowls, not the tail lamps or the mirrors
+                var hb = mesh.GetSubMesh(head).bounds; hb.Expand(.6f);
+                var v = mesh.vertices; var tri = mesh.GetTriangles(refl);
+                var keep = new System.Collections.Generic.List<int>(tri.Length); var front = new System.Collections.Generic.List<int>();
+                for (int t = 0; t < tri.Length; t += 3)
+                {
+                    var c = (v[tri[t]] + v[tri[t + 1]] + v[tri[t + 2]]) / 3f;
+                    var dst = hb.Contains(c) ? front : keep; dst.Add(tri[t]); dst.Add(tri[t + 1]); dst.Add(tri[t + 2]);
+                }
+                if (front.Count == 0) continue;
+                var copy = Object.Instantiate(mesh); copy.name = mesh.name;
+                copy.subMeshCount = mesh.subMeshCount + 1;
+                copy.SetTriangles(keep, refl, true); copy.SetTriangles(front, mesh.subMeshCount, true);
+                mf.sharedMesh = copy;
+                var hm = new Material(mats[refl]) { name = "L_headrefl" };
+                var nm = new Material[mats.Length + 1]; System.Array.Copy(mats, nm, mats.Length);
+                nm[nm.Length - 1] = hm; r.sharedMaterials = nm; n++;
+            }
+            if (n > 0) Debug.Log($"[vozlook] reflektori farova: {n} mreža");
         }
 
         // ------------------------------------------------------------------ contact shadow

@@ -256,10 +256,13 @@ namespace Magistrala.EditorTools
             // the downloaded prototypes (ExtraTrees: palm, broadleaf street trees): their own quads, rebaked from their own materials
             for (int p = IDS.Length; p < tr.meshes.Length && p < tr.impMeshes.Length; p++)
             {
-                var me = tr.meshes[p]; if (!me || !tr.impMeshes[p] || !tr.impMaterials[p] || !ExtraTrees.DEFS.Any(d => me.name == d.id || me.name.StartsWith(d.id + "."))) continue;
+                var me = tr.meshes[p]; if (!me || !tr.impMeshes[p] || !tr.impMaterials[p]) continue;
+                var def = ExtraTrees.DEFS.FirstOrDefault(d => me.name == d.id || me.name.StartsWith(d.id + ".")); if (def == null) continue;
                 int sn = me.subMeshCount, s0 = tr.materialStart[p];
+                // the leaf grade / variation as ExtraTrees.Make sets it (an existing world gets a changed grade from this menu alone)
+                for (int i = s0; i < s0 + sn && i < tr.materials.Length; i++) if (tr.materials[i] && tr.materials[i].shader && tr.materials[i].shader.name == "Magistrala/Foliage") ExtraTrees.Look(def, tr.materials[i]);
                 var tex = BakeImpostor(me, Enumerable.Range(s0, sn).Select(i => i < tr.materials.Length ? tr.materials[i] : null).ToArray(), tr.impMeshes[p], $"{WorldBuilder.GEN}/Plants/{me.name.Split('.')[0]}_imp.png");
-                ImpostorMat(tr.impMaterials[p], tex, tr.impMeshes[p]); EditorUtility.SetDirty(tr.impMeshes[p]); n++;
+                ImpostorMat(tr.impMaterials[p], tex, tr.impMeshes[p]); tr.impMaterials[p].SetFloat("_Vary", def.vary); EditorUtility.SetDirty(tr.impMeshes[p]); n++;
             }
             AssetDatabase.SaveAssets();
             Debug.Log($"[stabla] impostors baked: {n}");

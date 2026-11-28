@@ -31,6 +31,10 @@ public sealed class TruckChaseCamera : MonoBehaviour
         view.nearClipPlane = 0.08f;
         // test switch: -kabina  start in the cab view (screenshots of the interior with -shot)
         if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-kabina") >= 0) CabinView = true;
+        // test switch: -kabinayaw D  the head turned D degrees in the cab view (screenshots of the cab walls / bulkhead)
+        int ky = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-kabinayaw");
+        if (ky >= 0 && ky + 1 < System.Environment.GetCommandLineArgs().Length)
+            float.TryParse(System.Environment.GetCommandLineArgs()[ky + 1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out headYaw);
         // measuring: -kabinaab N  alternate chase / cab every N s in one run (ProbeBench logs [ab] per view), so the M2 Air's
         // heat and the route cancel out of the comparison
         var args = System.Environment.GetCommandLineArgs();
