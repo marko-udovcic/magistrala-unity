@@ -45,9 +45,9 @@ namespace Magistrala.EditorTools
                 var r = g.GetComponentInChildren<MeshRenderer>(); if (!r) return;
                 list.Add(new NaturePass.Proto { id = id, mesh = Flat(r, g.transform, id.Replace('-', '_')), mats = r.sharedMaterials.Select(m => Tint(m, id, tint, draw)).ToArray(), draw = draw, near = 1e5f });
             }
-            Grass("Prefab_beach_grass_01_2", "rub-trava-a", new Color(1.22f, 1.02f, .58f, 0), 95);   // straw
-            Grass("Prefab_beach_grass_01_3", "rub-trava-b", new Color(1.0f, .97f, .66f, 0), 95);     // half dry, grey-green
-            Grass("Prefab_sea_wormwood_02", "rub-pelin", new Color(.9f, .95f, .86f, 0), 70);         // grey Artemisia
+            Grass("Prefab_beach_grass_01_2", "rub-trava-a", new Color(1.22f, 1.02f, .58f, 0), 75);   // straw
+            Grass("Prefab_beach_grass_01_3", "rub-trava-b", new Color(1.0f, .97f, .66f, 0), 75);     // half dry, grey-green
+            Grass("Prefab_sea_wormwood_02", "rub-pelin", new Color(.9f, .95f, .86f, 0), 60);         // grey Artemisia
             var bush = Load<GameObject>(CE + "Bushes/Prefabs/Prefab_sea_buckthorn_02.prefab");
             if (bush)
             {
@@ -167,12 +167,13 @@ namespace Magistrala.EditorTools
                     var g0 = W.G(a);
                     // noise along the road (by world position, so both corridors / every build agree)
                     float run = Mathf.PerlinNoise(g0.x * .022f + 17.3f, g0.y * .022f + 3.1f), grp = Mathf.PerlinNoise(g0.x * .0085f + 71.9f, g0.y * .0085f + 13.7f) * .7f + Mathf.PerlinNoise(g0.x * .03f + 5.5f, g0.y * .03f + 41.2f) * .3f;
-                    // grass: every metre up to five clumps, most within 3 m of the edge, a few out to 9 m
-                    for (int q = 0; q < 5; q++)
+                    // grass: every metre up to three clumps, most within 3 m of the edge, a few out to 9 m (28. 11.: five per metre,
+                    // 13 k clumps, cost ~6 fps on the M2 Air bench — the near alpha-clipped clumps' fill; now ~45 % of that, larger)
+                    for (int q = 0; q < 3; q++)
                     {
                         double sx = g0.x, sz = g0.y; float r0 = NaturePass.R01(sx, sz, 711 + q * 10);
-                        if (r0 > (.4f + .6f * Mathf.Clamp01((run - .2f) * 2.5f)) * (q < 3 ? .95f : .6f) * GrassK) continue;
-                        float e = q < 3 ? 1.1f + 4.2f * NaturePass.R01(sx, sz, 713 + q * 10) * NaturePass.R01(sx, sz, 715 + q * 10) : 3f + 6f * NaturePass.R01(sx, sz, 713 + q * 10);   // dense at the edge
+                        if (r0 > (.3f + .6f * Mathf.Clamp01((run - .25f) * 2.5f)) * (q < 2 ? .8f : .45f) * GrassK) continue;
+                        float e = q < 2 ? 1.1f + 4.2f * NaturePass.R01(sx, sz, 713 + q * 10) * NaturePass.R01(sx, sz, 715 + q * 10) : 3f + 6f * NaturePass.R01(sx, sz, 713 + q * 10);   // dense at the edge
                         float along = (NaturePass.R01(sx, sz, 717 + q * 10) - .5f) * .9f;
                         Try(cor, i, a, rt, edge + e, along, 0, NaturePass.R01(sx, sz, 719 + q * 10));
                     }
@@ -214,7 +215,7 @@ namespace Magistrala.EditorTools
                 if (cls == 0)
                 {
                     proto = rk < .42f ? ta : rk < .8f ? tb : tp; if (proto < 0) return;
-                    tall = (proto == tp ? .6f : .8f) + (proto == tp ? .5f : 1.0f) * NaturePass.R01(x, z, 851); rad = .45f;
+                    tall = (proto == tp ? .65f : .9f) + (proto == tp ? .5f : 1.0f) * NaturePass.R01(x, z, 851); rad = .6f;
                 }
                 else if (cls == 1)
                 {
