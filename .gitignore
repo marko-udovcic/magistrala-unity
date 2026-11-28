@@ -52,3 +52,7 @@ Assets/Models/Vehicles/Kandidati/
 # billboard pictures (ours, made by BalkanDriver/assets-src/reklame/gen_reklame.py), copied in by hand; import settings: Assets/Editor/ReklameImport.cs
 /Assets/Resources/Reklame/
 /Assets/Resources/Reklame.meta
+
+# UKRAINIAN CITY pack (Asset Store, TRACY AVENUE CO): never commit the pack files; extracted locally only for the bakes (PaketZgrade / PaketDetalji / Paket2)
+/Assets/OdesaUkraine/
+/Assets/OdesaUkraine.meta

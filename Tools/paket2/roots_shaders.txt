@@ -1,0 +1,9 @@
+Assets/OdesaUkraine (URP)/Shaders/Lit.shadergraph
+Assets/OdesaUkraine (URP)/Shaders/Maple.shadergraph
+Assets/OdesaUkraine (URP)/Shaders/Leaves.shadergraph
+Assets/OdesaUkraine (URP)/Shaders/Lit_Alpha.shadergraph
+Assets/OdesaUkraine (URP)/Shaders/Blend_SubGraph.shadersubgraph
+Assets/OdesaUkraine (URP)/Shaders/Branches.shadergraph
+Assets/OdesaUkraine (URP)/Shaders/Lit_Transparent.shadergraph
+Assets/OdesaUkraine (URP)/Shaders/Lit_SubGraph.shadersubgraph
+Assets/OdesaUkraine (URP)/Shaders/Lit_TriplanarBlend.shadergraph

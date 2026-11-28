@@ -219,8 +219,10 @@ Ostala oprema rive (klupe, koševi, stalci za bicikle, stupići, bitve, lampe s 
 
 ## Zgrade i detalji (modeli)
 
-- **UKRAINIAN CITY** (kupljeni paket, Asset Store licenca): hale, škola i detalji pročelja (okviri prozora, balkoni, oluci,
+- **UKRAINIAN CITY Streets Buildings** (TRACY AVENUE CO, kupljeni paket, Asset Store licenca): hale, škola i detalji pročelja (okviri prozora, balkoni, oluci,
   tende), žbuke Plaster_H / Plaster_J i kamen Brick_E — izmijenjeno (spojeni meshevi, LOD-ovi, teksture u nizu, bez natpisa).
+  Paket2 (Kaštel Lukšić, 28. 11.): crijep RoofTiles_A, ploče pločnika Pavement_A, vrata Door_A_1 / Door_A_2, kapije Gate_B / Gate_A_1,
+  grm Bush_A — izmijenjeno (teksture 1024², pretonirano, prorijeđeni listovi, spojeno u meshe ćelija).
 - "Industrial Building 49 PBR", **CGBuildings**, CGTrader (Royalty Free), izmijenjeno (hala Hala49, materijal iz paketa).
 - "Free Modern Low-Poly Apartment Building", **Pro-pixel**, CGTrader (Royalty Free), izmijenjeno (stambena zgrada, svjetlija fasada).
 - "Scaffolding", CGTrader free model (Royalty Free), izmijenjeno (skele gradilišta).

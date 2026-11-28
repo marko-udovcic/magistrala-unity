@@ -1,0 +1,8 @@
+{
+  "_opis": "Paket2 (UKRAINIAN CITY pack, 2nd use): towns where houses / streets get the pack's roof tiles, more pack plasters and stone, entrance doors, yard gates and fences, and pack paving on the sidewalks. Game coordinates (x east, z north). Set \"on\": false to switch a town off; add a box to extend. Rebuild: menus in docs/paket2.md.",
+  "on": true,
+  "krov": true, "zbuka": true, "vrata": true, "ograde": true, "plocnik": true,
+  "podrucja": [
+    { "ime": "Kaštel Lukšić", "on": true, "x0": -6600, "x1": -5700, "z0": -5000, "z1": -4600 }
+  ]
+}
