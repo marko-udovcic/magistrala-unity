@@ -556,11 +556,28 @@ namespace Magistrala.EditorTools
             return JsonUtility.FromJson<PlaceFile>(File.ReadAllText(PLACE_JSON)).placements;
         }
         static HashSet<string> replaced;
+        public static void ResetReplacements() => replaced = null;
+
+        // One owner per replacement footprint: castles > stations/stores > pack halls.
+        // Replaced() and Place() must filter identically or a rejected hall leaves a hole in the tiles.
+        static bool HigherPriority(Placement p)
+        {
+            double len = Math.Sqrt(p.ux * p.ux + p.uz * p.uz);
+            double ax = len > 0 ? p.ux / len : 1, az = len > 0 ? -p.uz / len : 0;
+            var foot = new List<BuildingsFromTiles.Vector2d>();
+            foreach (var q in new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) })
+                foot.Add(new BuildingsFromTiles.Vector2d(p.gx + ax * q.Item1 * p.len / 2 - az * q.Item2 * p.wid / 2,
+                                                        p.gz + az * q.Item1 * p.len / 2 + ax * q.Item2 * p.wid / 2));
+            if (Kasteli.Excluded(foot, p.gx, p.gz)) return true;
+            foreach (var id in p.ids)
+                if (Kasteli.ExcludedTile(id) || Benzinske.SkipTile(id)) return true;
+            return false;
+        }
         /// tile building ids (tx_tz:i) a pack building replaces (BuildingsFromTiles skips them)
         public static bool Replaced(string id)
         {
             if (id == null) return false;
-            if (replaced == null) { replaced = new HashSet<string>(); foreach (var p in Placements()) foreach (var i in p.ids) replaced.Add(i); }
+            if (replaced == null) { replaced = new HashSet<string>(); foreach (var p in Placements()) if (!HigherPriority(p)) foreach (var i in p.ids) replaced.Add(i); }
             return replaced.Contains(id);
         }
 
@@ -702,6 +719,7 @@ namespace Magistrala.EditorTools
             int n = 0, units = 0; long tris = 0;
             foreach (var p in P)
             {
+                if (HigherPriority(p)) continue;
                 if (!meta.TryGetValue(p.model, out var m)) continue;
                 var l0 = AssetDatabase.LoadAssetAtPath<Mesh>(OUT + p.model + "_lod0.asset"); var l1 = AssetDatabase.LoadAssetAtPath<Mesh>(OUT + p.model + "_lod1.asset"); var l2 = AssetDatabase.LoadAssetAtPath<Mesh>(OUT + p.model + "_lod2.asset");
                 if (!l0 || !l1 || !l2) continue;

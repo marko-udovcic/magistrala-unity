@@ -88,6 +88,33 @@ namespace Magistrala.EditorTools
             return false;
         }
 
+        /// Test a replacement's source tile as well as its eventual model footprint.
+        public static bool ExcludedTile(string id)
+        {
+            if (id == null) return false;
+            foreach (var r in Load()) if (r.ids.Contains(id)) return true;
+            var parts = id.Split(':');
+            if (parts.Length != 2 || !int.TryParse(parts[1], out int index)) return false;
+            var xy = parts[0].Split('_');
+            if (xy.Length != 2 || !int.TryParse(xy[0], out int tx) || !int.TryParse(xy[1], out int tz)) return false;
+            var tile = Tiles.Get(tx, tz); if (tile?.buildingsJson == null) return false;
+            var buildings = MiniJson.L(MiniJson.Parse(tile.buildingsJson));
+            if (index < 0 || index >= buildings.Count) return false;
+            var points = MiniJson.L(MiniJson.O(buildings[index])["pts"]);
+            var foot = new List<BuildingsFromTiles.Vector2d>();
+            double x = 0, z = 0;
+            foreach (var point in points)
+            {
+                var q = MiniJson.L(point); double px = MiniJson.D(q[0]), pz = MiniJson.D(q[1]);
+                foot.Add(new BuildingsFromTiles.Vector2d(px, pz)); x += px; z += pz;
+            }
+            if (foot.Count > 1 && foot[0].x == foot[foot.Count - 1].x && foot[0].z == foot[foot.Count - 1].z)
+            {
+                x -= foot[foot.Count - 1].x; z -= foot[foot.Count - 1].z; foot.RemoveAt(foot.Count - 1);
+            }
+            return foot.Count >= 3 && Excluded(foot, x / foot.Count, z / foot.Count, id);
+        }
+
         static Material Mat(string name)
         {
             if (!Directory.Exists(MATS)) Directory.CreateDirectory(MATS);

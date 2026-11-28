@@ -49,12 +49,6 @@ namespace Magistrala.EditorTools
             var bays = new List<(Vector2 c, Vector2 d, float hl, float hw)>();
             var gw = AssetDatabase.LoadAssetAtPath<Magistrala.Game.GameWorld>("Assets/Generated/Game/Resources/MagistralaGame.asset");
             if (gw && gw.stops != null) foreach (var s in gw.stops) if (s.bayHl > 0) bays.Add((new Vector2(s.bay.x, s.bay.z), s.bayDir.normalized, s.bayHl + 4, s.bayHw + 3));
-            var packageModels = models.Where(m => m.key.StartsWith("krizanje-") && int.TryParse(m.key.Substring(9), out int id) && id >= 66 && id <= 82).ToList();
-            bool PackageRoad(double x, double z)
-            {
-                foreach (var model in packageModels) if (!double.IsNaN(model.Surface(x, z))) return true;
-                return false;
-            }
             var junctions = models.Where(m => m.roads.Count >= 3).ToList();
             Physics.SyncTransforms();
             var roots = new[] { "Terrain", "Roads", "Streets", "Riva", "Tlo" }.Select(r => GameObject.Find("World/" + r)).Where(g => g).Select(g => g.transform).ToArray();
@@ -75,7 +69,9 @@ namespace Magistrala.EditorTools
                 var u = new Vector3(BitConverter.ToSingle(b, o), BitConverter.ToSingle(b, o + 4), BitConverter.ToSingle(b, o + 8));
                 float s = BitConverter.ToSingle(b, o + 16); int p = (int)BitConverter.ToSingle(b, o + 20);
                 var g = W.G(u); double x = g.x, z = g.y;
-                if (PackageRoad(x, z)) { road++; continue; }
+                // Surface() includes non-asphalt islands too. Test the actual asphalt triangles before
+                // any surveyed/row exemption, without clearing a radius around a green strip or promenade.
+                if (LaneProfile.OnAsphalt(models, x, z) || StreetsBuilder.CoveredStreet(x, z, 0)) { road++; continue; }
                 if (p < 0 || p >= np || !NaturePass.In(x, z) || riva.Contains(Key(x, z)) || mapillary.Contains(Convert.ToBase64String(b, o, 24)) || (survey != null && survey(x, z))) { Keep(b, o, outB, u.y); continue; }
                 bool tree = !hedge[p] && !rock[p] && h1[p] * s >= 3;
                 double sd = WorldData.SurfDist(models, x, z), r = hedge[p] ? .6 : tree ? 2.5 : 1.2;

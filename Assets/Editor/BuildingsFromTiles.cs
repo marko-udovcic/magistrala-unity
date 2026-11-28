@@ -154,6 +154,7 @@ namespace Magistrala.EditorTools
 
         public static void Build()
         {
+            PaketZgrade.ResetReplacements();
             var models = WorldData.Models();
             var root = WorldBuilder.Root("Buildings");
             // the package's roadside buildings (rects to clear ours under them)
@@ -218,14 +219,13 @@ namespace Magistrala.EditorTools
             {
                     foreach (var (P, b, rec, mly, id) in feed)
                     {
-                        // a UKRAINIAN CITY pack hall / school stands here instead (PaketZgrade, Assets/Editor/zgrade-paket.json)
-                        if (PaketZgrade.Replaced(id)) { nPaket++; continue; }
                         double cx = 0, cz = 0; foreach (var p in P) { cx += p.x; cz += p.z; } cx /= P.Count; cz /= P.Count;
                         if (Kasteli.Excluded(P, cx, cz, id)) { skipped++; nCastle++; continue; } // a castle model stands here (Kasteli.cs)
+                        if (Benzinske.SkipTile(id)) { skipped++; continue; } // stations + stores precede pack halls
+                        if (PaketZgrade.Replaced(id)) { nPaket++; continue; }
                         if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
                         if (onFoot) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
-                        if (Benzinske.SkipTile(id)) { skipped++; continue; } // replaced by a kit petrol station (Benzinske.cs)
                         string kind = (string)MiniJson.G(b, "kind") ?? "house";
                         // storeys: the owner's corrections > OSM > the orthophoto shadow estimate > the tile's h (BuildingFloors)
                         double h = BuildingFloors.Height(id, b, MiniJson.D(MiniJson.G(b, "h") ?? 7.0), out var hSrc, out var storeys);

@@ -239,6 +239,9 @@ namespace Magistrala.EditorTools
             int tris = 0;
             foreach (var b in list)
             {
+                var footprint = b.poly.Select(q => new BuildingsFromTiles.Vector2d(q.x, q.y)).ToList();
+                if (Kasteli.ExcludedTile(b.tile) || Kasteli.Excluded(footprint,
+                    b.poly.Average(q => (double)q.x), b.poly.Average(q => (double)q.y), b.tile)) continue;
                 var g = new GameObject($"{b.id} {b.name}"); g.transform.SetParent(root, false); g.isStatic = true;
                 // the footprint in Unity space, the base at the lowest corner ground (walls sunk 1 m below it)
                 var P = b.poly.Select(q => U(q)).ToList();

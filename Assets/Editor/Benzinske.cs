@@ -300,6 +300,8 @@ namespace Magistrala.EditorTools
             int nParts = 0;
             foreach (var s in list)
             {
+                if (s.tiles.Any(Kasteli.ExcludedTile) || Kasteli.Excluded(
+                    new List<BuildingsFromTiles.Vector2d> { new BuildingsFromTiles.Vector2d(s.cx, s.cz) }, s.cx, s.cz)) continue;
                 var g = new GameObject($"{s.id} {s.name} ({s.brand})").transform; g.SetParent(root, false); g.gameObject.isStatic = true;
                 cur = s;
                 if (!double.IsNaN(s.px)) Pad(g, s);

@@ -212,8 +212,8 @@ namespace Magistrala.EditorTools
                     if (!tamRow && NaturePass.R01(x, z, 968) < 1 / 7f) { No("gap (irregular row)"); continue; }
                     if (!NaturePass.In(x, z)) { No("outside the world"); continue; }
                     if (zones.Any(q => (x - q.x) * (x - q.x) + (z - q.z) * (z - q.z) < q.r * q.r)) { No("café / entrance"); continue; }
-                    // (the package models' promenades are model footways: only the streets / courts and the model asphalt outside the
-                    // package's riva models count; inside them the rows of oprema.json already keep ≥ 0.5 m off the carriageway)
+                    // The suggestion is a placement hint; actual asphalt always wins, including package rivas.
+                    if (LaneProfile.OnAsphalt(models, x, z)) { No("model asphalt"); continue; }
                     if (StreetsBuilder.CoveredStreet(x, z, 1.0)) { No("street"); continue; }
                     if (VegetationMask.NearBuilding(x, z)) { No("building"); continue; }
                     if (GroundCover.Hard(x, z, 1.5)) { No("car park / pitch"); continue; }
