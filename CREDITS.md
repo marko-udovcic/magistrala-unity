@@ -208,3 +208,11 @@ Ostala oprema rive (klupe, koševi, stalci za bicikle, stupići, bitve, lampe s 
 - "Van Sprinter" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: uklonjeni znakovi proizvođača, novi materijali, livreja firme, tablice, instrumenti, ručica mjenjača, razdvojeni kotači/vrata/volan, smanjene gume i sitni dijelovi, LOD-ovi).
 - "Commercial van" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: novi materijali, livreja firme, tablice, instrumenti, razdvojeni kotači/vrata/volan, planarno spajanje i smanjenje gustih dijelova, LOD-ovi).
 - "L3H2 truck" iz paketa "30 Big collection of commercial vehicles" (CGTrader), Royalty Free licenca – modified (izmijenjeno: nova boja i materijali, natpis GALEB TRANSPORT, slojevi istrošenosti, tablice, instrumenti, ručica mjenjača, razdvojeni kotači/vrata/volan, LOD-ovi).
+
+## Zgrade i detalji (modeli)
+
+- **UKRAINIAN CITY** (kupljeni paket, Asset Store licenca): hale, škola i detalji pročelja (okviri prozora, balkoni, oluci,
+  tende), žbuke Plaster_H / Plaster_J i kamen Brick_E — izmijenjeno (spojeni meshevi, LOD-ovi, teksture u nizu, bez natpisa).
+- "Industrial Building 49 PBR", **CGBuildings**, CGTrader (Royalty Free), izmijenjeno (hala Hala49, materijal iz paketa).
+- "Free Modern Low-Poly Apartment Building", **Pro-pixel**, CGTrader (Royalty Free), izmijenjeno (stambena zgrada, svjetlija fasada).
+- "Scaffolding", CGTrader free model (Royalty Free), izmijenjeno (skele gradilišta).

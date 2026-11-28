@@ -21,7 +21,7 @@ namespace Magistrala.EditorTools
         public List<Vector4> d = new List<Vector4>();
         public List<Color> c = new List<Color>();
         public List<Vector4> o = new List<Vector4>(); // UV2: baked occlusion, sill drip mask, stone darkening / greying (Magistrala/Facade)
-        public List<int>[] sub = { new List<int>(), new List<int>(), new List<int>() };
+        public List<int>[] sub = { new List<int>(), new List<int>(), new List<int>(), new List<int>(), new List<int>() }; // 3 / 4: pack details (PaketDetalji)
     }
 
     /// Per-building appearance after TIPOLOGIJA.md (references/fotografije/zgrade-predlosci): family A old stone house,
@@ -90,6 +90,13 @@ namespace Magistrala.EditorTools
             // old peeling render (worn_plaster_wall, Marko's approved pick 25. 11.): on 40 % of the old / derelict plastered houses;
             // its own draw after the others, so every other house keeps its variant
             if (k.old && k.family != 0 && r.NextDouble() < .4) k.variant = BuildingTextures.PWorn;
+            // the UKRAINIAN CITY pack's layers (27. 11.): its dressed stone on a third of the all-stone houses, its light plasters on
+            // a third of the newer plastered houses (own draw, last: every other house keeps its variant)
+            double pk = new System.Random(seed * 131 + 29).NextDouble();
+            if (k.family == 0 && !k.derelict && pk < .35) k.variant = BuildingTextures.PStoneE;
+            else if (k.family == 2 && !k.old && !k.derelict && !k.concrete && k.bare == 0 && !k.measured
+                && (k.variant == BuildingTextures.PPainted || k.variant == BuildingTextures.PBeige || k.variant == BuildingTextures.PYellow) && pk < .34)
+                k.variant = pk < .17 ? BuildingTextures.PPackH : BuildingTextures.PPackJ;
             k.wallCode = k.wallCode % 64 + 64 * k.variant + (k.old ? 1024 : 0);
         }
 
@@ -150,12 +157,13 @@ namespace Magistrala.EditorTools
     /// <summary>Editor-only, deterministic house geometry in W.U world coordinates. No scene/asset writes in AddHouse.</summary>
     public static class HouseBuilder
     {
-        const int SlotCount = 3;
+        const int SlotCount = 5;
         /// Detail level of the next AddHouse calls (LODGroup per chunk, BuildingsFromTiles): 0 = full (recessed windows with
         /// reveals, 3D sills, railing bars, clutter), 1 = mid (one wall quad per facade, glass / sills / frames / shutters as
         /// thin overlays, chimneys, roof tanks), 2 = far (walls, glass, roofs). The same seed gives the same house in every
         /// level: the random draws do not depend on Lod.
         public static int Lod;
+        static bool detailRoad; // the facade being built is along a road (PaketDetalji)
         const float FloorHeight = 3f;
 
         // the house being emitted (paint of the facade slots and the data channel)
@@ -497,6 +505,11 @@ namespace Magistrala.EditorTools
         /// from a facade's midpoint (Unity world) along its outward normal: metres to the nearest carriageway edge and that
         /// road's half width (main streets get shop fronts). Null: no streets.
         public static Func<Vector3, Vector3, (float gap, float hw)> StreetQuery;
+        /// distance (m, up to 20; 1e9 none) from a facade's midpoint along its outward normal to a carriageway: the facades "along a
+        /// road" that get the pack's details (PaketDetalji). Null: no details.
+        public static Func<Vector3, Vector3, float> RoadQuery;
+        const float DETAIL_ROAD = 16;
+        static float H01(Vector3 v, float k) { float x = Mathf.Sin(v.x * 12.9898f + v.z * 78.233f + v.y * 3.17f + k) * 43758.5453f; return x - Mathf.Floor(x); }
         /// far levels: the footprint pulled in and the top lowered by this many metres, so where the mid level and the far
         /// level overlap during the switch the nearer one always wins the depth test (no z-fighting)
         public static float Shrink;
@@ -523,13 +536,14 @@ namespace Magistrala.EditorTools
             List<int> triangles = Ear(points, signedArea);
             int N = points.Count;
             // the neighbours and the streets, asked on the true footprint (before any Shrink)
-            var hideBelow = new float[N]; var blindF = new bool[N]; var gap = new float[N]; var roadHw = new float[N];
+            var hideBelow = new float[N]; var blindF = new bool[N]; var gap = new float[N]; var roadHw = new float[N]; var roadD = new float[N];
             for (int i = 0; i < N; i++)
             {
                 Vector3 a = points[i], b = points[(i + 1) % N], al = (b - a).normalized;
                 Vector3 ow = new Vector3(al.z, 0, -al.x) * (signedArea > 0 ? 1 : -1);
                 (hideBelow[i], blindF[i]) = EdgeQuery != null ? EdgeQuery(a, b) : (float.NegativeInfinity, false);
                 (gap[i], roadHw[i]) = StreetQuery != null ? StreetQuery((a + b) / 2, ow) : (1e9f, 0);
+                roadD[i] = RoadQuery != null && Lod <= 1 && PaketDetalji.Ready ? RoadQuery((a + b) / 2, ow) : 1e9f;
             }
             if (Shrink > 0 && topY - Shrink > baseY + .5)
             {
@@ -604,6 +618,8 @@ namespace Magistrala.EditorTools
                 if (cand.Count > 0) stairFacade = cand[(int)(rStairSide * cand.Count) % cand.Count];
             }
             bool hip = roof > 0;
+            // the pack's window frames on 60 % of the houses along a road (the rest keep ours: PVC / timber vary)
+            bool framesHere = H01(points[0], 51) < .6f;
             int dishFacade = hasDish ? clutter.Next(N) : -1;
             float dishAt = (float)clutter.NextDouble();
 
@@ -625,6 +641,8 @@ namespace Magistrala.EditorTools
                     continue;
                 }
                 bool shopHere = shopF[i];
+                // along a road (pack details: frames, balconies, downpipes; awnings in ShopFront)
+                bool road = roadD[i] < DETAIL_ROAD && !industrial; detailRoad = road;
                 if (!(shopHere && Lod == 0)) Wall(g, f, Slot.Balcony, 0, f.length, bottom, plinth); // concrete plinth
                 if (Lod > 0) Wall(g, f, Slot.Wall, 0, f.length, plinth, top);
                 int columns = f.length > 3 ? Mathf.Max(1, Mathf.FloorToInt(f.length / (industrial ? 7f : 3.2f))) : 0;
@@ -695,7 +713,11 @@ namespace Magistrala.EditorTools
                         // ground-floor windows behind the outside stair are left out (the stair stands in front)
                         bool behindStair = stairHere && floor == 0 && x1 > stairX0 - .1f && x0 < stairX1 + .1f;
                         if (behindStair) { if (Lod == 0) Wall(g, f, Slot.Wall, x0, x1, openingBottom, y1); }
-                        else if (Lod == 0) Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop && !front, !door && !front);
+                        else if (Lod == 0)
+                        {
+                            Window(g, f, x0, x1, openingBottom, y1, leaves, state, cell, look.rollers && !shop && !front, !door && !front);
+                            if (road && framesHere && !front && !shop) PaketDetalji.Frame(g, f.origin, f.along, f.outward, x0, x1, openingBottom, y1, look.family <= 1, ground);
+                        }
                         else FlatWindow(g, f, x0, x1, openingBottom, y1, leaves, state, cell, !door && !front);
                         if (front && Lod == 0) { Doors.Add((f.P(centre, lastY, .9f), f.outward)); { detailTint = new Color(.5f, .48f, .45f); { againstWall = true; Box(g, Slot.Detail, f.P(x0 - .25f, lastY - .5f, 0), f.along, f.outward, x1 - x0 + .5f, .5f, .45f, false); againstWall = false; } } } // a step
                         if (door && balcony)
@@ -705,7 +727,10 @@ namespace Magistrala.EditorTools
                             bool laundry = clutter.NextDouble() < .3; int pots = clutter.Next(4);
                             // newer houses: often one long balcony along the whole facade
                             bool longB = look.family >= 2 && rLong < .4 && f.length >= 6;
-                            if (Lod < 2) Balcony(g, f, longB ? f.length / 2 : centre, floorY, longB ? f.length - .8f : balconyWidth, laundry, pots, clutter.Next());
+                            // along a road: half of them the pack's balcony (slab + railing), the rest ours
+                            float pr = H01(f.P(centre, floorY), 41);
+                            if (Lod < 2 && road && pr < .55f && (longB ? f.length - .8f : balconyWidth) <= 4.2f) PaketDetalji.Balcony(g, f.origin, f.along, f.outward, longB ? f.length / 2 : centre, floorY, longB ? f.length - .8f : balconyWidth, 1.25f, false, ground);
+                            else if (Lod < 2) Balcony(g, f, longB ? f.length / 2 : centre, floorY, longB ? f.length - .8f : balconyWidth, laundry, pots, clutter.Next());
                             // rust runs from the slab's ends where they meet a pier (not over a window of the floor below)
                             if (Lod == 0)
                             {
@@ -729,7 +754,12 @@ namespace Magistrala.EditorTools
                 if (Lod == 0) Wall(g, f, Slot.Wall, 0, f.length, lastY, top);
                 if (Lod == 0 && i == longest && !industrial) MeterBox(g, f, Mathf.Min(.7f, f.length * .2f));
                 if (Lod == 0 && i == longest && hasCable) Cable(g, f, top - .4f);
-                if (Lod == 0 && i == longest && hip) { detailTint = new Color(.47f, .48f, .49f); { againstWall = true; Box(g, Slot.Detail, f.P(.12f, ground, 0), f.along, f.outward, .08f, top - .12f - ground, .08f, false); againstWall = false; } } // downpipe
+                if (Lod == 0 && i == longest && hip && road) PaketDetalji.Pipe(g, f.origin, f.along, f.outward, .15f, ground, top - .1f); // the pack's downpipe + outlet
+                else if (Lod == 0 && i == longest && hip) { detailTint = new Color(.47f, .48f, .49f); { againstWall = true; Box(g, Slot.Detail, f.P(.12f, ground, 0), f.along, f.outward, .08f, top - .12f - ground, .08f, false); againstWall = false; } } // downpipe
+                else if (Lod == 0 && road && f.length > 4 && top - ground > 3 && H01(f.P(f.length, top), 43) < .45f) PaketDetalji.Pipe(g, f.origin, f.along, f.outward, f.length - .15f, ground, top - .1f);
+                // "vječna gradnja" (rare: ~1 in 70 unfinished houses along a road): scaffolding on the longest facade and a site fence
+                if (Lod == 0 && road && (look.unfinished || look.bare != 0) && i == longest && f.length > 4 && top - ground > 4 && ++PaketDetalji.nSiteCand > 0 && H01(points[0], 53) < .05f)
+                    PaketDetalji.Site(g, f.origin, f.along, f.outward, .3f, f.length - .3f, ground, top, Mathf.Min(3.5f, roadD[i] - .8f));
                 if (Lod == 0 && i == dishFacade && f.length > 2.5f && top - ground > 4) Dish(g, f.P(.8f + dishAt * (f.length - 1.6f), top - 1.0f, .02f), f.outward, f.along);
                 // the unfinished storey: concrete columns at the corners and ring beams, between them bare brick
                 if (look.unfinished && Lod < 2 && f.length > 1.2f)
@@ -796,6 +826,13 @@ namespace Magistrala.EditorTools
                     revealOn = false;
                     // the frame mullion of a shop door / window pair
                     if (!down) { detailTint = new Color(.2f, .21f, .22f); Box(g, Slot.Detail, f.P(c - .03f, oy0, recess), f.along, f.outward, .06f, oy1 - oy0, .05f, false); }
+                    // the pack's awning over some open shop windows (muted canvas)
+                    float ha = H01(f.P(c, oy1), 47);
+                    if (!down && detailRoad && ha < .5f)
+                    {
+                        Color[] canvas = { new Color(.42f, .5f, .44f), new Color(.62f, .32f, .28f), new Color(.86f, .82f, .72f), new Color(.45f, .5f, .58f), new Color(.7f, .62f, .45f) };
+                        PaketDetalji.Awning(g, f.origin, f.along, f.outward, x0, x1, oy1 + .3f, 1.2f, canvas[(int)(ha * 10) % canvas.Length], gY);
+                    }
                 }
                 else if (Lod < 3)
                 {
@@ -1539,6 +1576,8 @@ namespace Magistrala.EditorTools
         {
             var rail = RailMaterial();
             AssetDatabase.SaveAssets();
+            // the UKRAINIAN CITY facade details (submeshes 3 / 4, PaketDetalji) when baked
+            if (PaketDetalji.Ready) { var pd = PaketDetalji.Materials(); if (pd[0] && pd[1]) return new[] { BuildingTextures.Facade(), BuildingTextures.Glass(), rail, pd[0], pd[1] }; }
             return new[] { BuildingTextures.Facade(), BuildingTextures.Glass(), rail };
         }
 

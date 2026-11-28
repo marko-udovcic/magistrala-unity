@@ -174,7 +174,7 @@ namespace Magistrala.EditorTools
             // the carriageways (the orthophoto shift must not push a footprint onto one) and the footprints for the yards
             Yards.Begin(models, rects);
             OrthoRoofs.Reset(); MapillaryFacades.Reset(); HouseBuilder.nOrthoPitched = HouseBuilder.nOrthoFlat = HouseBuilder.nOrthoTiledFlat = HouseBuilder.nSolar = HouseBuilder.nSolarPanels = 0;
-            int nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0, nShapeSkipped = 0, nShapeCapped = 0;
+            int nPaket = 0, nShifted = 0, nShiftRoad = 0, nAdded = 0, nOrtho = 0, nShapeSkipped = 0, nShapeCapped = 0;
             // 1. every footprint (and the annex splits), with its heights; then the houses only the orthophoto shows
             var B = new List<Bld>(); int n = 0, skipped = 0, nAnnex = 0;
             var feed = new List<(List<Vector2d> P, Dictionary<string, object> b, OrthoRoofs.Rec rec, MapillaryFacades.Rec mly, string id)>();
@@ -218,6 +218,8 @@ namespace Magistrala.EditorTools
             {
                     foreach (var (P, b, rec, mly, id) in feed)
                     {
+                        // a UKRAINIAN CITY pack hall / school stands here instead (PaketZgrade, Assets/Editor/zgrade-paket.json)
+                        if (PaketZgrade.Replaced(id)) { nPaket++; continue; }
                         double cx = 0, cz = 0; foreach (var p in P) { cx += p.x; cz += p.z; } cx /= P.Count; cz /= P.Count;
                         if (WorldData.FootDist(models, cx, cz) < 3 || Covered(rects, P, cx, cz)) { skipped++; if (Frontage.OldRoad(cx, cz)) Yards.Count("house: not built (on a model)"); continue; }
                         bool onFoot = false; foreach (var p in P) if (WorldData.FootDist(models, p.x, p.z) < 1.5) { onFoot = true; break; }
@@ -337,6 +339,13 @@ namespace Magistrala.EditorTools
                 if (c0.clear < .5 || c1.clear < c0.clear - .5) return ((float)c0.clear, (float)Math.Max(c0.hw, c1.hw));
                 return (1e9f, 0f);
             };
+            // the facades along a road (within 16 m of a carriageway): the pack's details (PaketDetalji)
+            HouseBuilder.RoadQuery = (m, ow) =>
+            {
+                for (float d = .3f; d <= 20; d += 1f) { Vector2 gq = W.G(m + ow * d); if (Yards.Clear(gq.x, gq.y).clear < .2) return d; }
+                return 1e9f;
+            };
+            PaketDetalji.ResetCounts();
             HouseBuilder.Doors.Clear();
             HouseBuilder.AcSpots.Clear(); HouseBuilder.AcModel = AcModel && TripoPropImporter.Prefab("klima");
 
@@ -409,7 +418,8 @@ namespace Magistrala.EditorTools
                 }
                 finally { HouseBuilder.Lod = 0; HouseBuilder.Shrink = 0; }
             }
-            HouseBuilder.EdgeQuery = null; HouseBuilder.StreetQuery = null; HouseBuilder.AcModel = false;
+            HouseBuilder.EdgeQuery = null; HouseBuilder.StreetQuery = null; HouseBuilder.RoadQuery = null; HouseBuilder.AcModel = false;
+            Debug.Log($"[Magistrala] paket details: {PaketDetalji.nFrames} window frames, {PaketDetalji.nBalconies} balconies, {PaketDetalji.nPipes} downpipes, {PaketDetalji.nAwnings} awnings (near / mid levels), {PaketDetalji.nSites} construction sites of {PaketDetalji.nSiteCand} candidates ({PaketDetalji.nBays} scaffolding bays) at " + string.Join(" ", PaketDetalji.SiteSpots.ConvertAll(q => $"({q.p.x:F0},{q.p.y:F0},{q.p.z:F0} n {q.n.x:F1},{q.n.z:F1})")));
 
             var hm = HouseBuilder.Materials();
             if (!AssetDatabase.IsValidFolder("Assets/Generated/TileBuildings")) AssetDatabase.CreateFolder("Assets/Generated", "TileBuildings");
@@ -466,6 +476,8 @@ namespace Magistrala.EditorTools
                 li++;
             }
             AcUnits(tr.transform);
+            try { Debug.Log("[Magistrala] " + PaketZgrade.Place(root.transform, (x, z) => Ground(models, x, z)) + $", {nPaket} of ours replaced"); }
+            catch (Exception e) { Debug.LogError("[Magistrala] paket: " + e); }
             Debug.Log($"[Magistrala] building LODs: near {triL[0] / 1000}k (to {NEAR_END} m), mid {triL[1] / 1000}k (to {MID_END} m), far {triL[2] / 1000}k (from {FAR_START} m), box {triL[3] / 1000}k (from {BOX_START} m), shadow hull {triL[4] / 1000}k");
             AssetDatabase.SaveAssets();
             // objects made by script do not dirty the scene: without this, SaveOpenScenes keeps the old buildings (and a player build too)
