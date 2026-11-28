@@ -34,8 +34,12 @@ namespace Magistrala.Traffic
         /// 64 cars (the same cars per km of road as 46 on the paket25 ring 480–850 / 650–750 / 920), the old road within 600 m.
         /// Beyond lod1Dist a car is the merged far mesh (3 instanced draws per kind whatever the count): measured the same draw
         /// calls and fps as the paket25 ring (docs/promet-ucitavanje.md). -trafpk25 = the paket25 ring and spawning, -trafring = any
-        public const int VIEW_VERSION = 2;
-        public const int VIEW_CARS = 64; public const float VIEW_SPAWN_MIN = 700, VIEW_SPAWN_MAX = 1200, VIEW_DESPAWN = 1300, VIEW_FADE0 = 850, VIEW_FADE1 = 1050, VIEW_REACH = 600;
+        /// 28. 11. (v3, promet2, Marko with ETS2 shots: "u suprotnoj traci kako auti dolaze postupno"): 84 cars, and the spawn
+        /// quarters weighted (roadBias) so the road being driven gets most of them — see TrySpawn
+        public const int VIEW_VERSION = 3;
+        /// v3 ring: born 800–1500 m out (in view only beyond the draw distance: an oncoming car exists before it can be seen and
+        /// dissolves in as it comes), drawn to 1200 m (fade from 950 m), gone beyond 1600 m
+        public const int VIEW_CARS = 84; public const float VIEW_SPAWN_MIN = 800, VIEW_SPAWN_MAX = 1500, VIEW_DESPAWN = 1600, VIEW_FADE0 = 950, VIEW_FADE1 = 1200, VIEW_REACH = 600;
         public bool signals = true;
         /// headlight lenses lit (follows LightPreset: sunset)
         [System.NonSerialized] public bool headlights;
@@ -141,6 +145,14 @@ namespace Magistrala.Traffic
             {
                 var a = System.Environment.GetCommandLineArgs();
                 spawnLog = System.Array.IndexOf(a, "-spawnlog") >= 0;
+                viewStats = System.Array.IndexOf(a, "-trafview") >= 0;
+                // -trafbias road,onAhead,sameAhead,sameBehind,onBehind,d8: the spawn quarter weights (A/B; -trafbias 1,1,1,1,1,1 =
+                // every quarter alike, as before 28. 11.)
+                for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "-trafbias")
+                {
+                    var v = System.Array.ConvertAll(a[i + 1].Split(','), q => float.Parse(q, System.Globalization.CultureInfo.InvariantCulture));
+                    if (v.Length >= 6) { roadBias = v[0]; onAhead = v[1]; sameAhead = v[2]; sameBehind = v[3]; onBehind = v[4]; d8Bias = v[5]; }
+                }
                 oldView = System.Array.IndexOf(a, "-trafold") >= 0;
                 // -trafpk25: the paket25 spawning (frustum only, any near-eye post hides, no entries / soft exits / night lamp dots) for
                 // A/B in one build; -trafold implies it
@@ -160,7 +172,8 @@ namespace Magistrala.Traffic
                 // night lamp dots: gone just past the ring's far edge; at night a car is born in view only that far out (sub-pixel dots)
                 dotFar = spawnMax + 10; nightViewMin = spawnMax - 30;
                 nearOut = spawnMin * .85f;
-                if (spawnLog || oldView) Debug.Log($"[traffic] view {(oldView ? "old" : pre26 ? "paket25" : "26-11")}: cars {targetCars}, spawn {spawnMin}–{spawnMax} m, despawn {despawnDist} m, fade {farFadeStart}–{farFadeEnd} m, reach {corridorReach} m");
+                if (pre26) roadBias = onAhead = sameAhead = sameBehind = onBehind = d8Bias = 1;
+                if (spawnLog || oldView || viewStats) Debug.Log($"[traffic] view {(oldView ? "old" : pre26 ? "paket25" : "28-11")}: cars {targetCars}, spawn {spawnMin}–{spawnMax} m, despawn {despawnDist} m, fade {farFadeStart}–{farFadeEnd} m, reach {corridorReach} m, bias road {roadBias} quarters {onAhead}/{sameAhead}/{sameBehind}/{onBehind} d8 {d8Bias}");
             }
             if (data == null) { enabled = false; Debug.LogWarning("[traffic] no TrafficData (run Magistrala/Build traffic)"); return; }
             int nc = data.corridors?.Length ?? 0;
@@ -824,18 +837,38 @@ namespace Magistrala.Traffic
         }
         bool[] entryOk;
 
+        /// spawn quarter weights (28. 11.): see TrySpawn; -trafbias overrides
+        /// roadBias: the corridors within roadR of the player (the road being driven, both carriageways) against the others; on
+        /// it the four quarters: oncoming ahead (the cars the eye sees come towards it: they pass in ~30 s and must be refilled
+        /// first), same direction ahead, same direction behind (they overtake into view), oncoming behind (driving away: mirrors
+        /// only); d8Bias: the D8 when it is not the player's road. Baseline -trafview (D8 east, 26-11 ring, every quarter alike):
+        /// 6 oncoming cars in view, only 1.1 of them 600–1050 m out, 4 same-direction cars parked beyond the draw distance
+        public float roadBias = 3, onAhead = 1.8f, sameAhead = 1f, sameBehind = .8f, onBehind = .4f, d8Bias = 1.4f;
+        bool[] isD8;
+        float QuarterW(int ci, int side)
+        {
+            if (isD8 == null || isD8.Length != data.corridors.Length) isD8 = System.Array.ConvertAll(data.corridors, c => c.name != null && c.name.StartsWith("D8"));
+            if (pFar[ci] >= roadR) return isD8[ci] ? d8Bias : 1;
+            // ahead = the side of the corridor the eye looks towards (the corridor's +s direction against the camera's heading)
+            var cor = data.corridors[ci]; int i = Mathf.Clamp(hint[ci], 1, cor.axis.Length - 2);
+            var t = cor.axis[i + 1] - cor.axis[i - 1]; var f = cam ? cam.transform.forward : (player ? player.forward : Vector3.forward);
+            float dot = t.x * f.x + t.z * f.z; bool ahead = dot * side > 0, oncoming = dot < 0;
+            return roadBias * (ahead ? oncoming ? onAhead : sameAhead : oncoming ? onBehind : sameBehind);
+        }
+
         bool TrySpawn(bool warmStart, int forceKind = -1)
         {
             bool busy = forceKind >= 0;
             // the emptiest quarter (corridor × ahead / behind the player) gets the next car, so every direction stays populated
             int ci = rng.Next(data.corridors.Length); int side = rng.NextDouble() < .5 ? 1 : -1;
-            // (warm start: a random corridor near the player; never one out of reach)
-            for (int t = 0; t < 8 && (pFar[ci] > corridorReach || (busy && !BusCorridor(ci))); t++) ci = rng.Next(data.corridors.Length);
+            // (warm start: a random corridor near the player; never one out of reach; 28. 11.: the player's road more often, by
+            // the same weights as the ring)
+            for (int t = 0; t < 8 && (pFar[ci] > corridorReach || (busy && !BusCorridor(ci)) || (!busy && warmStart && rng.NextDouble() * roadBias * onAhead > QuarterW(ci, side))); t++) { ci = rng.Next(data.corridors.Length); side = rng.NextDouble() < .5 ? 1 : -1; }
             if (pFar[ci] > corridorReach || (busy && !BusCorridor(ci))) { SpawnFails[0]++; return false; }
             bool entry = false;
             if (!warmStart)
             {
-                int best = int.MaxValue;
+                float best = float.MaxValue;
                 for (int q = 0; q < data.corridors.Length * 2; q++)
                 {
                     int qc = q >> 1, qs = (q & 1) == 0 ? 1 : -1, cnt = 0;
@@ -848,7 +881,11 @@ namespace Magistrala.Traffic
                     if (far > data.corridors[qc].Length - 30) continue;
                     if (far < 30) { if (pre26 || qs > 0 || !IsEntry(qc)) continue; eq = true; }
                     foreach (var o in byCorridor[qc]) if ((o.s - pSc[qc]) * qs > 0 && (!busy || o.bus)) cnt++;
-                    if (cnt < best || (cnt == best && rng.NextDouble() < .5)) { best = cnt; ci = qc; side = qs; entry = eq; }
+                    // (28. 11.) the emptiest by weight: the road being driven (both carriageways) roadBias × the others, the half in
+                    // front of the eye aheadBias, behind it behindBias (the oncoming cars that come into view are born ahead), the D8
+                    // d8Bias when it is not the player's road; buses: every quarter alike
+                    float w = busy ? 1 : QuarterW(qc, qs), sc = (cnt + .5f) / w;
+                    if (sc < best || (sc == best && rng.NextDouble() < .5)) { best = sc; ci = qc; side = qs; entry = eq; }
                 }
             }
             var cor = data.corridors[ci];
@@ -873,7 +910,7 @@ namespace Magistrala.Traffic
             {
                 var eye = cam.transform.position; float de = (pos - eye).magnitude;
                 // (paket25: a hidden car never closer than farFadeStart either — a wrong guess still dissolves in)
-                if (de < (night && !pre26 ? nightViewMin : farFadeEnd + 10))
+                if (de < ((night || headlights) && !pre26 ? nightViewMin : farFadeEnd + 10))
                 {
                     hidden = (oldView || de >= farFadeStart) && HiddenSpawn(eye, pos, kd.halfW, kd.h);
                     if (!hidden) { SpawnFails[1]++; return false; }
@@ -1016,7 +1053,7 @@ namespace Magistrala.Traffic
             Shader.SetGlobalVector(ID_FarFade, new Vector4(farFadeStart, farFadeEnd, 0, 0));
             Shader.SetGlobalVector(ID_FarFadeEye, cp);
             bool blink = (clock * 1.5f) % 1f < .5f;
-            dotN = 0; bool dots = night && dotMesh && !pre26;
+            dotN = 0; bool dots = (night || headlights) && dotMesh && !pre26; // (28. 11.: at dusk / in rain too: chains of lights down the D8)
             foreach (var car in cars)
             {
                 var kd = data.kinds[car.kind];
@@ -1184,6 +1221,7 @@ namespace Magistrala.Traffic
             var t1 = System.Diagnostics.Stopwatch.GetTimestamp();
             Draw();
             if (spawnLog) SeeCheck();
+            if (viewStats) ViewStats();
             SideStats();
             BusDebug();
             var t2 = System.Diagnostics.Stopwatch.GetTimestamp();

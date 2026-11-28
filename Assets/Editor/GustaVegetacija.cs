@@ -139,7 +139,7 @@ namespace Magistrala.EditorTools
             return false;
         }
 
-        struct Plant { public double x, y, z; public float yaw, s; public int proto; public float h, r; }
+        internal struct Plant { public double x, y, z; public float yaw, s; public int proto; public float h, r; }
 
         /// place the trial's plants through put (NaturePass.Extra); existing = the records already in trees.bytes (x, y, z unity)
         public static int Place(VegetationMask.PutFn put, List<ModelJ> models, List<byte> existing)
@@ -255,7 +255,7 @@ namespace Magistrala.EditorTools
         /// small renderer under World/Signs / Signals (the merged 256 m chunks are not faces); sight lines from 10–100 m along the
         /// face normal (both ways) at 2.5 m above the ground to the face's middle. (Build trees runs before Build signals: the faces
         /// are those of the last signals build.)
-        static List<Plant> RemoveSigns(List<Plant> plants)
+        internal static List<Plant> RemoveSigns(List<Plant> plants)
         {
             var faces = new List<(Vector3 c, Vector3 n)>();
             int nPosts = 0, nHeads = 0, nRend = 0;
